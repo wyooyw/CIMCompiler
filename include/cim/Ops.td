@@ -23,7 +23,7 @@ def CIM_Dialect : Dialect {
 class CIM_Op<string mnemonic, list<Trait> traits = []> :
     Op<CIM_Dialect, mnemonic, traits>;
 
-def VVAddOp : CIM_Op<"vv_add"> {
+def VVAddOp : CIM_Op<"vv_add", [Pure]> {
   let summary = "element-wise addition operation";
   let description = [{
     The "add" operation performs element-wise addition between two tensors.
@@ -41,7 +41,7 @@ def VVAddOp : CIM_Op<"vv_add"> {
   let hasCanonicalizer = 1;
 }
 
-def VSMulOp : CIM_Op<"vs_mul"> {
+def VSMulOp : CIM_Op<"vs_mul", [Pure]> {
   let summary = "Multiplying scalar and vector";
   let description = [{
     Multiplying scalars and vectors.
@@ -56,7 +56,7 @@ def VSMulOp : CIM_Op<"vs_mul"> {
   ];
 }
 
-def CIMComputeOp : CIM_Op<"cim_compute"> {
+def CIMComputeOp : CIM_Op<"cim_compute", [Pure]> {
   let summary = "cim compute";
   let description = [{
     cim compute use macro
