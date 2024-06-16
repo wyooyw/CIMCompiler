@@ -10,6 +10,7 @@ set(LIBS
 add_llvm_executable(main 
         main.cpp 
         Dialect.cpp
+        Combine.cpp
 
         DEPENDS
         CIMOpsIncGen)

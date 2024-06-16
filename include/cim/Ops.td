@@ -37,6 +37,8 @@ def VVAddOp : CIM_Op<"vv_add"> {
   let builders = [
     OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
   ];
+
+  let hasCanonicalizer = 1;
 }
 
 def VSMulOp : CIM_Op<"vs_mul"> {
@@ -45,12 +47,12 @@ def VSMulOp : CIM_Op<"vs_mul"> {
     Multiplying scalars and vectors.
   }];
 
-  let arguments = (ins I32Tensor:$vec, I32Attr:$scalar);
+  let arguments = (ins I32Tensor:$vec, I32:$scalar);
   let results = (outs I32Tensor);
 
   // Allow building an AddOp with from the two input operands.
   let builders = [
-    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+    OpBuilder<(ins "Value":$vec, "Value":$scalar)>
   ];
 }
 

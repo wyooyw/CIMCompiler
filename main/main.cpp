@@ -7,13 +7,29 @@
 //===----------------------------------------------------------------------===//
 
 #include "cim/Dialect.h"
+
+#include "mlir/IR/Diagnostics.h"
+#include "mlir/Support/LogicalResult.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllPasses.h"
 #include "mlir/Support/FileUtilities.h"
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 #include "mlir/IR/ValueRange.h"
+#include "mlir/IR/AsmState.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/Verifier.h"
+#include "mlir/Parser/Parser.h"
+#include "mlir/Pass/PassManager.h"
+#include "mlir/Transforms/Passes.h"
 #include <iostream>
+
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace mlir;
 
@@ -25,6 +41,7 @@ int main(int argc, char **argv) {
   mlir::MLIRContext context(registry);
   context.getOrLoadDialect<mlir::arith::ArithDialect>();
   context.getOrLoadDialect<mlir::scf::SCFDialect>();
+  context.getOrLoadDialect<mlir::func::FuncDialect>();
   context.getOrLoadDialect<mlir::tensor::TensorDialect>();
   context.getOrLoadDialect<mlir::bufferization::BufferizationDialect>();
   context.getOrLoadDialect<mlir::cim::CIMDialect>();
@@ -36,24 +53,27 @@ int main(int argc, char **argv) {
   mlir::ModuleOp theModule = mlir::ModuleOp::create(builder.getUnknownLoc());
   builder.setInsertionPointToEnd(theModule.getBody());
 
+  auto func_type = builder.getFunctionType(std::nullopt, std::nullopt);
+  std::string name = "main";
+  auto function = builder.create<func::FuncOp>(loc, name, func_type);
+  Block *funcBody = function.addEntryBlock();
+  builder.setInsertionPointToStart(funcBody);
+
   llvm::ArrayRef<int64_t> shape = {10, 10};
-  mlir::Value a = builder.create<tensor::EmptyOp>(loc, shape, builder.getI8Type());
-  mlir::Value b1 = builder.create<tensor::EmptyOp>(loc, shape, builder.getI8Type());
-  mlir::Value b2 = builder.create<tensor::EmptyOp>(loc, shape, builder.getI8Type());
-  // mlir::Value c = builder.create<mlir::arith::AddFOp>(loc, a, b);
-  mlir::Value c1 = builder.create<mlir::cim::CIMComputeOp>(loc, a, b1);
-  mlir::Value c2 = builder.create<mlir::cim::CIMComputeOp>(loc, a, b2);
-  mlir::Value d = builder.create<mlir::cim::VecAddOp>(loc, c1, c2);
+  mlir::Value a = builder.create<tensor::EmptyOp>(loc, shape, builder.getI32Type());
+  mlir::Value b = builder.create<tensor::EmptyOp>(loc, shape, builder.getI32Type());
+  mlir::Value c = builder.create<mlir::cim::VVAddOp>(loc, a, a);
+  mlir::Value d = builder.create<mlir::cim::VVAddOp>(loc, c, b);
+  builder.create<func::ReturnOp>(loc);
+  theModule.dump();
 
-  // ValueRange offsetsArray = {builder.create<arith::ConstantOp>(loc, builder.getIndexType(), builder.getIndexAttr(0)),
-  //                            builder.create<arith::ConstantOp>(loc, builder.getIndexType(), builder.getIndexAttr(4))};
-  // ValueRange sizesArray = {builder.create<arith::ConstantOp>(loc, builder.getIndexType(), builder.getIndexAttr(4)),
-  //                            builder.create<arith::ConstantOp>(loc, builder.getIndexType(), builder.getIndexAttr(8))};
-  // ValueRange stridesArray = {builder.create<arith::ConstantOp>(loc, builder.getIndexType(), builder.getIndexAttr(1)),
-  //                            builder.create<arith::ConstantOp>(loc, builder.getIndexType(), builder.getIndexAttr(1))};
-  // Value d = builder.create<tensor::ExtractSliceOp>(loc,  c, offsetsArray, sizesArray, stridesArray);
-
-  // bufferization::runOneShotBufferize(theModule,bufferization::OneShotBufferizationOptions());
+  mlir::PassManager pm(&context);
+  pm.addNestedPass<func::FuncOp>(mlir::createCanonicalizerPass());
+  if (mlir::failed(pm.run(theModule))) {
+    std::cout << "Pass fail." << std::endl;
+  }else{
+    std::cout << "Pass success." << std::endl;
+  }
   theModule.dump();
   std::cout << "Hello World" << std::endl;
   return 0;
