@@ -56,12 +56,17 @@ void CIMDialect::initialize() {
 // VecAddOp
 //===----------------------------------------------------------------------===//
 
-void VecAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+void VVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                   mlir::Value lhs, mlir::Value rhs) {
   state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
   state.addOperands({lhs, rhs});
 }
 
+void VSMulOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value vec, mlir::Value scalar) {
+  state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
+  state.addOperands({vec, scalar});
+}
 
 //===----------------------------------------------------------------------===//
 // CIMComputeOp

@@ -23,7 +23,7 @@ def CIM_Dialect : Dialect {
 class CIM_Op<string mnemonic, list<Trait> traits = []> :
     Op<CIM_Dialect, mnemonic, traits>;
 
-def VecAddOp : CIM_Op<"vecadd"> {
+def VVAddOp : CIM_Op<"vv_add"> {
   let summary = "element-wise addition operation";
   let description = [{
     The "add" operation performs element-wise addition between two tensors.
@@ -31,6 +31,21 @@ def VecAddOp : CIM_Op<"vecadd"> {
   }];
 
   let arguments = (ins I32Tensor:$lhs, I32Tensor:$rhs);
+  let results = (outs I32Tensor);
+
+  // Allow building an AddOp with from the two input operands.
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+}
+
+def VSMulOp : CIM_Op<"vs_mul"> {
+  let summary = "Multiplying scalar and vector";
+  let description = [{
+    Multiplying scalars and vectors.
+  }];
+
+  let arguments = (ins I32Tensor:$vec, I32Attr:$scalar);
   let results = (outs I32Tensor);
 
   // Allow building an AddOp with from the two input operands.
