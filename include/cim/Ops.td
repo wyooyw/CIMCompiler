@@ -6,7 +6,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-
+include "mlir/Interfaces/CastInterfaces.td"
 
 // Provide a definition of the 'toy' dialect in the ODS framework so that we
 // can define our operations.
@@ -69,5 +69,23 @@ def CIMComputeOp : CIM_Op<"cim_compute", [Pure]> {
   let builders = [
     OpBuilder<(ins "Value":$vec, "Value":$mat)>
   ];
+}
+
+def CastOp : CIM_Op<"cast", [
+    DeclareOpInterfaceMethods<CastOpInterface>,
+    Pure,
+    SameOperandsAndResultShape]
+  > {
+  let summary = "shape cast operation";
+  let description = [{
+    The "cast" operation converts a tensor from one type to an equivalent type
+    without changing any data elements. The source and destination types
+    must both be tensor types with the same element type. If both are ranked,
+    then shape is required to match. The operation is invalid if converting
+    to a mismatching constant dimension.
+  }];
+
+  let arguments = (ins I32Tensor:$input);
+  let results = (outs I32Tensor:$output);
 }
 #endif // CIM_OPS

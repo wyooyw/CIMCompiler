@@ -5,6 +5,7 @@ set(LIBS
         ${conversion_libs}
         MLIRArithDialect
         MLIROptLib
+        MLIRFuncAllExtensions
         )
 
 add_llvm_executable(main 

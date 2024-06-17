@@ -20,7 +20,7 @@
 #include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/FunctionInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
-
+#include "mlir/Interfaces/CastInterfaces.h"
 /// Include the auto-generated header file containing the declaration of the toy
 /// dialect.
 #include "cim/Dialect.h.inc"
