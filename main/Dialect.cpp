@@ -31,6 +31,15 @@
 #include <algorithm>
 #include <string>
 
+#include "mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
+#include "mlir/Dialect/Bufferization/Transforms/BufferUtils.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/Dialect.h"
+#include "mlir/IR/Operation.h"
+
 using namespace mlir;
 using namespace mlir::cim;
 
@@ -128,6 +137,26 @@ void VVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   state.addOperands({lhs, rhs});
 }
 
+void BufVVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value lhs, mlir::Value rhs) {
+  // same shape
+  // auto type = lhs.getType().cast<RankedTensorType>();
+  // if(type){
+  //   auto shape = type.getShape();
+  //   auto element_type = builder.getI32Type();
+  //   auto encoding = type.getEncoding();
+  //   RankedTensorType::Builder _builder =
+  //       RankedTensorType::Builder(shape, element_type, encoding);
+  //   RankedTensorType newTensorType = RankedTensorType(_builder);
+  //   state.addTypes(newTensorType);
+  // }else{
+  //   state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
+  // }
+  auto output_type = llvm::cast<MemRefType>(lhs.getType());
+  state.addTypes(output_type);
+  state.addOperands({lhs, rhs});
+}
+
 void VSMulOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                   mlir::Value vec, mlir::Value scalar) {
   auto type = vec.getType().cast<RankedTensorType>();
@@ -173,6 +202,78 @@ bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
   // The shape is required to match if both types are ranked.
   return !input.hasRank() || !output.hasRank() || input == output;
 }
+
+// Bufferize
+
+/// Bufferization of cim.vv_add. Replace with cim.b_vv_add
+struct VVAddOpInterface
+    : public bufferization::BufferizableOpInterface::ExternalModel<VVAddOpInterface,
+                                                    cim::VVAddOp> {
+  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
+                              const bufferization::AnalysisState &state) const {
+    return false;
+  }
+
+  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
+                               const bufferization::AnalysisState &state) const {
+    return false;
+  }
+
+  bufferization::AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
+                                      const bufferization::AnalysisState &state) const {
+    return {{op->getOpResult(0), bufferization::BufferRelation::Unknown}};
+  }
+
+  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
+                          const bufferization::BufferizationOptions &options) const {
+    auto vv_add_op = cast<cim::VVAddOp>(op);
+    Location loc = vv_add_op.getLoc();
+
+    // Get source buffer.
+    FailureOr<Value> src0Memref =
+        getBuffer(rewriter, vv_add_op.getOperand(0), options);
+    FailureOr<Value> src1Memref =
+        getBuffer(rewriter, vv_add_op.getOperand(1), options);
+    if (failed(src0Memref) || failed(src1Memref))
+      return failure();
+
+    // Take a subview of the source buffer.
+    auto resultMemrefType =
+        mlir::bufferization::getBufferType(vv_add_op.getResult(), options);
+    if (failed(resultMemrefType))
+      return failure();
+    Value add_result = rewriter.create<cim::BufVVAddOp>(
+        loc, *resultMemrefType, *src0Memref, *src1Memref);
+
+    bufferization::replaceOpWithBufferizedValues(rewriter, vv_add_op, add_result);
+    return success();
+  }
+
+  // FailureOr<BaseMemRefType>
+  // getBufferType(Operation *op, Value value, const BufferizationOptions &options,
+  //               SmallVector<Value> &invocationStack) const {
+  //   auto extractSliceOp = cast<tensor::ExtractSliceOp>(op);
+  //   assert(value == extractSliceOp.getResult() && "invalid value");
+  //   auto srcMemrefType = bufferization::getBufferType(
+  //       extractSliceOp.getSource(), options, invocationStack);
+  //   if (failed(srcMemrefType))
+  //     return failure();
+  //   SmallVector<OpFoldResult> mixedOffsets = extractSliceOp.getMixedOffsets();
+  //   SmallVector<OpFoldResult> mixedSizes = extractSliceOp.getMixedSizes();
+  //   SmallVector<OpFoldResult> mixedStrides = extractSliceOp.getMixedStrides();
+  //   return cast<BaseMemRefType>(memref::SubViewOp::inferRankReducedResultType(
+  //       extractSliceOp.getType().getShape(), llvm::cast<MemRefType>(*srcMemrefType),
+  //       mixedOffsets, mixedSizes, mixedStrides));
+  // }
+};
+
+void mlir::cim::registerBufferizableOpInterfaceExternalModels(
+    DialectRegistry &registry) {
+  registry.addExtension(+[](MLIRContext *ctx, cim::CIMDialect *dialect) {
+    VVAddOp::attachInterface<VVAddOpInterface>(*ctx);
+  });
+}
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//

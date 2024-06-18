@@ -24,6 +24,9 @@
 #include "mlir/Transforms/Passes.h"
 #include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/Dialect/Func/Extensions/InlinerExtension.h"
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
+#include "mlir/Dialect/Func/Transforms/Passes.h"
+#include "mlir/InitAllDialects.h"
 #include <iostream>
 
 #include "llvm/ADT/StringRef.h"
@@ -40,7 +43,9 @@ int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
   mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::cim::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::func::registerAllExtensions(registry);
+  mlir::registerAllDialects(registry);
   // mlir::func::registerInlinerExtension(registry);
 
   mlir::MLIRContext context(registry);
@@ -74,8 +79,8 @@ int main(int argc, char **argv) {
   mlir::Value func_arg0 = subfuncBody->getArgument(0);
   mlir::Value func_arg1 = subfuncBody->getArgument(1);
 
-  mlir::Value c = builder.create<mlir::arith::AddIOp>(loc, func_arg0, func_arg0);
-  mlir::Value d = builder.create<mlir::arith::AddIOp>(loc, c, func_arg1);
+  mlir::Value c = builder.create<mlir::cim::VVAddOp>(loc, func_arg0, func_arg1);
+  mlir::Value d = builder.create<mlir::cim::VVAddOp>(loc, c, func_arg1);
   builder.create<func::ReturnOp>(loc, d);
 
   // Create Main Function
@@ -97,14 +102,19 @@ int main(int argc, char **argv) {
   theModule.dump();
 
   mlir::PassManager pm(&context);
-  // pm.addNestedPass<func::FuncOp>(mlir::createCanonicalizerPass());
+  pm.addNestedPass<func::FuncOp>(mlir::createCanonicalizerPass());
   pm.addPass(mlir::createInlinerPass());
+  pm.addPass(mlir::func::createFuncBufferizePass());
+  pm.addPass(mlir::bufferization::createOneShotBufferizePass());
+  pm.addPass(mlir::bufferization::createOwnershipBasedBufferDeallocationPass());
   if (mlir::failed(pm.run(theModule))) {
     std::cout << "Pass fail." << std::endl;
   }else{
     std::cout << "Pass success." << std::endl;
   }
   theModule.dump();
+  // bufferization::runOneShotBufferize(b.getOperator(),bufferization::OneShotBufferizationOptions());
+  // theModule.dump();
   std::cout << "Hello World" << std::endl;
   return 0;
 }

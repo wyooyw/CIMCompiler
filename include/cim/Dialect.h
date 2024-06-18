@@ -30,4 +30,11 @@
 #define GET_OP_CLASSES
 #include "cim/Ops.h.inc"
 
+namespace mlir {
+class DialectRegistry;
+namespace cim {
+void registerBufferizableOpInterfaceExternalModels(DialectRegistry &registry);
+} // namespace cim
+} // namespace mlir
+
 #endif // MLIR_TUTORIAL_CIM_DIALECT_H_

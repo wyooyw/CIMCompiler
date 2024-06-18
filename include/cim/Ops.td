@@ -41,6 +41,14 @@ def VVAddOp : CIM_Op<"vv_add", [Pure]> {
   let hasCanonicalizer = 1;
 }
 
+def BufVVAddOp: CIM_Op<"buf_vv_add", [Pure]>{
+  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs);
+  let results = (outs AnyMemRef);
+  let builders = [
+    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
+  ];
+}
+
 def VSMulOp : CIM_Op<"vs_mul", [Pure]> {
   let summary = "Multiplying scalar and vector";
   let description = [{
