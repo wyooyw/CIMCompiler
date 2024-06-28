@@ -137,8 +137,8 @@ void VVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   state.addOperands({lhs, rhs});
 }
 
-void BufVVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                  mlir::Value lhs, mlir::Value rhs) {
+// void BufVVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+//                   mlir::Value lhs, mlir::Value rhs, mlir::Value result) {
   // same shape
   // auto type = lhs.getType().cast<RankedTensorType>();
   // if(type){
@@ -152,10 +152,10 @@ void BufVVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   // }else{
   //   state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
   // }
-  auto output_type = llvm::cast<MemRefType>(lhs.getType());
-  state.addTypes(output_type);
-  state.addOperands({lhs, rhs});
-}
+  // auto output_type = llvm::cast<MemRefType>(lhs.getType());
+  // state.addTypes(output_type);
+//   state.addOperands({lhs, rhs, result});
+// }
 
 void VSMulOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                   mlir::Value vec, mlir::Value scalar) {
@@ -205,6 +205,10 @@ bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
 
 // Bufferize
 
+static MemRefType convertTensorToMemRef(RankedTensorType type) {
+  return MemRefType::get(type.getShape(), type.getElementType());
+}
+
 /// Bufferization of cim.vv_add. Replace with cim.b_vv_add
 struct VVAddOpInterface
     : public bufferization::BufferizableOpInterface::ExternalModel<VVAddOpInterface,
@@ -239,13 +243,14 @@ struct VVAddOpInterface
 
     // Take a subview of the source buffer.
     auto resultMemrefType =
-        mlir::bufferization::getBufferType(vv_add_op.getResult(), options);
-    if (failed(resultMemrefType))
-      return failure();
-    Value add_result = rewriter.create<cim::BufVVAddOp>(
-        loc, *resultMemrefType, *src0Memref, *src1Memref);
+        convertTensorToMemRef(vv_add_op.getResult().getType().cast<RankedTensorType>());
+    auto alloc = rewriter.create<memref::AllocOp>(loc, resultMemrefType);
+    // if (failed(resultMemrefType))
+    //   return failure();
+    rewriter.create<cim::BufVVAddOp>(
+        loc, *src0Memref, *src1Memref, alloc);
 
-    bufferization::replaceOpWithBufferizedValues(rewriter, vv_add_op, add_result);
+    bufferization::replaceOpWithBufferizedValues(rewriter, vv_add_op, ValueRange({alloc}));
     return success();
   }
 

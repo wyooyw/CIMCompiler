@@ -7,17 +7,22 @@ set(LIBS
         MLIROptLib
         MLIRFuncAllExtensions
         )
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti")
 add_llvm_executable(main 
         main.cpp 
         Dialect.cpp
         Combine.cpp
+        Parser.cpp
 
         DEPENDS
         CIMOpsIncGen)
 # add_dependencies(main )
 
+set(LLVM_ENABLE_EH ON)
+message(STATUS "The value of LLVM_COMPILE_FLAGS 1 is: ${LLVM_COMPILE_FLAGS}")
 llvm_update_compile_flags(main)
+message(STATUS "The value of LLVM_COMPILE_FLAGS 2 is: ${LLVM_COMPILE_FLAGS}")
 target_link_libraries(main PRIVATE ${LIBS})
-
+message(STATUS "The value of LLVM_COMPILE_FLAGS 3 is: ${LLVM_COMPILE_FLAGS}")
 mlir_check_all_link_libraries(main)
+message(STATUS "The value of LLVM_COMPILE_FLAGS 4 is: ${LLVM_COMPILE_FLAGS}")

@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "cim/Dialect.h"
+#include "cim/Parser.h"
 
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/Support/LogicalResult.h"
@@ -36,6 +37,11 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 
+#define BOOST_NO_EXCEPTIONS
+#include <boost/throw_exception.hpp>
+void boost::throw_exception(std::exception const & e){
+//do nothing
+}
 using namespace mlir;
 
 
@@ -57,6 +63,12 @@ int main(int argc, char **argv) {
   context.getOrLoadDialect<mlir::cim::CIMDialect>();
   
 
+  MLIRGenImpl gen_impl(context);
+  // mlir::ModuleOp module = gen_impl.parseJson("/home/wangyiou/project/cim_compiler_frontend/out.json");
+  
+  // module.dump();
+  // return 0;
+
   mlir::OpBuilder builder(&context);
   mlir::Location loc = builder.getUnknownLoc();
 
@@ -66,10 +78,10 @@ int main(int argc, char **argv) {
   // Create Sub Function
   builder.setInsertionPointToEnd(theModule.getBody());
   RankedTensorType::Builder _sub_builder = 
-        RankedTensorType::Builder({10,10}, builder.getI32Type(), Attribute());
-  RankedTensorType sub_func_ret_type = RankedTensorType(_sub_builder);
-  RankedTensorType sub_func_arg0_type = RankedTensorType(_sub_builder);
-  RankedTensorType sub_func_arg1_type = RankedTensorType(_sub_builder);
+        RankedTensorType::Builder({10,10}, builder.getI32Type(), Attribute()); // builder.getStringAttr("global")
+  RankedTensorType sub_func_ret_type = RankedTensorType::get({10,10}, builder.getI32Type(), Attribute());
+  RankedTensorType sub_func_arg0_type = RankedTensorType::get({10, 10}, builder.getI32Type(), Attribute());
+  RankedTensorType sub_func_arg1_type = RankedTensorType::get({10, 10}, builder.getI32Type(), Attribute());
   auto sub_func_type = builder.getFunctionType({sub_func_arg0_type, sub_func_arg1_type}, {sub_func_ret_type});
   std::string sub_func_name = "sub";
   auto sub_function = builder.create<func::FuncOp>(loc, sub_func_name, sub_func_type);
@@ -81,12 +93,17 @@ int main(int argc, char **argv) {
 
   mlir::Value c = builder.create<mlir::cim::VVAddOp>(loc, func_arg0, func_arg1);
   mlir::Value d = builder.create<mlir::cim::VVAddOp>(loc, c, func_arg1);
+  // mlir::Value c = builder.create<mlir::arith::AddIOp>(loc, func_arg0, func_arg1);
+  // mlir::Value d = builder.create<mlir::arith::AddIOp>(loc, c, func_arg1);
   builder.create<func::ReturnOp>(loc, d);
+
+  // theModule.dump();
+  // return 0;
 
   // Create Main Function
   builder.setInsertionPointToEnd(theModule.getBody());
   RankedTensorType::Builder _builder = 
-        RankedTensorType::Builder({10,10}, builder.getI32Type(), Attribute());
+        RankedTensorType::Builder({10,10}, builder.getI32Type(), Attribute());//builder.getStringAttr("global")
   RankedTensorType func_ret_type = RankedTensorType(_builder);
   auto func_type = builder.getFunctionType({}, {func_ret_type});
   std::string func_name = "main";
@@ -95,8 +112,10 @@ int main(int argc, char **argv) {
   builder.setInsertionPointToStart(funcBody);
 
   llvm::ArrayRef<int64_t> shape = {10, 10};
-  mlir::Value a = builder.create<tensor::EmptyOp>(loc, shape, builder.getI32Type());
-  mlir::Value b = builder.create<tensor::EmptyOp>(loc, shape, builder.getI32Type());
+  mlir::Value _a = builder.create<tensor::EmptyOp>(loc, shape, builder.getI32Type());
+  mlir::Value _b = builder.create<tensor::EmptyOp>(loc, shape, builder.getI32Type());
+  mlir::Value a = builder.create<tensor::CastOp>(loc, sub_func_ret_type, _a);
+  mlir::Value b = builder.create<tensor::CastOp>(loc, sub_func_ret_type, _b);
   func::CallOp call = builder.create<func::CallOp>(loc, sub_function, ValueRange({a, b}));
   builder.create<func::ReturnOp>(loc, call.getResults());
   theModule.dump();

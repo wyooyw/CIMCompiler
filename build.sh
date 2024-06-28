@@ -8,5 +8,7 @@ cmake -G Ninja .. \
     -DLLVM_EXTERNAL_LIT=$BUILD_DIR/bin/llvm-lit \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
-    -DLLVM_CCACHE_BUILD=ON
+    -DLLVM_CCACHE_BUILD=ON \
+    -DLLVM_ENABLE_RTTI=ON \
+    -DCMAKE_BUILD_TYPE=Debug
 cmake --build . --target main

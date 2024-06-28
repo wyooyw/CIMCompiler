@@ -41,12 +41,11 @@ def VVAddOp : CIM_Op<"vv_add", [Pure]> {
   let hasCanonicalizer = 1;
 }
 
-def BufVVAddOp: CIM_Op<"buf_vv_add", [Pure]>{
-  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs);
-  let results = (outs AnyMemRef);
-  let builders = [
-    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
-  ];
+def BufVVAddOp: CIM_Op<"buf_vv_add", [NoMemoryEffect]>{
+  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$result);
+  //let builders = [
+  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, AnyMemRef:$result)>
+  //];
 }
 
 def VSMulOp : CIM_Op<"vs_mul", [Pure]> {
@@ -78,6 +77,7 @@ def CIMComputeOp : CIM_Op<"cim_compute", [Pure]> {
     OpBuilder<(ins "Value":$vec, "Value":$mat)>
   ];
 }
+
 
 def CastOp : CIM_Op<"cast", [
     DeclareOpInterfaceMethods<CastOpInterface>,
