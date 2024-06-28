@@ -1,0 +1,7 @@
+def trans_weight_to_macros(
+    weight<[-1,-1,-1,-1], int8, global>, 
+    macros<[5,6,7,8], int8, global>
+    ){
+    shape = Shape(weight);
+    height = Get(shape, 0);
+}

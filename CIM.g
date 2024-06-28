@@ -1,0 +1,83 @@
+grammar CIM;               // 定义文法的名字
+
+program: define_function+;
+
+// Function
+define_function:'def' ID '(' func_param_list ')' '{' func_body '}';
+func_param_list: func_param (',' func_param)*;
+func_body: stmt_list;
+
+// 
+func_param: param_name; // param_type;
+param_name: ID;
+param_type: param_type_tensor;
+param_type_tensor: '<' param_type_shape ',' DATATYPE ',' MEMORY '>';
+param_type_shape: const_array1d;
+
+// Statement
+stmt_list: (stmt )+;
+stmt: (
+    stmt_assign
+    | stmt_call
+    | stmt_for
+    | stmt_return
+    ) ';' ;
+stmt_assign: ID EQ expr;
+stmt_call: call;
+stmt_for: 'for' ID 'in' for_range '{' stmt_list '}';
+
+for_range : for_range_1 | for_range_2 | for_range_3;
+for_range_1: 'range(' const_or_var ')';
+for_range_2: 'range(' const_or_var ',' const_or_var')';
+for_range_3: 'range(' const_or_var ',' const_or_var ',' const_or_var ')';
+
+stmt_return: 'return' ID;
+
+
+
+// Expression
+expr: 
+    unary_expr
+    | binary_expr;
+unary_expr: 
+    call
+    | term;
+binary_expr: unary_expr BINARY_OP unary_expr;
+
+expr_scalar: 
+    unary_expr_scalar
+    | binary_expr_scalar;
+unary_expr_scalar: 
+    call
+    | const_or_var;
+binary_expr_scalar: unary_expr_scalar BINARY_OP unary_expr_scalar;
+
+// Call
+call: ID '(' call_param_list ')';
+call_param_list: expr (',' expr)*;
+
+// Term
+term: const_or_var | array1d | array2d;
+const_or_var: constant | var;
+constant: CONST;
+var: ID;
+const_array1d: '[' constant (',' constant)* ']';
+array1d: '[' expr_scalar (',' expr_scalar)* ']';
+array2d: '[' array1d (',' array1d)* ']';
+
+MEMORY: ('global' | 'local' | 'macro') ;
+DATATYPE: ('int8' | 'int32' | 'float32') ;
+BINARY_OP: ADD | SUB | MUL | DIV | INTDIV | MOD;
+ADD : '+';
+SUB : '-';
+MUL : '*';
+DIV : '/';
+INTDIV : '//';
+MOD : '%';
+CONST: ( CONST_NEG | CONST_POS );
+CONST_NEG : '-' CONST_POS;
+CONST_POS : [0-9]+;
+EQ : '=';
+ID : [a-zA-Z_]+ ;               // 标志符由小写字母组成
+WS : [ \t\r\n]+ -> skip ;    // 跳过空格、制表符、回车符和换行符
+
