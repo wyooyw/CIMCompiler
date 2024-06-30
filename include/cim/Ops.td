@@ -23,6 +23,11 @@ def CIM_Dialect : Dialect {
 class CIM_Op<string mnemonic, list<Trait> traits = []> :
     Op<CIM_Dialect, mnemonic, traits>;
 
+
+/////////////////////////////////
+// Vector Compute //
+/////////////////////////////////
+
 def VVAddOp : CIM_Op<"vv_add", [Pure]> {
   let summary = "element-wise addition operation";
   let description = [{
@@ -63,6 +68,11 @@ def VSMulOp : CIM_Op<"vs_mul", [Pure]> {
   ];
 }
 
+
+/////////////////////////////////
+// CIM Compute //
+/////////////////////////////////
+
 def CIMComputeOp : CIM_Op<"cim_compute", [Pure]> {
   let summary = "cim compute";
   let description = [{
@@ -78,6 +88,10 @@ def CIMComputeOp : CIM_Op<"cim_compute", [Pure]> {
   ];
 }
 
+
+/////////////////////////////////
+// Other Operator //
+/////////////////////////////////
 
 def CastOp : CIM_Op<"cast", [
     DeclareOpInterfaceMethods<CastOpInterface>,
@@ -96,4 +110,16 @@ def CastOp : CIM_Op<"cast", [
   let arguments = (ins I32Tensor:$input);
   let results = (outs I32Tensor:$output);
 }
+
+def ShapeOp : CIM_Op<"shape", [Pure]> {
+  let summary = "get shape of a tensor";
+  let description = [{
+    get shape of a tensor
+  }];
+
+  let arguments = (ins I32Tensor:$input); // TODO: which type can represent any Tensor?
+  let results = (outs I32Tensor:$output);
+}
+
+
 #endif // CIM_OPS

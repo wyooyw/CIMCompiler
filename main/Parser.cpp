@@ -148,6 +148,8 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
             parse_assign_stmt(ast.begin()->second);
         }else if(is_return_stmt(ast)){
             // return nullptr; //parse_return_stmt(ast.begin()->first);
+        }else if(is_call_stmt(ast)){
+            parse_call_stmt(get_item(ast, 0));
         }else {
             // raise: not support yet
             mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
@@ -165,6 +167,26 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
 
         return ast.begin()->first == "stmt_return";
     }
+    bool MLIRGenImpl::is_call_stmt(const boost::property_tree::ptree& ast){
+        std::cout << "is_call_stmt" << std::endl;
+
+        return ast.begin()->first == "stmt_return";
+    }
+    
+    /* 
+        Stmt :
+            stmt_assign,
+            stmt_call,
+            stmt_for,
+            stmt_return
+    
+    */
+
+    void MLIRGenImpl::parse_call_stmt(const boost::property_tree::ptree& ast){
+        std::cout << "parse_call_stmt" << std::endl;
+        parse_call(get_item(ast, 0));
+    }
+
     void MLIRGenImpl::parse_assign_stmt(const boost::property_tree::ptree& ast){
         // auto it = ast.begin();
         // // LHS
@@ -177,6 +199,7 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         // // Add to sign table
         // add_to_sign_table(var_name, expr);
     }
+    
 
     mlir::Value MLIRGenImpl::parse_expr(const boost::property_tree::ptree& ast){
         /*
@@ -246,6 +269,20 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
 
     mlir::Value MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
         std::cout << "parse_call" << std::endl;
+        std::string call_func_name = safe_get_str(get_item(ast, 0), "text");
+        mlir::ValueRange param_list = parse_param_lisr(safe_get_child(get_item(ast, 2), "call_param_list"));
+
+        if (call_func_name=="Shape") {
+
+        }else if (call_func_name=="Trans") {
+            
+        }else if ()
+
+       
+        
+        builder.create<func::CallOp>(loc, call_func_name, param_list);
+
+
         return nullptr;
         // auto it = ast.begin();
         // std::string func_name = it->second.get<std::string>("text");
