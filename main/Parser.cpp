@@ -6,6 +6,8 @@
 #include "cim/Parser.h"
 #include "cim/Dialect.h"
 
+
+
 static const boost::property_tree::ptree&  get_item(const boost::property_tree::ptree& ast, int index){
     auto it = ast.begin();
     std::advance(it, index);
@@ -119,10 +121,10 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         // parse_func_body(it->second.get_child("func_body"));
         mlir::Value func_arg0 = func_body->getArgument(0);
         mlir::Value func_arg1 = func_body->getArgument(1);
-        llvm::ArrayRef<int64_t> shape = {3,3,1,1};
-        mlir::Value a = builder.create<mlir::tensor::EmptyOp>(loc, shape, builder.getI32Type());
-        mlir::Value b = builder.create<mlir::cim::VVAddOp>(loc, func_arg0, func_arg1);
-        mlir::Value c = builder.create<mlir::cim::VVAddOp>(loc, a, func_arg1);
+        // llvm::ArrayRef<int64_t> shape = {3,3,1,1};
+        // mlir::Value a = builder.create<mlir::tensor::EmptyOp>(loc, shape, builder.getI32Type());
+        // mlir::Value b = builder.create<mlir::cim::VVAddOp>(loc, func_arg0, func_arg1);
+        // mlir::Value c = builder.create<mlir::cim::VVAddOp>(loc, a, func_arg1);
 
         add_func_to_sign_table(func_name, func);
     }
@@ -149,7 +151,7 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         }else if(is_return_stmt(ast)){
             // return nullptr; //parse_return_stmt(ast.begin()->first);
         }else if(is_call_stmt(ast)){
-            parse_call_stmt(get_item(ast, 0));
+            parse_call_stmt(safe_get_child(get_item(ast, 0), "stmt_call"));
         }else {
             // raise: not support yet
             mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
@@ -184,7 +186,7 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
 
     void MLIRGenImpl::parse_call_stmt(const boost::property_tree::ptree& ast){
         std::cout << "parse_call_stmt" << std::endl;
-        parse_call(get_item(ast, 0));
+        parse_call(safe_get_child(get_item(ast, 0), "call"));
     }
 
     void MLIRGenImpl::parse_assign_stmt(const boost::property_tree::ptree& ast){
@@ -261,37 +263,140 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         std::cout << "parse_unary_expr" << std::endl;
         auto it = ast.begin();
         if(it->first == "call"){
-            return parse_call(it->second);
+            return parse_call_return_value(it->second);
         }else{
             return nullptr;
         }
     }
 
-    mlir::Value MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
-        std::cout << "parse_call" << std::endl;
-        std::string call_func_name = safe_get_str(get_item(ast, 0), "text");
-        mlir::ValueRange param_list = parse_param_lisr(safe_get_child(get_item(ast, 2), "call_param_list"));
+mlir::Value MLIRGenImpl::parse_call_return_value(const boost::property_tree::ptree& ast){
+    // call a function, and get return value
 
-        if (call_func_name=="Shape") {
+    std::cout << "parse_call_return_value" << std::endl;
+    std::string call_func_name = safe_get_str(get_item(ast, 0), "text");
+    mlir::ValueRange param_list = parse_call_args(safe_get_child(get_item(ast, 2), "call_param_list"));
 
-        }else if (call_func_name=="Trans") {
-            
-        }else if ()
-
-       
-        
-        builder.create<func::CallOp>(loc, call_func_name, param_list);
-
-
-        return nullptr;
-        // auto it = ast.begin();
-        // std::string func_name = it->second.get<std::string>("text");
-        // std::advance(it, 2);
-        // std::vector<mlir::Value> args = parse_call_param_list(it->second.get_child("call_param_list"));
-        // auto func = get_func_from_sign_table(func_name);
-        // return builder.create<mlir::func::CallOp>(loc, func, args).getResults();
+    if (call_func_name=="Shape") {
+        return parse_bulitin_shape(param_list);
+    }else if (call_func_name=="Slice") {
+        return parse_bulitin_slice(ast);
+    }else if (call_func_name=="Buffer") {
+        return parse_bulitin_buffer(ast);
     }
 
+    // check sign table
+    mlir::func::FuncOp func = get_func_from_sign_table(call_func_name);
+    mlir::func::CallOp call = builder.create<mlir::func::CallOp>(loc, func, param_list);
+
+    return call.getResult(0);
+}
+
+void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
+    // call a function, and get return value
+
+    std::cout << "parse_call" << std::endl;
+    std::string call_func_name = safe_get_str(get_item(ast, 0), "text");
+    mlir::ValueRange param_list = parse_call_args(safe_get_child(get_item(ast, 2), "call_param_list"));
+
+    if (call_func_name=="Trans") {
+        parse_bulitin_trans(param_list);
+        return ;
+    }else if (call_func_name=="VVAdd") {
+        parse_bulitin_vvadd(param_list);
+        return ;
+    }
+
+    // check sign table
+    mlir::func::FuncOp func = get_func_from_sign_table(call_func_name);
+    mlir::func::CallOp call = builder.create<mlir::func::CallOp>(loc, func, param_list);
+
+    return;
+}
+
+mlir::ValueRange MLIRGenImpl::parse_call_args(const boost::property_tree::ptree& ast){
+    std::cout << "parse_call_args" << std::endl;
+    std::vector<mlir::Value> vec_param_list;
+    for (const auto& pair : ast) {
+        vec_param_list.push_back(parse_expr(pair.second));
+    }
+    mlir::ValueRange param_list(vec_param_list);
+    return param_list;
+}
+
+/*
+ * Bulitin Functions Begin
+ */
+
+mlir::Value MLIRGenImpl::parse_bulitin_shape(mlir::ValueRange param_list){
+    if(param_list.size() != 1){
+        std::cout << "ShapeOp only accept one parameter" << std::endl;
+        std::exit(1);
+        return nullptr;
+    }
+    mlir::Value buffer = param_list[0];
+    mlir::Value index = param_list[1];
+    return builder.create<mlir::cim::ShapeOp>(loc, buffer, index);
+}
+
+void MLIRGenImpl::parse_bulitin_trans(mlir::ValueRange param_list){
+    mlir::Value src = param_list[0];
+    mlir::Value dst = param_list[1];
+    builder.create<mlir::memref::CopyOp>(loc, src, dst);
+}
+
+mlir::Value MLIRGenImpl::parse_bulitin_slice(const boost::property_tree::ptree& ast){
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_src = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_offsets = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_sizes = safe_get_child(get_item(ast_param_list,4), "call_param");
+    
+    mlir::Value src = parse_expr(safe_get_child(get_item(ast_src, 0), "expr"));
+    mlir::SmallVector<mlir::Value> offsets = parse_array_1d(safe_get_child(get_item(ast_offsets, 0), "array1d"));
+    mlir::SmallVector<mlir::Value> sizes = parse_array_1d(safe_get_child(get_item(ast_sizes, 0), "array1d"));
+    
+    mlir::Value result = builder.create<mlir::memref::SubViewOp>(loc, src, offsets, sizes, sizes);
+    return result;
+}
+
+void MLIRGenImpl::parse_bulitin_vvadd(mlir::ValueRange param_list){
+    mlir::Value lhs = param_list[0];
+    mlir::Value rhs = param_list[1];
+    builder.create<mlir::cim::VVAddOp>(loc, lhs, rhs);
+}
+
+mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree& ast){
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    // Data type
+    auto ast_dtype = safe_get_child(get_item(ast_param_list, 2), "call_param");
+    std::string str_dtype = safe_get_str(ast_dtype, "text");
+    mlir::Type dtype = parse_datatype(str_dtype);
+
+    // Memory type
+    auto ast_memory = safe_get_child(get_item(ast_param_list, 4), "call_param");
+    std::string memory = safe_get_str(ast_memory, "text");
+    mlir::StringAttr memory_attr = parse_device(memory);
+
+    // Shape
+    auto ast_shape = safe_get_child(get_item(ast_param_list, 0), "call_param");
+    auto ast_shape_array1d = safe_get_child(ast_shape, "array1d");
+    std::vector<int64_t> shape = parse_const_array1d(ast_shape_array1d);
+    
+    mlir::MemRefType type =  mlir::MemRefType::get(
+        llvm::ArrayRef<int64_t>(shape), 
+        dtype, 
+        mlir::MemRefLayoutAttrInterface(), 
+        memory_attr
+    );
+    mlir::memref::AllocOp alloc = builder.create<mlir::memref::AllocOp>(loc, type);
+    return alloc.getResult();
+}
+
+/*
+ * Bulitin Functions End
+ */
+ 
     // mlir::Value parse_var(const boost::property_tree::ptree& ast){
     //     auto constant = get_item(ast, 0);
     //     int value = std::stoi(constant.get<std::string>("text"));
@@ -359,7 +464,7 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         if (is_const_or_var(unary_expr_scalar)){
             return parse_const_or_var( safe_get_child( unary_expr_scalar, "const_or_var"));
         }else if(is_call(unary_expr_scalar)){
-            return parse_call( safe_get_child( unary_expr_scalar, "call"));
+            return parse_call_return_value( safe_get_child( unary_expr_scalar, "call"));
         }
     }
 
@@ -394,9 +499,9 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         }
     }
 
-    std::vector<mlir::Value> MLIRGenImpl::parse_array_1d(const boost::property_tree::ptree& ast){
+    mlir::SmallVector<mlir::Value> MLIRGenImpl::parse_array_1d(const boost::property_tree::ptree& ast){
         std::cout << "parse_array_1d" << std::endl;
-        std::vector<mlir::Value> values;
+        mlir::SmallVector<mlir::Value> values;
         for (const auto& pair : ast) {
             if(pair.second.count("text") && (
                 safe_get_str(pair.second, "text")=="[" or 

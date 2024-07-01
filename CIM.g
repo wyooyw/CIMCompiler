@@ -54,10 +54,13 @@ binary_expr_scalar: unary_expr_scalar BINARY_OP unary_expr_scalar;
 
 // Call
 call: ID '(' call_param_list ')';
-call_param_list: expr (',' expr)*;
+call_param_list: call_param (',' call_param)*;
+call_param = datatype | memory | const_array1d | array1d | expr;
+datatype = DATATYPE;
+memory = MEMORY;
 
 // Term
-term: const_or_var | array1d | array2d;
+term: const_or_var;
 const_or_var: constant | var;
 constant: CONST;
 var: ID;

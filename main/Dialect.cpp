@@ -203,6 +203,16 @@ bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
   return !input.hasRank() || !output.hasRank() || input == output;
 }
 
+/*
+  Bulitin Functions
+*/
+
+void ShapeOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value input, mlir::Value index) {
+  state.addTypes(builder.getI32Type());
+  state.addOperands({input, index});
+}
+
 // Bufferize
 
 static MemRefType convertTensorToMemRef(RankedTensorType type) {
@@ -210,49 +220,49 @@ static MemRefType convertTensorToMemRef(RankedTensorType type) {
 }
 
 /// Bufferization of cim.vv_add. Replace with cim.b_vv_add
-struct VVAddOpInterface
-    : public bufferization::BufferizableOpInterface::ExternalModel<VVAddOpInterface,
-                                                    cim::VVAddOp> {
-  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
-                              const bufferization::AnalysisState &state) const {
-    return false;
-  }
+// struct VVAddOpInterface
+//     : public bufferization::BufferizableOpInterface::ExternalModel<VVAddOpInterface,
+//                                                     cim::VVAddOp> {
+//   bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
+//                               const bufferization::AnalysisState &state) const {
+//     return false;
+//   }
 
-  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
-                               const bufferization::AnalysisState &state) const {
-    return false;
-  }
+//   bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
+//                                const bufferization::AnalysisState &state) const {
+//     return false;
+//   }
 
-  bufferization::AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
-                                      const bufferization::AnalysisState &state) const {
-    return {{op->getOpResult(0), bufferization::BufferRelation::Unknown}};
-  }
+//   bufferization::AliasingValueList getAliasingValues(Operation *op, OpOperand &opOperand,
+//                                       const bufferization::AnalysisState &state) const {
+//     return {{op->getOpResult(0), bufferization::BufferRelation::Unknown}};
+//   }
 
-  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
-                          const bufferization::BufferizationOptions &options) const {
-    auto vv_add_op = cast<cim::VVAddOp>(op);
-    Location loc = vv_add_op.getLoc();
+//   LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
+//                           const bufferization::BufferizationOptions &options) const {
+//     auto vv_add_op = cast<cim::VVAddOp>(op);
+//     Location loc = vv_add_op.getLoc();
 
-    // Get source buffer.
-    FailureOr<Value> src0Memref =
-        getBuffer(rewriter, vv_add_op.getOperand(0), options);
-    FailureOr<Value> src1Memref =
-        getBuffer(rewriter, vv_add_op.getOperand(1), options);
-    if (failed(src0Memref) || failed(src1Memref))
-      return failure();
+//     // Get source buffer.
+//     FailureOr<Value> src0Memref =
+//         getBuffer(rewriter, vv_add_op.getOperand(0), options);
+//     FailureOr<Value> src1Memref =
+//         getBuffer(rewriter, vv_add_op.getOperand(1), options);
+//     if (failed(src0Memref) || failed(src1Memref))
+//       return failure();
 
-    // Take a subview of the source buffer.
-    auto resultMemrefType =
-        convertTensorToMemRef(vv_add_op.getResult().getType().cast<RankedTensorType>());
-    auto alloc = rewriter.create<memref::AllocOp>(loc, resultMemrefType);
-    // if (failed(resultMemrefType))
-    //   return failure();
-    rewriter.create<cim::BufVVAddOp>(
-        loc, *src0Memref, *src1Memref, alloc);
+//     // Take a subview of the source buffer.
+//     auto resultMemrefType =
+//         convertTensorToMemRef(vv_add_op.getResult().getType().cast<RankedTensorType>());
+//     auto alloc = rewriter.create<memref::AllocOp>(loc, resultMemrefType);
+//     // if (failed(resultMemrefType))
+//     //   return failure();
+//     rewriter.create<cim::BufVVAddOp>(
+//         loc, *src0Memref, *src1Memref, alloc);
 
-    bufferization::replaceOpWithBufferizedValues(rewriter, vv_add_op, ValueRange({alloc}));
-    return success();
-  }
+//     bufferization::replaceOpWithBufferizedValues(rewriter, vv_add_op, ValueRange({alloc}));
+//     return success();
+//   }
 
   // FailureOr<BaseMemRefType>
   // getBufferType(Operation *op, Value value, const BufferizationOptions &options,
@@ -270,13 +280,13 @@ struct VVAddOpInterface
   //       extractSliceOp.getType().getShape(), llvm::cast<MemRefType>(*srcMemrefType),
   //       mixedOffsets, mixedSizes, mixedStrides));
   // }
-};
+// };
 
 void mlir::cim::registerBufferizableOpInterfaceExternalModels(
     DialectRegistry &registry) {
-  registry.addExtension(+[](MLIRContext *ctx, cim::CIMDialect *dialect) {
-    VVAddOp::attachInterface<VVAddOpInterface>(*ctx);
-  });
+  // registry.addExtension(+[](MLIRContext *ctx, cim::CIMDialect *dialect) {
+  //   VVAddOp::attachInterface<VVAddOpInterface>(*ctx);
+  // });
 }
 
 //===----------------------------------------------------------------------===//

@@ -45,12 +45,12 @@ private:
     void parse_stmt(const boost::property_tree::ptree& ast);
     bool is_assign_stmt(const boost::property_tree::ptree& ast);
     bool is_return_stmt(const boost::property_tree::ptree& ast);
+    bool is_call_stmt(const boost::property_tree::ptree& ast);
     void parse_assign_stmt(const boost::property_tree::ptree& ast);
     mlir::Value parse_expr(const boost::property_tree::ptree& ast);
     bool is_unary_expr(const boost::property_tree::ptree& ast);
     bool is_binary_expr(const boost::property_tree::ptree& ast);
     mlir::Value parse_unary_expr(const boost::property_tree::ptree& ast);
-    mlir::Value parse_call(const boost::property_tree::ptree& ast);
     mlir::Value parse_var(const boost::property_tree::ptree& ast);
     mlir::Value parse_const(const boost::property_tree::ptree& ast);
     bool is_const(const boost::property_tree::ptree& ast);
@@ -63,7 +63,7 @@ private:
     bool is_unary_expr_scalar(const boost::property_tree::ptree& ast);
     bool is_binary_expr_scalar(const boost::property_tree::ptree& ast);
     mlir::Value parse_expr_scalar(const boost::property_tree::ptree& ast);
-    std::vector<mlir::Value> parse_array_1d(const boost::property_tree::ptree& ast);
+    mlir::SmallVector<mlir::Value> parse_array_1d(const boost::property_tree::ptree& ast);
     std::vector<int64_t> parse_shape(const boost::property_tree::ptree& ast);
     mlir::Type parse_datatype(std::string datatype);
     mlir::StringAttr parse_device(std::string device);
@@ -77,6 +77,20 @@ private:
     std::vector<int64_t> parse_const_array1d(const boost::property_tree::ptree& ast);
     int64_t parse_const_int(const boost::property_tree::ptree& ast);
     
+    mlir::Value build_shape_op(mlir::ValueRange param_list);
+
+    // Call
+    void parse_call_stmt(const boost::property_tree::ptree& ast);
+    void parse_call(const boost::property_tree::ptree& ast);
+    mlir::Value parse_call_return_value(const boost::property_tree::ptree& ast);
+    mlir::ValueRange parse_call_args(const boost::property_tree::ptree& ast);
+
+    // Bulitin Functions
+    mlir::Value parse_bulitin_shape(mlir::ValueRange param_list);
+    void parse_bulitin_trans(mlir::ValueRange param_list);
+    mlir::Value parse_bulitin_slice(const boost::property_tree::ptree& ast);
+    void parse_bulitin_vvadd(mlir::ValueRange param_list);
+    mlir::Value parse_bulitin_buffer(const boost::property_tree::ptree& ast);
 
 };
 

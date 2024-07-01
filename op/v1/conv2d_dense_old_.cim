@@ -19,7 +19,7 @@ def trans_weight_to_macros(weight, macros){
 
                 src_weight = Slice(weight, [[hk,hk],[wk,wk],[ic,ic],[0,out_channel]] );
                 dst_macro = Slice(macros, [[0,NUM_MACRO], [comp_idx,comp_idx+1], [row_idx,row_idx+1], [0,NUM_COLUMN]] );
-                macros = trans(src_weight, dst_macro);
+                Trans(src_weight, dst_macro);
             };
         };
     };
@@ -49,16 +49,20 @@ def compute(
     for oh in range(out_h){
         for ow in range(out_w){
             pim_buffer_to_clear = Slice(pim_buffer,[0, out_c]);
-            pim_buffer = Clear(pim_buffer_to_clear);
+            Clear(pim_buffer_to_clear);
             
-            input_block = Slice(input, [ [oh, oh+ker_h], [ow, ow+ker_w], [0, in_c]]);
-            input_block = Continuous(input_block);
+            input_block_slice = Slice(input, [ [oh, oh+ker_h], [ow, ow+ker_w], [0, in_c]]);
+            input_block = Buffer([ker_h, ker_w, in_c], "int8", "local");
+            Trans(input_block_slice, input_block);
             for input_use_begin in range(0, input_block, NUM_COMPARTMENT){
                 input_use_end = min(input_use_begin+NUM_COMPARTMENT, input_block);
                 input_use_len = input_use_end - input_use_begin;
                 input_use = Slice(input_block, [input_use_begin,input_use_end]);
-                input_use = Trans(input_use, Slice(pim_in_buffer, [0, input_use_len]));
-                output = CIMCompute(input_use, macros, Slice(pim_out_buffer,[0, out_c]) );
+
+                pim_in_buffer_use = Slice(pim_in_buffer, [0, input_use_len])
+                Trans(input_use, pim_in_buffer_use);
+                output = Slice(pim_out_buffer,[0, out_c]);
+                CIMCompute(input_use, macros, output );
             };
         };
     };  

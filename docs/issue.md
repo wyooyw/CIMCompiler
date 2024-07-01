@@ -31,3 +31,27 @@ operation ::= `memref.copy` $source `,` $target attr-dict `:` type($source) `to`
 ```
 
 2.能否直接从memref开始，跳过tensor？没有SSA的话，还能做函数内联吗？
+
+
+
+
+3.How to get interact with ValueRange
+
+
+4.What does AffineMap used in MemRefType? How to get a default value?
+
+5.How to convert between mlir::Value and mlir::SmallVector?
+
+mlir::RankedTensorType -> mlir::SmallVector
+
+maybe use DenseI64ArrayAttr?
+
+6.How to create a memref object with constant value?
+
+7.what does memref::global mean?
+
+8.how to represent an constant tensor in mlir::Value
+
+9.how to wrap SmallVector or ValueRange into Value?
+
+10. how to get shap

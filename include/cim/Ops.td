@@ -35,8 +35,7 @@ def VVAddOp : CIM_Op<"vv_add", [Pure]> {
     The shapes of the tensor operands are expected to match.
   }];
 
-  let arguments = (ins I32Tensor:$lhs, I32Tensor:$rhs);
-  let results = (outs I32Tensor);
+  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$out);
 
   // Allow building an AddOp with from the two input operands.
   let builders = [
@@ -44,13 +43,6 @@ def VVAddOp : CIM_Op<"vv_add", [Pure]> {
   ];
 
   let hasCanonicalizer = 1;
-}
-
-def BufVVAddOp: CIM_Op<"buf_vv_add", [NoMemoryEffect]>{
-  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$result);
-  //let builders = [
-  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, AnyMemRef:$result)>
-  //];
 }
 
 def VSMulOp : CIM_Op<"vs_mul", [Pure]> {
@@ -79,12 +71,12 @@ def CIMComputeOp : CIM_Op<"cim_compute", [Pure]> {
     cim compute use macro
   }];
 
-  let arguments = (ins I8Tensor:$vec, I8Tensor:$mat);
-  let results = (outs I32Tensor);
+  let arguments = (ins AnyMemRef:$in_vector, AnyMemRef:$in_matrix);
+  let results = (outs AnyMemRef:$out_vector);
 
   // Allow building an AddOp with from the two input operands.
   let builders = [
-    OpBuilder<(ins "Value":$vec, "Value":$mat)>
+    OpBuilder<(ins "Value":$in_vector, "Value":$in_matrix)>
   ];
 }
 
@@ -107,8 +99,8 @@ def CastOp : CIM_Op<"cast", [
     to a mismatching constant dimension.
   }];
 
-  let arguments = (ins I32Tensor:$input);
-  let results = (outs I32Tensor:$output);
+  let arguments = (ins AnyMemRef:$input);
+  let results = (outs AnyMemRef:$output);
 }
 
 def ShapeOp : CIM_Op<"shape", [Pure]> {
@@ -117,8 +109,12 @@ def ShapeOp : CIM_Op<"shape", [Pure]> {
     get shape of a tensor
   }];
 
-  let arguments = (ins I32Tensor:$input); // TODO: which type can represent any Tensor?
-  let results = (outs I32Tensor:$output);
+  let arguments = (ins AnyMemRef:$input, I32:$index); // TODO: which type can represent any Tensor?
+  let results = (outs I32:$output);
+
+  let builders = [
+    OpBuilder<(ins "Value":$input, "Value":$index)>
+  ];
 }
 
 

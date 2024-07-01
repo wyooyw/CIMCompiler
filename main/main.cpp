@@ -76,26 +76,24 @@ int main(int argc, char **argv) {
   
 
   // Create Sub Function
-  builder.setInsertionPointToEnd(theModule.getBody());
-  RankedTensorType::Builder _sub_builder = 
-        RankedTensorType::Builder({10,10}, builder.getI32Type(), Attribute()); // builder.getStringAttr("global")
-  RankedTensorType sub_func_ret_type = RankedTensorType::get({10,10}, builder.getI32Type(), Attribute());
-  RankedTensorType sub_func_arg0_type = RankedTensorType::get({10, 10}, builder.getI32Type(), Attribute());
-  RankedTensorType sub_func_arg1_type = RankedTensorType::get({10, 10}, builder.getI32Type(), Attribute());
-  auto sub_func_type = builder.getFunctionType({sub_func_arg0_type, sub_func_arg1_type}, {sub_func_ret_type});
-  std::string sub_func_name = "sub";
-  auto sub_function = builder.create<func::FuncOp>(loc, sub_func_name, sub_func_type);
-  sub_function.setPrivate();
-  Block *subfuncBody = sub_function.addEntryBlock();
-  builder.setInsertionPointToStart(subfuncBody);
-  mlir::Value func_arg0 = subfuncBody->getArgument(0);
-  mlir::Value func_arg1 = subfuncBody->getArgument(1);
+  // builder.setInsertionPointToEnd(theModule.getBody());
+  // RankedTensorType::Builder _sub_builder = 
+  //       RankedTensorType::Builder({10,10}, builder.getI32Type(), Attribute()); // builder.getStringAttr("global")
+  // RankedTensorType sub_func_ret_type = RankedTensorType::get({10,10}, builder.getI32Type(), Attribute());
+  // RankedTensorType sub_func_arg0_type = RankedTensorType::get({10, 10}, builder.getI32Type(), Attribute());
+  // RankedTensorType sub_func_arg1_type = RankedTensorType::get({10, 10}, builder.getI32Type(), Attribute());
+  // auto sub_func_type = builder.getFunctionType({sub_func_arg0_type, sub_func_arg1_type}, {sub_func_ret_type});
+  // std::string sub_func_name = "sub";
+  // auto sub_function = builder.create<func::FuncOp>(loc, sub_func_name, sub_func_type);
+  // sub_function.setPrivate();
+  // Block *subfuncBody = sub_function.addEntryBlock();
+  // builder.setInsertionPointToStart(subfuncBody);
+  // mlir::Value func_arg0 = subfuncBody->getArgument(0);
+  // mlir::Value func_arg1 = subfuncBody->getArgument(1);
 
-  mlir::Value c = builder.create<mlir::cim::VVAddOp>(loc, func_arg0, func_arg1);
-  mlir::Value d = builder.create<mlir::cim::VVAddOp>(loc, c, func_arg1);
-  // mlir::Value c = builder.create<mlir::arith::AddIOp>(loc, func_arg0, func_arg1);
-  // mlir::Value d = builder.create<mlir::arith::AddIOp>(loc, c, func_arg1);
-  builder.create<func::ReturnOp>(loc, d);
+  // mlir::Value c = builder.create<mlir::cim::VVAddOp>(loc, func_arg0, func_arg1);
+  // mlir::Value d = builder.create<mlir::cim::VVAddOp>(loc, c, func_arg1);
+  // builder.create<func::ReturnOp>(loc, d);
 
   // theModule.dump();
   // return 0;
@@ -105,33 +103,58 @@ int main(int argc, char **argv) {
   RankedTensorType::Builder _builder = 
         RankedTensorType::Builder({10,10}, builder.getI32Type(), Attribute());//builder.getStringAttr("global")
   RankedTensorType func_ret_type = RankedTensorType(_builder);
-  auto func_type = builder.getFunctionType({}, {func_ret_type});
+  mlir::MemRefType return_type =  mlir::MemRefType::get({10, 10}, builder.getI32Type());
+  mlir::MemRefType param_type =  mlir::MemRefType::get({10, 10}, builder.getI32Type());
+  auto func_type = builder.getFunctionType({param_type}, {func_ret_type});
   std::string func_name = "main";
   auto function = builder.create<func::FuncOp>(loc, func_name, func_type);
   Block *funcBody = function.addEntryBlock();
   builder.setInsertionPointToStart(funcBody);
 
-  llvm::ArrayRef<int64_t> shape = {10, 10};
-  mlir::Value _a = builder.create<tensor::EmptyOp>(loc, shape, builder.getI32Type());
-  mlir::Value _b = builder.create<tensor::EmptyOp>(loc, shape, builder.getI32Type());
-  mlir::Value a = builder.create<tensor::CastOp>(loc, sub_func_ret_type, _a);
-  mlir::Value b = builder.create<tensor::CastOp>(loc, sub_func_ret_type, _b);
-  func::CallOp call = builder.create<func::CallOp>(loc, sub_function, ValueRange({a, b}));
-  builder.create<func::ReturnOp>(loc, call.getResults());
+  // llvm::ArrayRef<int64_t> shape = {10, 10};
+  // mlir::Value _a = builder.create<tensor::EmptyOp>(loc, shape, builder.getI32Type());
+  // mlir::Value _b = builder.create<tensor::EmptyOp>(loc, shape, builder.getI32Type());
+  // mlir::Value a = builder.create<tensor::CastOp>(loc, sub_func_ret_type, _a);
+  // mlir::Value b = builder.create<tensor::CastOp>(loc, sub_func_ret_type, _b);
+  // func::CallOp call = builder.create<func::CallOp>(loc, sub_function, ValueRange({a, b}));
+  // builder.create<func::ReturnOp>(loc, call.getResults());
+
+
+  mlir::MemRefType type =  mlir::MemRefType::get({10, 10}, builder.getI32Type());
+  mlir::memref::AllocOp alloc1 = builder.create<memref::AllocOp>(loc, type);
+  mlir::memref::AllocOp alloc2 = builder.create<memref::AllocOp>(loc, type);
+  mlir::memref::AllocOp alloc3 = builder.create<memref::AllocOp>(loc, type);
+  mlir::Value buf1 = alloc1.getResult();
+  mlir::Value buf2 = alloc2.getResult();
+  mlir::Value buf3 = alloc3.getResult();
+  builder.create<mlir::cim::VVAddOp>(loc, buf1, buf2, buf3);
+
+  mlir::Value a1 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(0));
+  mlir::Value a2 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(0));
+  mlir::Value b1 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(4));
+  mlir::Value b2 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(4));
+  mlir::Value c1 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(4));
+  mlir::Value c2 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(4));
+  mlir::ValueRange offsets = {a1,a2};
+  mlir::ValueRange sizes = {b1,b2};
+  mlir::ValueRange strides = {c1,c2};
+  mlir::Value result = builder.create<mlir::memref::SubViewOp>(loc, buf3, offsets, sizes, strides);
+  // builder.create<func::ReturnOp>(loc, buf3);
+
   theModule.dump();
 
-  mlir::PassManager pm(&context);
-  pm.addNestedPass<func::FuncOp>(mlir::createCanonicalizerPass());
-  pm.addPass(mlir::createInlinerPass());
-  pm.addPass(mlir::func::createFuncBufferizePass());
-  pm.addPass(mlir::bufferization::createOneShotBufferizePass());
-  pm.addPass(mlir::bufferization::createOwnershipBasedBufferDeallocationPass());
-  if (mlir::failed(pm.run(theModule))) {
-    std::cout << "Pass fail." << std::endl;
-  }else{
-    std::cout << "Pass success." << std::endl;
-  }
-  theModule.dump();
+  // mlir::PassManager pm(&context);
+  // pm.addNestedPass<func::FuncOp>(mlir::createCanonicalizerPass());
+  // pm.addPass(mlir::createInlinerPass());
+  // pm.addPass(mlir::func::createFuncBufferizePass());
+  // pm.addPass(mlir::bufferization::createOneShotBufferizePass());
+  // pm.addPass(mlir::bufferization::createOwnershipBasedBufferDeallocationPass());
+  // if (mlir::failed(pm.run(theModule))) {
+  //   std::cout << "Pass fail." << std::endl;
+  // }else{
+  //   std::cout << "Pass success." << std::endl;
+  // }
+  // theModule.dump();
   // bufferization::runOneShotBufferize(b.getOperator(),bufferization::OneShotBufferizationOptions());
   // theModule.dump();
   std::cout << "Hello World" << std::endl;
