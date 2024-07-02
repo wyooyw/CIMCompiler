@@ -147,7 +147,7 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         std::cout << "parse_stmt" << std::endl;
         auto ast_stmt = get_item(ast, 0);
         if(is_assign_stmt(ast_stmt)){
-            parse_assign_stmt(ast.begin()->second);
+            parse_assign_stmt(safe_get_child(ast_stmt, "stmt_assign"));
         }else if(is_return_stmt(ast_stmt)){
             // return nullptr; //parse_return_stmt(ast.begin()->first);
         }else if(is_call_stmt(ast_stmt)){
@@ -191,16 +191,14 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
     }
 
     void MLIRGenImpl::parse_assign_stmt(const boost::property_tree::ptree& ast){
-        // auto it = ast.begin();
-        // // LHS
-        // std::string var_name = it->second.get<std::string>("text");
+        // LHS
+        std::string var_name = safe_get_str(get_item(ast,0), "text");
 
-        // // RHS
-        // std::advance(it, 2);
-        // mlir::Value expr = parse_expr(it->second.get_child("expr").begin()->second);
+        // RHS
+        mlir::Value expr = parse_expr(safe_get_child(get_item(ast,2), "expr"));
         
-        // // Add to sign table
-        // add_to_sign_table(var_name, expr);
+        // Add to sign table
+        add_to_sign_table(var_name, expr);
     }
     
 
