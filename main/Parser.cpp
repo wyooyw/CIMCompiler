@@ -231,10 +231,10 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     mlir::ValueRange param_list = parse_call_args(safe_get_child(get_item(ast, 2), "call_param_list"));
 
     if (call_func_name=="Trans") {
-        parse_bulitin_trans(param_list);
+        parse_bulitin_trans(ast);
         return ;
     }else if (call_func_name=="VVAdd") {
-        parse_bulitin_vvadd(param_list);
+        parse_bulitin_vvadd(ast);
         return ;
     }
 
@@ -270,9 +270,14 @@ mlir::Value MLIRGenImpl::parse_bulitin_shape(const boost::property_tree::ptree& 
     return builder.create<mlir::cim::ShapeOp>(loc, buffer, index);
 }
 
-void MLIRGenImpl::parse_bulitin_trans(mlir::ValueRange param_list){
-    mlir::Value src = param_list[0];
-    mlir::Value dst = param_list[1];
+void MLIRGenImpl::parse_bulitin_trans(const boost::property_tree::ptree& ast){
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+    
+    auto ast_src = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_dst = safe_get_child(get_item(ast_param_list,2), "call_param");
+
+    mlir::Value src = parse_expr(safe_get_child(get_item(ast_src, 0), "expr"));
+    mlir::Value dst = parse_expr(safe_get_child(get_item(ast_dst, 0), "expr"));
     builder.create<mlir::memref::CopyOp>(loc, src, dst);
 }
 
@@ -291,10 +296,17 @@ mlir::Value MLIRGenImpl::parse_bulitin_slice(const boost::property_tree::ptree& 
     return result;
 }
 
-void MLIRGenImpl::parse_bulitin_vvadd(mlir::ValueRange param_list){
-    mlir::Value lhs = param_list[0];
-    mlir::Value rhs = param_list[1];
-    builder.create<mlir::cim::VVAddOp>(loc, lhs, rhs);
+void MLIRGenImpl::parse_bulitin_vvadd(const boost::property_tree::ptree& ast){
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_lhs = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_rhs = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_out = safe_get_child(get_item(ast_param_list,4), "call_param");
+
+    mlir::Value lhs = parse_expr(safe_get_child(get_item(ast_lhs, 0), "expr"));
+    mlir::Value rhs = parse_expr(safe_get_child(get_item(ast_rhs, 0), "expr"));
+    mlir::Value out = parse_expr(safe_get_child(get_item(ast_out, 0), "expr"));
+    builder.create<mlir::cim::VVAddOp>(loc, lhs, rhs, out);
 }
 
 mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree& ast){

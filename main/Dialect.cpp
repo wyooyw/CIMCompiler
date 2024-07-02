@@ -118,24 +118,24 @@ void CIMDialect::initialize() {
 // VecAddOp
 //===----------------------------------------------------------------------===//
 
-void VVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                  mlir::Value lhs, mlir::Value rhs) {
-  // same shape
-  auto type = lhs.getType().cast<RankedTensorType>();
-  if(type){
-    auto shape = type.getShape();
-    auto element_type = builder.getI32Type();
-    auto encoding = type.getEncoding();
-    RankedTensorType::Builder _builder =
-        RankedTensorType::Builder(shape, element_type, encoding);
-    RankedTensorType newTensorType = RankedTensorType(_builder);
-    state.addTypes(newTensorType);
-  }else{
-    state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
-  }
+// void VVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+//                   mlir::Value lhs, mlir::Value rhs) {
+//   // same shape
+//   auto type = lhs.getType().cast<RankedTensorType>();
+//   if(type){
+//     auto shape = type.getShape();
+//     auto element_type = builder.getI32Type();
+//     auto encoding = type.getEncoding();
+//     RankedTensorType::Builder _builder =
+//         RankedTensorType::Builder(shape, element_type, encoding);
+//     RankedTensorType newTensorType = RankedTensorType(_builder);
+//     state.addTypes(newTensorType);
+//   }else{
+//     state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
+//   }
   
-  state.addOperands({lhs, rhs});
-}
+//   state.addOperands({lhs, rhs});
+// }
 
 // void BufVVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 //                   mlir::Value lhs, mlir::Value rhs, mlir::Value result) {

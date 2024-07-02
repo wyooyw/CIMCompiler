@@ -38,9 +38,9 @@ def VVAddOp : CIM_Op<"vv_add", [Pure]> {
   let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$out);
 
   // Allow building an AddOp with from the two input operands.
-  let builders = [
-    OpBuilder<(ins "Value":$lhs, "Value":$rhs)>
-  ];
+  // let builders = [
+  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
+  // ];
 
   let hasCanonicalizer = 1;
 }

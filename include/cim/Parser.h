@@ -88,9 +88,9 @@ private:
 
     // Bulitin Functions
     mlir::Value parse_bulitin_shape(const boost::property_tree::ptree& ast);
-    void parse_bulitin_trans(mlir::ValueRange param_list);
+    void parse_bulitin_trans(const boost::property_tree::ptree& ast);
     mlir::Value parse_bulitin_slice(const boost::property_tree::ptree& ast);
-    void parse_bulitin_vvadd(mlir::ValueRange param_list);
+    void parse_bulitin_vvadd(const boost::property_tree::ptree& ast);
     mlir::Value parse_bulitin_buffer(const boost::property_tree::ptree& ast);
 
 };
