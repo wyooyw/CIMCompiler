@@ -260,6 +260,7 @@ mlir::ValueRange MLIRGenImpl::parse_call_args(const boost::property_tree::ptree&
  */
 
 mlir::Value MLIRGenImpl::parse_bulitin_shape(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_shape" << std::endl;
     auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
 
     auto ast_buffer = safe_get_child(get_item(ast_param_list,0), "call_param");
@@ -271,6 +272,7 @@ mlir::Value MLIRGenImpl::parse_bulitin_shape(const boost::property_tree::ptree& 
 }
 
 void MLIRGenImpl::parse_bulitin_trans(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_trans" << std::endl;
     auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
     
     auto ast_src = safe_get_child(get_item(ast_param_list,0), "call_param");
@@ -282,6 +284,7 @@ void MLIRGenImpl::parse_bulitin_trans(const boost::property_tree::ptree& ast){
 }
 
 mlir::Value MLIRGenImpl::parse_bulitin_slice(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_slice" << std::endl;
     auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
 
     auto ast_src = safe_get_child(get_item(ast_param_list,0), "call_param");
@@ -297,6 +300,7 @@ mlir::Value MLIRGenImpl::parse_bulitin_slice(const boost::property_tree::ptree& 
 }
 
 void MLIRGenImpl::parse_bulitin_vvadd(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_vvadd"  << std::endl;
     auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
 
     auto ast_lhs = safe_get_child(get_item(ast_param_list,0), "call_param");
@@ -310,6 +314,7 @@ void MLIRGenImpl::parse_bulitin_vvadd(const boost::property_tree::ptree& ast){
 }
 
 mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_buffer" << std::endl;
     auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
 
     // Data type
