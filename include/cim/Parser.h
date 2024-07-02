@@ -68,7 +68,7 @@ private:
     std::vector<int64_t> parse_shape(const boost::property_tree::ptree& ast);
     mlir::Type parse_datatype(std::string datatype);
     mlir::StringAttr parse_device(std::string device);
-    mlir::RankedTensorType parse_param_type_tensor(const boost::property_tree::ptree& ast);
+    mlir::MemRefType parse_param_type_tensor(const boost::property_tree::ptree& ast);
     mlir::Type parse_param_type(const boost::property_tree::ptree& ast);
     std::pair<mlir::Type, std::string> parse_tensor_type_and_name(const boost::property_tree::ptree& ast);
     std::pair<std::vector<mlir::Type>, std::vector<std::string> > parse_func_args(const boost::property_tree::ptree& ast);

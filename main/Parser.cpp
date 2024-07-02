@@ -532,7 +532,7 @@ mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree&
         }
     }
 
-    mlir::RankedTensorType MLIRGenImpl::parse_param_type_tensor(const boost::property_tree::ptree& ast) {
+    mlir::MemRefType MLIRGenImpl::parse_param_type_tensor(const boost::property_tree::ptree& ast) {
         std::cout << "parse_param_type_tensor" << std::endl;
 
         // shape
@@ -546,11 +546,12 @@ mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree&
         auto device = parse_device(safe_get_str(get_item(ast, 5), "text"));
 
         // build the type
-        mlir::RankedTensorType::Builder _type_builder = 
-                mlir::RankedTensorType::Builder(llvm::ArrayRef<int64_t>(shape), datatype, device); 
-        // mlir::RankedTensorType::Builder _type_builder = 
-        //         mlir::RankedTensorType::Builder({10,10}, builder.getI32Type(), builder.getStringAttr("global")); 
-        mlir::RankedTensorType type = mlir::RankedTensorType(_type_builder);
+        mlir::MemRefType type =  mlir::MemRefType::get(
+            llvm::ArrayRef<int64_t>(shape), 
+            datatype, 
+            mlir::MemRefLayoutAttrInterface(), 
+            device
+        );
         return type;
     }
 
