@@ -209,7 +209,7 @@ mlir::Value MLIRGenImpl::parse_call_return_value(const boost::property_tree::ptr
     mlir::ValueRange param_list = parse_call_args(safe_get_child(get_item(ast, 2), "call_param_list"));
 
     if (call_func_name=="Shape") {
-        return parse_bulitin_shape(param_list);
+        return parse_bulitin_shape(ast);
     }else if (call_func_name=="Slice") {
         return parse_bulitin_slice(ast);
     }else if (call_func_name=="Buffer") {
@@ -259,14 +259,14 @@ mlir::ValueRange MLIRGenImpl::parse_call_args(const boost::property_tree::ptree&
  * Bulitin Functions Begin
  */
 
-mlir::Value MLIRGenImpl::parse_bulitin_shape(mlir::ValueRange param_list){
-    if(param_list.size() != 1){
-        std::cout << "ShapeOp only accept one parameter" << std::endl;
-        std::exit(1);
-        return nullptr;
-    }
-    mlir::Value buffer = param_list[0];
-    mlir::Value index = param_list[1];
+mlir::Value MLIRGenImpl::parse_bulitin_shape(const boost::property_tree::ptree& ast){
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_buffer = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_index = safe_get_child(get_item(ast_param_list,2), "call_param");
+
+    mlir::Value buffer = parse_expr(safe_get_child(get_item(ast_buffer, 0), "buffer"));
+    mlir::Value index = parse_expr(safe_get_child(get_item(ast_buffer, 0), "index"));
     return builder.create<mlir::cim::ShapeOp>(loc, buffer, index);
 }
 
