@@ -245,28 +245,64 @@
                 {
                   "stmt": [
                     {
-                      "stmt_assign": [
+                      "stmt_call": [
                         {
-                          "type": 29,
-                          "text": "a"
-                        },
-                        {
-                          "type": 28,
-                          "text": "="
-                        },
-                        {
-                          "expr": [
+                          "call": [
                             {
-                              "unary_expr": [
+                              "type": 29,
+                              "text": "CallFunc"
+                            },
+                            {
+                              "type": 2,
+                              "text": "("
+                            },
+                            {
+                              "call_param_list": [
                                 {
-                                  "term": [
+                                  "call_param": [
                                     {
-                                      "const_or_var": [
+                                      "expr": [
                                         {
-                                          "constant": [
+                                          "unary_expr": [
                                             {
-                                              "type": 25,
-                                              "text": "1"
+                                              "const_or_var": [
+                                                {
+                                                  "constant": [
+                                                    {
+                                                      "type": 25,
+                                                      "text": "1"
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": 6,
+                                  "text": ","
+                                },
+                                {
+                                  "call_param": [
+                                    {
+                                      "expr": [
+                                        {
+                                          "unary_expr": [
+                                            {
+                                              "const_or_var": [
+                                                {
+                                                  "constant": [
+                                                    {
+                                                      "type": 25,
+                                                      "text": "2"
+                                                    }
+                                                  ]
+                                                }
+                                              ]
                                             }
                                           ]
                                         }
@@ -275,6 +311,10 @@
                                   ]
                                 }
                               ]
+                            },
+                            {
+                              "type": 3,
+                              "text": ")"
                             }
                           ]
                         }

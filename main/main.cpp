@@ -64,10 +64,10 @@ int main(int argc, char **argv) {
   
 
   MLIRGenImpl gen_impl(context);
-  // mlir::ModuleOp module = gen_impl.parseJson("/home/wangyiou/project/cim_compiler_frontend/out.json");
+  mlir::ModuleOp module = gen_impl.parseJson("/home/wangyiou/project/cim_compiler_frontend/playground/out.json");
   
-  // module.dump();
-  // return 0;
+  module.dump();
+  return 0;
 
   mlir::OpBuilder builder(&context);
   mlir::Location loc = builder.getUnknownLoc();

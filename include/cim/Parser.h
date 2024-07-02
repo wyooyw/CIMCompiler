@@ -51,6 +51,7 @@ private:
     bool is_unary_expr(const boost::property_tree::ptree& ast);
     bool is_binary_expr(const boost::property_tree::ptree& ast);
     mlir::Value parse_unary_expr(const boost::property_tree::ptree& ast);
+    mlir::Value parse_binary_expr(const boost::property_tree::ptree& ast);
     mlir::Value parse_var(const boost::property_tree::ptree& ast);
     mlir::Value parse_const(const boost::property_tree::ptree& ast);
     bool is_const(const boost::property_tree::ptree& ast);
@@ -58,11 +59,11 @@ private:
     mlir::Value parse_const_or_var(const boost::property_tree::ptree& ast);
     bool is_const_or_var(const boost::property_tree::ptree& ast);
     bool is_call(const boost::property_tree::ptree& ast);
-    mlir::Value parse_unary_expr_scalar(const boost::property_tree::ptree& ast);
-    mlir::Value parse_binary_expr_scalar(const boost::property_tree::ptree& ast);
-    bool is_unary_expr_scalar(const boost::property_tree::ptree& ast);
-    bool is_binary_expr_scalar(const boost::property_tree::ptree& ast);
-    mlir::Value parse_expr_scalar(const boost::property_tree::ptree& ast);
+    // mlir::Value parse_unary_expr_scalar(const boost::property_tree::ptree& ast);
+    // mlir::Value parse_binary_expr_scalar(const boost::property_tree::ptree& ast);
+    // bool is_unary_expr_scalar(const boost::property_tree::ptree& ast);
+    // bool is_binary_expr_scalar(const boost::property_tree::ptree& ast);
+    // mlir::Value parse_expr_scalar(const boost::property_tree::ptree& ast);
     mlir::SmallVector<mlir::Value> parse_array_1d(const boost::property_tree::ptree& ast);
     std::vector<int64_t> parse_shape(const boost::property_tree::ptree& ast);
     mlir::Type parse_datatype(std::string datatype);

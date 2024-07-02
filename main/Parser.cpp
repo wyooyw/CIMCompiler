@@ -118,9 +118,9 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         // Parse function body
         // std::advance(it, 3);
         // builder.setInsertionPointToStart(func_body);
-        // parse_func_body(it->second.get_child("func_body"));
-        mlir::Value func_arg0 = func_body->getArgument(0);
-        mlir::Value func_arg1 = func_body->getArgument(1);
+        parse_func_body(safe_get_child(get_item(ast, 6),"func_body"));
+        // mlir::Value func_arg0 = func_body->getArgument(0);
+        // mlir::Value func_arg1 = func_body->getArgument(1);
         // llvm::ArrayRef<int64_t> shape = {3,3,1,1};
         // mlir::Value a = builder.create<mlir::tensor::EmptyOp>(loc, shape, builder.getI32Type());
         // mlir::Value b = builder.create<mlir::cim::VVAddOp>(loc, func_arg0, func_arg1);
@@ -132,30 +132,31 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
     void MLIRGenImpl::parse_func_body(const boost::property_tree::ptree& ast){
         std::cout << "parse_func_body" << std::endl;
 
-        parse_stmt_list(ast.begin()->second);
+        parse_stmt_list(safe_get_child(get_item(ast,0), "stmt_list"));
     }
 
     void MLIRGenImpl::parse_stmt_list(const boost::property_tree::ptree& ast){
         std::cout << "parse_stmt_list" << std::endl;
 
         for (const auto& pair : ast) {
-            parse_stmt(pair.second);
+            parse_stmt(safe_get_child(pair.second,"stmt"));
         }
     }
 
     void MLIRGenImpl::parse_stmt(const boost::property_tree::ptree& ast){
         std::cout << "parse_stmt" << std::endl;
-
-        if(is_assign_stmt(ast)){
+        auto ast_stmt = get_item(ast, 0);
+        if(is_assign_stmt(ast_stmt)){
             parse_assign_stmt(ast.begin()->second);
-        }else if(is_return_stmt(ast)){
+        }else if(is_return_stmt(ast_stmt)){
             // return nullptr; //parse_return_stmt(ast.begin()->first);
-        }else if(is_call_stmt(ast)){
-            parse_call_stmt(safe_get_child(get_item(ast, 0), "stmt_call"));
+        }else if(is_call_stmt(ast_stmt)){
+            parse_call_stmt(safe_get_child(ast_stmt, "stmt_call"));
         }else {
             // raise: not support yet
             mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
                 "Not support stmt: " + ast.begin()->first);
+            std::exit(1);
         }
     }
 
@@ -203,71 +204,71 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
     }
     
 
-    mlir::Value MLIRGenImpl::parse_expr(const boost::property_tree::ptree& ast){
-        /*
-            ast: 
-                {
-                    "unary_expr": [
-                        ....
-                    ]
-                }
-        */
-        std::cout << "parse_expr" << std::endl;
+    // mlir::Value MLIRGenImpl::parse_expr(const boost::property_tree::ptree& ast){
+    //     /*
+    //         ast: 
+    //             {
+    //                 "unary_expr": [
+    //                     ....
+    //                 ]
+    //             }
+    //     */
+    //     std::cout << "parse_expr" << std::endl;
 
-        if (is_unary_expr(ast)){
-            return parse_unary_expr(ast.begin()->second.begin()->second);
-        }else if(is_binary_expr(ast)){
-            return nullptr;// parse_binary_expr(ast.begin()->second);
-        }else{
-            return nullptr;
-        }
-    }
+    //     if (is_unary_expr(ast)){
+    //         return parse_unary_expr(ast.begin()->second.begin()->second);
+    //     }else if(is_binary_expr(ast)){
+    //         return nullptr;// parse_binary_expr(ast.begin()->second);
+    //     }else{
+    //         return nullptr;
+    //     }
+    // }
 
-    bool MLIRGenImpl::is_unary_expr(const boost::property_tree::ptree& ast){
-        /*
-            ast: 
-                {
-                    "expr_unary": [
-                        ....
-                    ]
-                }
-        */
-        std::cout << "is_unary_expr" << std::endl;
+    // bool MLIRGenImpl::is_unary_expr(const boost::property_tree::ptree& ast){
+    //     /*
+    //         ast: 
+    //             {
+    //                 "expr_unary": [
+    //                     ....
+    //                 ]
+    //             }
+    //     */
+    //     std::cout << "is_unary_expr" << std::endl;
 
-        return ast.begin()->first == "expr_unary";
-    }
+    //     return ast.begin()->first == "expr_unary";
+    // }
 
-    bool MLIRGenImpl::is_binary_expr(const boost::property_tree::ptree& ast){
-        /*
-            ast: 
-                {
-                    "expr_binary": [
-                        ....
-                    ]
-                }
-        */
-        std::cout << "is_binary_expr" << std::endl;
+    // bool MLIRGenImpl::is_binary_expr(const boost::property_tree::ptree& ast){
+    //     /*
+    //         ast: 
+    //             {
+    //                 "expr_binary": [
+    //                     ....
+    //                 ]
+    //             }
+    //     */
+    //     std::cout << "is_binary_expr" << std::endl;
 
-        return ast.begin()->first == "expr_binary";
-    }
+    //     return ast.begin()->first == "expr_binary";
+    // }
 
-    mlir::Value MLIRGenImpl::parse_unary_expr(const boost::property_tree::ptree& ast){
-        /*
-            ast: 
-                {
-                    "call": [
-                        ...
-                    ]
-                }
-        */
-        std::cout << "parse_unary_expr" << std::endl;
-        auto it = ast.begin();
-        if(it->first == "call"){
-            return parse_call_return_value(it->second);
-        }else{
-            return nullptr;
-        }
-    }
+    // mlir::Value MLIRGenImpl::parse_unary_expr(const boost::property_tree::ptree& ast){
+    //     /*
+    //         ast: 
+    //             {
+    //                 "call": [
+    //                     ...
+    //                 ]
+    //             }
+    //     */
+    //     std::cout << "parse_unary_expr" << std::endl;
+    //     auto it = ast.begin();
+    //     if(it->first == "call"){
+    //         return parse_call_return_value(it->second);
+    //     }else{
+    //         return nullptr;
+    //     }
+    // }
 
 mlir::Value MLIRGenImpl::parse_call_return_value(const boost::property_tree::ptree& ast){
     // call a function, and get return value
@@ -455,47 +456,47 @@ mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree&
         return ast.count("call");
     }
 
-    mlir::Value MLIRGenImpl::parse_unary_expr_scalar(const boost::property_tree::ptree& ast){
+    mlir::Value MLIRGenImpl::parse_unary_expr(const boost::property_tree::ptree& ast){
         /*
-            unary_expr_scalar: call | const_or_var;
+            unary_expr: call | const_or_var;
         */
-        std::cout << "parse_unary_expr_scalar" << std::endl;
-        auto unary_expr_scalar = get_item(ast, 0);
-        if (is_const_or_var(unary_expr_scalar)){
-            return parse_const_or_var( safe_get_child( unary_expr_scalar, "const_or_var"));
-        }else if(is_call(unary_expr_scalar)){
-            return parse_call_return_value( safe_get_child( unary_expr_scalar, "call"));
+        std::cout << "parse_unary_expr" << std::endl;
+        auto unary_expr = get_item(ast, 0);
+        if (is_const_or_var(unary_expr)){
+            return parse_const_or_var( safe_get_child( unary_expr, "const_or_var"));
+        }else if(is_call(unary_expr)){
+            return parse_call_return_value( safe_get_child( unary_expr, "call"));
         }
     }
 
-    mlir::Value MLIRGenImpl::parse_binary_expr_scalar(const boost::property_tree::ptree& ast){
+    mlir::Value MLIRGenImpl::parse_binary_expr(const boost::property_tree::ptree& ast){
         /*
-            binary_expr_scalar: unary_expr_scalar BINARY_OP unary_expr_scalar;
+            binary_expr: unary_expr BINARY_OP unary_expr;
         */
-        std::cout << "parse_binary_expr_scalar" << std::endl;
-        auto lhs_unary_expr_scalar =  safe_get_child( get_item(ast, 0), "unary_expr_scalar");
+        std::cout << "parse_binary_expr" << std::endl;
+        auto lhs_unary_expr =  safe_get_child( get_item(ast, 0), "unary_expr");
         auto binary_op = get_item(ast, 1);
-        auto rhs_unary_expr_scalar =  safe_get_child( get_item(ast, 2), "unary_expr_scalar");
+        auto rhs_unary_expr =  safe_get_child( get_item(ast, 2), "unary_expr");
         return nullptr;
     }
 
-    bool MLIRGenImpl::is_unary_expr_scalar(const boost::property_tree::ptree& ast){
-        std::cout << "is_unary_expr_scalar" << std::endl;
-        return ast.count("unary_expr_scalar");
+    bool MLIRGenImpl::is_unary_expr(const boost::property_tree::ptree& ast){
+        std::cout << "is_unary_expr" << std::endl;
+        return ast.count("unary_expr");
     }
 
-    bool MLIRGenImpl::is_binary_expr_scalar(const boost::property_tree::ptree& ast){
-        std::cout << "is_binary_expr_scalar" << std::endl;
-        return ast.count("binary_expr_scalar");
+    bool MLIRGenImpl::is_binary_expr(const boost::property_tree::ptree& ast){
+        std::cout << "is_binary_expr" << std::endl;
+        return ast.count("binary_expr");
     }
 
-    mlir::Value MLIRGenImpl::parse_expr_scalar(const boost::property_tree::ptree& ast){
-        std::cout <<    "parse_expr_scalar" << std::endl;
-        auto expr_scalar = get_item(ast, 0);
-        if(is_unary_expr_scalar(expr_scalar)){
-            return parse_unary_expr_scalar( safe_get_child( expr_scalar, "unary_expr_scalar"));
-        }else if(is_binary_expr_scalar(expr_scalar)){
-            return parse_binary_expr_scalar( safe_get_child( expr_scalar, "binary_expr_scalar"));
+    mlir::Value MLIRGenImpl::parse_expr(const boost::property_tree::ptree& ast){
+        std::cout <<    "parse_expr" << std::endl;
+        auto expr = get_item(ast, 0);
+        if(is_unary_expr(expr)){
+            return parse_unary_expr( safe_get_child( expr, "unary_expr"));
+        }else if(is_binary_expr(expr)){
+            return parse_binary_expr( safe_get_child( expr, "binary_expr"));
         }
     }
 
@@ -509,7 +510,7 @@ mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree&
                 safe_get_str(pair.second, "text")=="," )){
                 continue;
             }
-            values.push_back(parse_expr_scalar( safe_get_child( pair.second, "expr_scalar")));
+            values.push_back(parse_expr( safe_get_child( pair.second, "expr")));
         }
         return values;
     }

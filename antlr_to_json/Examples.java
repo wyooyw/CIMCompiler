@@ -55,7 +55,7 @@ public class Examples {
   }
 
   public static void main(String[] args) {
-    String filePath = "/home/wangyiou/project/cim_compiler_frontend/op/v1/conv2d_dense.cim";
+    String filePath = "/home/wangyiou/project/cim_compiler_frontend/playground/op/v1/conv2d_dense.cim";
     try {
         String source = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
         CIMLexer lexer = new CIMLexer(CharStreams.fromString(source));

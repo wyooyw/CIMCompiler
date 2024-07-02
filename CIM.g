@@ -8,7 +8,7 @@ func_param_list: func_param (',' func_param)*;
 func_body: stmt_list;
 
 // 
-func_param: param_name; // param_type;
+func_param: param_name param_type;
 param_name: ID;
 param_type: param_type_tensor;
 param_type_tensor: '<' param_type_shape ',' DATATYPE ',' MEMORY '>';
@@ -41,32 +41,22 @@ expr:
     | binary_expr;
 unary_expr: 
     call
-    | term;
-binary_expr: unary_expr BINARY_OP unary_expr;
-
-expr_scalar: 
-    unary_expr_scalar
-    | binary_expr_scalar;
-unary_expr_scalar: 
-    call
     | const_or_var;
-binary_expr_scalar: unary_expr_scalar BINARY_OP unary_expr_scalar;
+binary_expr: unary_expr BINARY_OP unary_expr;
 
 // Call
 call: ID '(' call_param_list ')';
 call_param_list: call_param (',' call_param)*;
-call_param = datatype | memory | const_array1d | array1d | expr;
-datatype = DATATYPE;
-memory = MEMORY;
+call_param: datatype | memory | const_array1d | array1d | expr;
+datatype: DATATYPE;
+memory: MEMORY;
 
 // Term
-term: const_or_var;
 const_or_var: constant | var;
 constant: CONST;
 var: ID;
 const_array1d: '[' constant (',' constant)* ']';
-array1d: '[' expr_scalar (',' expr_scalar)* ']';
-array2d: '[' array1d (',' array1d)* ']';
+array1d: '[' expr (',' expr)* ']';
 
 MEMORY: ('global' | 'local' | 'macro') ;
 DATATYPE: ('int8' | 'int32' | 'float32') ;
