@@ -185,6 +185,8 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
             // return nullptr; //parse_return_stmt(ast.begin()->first);
         }else if(is_call_stmt(ast_stmt)){
             parse_call_stmt(safe_get_child(ast_stmt, "stmt_call"));
+        }else if(is_for_stmt(ast_stmt)){
+            parse_for_stmt(safe_get_child(ast_stmt, "stmt_for"));
         }else {
             // raise: not support yet
             mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
@@ -207,6 +209,11 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         std::cout << "is_call_stmt" << std::endl;
 
         return ast.begin()->first == "stmt_call";
+    }
+    bool MLIRGenImpl::is_for_stmt(const boost::property_tree::ptree& ast){
+        std::cout << "is_for_stmt" << std::endl;
+
+        return ast.count("stmt_for");
     }
     
     /* 
@@ -233,6 +240,15 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         // Add to sign table
         add_to_sign_table(var_name, expr);
     }
+
+    void MLIRGenImpl::parse_for_stmt(const boost::property_tree::ptree& ast){
+        std::cout << "parse_for_stmt" << std::endl;
+        
+    }
+
+/*
+ Stmt end
+*/
     
 mlir::Value MLIRGenImpl::parse_call_return_value(const boost::property_tree::ptree& ast){
     // call a function, and get return value

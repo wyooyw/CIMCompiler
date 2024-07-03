@@ -47,7 +47,9 @@ private:
     bool is_assign_stmt(const boost::property_tree::ptree& ast);
     bool is_return_stmt(const boost::property_tree::ptree& ast);
     bool is_call_stmt(const boost::property_tree::ptree& ast);
+    bool is_for_stmt(const boost::property_tree::ptree& ast);
     void parse_assign_stmt(const boost::property_tree::ptree& ast);
+    void parse_for_stmt(const boost::property_tree::ptree& ast);
     mlir::Value parse_expr(const boost::property_tree::ptree& ast);
     bool is_unary_expr(const boost::property_tree::ptree& ast);
     bool is_binary_expr(const boost::property_tree::ptree& ast);
