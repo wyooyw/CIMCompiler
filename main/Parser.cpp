@@ -270,17 +270,62 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
     support for_range_1 first.
 */
 
-void MLIRGenImpl::parse_for_range(const boost::property_tree::ptree& ast){
+std::vector<mlir::Value> MLIRGenImpl::parse_for_range(const boost::property_tree::ptree& ast){
     std::cout << "parse_for_range" << std::endl;
+
+    std::vector<mlir::Value> range_values;
     auto ast_for = get_item(ast, 0);
     if(ast_for.count("for_range_1")){
-        parse_range_1(safe_get_child(ast_for, "for_range_1"));
-    }else if(ast_for.count("for_range_1")){
-
-    }else if()
+        range_values = parse_for_range_1(safe_get_child(ast_for, "for_range_1"));
+    }else if(ast_for.count("for_range_2")){
+        range_values = parse_for_range_2(safe_get_child(ast_for, "for_range_2"));
+    }else if(ast_for.count("for_range_3")){
+        range_values = parse_for_range_3(safe_get_child(ast_for, "for_range_3"));
+    }else{
+        mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                "Not support range: " + ast_for.first);
+        std::exit(1);
+        return nullptr;
+    }
+    std::cout << "parse_range finish" << std::endl;
+    return range_values;
 }
+
+std::vector<mlir::Value> MLIRGenImpl::parse_for_range_1(const boost::property_tree::ptree& ast){
+    std::cout << "parse_for_range_1" << std::endl;
+
+    mlir::Value begin = builder.create<mlir::arith::ConstantOp>(loc, builder.getI32Type(), builder.getI32IntegerAttr(0));
+    mlir::Value end = parse_const_or_var(safe_get_child(get_item(ast, 1), "const_or_var"));
+    mlir::Value stride = builder.create<mlir::arith::ConstantOp>(loc, builder.getI32Type(), builder.getI32IntegerAttr(1));
+
+    std::cout << "parse_for_range_1 finish" << std::endl;
+    return {begin, end, stride};
+}
+
+std::vector<mlir::Value> MLIRGenImpl::parse_for_range_2(const boost::property_tree::ptree& ast){
+    std::cout << "parse_for_range_2" << std::endl;
+
+    mlir::Value begin = parse_const_or_var(safe_get_child(get_item(ast, 1), "const_or_var"));
+    mlir::Value end = parse_const_or_var(safe_get_child(get_item(ast, 3), "const_or_var"));
+    mlir::Value stride = builder.create<mlir::arith::ConstantOp>(loc, builder.getI32Type(), builder.getI32IntegerAttr(1));
+
+    std::cout << "parse_for_range_2 finish" << std::endl;
+    return {begin, end, stride};
+}
+
+std::vector<mlir::Value> MLIRGenImpl::parse_for_range_3(const boost::property_tree::ptree& ast){
+    std::cout << "parse_for_range_3" << std::endl;
+
+    mlir::Value begin = parse_const_or_var(safe_get_child(get_item(ast, 1), "const_or_var"));
+    mlir::Value end = parse_const_or_var(safe_get_child(get_item(ast, 3), "const_or_var"));
+    mlir::Value stride = create_const_value(safe_get_child(get_item(ast, 5), "const_or_var"));
+
+    std::cout << "parse_for_range_3 finish" << std::endl;
+    return {begin, end, stride};
+}
+
 /*
- Range begin
+ Range end
 */
 
     
