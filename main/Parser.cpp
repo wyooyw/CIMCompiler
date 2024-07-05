@@ -243,12 +243,45 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
 
     void MLIRGenImpl::parse_for_stmt(const boost::property_tree::ptree& ast){
         std::cout << "parse_for_stmt" << std::endl;
-        
+        std::string iter_var_name = safe_get_str(get_item(ast, 1), "text");
+        std::vector<mlir::Value> range = parse_range(safe_get_child(get_item(ast, 3), "for_range"));
+        mlir::Value range_begin = range[0];
+        mlir::Value range_end = range[1];
+        mlir::Value range_step = range[2];
+        // TODO: 怎么加入循环不变量来着?
+        mlir::scf::ForOp for_op = builder.create<mlir::scf::ForOp>(range_begin, range_end, range_step);
+        // TODO: 把builder指向for_op的body
+
+        parse_stmt_list(safe_get_child(get_item(ast, 5), "stmt_list"));
     }
 
 /*
  Stmt end
 */
+
+/*
+ Range begin
+
+    for_range : for_range_1 | for_range_2 | for_range_3;
+    for_range_1: 'range(' const_or_var ')';
+    for_range_2: 'range(' const_or_var ',' const_or_var')';
+    for_range_3: 'range(' const_or_var ',' const_or_var ',' const_or_var ')';
+
+    support for_range_1 first.
+*/
+
+void MLIRGenImpl::parse_range(const boost::property_tree::ptree& ast){
+    auto ast_for = get_item(ast, 0);
+    if(ast_for.count("for_range_1")){
+        parse_range_1(safe_get_child(ast_for, "for_range_1"));
+    }else if(ast_for.count("for_range_1")){
+
+    }else if()
+}
+/*
+ Range begin
+*/
+
     
 mlir::Value MLIRGenImpl::parse_call_return_value(const boost::property_tree::ptree& ast){
     // call a function, and get return value
