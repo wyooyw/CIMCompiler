@@ -1,6 +1,16 @@
 def trans_weight_to_macros(
-    weight<[-1,-1,-1,-1], int8, global>, 
-    macros<[5,6,7,8], int8, global>
+    weight< <16,16>, int8, global>, 
+    macros< <4,4>, int8, global>
     ){
-    CallFunc(1, 2);
+    a = Slice(weight, [0,0], [4,4], [1,1]);
+    Trans(a, macros);
+}
+
+def main(
+    weight< <32,32>, int8, global>,
+    macros< <8,8>, int8, global>
+    ){
+    sub_weight = Slice(weight, [0,0], [16,16], [1,1]);
+    sub_macros = Slice(macros, [0,0], [4,4], [1,1]);
+    trans_weight_to_macros(sub_weight, sub_macros);
 }

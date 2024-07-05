@@ -55,7 +55,7 @@ memory: MEMORY;
 const_or_var: constant | var;
 constant: CONST;
 var: ID;
-const_array1d: '[' constant (',' constant)* ']';
+const_array1d: '<' constant (',' constant)* '>';
 array1d: '[' expr (',' expr)* ']';
 
 MEMORY: ('global' | 'local' | 'macro') ;

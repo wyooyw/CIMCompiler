@@ -36,8 +36,9 @@ private:
 
 
     void init_func_in_sign_table(const std::string &func_name);
-    void add_to_sign_table(const std::string &arg_name, mlir::Value &arg);
-    void add_func_to_sign_table(const std::string& func_name, mlir::func::FuncOp& func);
+    void add_to_sign_table(const std::string &arg_name, mlir::Value arg);
+    mlir::Value get_from_sign_table(const std::string& arg_name);
+    void add_func_to_sign_table(const std::string& func_name, mlir::func::FuncOp func);
     mlir::func::FuncOp get_func_from_sign_table(const std::string& func_name);
     void parse_func(const boost::property_tree::ptree& ast);
     void parse_func_body(const boost::property_tree::ptree& ast);
@@ -84,7 +85,8 @@ private:
     void parse_call_stmt(const boost::property_tree::ptree& ast);
     void parse_call(const boost::property_tree::ptree& ast);
     mlir::Value parse_call_return_value(const boost::property_tree::ptree& ast);
-    mlir::ValueRange parse_call_args(const boost::property_tree::ptree& ast);
+    mlir::ValueRange parse_call_param_list(const boost::property_tree::ptree& ast);
+    mlir::Value parse_call_param(const boost::property_tree::ptree& ast);
 
     // Bulitin Functions
     mlir::Value parse_bulitin_shape(const boost::property_tree::ptree& ast);
