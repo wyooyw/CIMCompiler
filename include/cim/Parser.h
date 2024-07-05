@@ -83,6 +83,9 @@ private:
     
     mlir::Value build_shape_op(mlir::ValueRange param_list);
 
+    // Range
+    void parse_for_range(const boost::property_tree::ptree& ast);
+
     // Call
     void parse_call_stmt(const boost::property_tree::ptree& ast);
     void parse_call(const boost::property_tree::ptree& ast);

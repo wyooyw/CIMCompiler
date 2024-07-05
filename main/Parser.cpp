@@ -244,7 +244,7 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
     void MLIRGenImpl::parse_for_stmt(const boost::property_tree::ptree& ast){
         std::cout << "parse_for_stmt" << std::endl;
         std::string iter_var_name = safe_get_str(get_item(ast, 1), "text");
-        std::vector<mlir::Value> range = parse_range(safe_get_child(get_item(ast, 3), "for_range"));
+        std::vector<mlir::Value> range = parse_for_range(safe_get_child(get_item(ast, 3), "for_range"));
         mlir::Value range_begin = range[0];
         mlir::Value range_end = range[1];
         mlir::Value range_step = range[2];
@@ -270,7 +270,8 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
     support for_range_1 first.
 */
 
-void MLIRGenImpl::parse_range(const boost::property_tree::ptree& ast){
+void MLIRGenImpl::parse_for_range(const boost::property_tree::ptree& ast){
+    std::cout << "parse_for_range" << std::endl;
     auto ast_for = get_item(ast, 0);
     if(ast_for.count("for_range_1")){
         parse_range_1(safe_get_child(ast_for, "for_range_1"));
