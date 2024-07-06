@@ -55,12 +55,15 @@ public class Examples {
   }
 
   public static void main(String[] args) {
-    String filePath = "/home/wangyiou/project/cim_compiler_frontend/playground/op/v1/conv2d_dense.cim";
+    String filePath = "/home/wangyiou/project/cim_compiler_frontend/playground/result/conv2d_dense_precompile.cim";
     try {
         String source = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
         CIMLexer lexer = new CIMLexer(CharStreams.fromString(source));
         CIMParser parser = new CIMParser(new CommonTokenStream(lexer));
-        System.out.println(toJson(parser.program()));
+        String json = toJson(parser.program());
+        // System.out.println(json);
+        // write to file
+        Files.write(Paths.get("/home/wangyiou/project/cim_compiler_frontend/playground/result/conv2d_dense_ast.json"), json.getBytes());
     } catch (IOException e) {
         e.printStackTrace();
     }

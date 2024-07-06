@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
   
 
   MLIRGenImpl gen_impl(context);
-  mlir::ModuleOp module = gen_impl.parseJson("/home/wangyiou/project/cim_compiler_frontend/playground/out.json");
+  mlir::ModuleOp module = gen_impl.parseJson("/home/wangyiou/project/cim_compiler_frontend/playground/result/conv2d_dense_ast.json");
   
   module.dump();
   return 0;
