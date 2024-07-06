@@ -57,15 +57,21 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
     mlir::ModuleOp MLIRGenImpl::parseModule(const boost::property_tree::ptree& ast) { 
         // Parse the module
         mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
-        builder.setInsertionPointToEnd(module.getBody());
+        
         
         auto program = safe_get_child(ast, "program");
         auto define_func_list = get_item(program, 0);
+
+        mlir::Block *module_body = module.getBody();
+        block_stack.push(module_body);
+        builder.setInsertionPointToEnd(module_body);
 
         for (const auto& pair : program) {
             auto ast_define_func = safe_get_child(pair.second, "define_function");
             parse_func(ast_define_func);
         }
+
+        block_stack.pop();
         return module;
     }
 
@@ -147,8 +153,15 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
 
         // Parse function body
         // std::advance(it, 3);
-        // builder.setInsertionPointToStart(func_body);
+        // auto current_position = builder.getInsertionPoint();
+        block_stack.push(func_body);
+        builder.setInsertionPointToStart(func_body);
+
         parse_func_body(safe_get_child(get_item(ast, 6),"func_body"));
+
+        block_stack.pop();
+        builder.setInsertionPointToEnd(block_stack.top());
+
         // mlir::Value func_arg0 = func_body->getArgument(0);
         // mlir::Value func_arg1 = func_body->getArgument(1);
         // llvm::ArrayRef<int64_t> shape = {3,3,1,1};
@@ -251,8 +264,17 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         // TODO: 怎么加入循环不变量来着?
         mlir::scf::ForOp for_op = builder.create<mlir::scf::ForOp>(range_begin, range_end, range_step);
         // TODO: 把builder指向for_op的body
+        // auto current_position = builder.getInsertionPoint();
+        mlir::Block *for_body = for_op.getBody();
+        block_stack.push(for_body);
+        builder.setInsertionPointToStart(for_op.getBody());
 
         parse_stmt_list(safe_get_child(get_item(ast, 5), "stmt_list"));
+
+        block_stack.pop();
+        builder.setInsertionPointToEnd(block_stack.top());
+
+        // builder.setInsertionPoint(for_op);
     }
 
 /*

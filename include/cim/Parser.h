@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <stack>
+
 
 class MLIRGenImpl {
 public:
@@ -30,6 +32,7 @@ private:
     std::unordered_map<std::string, std::unordered_map<std::string, mlir::Value> > signature_table;
     std::unordered_map<std::string, mlir::func::FuncOp > signature_table_func;
     std::string current_func_name;
+    std::stack<mlir::Block*> block_stack;
 
     const boost::property_tree::ptree& safe_get_child(const boost::property_tree::ptree& ast, const std::string& key);
     std::string safe_get_str(const boost::property_tree::ptree& ast, const std::string& key);
