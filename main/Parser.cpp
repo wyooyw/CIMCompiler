@@ -262,7 +262,12 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         mlir::Value range_end = range[1];
         mlir::Value range_step = range[2];
         // TODO: 怎么加入循环不变量来着?
-        mlir::scf::ForOp for_op = builder.create<mlir::scf::ForOp>(range_begin, range_end, range_step);
+        mlir::scf::ForOp for_op = builder.create<mlir::scf::ForOp>(loc,range_begin, range_end, range_step);
+
+        // Add to sign table
+        mlir::Value iter_var = for_op.getInductionVar();
+        add_to_sign_table(iter_var_name, iter_var);
+
         // TODO: 把builder指向for_op的body
         // auto current_position = builder.getInsertionPoint();
         mlir::Block *for_body = for_op.getBody();
