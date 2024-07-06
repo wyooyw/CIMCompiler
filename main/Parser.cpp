@@ -244,6 +244,7 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
     }
 
     void MLIRGenImpl::parse_assign_stmt(const boost::property_tree::ptree& ast){
+        std::cout << "parse_assign_stmt" << std::endl;
         // LHS
         std::string var_name = safe_get_str(get_item(ast,0), "text");
 
@@ -310,9 +311,8 @@ std::vector<mlir::Value> MLIRGenImpl::parse_for_range(const boost::property_tree
         range_values = parse_for_range_3(safe_get_child(ast_for, "for_range_3"));
     }else{
         mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
-                "Not support range: " + ast_for.first);
+                "Not support range");
         std::exit(1);
-        return nullptr;
     }
     std::cout << "parse_range finish" << std::endl;
     return range_values;
@@ -345,7 +345,7 @@ std::vector<mlir::Value> MLIRGenImpl::parse_for_range_3(const boost::property_tr
 
     mlir::Value begin = parse_const_or_var(safe_get_child(get_item(ast, 1), "const_or_var"));
     mlir::Value end = parse_const_or_var(safe_get_child(get_item(ast, 3), "const_or_var"));
-    mlir::Value stride = create_const_value(safe_get_child(get_item(ast, 5), "const_or_var"));
+    mlir::Value stride = parse_const_or_var(safe_get_child(get_item(ast, 5), "const_or_var"));
 
     std::cout << "parse_for_range_3 finish" << std::endl;
     return {begin, end, stride};
