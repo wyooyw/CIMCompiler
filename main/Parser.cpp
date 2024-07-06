@@ -608,10 +608,30 @@ mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree&
             binary_expr: unary_expr BINARY_OP unary_expr;
         */
         std::cout << "parse_binary_expr" << std::endl;
-        auto lhs_unary_expr =  safe_get_child( get_item(ast, 0), "unary_expr");
-        auto binary_op = get_item(ast, 1);
-        auto rhs_unary_expr =  safe_get_child( get_item(ast, 2), "unary_expr");
-        return nullptr;
+        auto ast_lhs =  safe_get_child( get_item(ast, 0), "unary_expr");
+        mlir::Value lhs = parse_unary_expr(ast_lhs);
+
+        auto binary_op = safe_get_str(get_item(ast, 1), "text");
+        
+        auto ast_rhs =  safe_get_child( get_item(ast, 2), "unary_expr");
+        mlir::Value rhs = parse_unary_expr(ast_rhs);
+
+        if (binary_op == "+"){
+            return builder.create<mlir::arith::AddIOp>(loc, lhs, rhs);
+        }else if (binary_op == "-"){
+            return builder.create<mlir::arith::SubIOp>(loc, lhs, rhs);
+        }else if (binary_op == "*"){
+            return builder.create<mlir::arith::MulIOp>(loc, lhs, rhs);
+        }else if (binary_op == "/"){
+            return builder.create<mlir::arith::DivSIOp>(loc, lhs, rhs);
+        }else{
+            // raise: not support yet
+            mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                "Not support binary_op: " + binary_op);
+            std::exit(1);
+            return nullptr;
+        }
+        
     }
 
     bool MLIRGenImpl::is_unary_expr(const boost::property_tree::ptree& ast){
