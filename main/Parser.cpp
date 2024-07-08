@@ -139,7 +139,7 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         auto ret_type = builder.getNoneType();
 
         // Make function node
-        auto func_type = builder.getFunctionType(args_types, {ret_type});
+        auto func_type = builder.getFunctionType(args_types, {});
         auto func = builder.create<mlir::func::FuncOp>(loc, func_name, func_type);
         func.setPrivate();
         mlir::Block *func_body = func.addEntryBlock();
@@ -178,6 +178,7 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         std::cout << "parse_func_body" << std::endl;
 
         parse_stmt_list(safe_get_child(get_item(ast,0), "stmt_list"));
+        builder.create<mlir::func::ReturnOp>(loc);
         std::cout << "parse_func_body finish." << std::endl;
     }
 
