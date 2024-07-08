@@ -115,6 +115,8 @@ def ShapeOp : CIM_Op<"shape", [Pure]> {
   let builders = [
     OpBuilder<(ins "Value":$input, "Value":$index)>
   ];
+
+  let hasCanonicalizer = 1;
 }
 
 
