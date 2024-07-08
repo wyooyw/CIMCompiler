@@ -321,9 +321,9 @@ std::vector<mlir::Value> MLIRGenImpl::parse_for_range(const boost::property_tree
 std::vector<mlir::Value> MLIRGenImpl::parse_for_range_1(const boost::property_tree::ptree& ast){
     std::cout << "parse_for_range_1" << std::endl;
 
-    mlir::Value begin = builder.create<mlir::arith::ConstantOp>(loc, builder.getI32Type(), builder.getI32IntegerAttr(0));
+    mlir::Value begin = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64Type(), builder.getI64IntegerAttr(0));
     mlir::Value end = parse_const_or_var(safe_get_child(get_item(ast, 1), "const_or_var"));
-    mlir::Value stride = builder.create<mlir::arith::ConstantOp>(loc, builder.getI32Type(), builder.getI32IntegerAttr(1));
+    mlir::Value stride = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64Type(), builder.getI64IntegerAttr(1));
 
     std::cout << "parse_for_range_1 finish" << std::endl;
     return {begin, end, stride};
@@ -334,7 +334,7 @@ std::vector<mlir::Value> MLIRGenImpl::parse_for_range_2(const boost::property_tr
 
     mlir::Value begin = parse_const_or_var(safe_get_child(get_item(ast, 1), "const_or_var"));
     mlir::Value end = parse_const_or_var(safe_get_child(get_item(ast, 3), "const_or_var"));
-    mlir::Value stride = builder.create<mlir::arith::ConstantOp>(loc, builder.getI32Type(), builder.getI32IntegerAttr(1));
+    mlir::Value stride = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64Type(), builder.getI64IntegerAttr(1));
 
     std::cout << "parse_for_range_2 finish" << std::endl;
     return {begin, end, stride};
@@ -561,7 +561,7 @@ void MLIRGenImpl::parse_bulitin_print(const boost::property_tree::ptree& ast){
 
         auto const_node = get_item(ast, 0);
         int value = std::stoi(safe_get_str(const_node, "text"));
-        mlir::Value const_value = builder.create<mlir::arith::ConstantOp>(loc, builder.getI32Type(), builder.getI32IntegerAttr(value));
+        mlir::Value const_value = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64Type(), builder.getI64IntegerAttr(value));
         std::cout << "parse_const finish" << std::endl;
         return const_value;
     }
