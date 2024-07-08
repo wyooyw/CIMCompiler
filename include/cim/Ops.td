@@ -119,5 +119,18 @@ def ShapeOp : CIM_Op<"shape", [Pure]> {
   let hasCanonicalizer = 1;
 }
 
+def PrintOp : CIM_Op<"print"> {
+  let summary = "print a integer";
+  let description = [{
+    print an integer
+  }];
+
+  let arguments = (ins I32:$value); // TODO: which type can represent any Tensor?
+
+  //let builders = [
+  //  OpBuilder<(ins "Value":$value)>
+  //];
+
+}
 
 #endif // CIM_OPS
