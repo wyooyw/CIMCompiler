@@ -393,6 +393,9 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     }else if (call_func_name=="Print") {
         parse_bulitin_print(ast);
         return;
+    }else if(call_func_name=="Free") {
+        parse_bulitin_free(ast);
+        return;
     }
 
     // check sign table
@@ -505,7 +508,7 @@ mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree&
     auto ast_memory_call_param = safe_get_child(get_item(ast_param_list, 4), "call_param");
     auto ast_memory = safe_get_child(get_item(ast_memory_call_param, 0), "memory");
     std::string memory = safe_get_str(get_item(ast_memory,0), "text");
-    mlir::StringAttr memory_attr = parse_device(memory);
+    mlir::Attribute memory_attr = parse_device(memory);
 
     // Shape
     auto ast_shape = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -530,6 +533,16 @@ void MLIRGenImpl::parse_bulitin_print(const boost::property_tree::ptree& ast){
 
     mlir::Value value = parse_expr(safe_get_child(get_item(ast_value, 0), "expr"));
     builder.create<mlir::cim::PrintOp>(loc, value);
+}
+
+void MLIRGenImpl::parse_bulitin_free(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_free" << std::endl;
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_value = safe_get_child(get_item(ast_param_list,0), "call_param");
+
+    mlir::Value value = parse_expr(safe_get_child(get_item(ast_value, 0), "expr"));
+    builder.create<mlir::cim::DeallocOp>(loc, value);
 }
 
 /*
@@ -741,15 +754,27 @@ void MLIRGenImpl::parse_bulitin_print(const boost::property_tree::ptree& ast){
         }
     }
 
-    mlir::StringAttr MLIRGenImpl::parse_device(std::string device){
+    mlir::Attribute MLIRGenImpl::parse_device(std::string device){
         std::cout << "parse_device" << std::endl;
 
         if (device=="global"){
-            return GLOBAL_MEMORY;
+            SmallVector<NamedAttribute, 2> nameAttrs;
+            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("global")));
+            nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
+            mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
+            return attr;
         }else if(device=="local"){
-            return LOCAL_MEMORY;
+            SmallVector<NamedAttribute, 2> nameAttrs;
+            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("local")));
+            nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
+            mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
+            return attr;
         }else if(device=="macro"){
-            return MACRO_MEMORY;
+            SmallVector<NamedAttribute, 2> nameAttrs;
+            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("macro")));
+            nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
+            mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
+            return attr;
         }else{
             // raise: not support yet
             mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
