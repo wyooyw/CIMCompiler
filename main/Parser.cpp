@@ -508,7 +508,7 @@ mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree&
     auto ast_memory_call_param = safe_get_child(get_item(ast_param_list, 4), "call_param");
     auto ast_memory = safe_get_child(get_item(ast_memory_call_param, 0), "memory");
     std::string memory = safe_get_str(get_item(ast_memory,0), "text");
-    mlir::StringAttr memory_attr = parse_device(memory);
+    mlir::Attribute memory_attr = parse_device(memory);
 
     // Shape
     auto ast_shape = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -754,15 +754,27 @@ void MLIRGenImpl::parse_bulitin_free(const boost::property_tree::ptree& ast){
         }
     }
 
-    mlir::StringAttr MLIRGenImpl::parse_device(std::string device){
+    mlir::Attribute MLIRGenImpl::parse_device(std::string device){
         std::cout << "parse_device" << std::endl;
 
         if (device=="global"){
-            return GLOBAL_MEMORY;
+            SmallVector<NamedAttribute, 2> nameAttrs;
+            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("global")));
+            nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
+            mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
+            return attr;
         }else if(device=="local"){
-            return LOCAL_MEMORY;
+            SmallVector<NamedAttribute, 2> nameAttrs;
+            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("local")));
+            nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
+            mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
+            return attr;
         }else if(device=="macro"){
-            return MACRO_MEMORY;
+            SmallVector<NamedAttribute, 2> nameAttrs;
+            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("macro")));
+            nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
+            mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
+            return attr;
         }else{
             // raise: not support yet
             mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
