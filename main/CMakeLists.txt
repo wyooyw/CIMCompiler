@@ -13,9 +13,11 @@ add_llvm_executable(main
         Dialect.cpp
         Combine.cpp
         Parser.cpp
+        ShapeInferencePass.cpp
 
         DEPENDS
-        CIMOpsIncGen)
+        CIMOpsIncGen
+        CIMShapeInferenceInterfaceIncGen)
 # add_dependencies(main )
 
 set(LLVM_ENABLE_EH ON)

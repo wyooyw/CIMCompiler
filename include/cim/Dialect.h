@@ -24,6 +24,7 @@
 /// Include the auto-generated header file containing the declaration of the toy
 /// dialect.
 #include "cim/Dialect.h.inc"
+#include "cim/ShapeInferenceInterface.h"
 
 /// Include the auto-generated header file containing the declarations of the
 /// toy operations.
