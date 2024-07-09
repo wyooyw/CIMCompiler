@@ -14,6 +14,7 @@ add_llvm_executable(main
         Combine.cpp
         Parser.cpp
         ShapeInferencePass.cpp
+        MemoryAddressAllocationPass.cpp
 
         DEPENDS
         CIMOpsIncGen
