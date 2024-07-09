@@ -542,7 +542,7 @@ void MLIRGenImpl::parse_bulitin_free(const boost::property_tree::ptree& ast){
     auto ast_value = safe_get_child(get_item(ast_param_list,0), "call_param");
 
     mlir::Value value = parse_expr(safe_get_child(get_item(ast_value, 0), "expr"));
-    builder.create<mlir::cim::DeallocOp>(loc, value);
+    builder.create<mlir::memref::DeallocOp>(loc, value);
 }
 
 /*
@@ -742,7 +742,7 @@ void MLIRGenImpl::parse_bulitin_free(const boost::property_tree::ptree& ast){
         if(datatype=="int8"){
             return builder.getI8Type();
         }else if(datatype=="int32"){
-            return builder.getI16Type();
+            return builder.getI32Type();
         }else if(datatype=="float32"){
             return builder.getF32Type();
         }else{
@@ -758,19 +758,19 @@ void MLIRGenImpl::parse_bulitin_free(const boost::property_tree::ptree& ast){
         std::cout << "parse_device" << std::endl;
 
         if (device=="global"){
-            SmallVector<NamedAttribute, 2> nameAttrs;
+            mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
             nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("global")));
             nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
             mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
             return attr;
         }else if(device=="local"){
-            SmallVector<NamedAttribute, 2> nameAttrs;
+            mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
             nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("local")));
             nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
             mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
             return attr;
         }else if(device=="macro"){
-            SmallVector<NamedAttribute, 2> nameAttrs;
+            mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
             nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("macro")));
             nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
             mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
