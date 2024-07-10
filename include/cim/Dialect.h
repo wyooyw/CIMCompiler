@@ -36,6 +36,9 @@ class DialectRegistry;
 namespace cim {
 void registerBufferizableOpInterfaceExternalModels(DialectRegistry &registry);
 } // namespace cim
+
+void registerCIMInlinerInterface(mlir::DialectRegistry &registry);
+
 } // namespace mlir
 
 #endif // MLIR_TUTORIAL_CIM_DIALECT_H_

@@ -52,6 +52,7 @@ int main(int argc, char **argv) {
   mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::cim::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::registerCIMInlinerInterface(registry);
   mlir::func::registerAllExtensions(registry);
   mlir::registerAllDialects(registry);
   // mlir::func::registerInlinerExtension(registry);

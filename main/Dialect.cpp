@@ -24,12 +24,14 @@
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/InliningUtils.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include <algorithm>
 #include <string>
+#include <iostream>
 
 #include "mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -49,6 +51,7 @@ using namespace mlir::cim;
 // CIMDialect
 //===----------------------------------------------------------------------===//
 
+// modify from mlir/lib/Dialect/Func/Extensions/InlinerExtension.cpp
 struct CIMInlinerInterface : public DialectInlinerInterface {
   using DialectInlinerInterface::DialectInlinerInterface;
 
@@ -76,17 +79,31 @@ struct CIMInlinerInterface : public DialectInlinerInterface {
   // Transformation Hooks
   //===--------------------------------------------------------------------===//
 
-  /// Handle the given inlined terminator(toy.return) by replacing it with a new
-  /// operation as necessary.
-  // void handleTerminator(Operation *op, ValueRange valuesToRepl) const final {
-  //   // Only "toy.return" needs to be handled here.
-  //   auto returnOp = cast<ReturnOp>(op);
+  /// Handle the given inlined terminator by replacing it with a new operation
+  /// as necessary.
+  void handleTerminator(Operation *op, Block *newDest) const final {
+    // Only return needs to be handled here.
+    auto returnOp = dyn_cast<mlir::func::ReturnOp>(op);
+    if (!returnOp)
+      return;
 
-  //   // Replace the values directly with the return operands.
-  //   assert(returnOp.getNumOperands() == valuesToRepl.size());
-  //   for (const auto &it : llvm::enumerate(returnOp.getOperands()))
-  //     valuesToRepl[it.index()].replaceAllUsesWith(it.value());
-  // }
+    // Replace the return with a branch to the dest.
+    OpBuilder builder(op);
+    builder.create<mlir::cf::BranchOp>(op->getLoc(), newDest, returnOp.getOperands());
+    op->erase();
+  }
+
+  /// Handle the given inlined terminator by replacing it with a new operation
+  /// as necessary.
+  void handleTerminator(Operation *op, ValueRange valuesToRepl) const final {
+    // Only return needs to be handled here.
+    auto returnOp = cast<mlir::func::ReturnOp>(op);
+
+    // Replace the values directly with the return operands.
+    assert(returnOp.getNumOperands() == valuesToRepl.size());
+    for (const auto &it : llvm::enumerate(returnOp.getOperands()))
+      valuesToRepl[it.index()].replaceAllUsesWith(it.value());
+  }
 
   /// Attempts to materialize a conversion for a type mismatch between a call
   /// from this dialect, and a callable region. This method should generate an
@@ -96,7 +113,8 @@ struct CIMInlinerInterface : public DialectInlinerInterface {
   Operation *materializeCallConversion(OpBuilder &builder, Value input,
                                        Type resultType,
                                        Location conversionLoc) const final {
-    return builder.create<CastOp>(conversionLoc, resultType, input);
+    std::cout << "materializeCallConversion" << std::endl;
+    return builder.create<mlir::memref::CastOp>(conversionLoc, resultType, input);
   }
 };
 
@@ -107,7 +125,14 @@ void CIMDialect::initialize() {
 #define GET_OP_LIST
 #include "cim/Ops.cpp.inc"
       >();
-  addInterfaces<CIMInlinerInterface>();
+  // addInterfaces<CIMInlinerInterface>();
+}
+
+void mlir::registerCIMInlinerInterface(
+    DialectRegistry &registry) {
+  registry.addExtension(+[](MLIRContext *ctx, func::FuncDialect *dialect) {
+    dialect->addInterfaces<CIMInlinerInterface>();
+  });
 }
 
 //===----------------------------------------------------------------------===//
