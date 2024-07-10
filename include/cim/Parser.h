@@ -112,6 +112,7 @@ private:
     mlir::Value parse_bulitin_buffer(const boost::property_tree::ptree& ast);
     void parse_bulitin_print(const boost::property_tree::ptree& ast);
     void parse_bulitin_free(const boost::property_tree::ptree& ast);
+    mlir::Value parse_bulitin_load(const boost::property_tree::ptree& ast);
 };
 
 #endif // MLIRGENIMPL_H

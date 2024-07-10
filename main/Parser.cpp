@@ -420,6 +420,8 @@ mlir::Value MLIRGenImpl::parse_call_return_value(const boost::property_tree::ptr
         return parse_bulitin_slice(ast);
     }else if (call_func_name=="Buffer") {
         return parse_bulitin_buffer(ast);
+    }else if(call_func_name=="Load") {
+        return parse_bulitin_load(ast);
     }
 
     // check sign table
@@ -597,6 +599,19 @@ void MLIRGenImpl::parse_bulitin_free(const boost::property_tree::ptree& ast){
     builder.create<mlir::memref::DeallocOp>(loc, value);
 }
 
+mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_load" << std::endl;
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_memref = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_index = safe_get_child(get_item(ast_param_list,2), "call_param");
+
+    mlir::Value memref = parse_expr(safe_get_child(get_item(ast_memref, 0), "expr"));
+    mlir::SmallVector<mlir::Value> index = parse_array_1d(safe_get_child(get_item(ast_index, 0), "array1d"));
+
+    mlir::Value result = builder.create<mlir::memref::LoadOp>(loc, memref, index);
+    return result;
+}
 /*
  * Bulitin Functions End
  */
