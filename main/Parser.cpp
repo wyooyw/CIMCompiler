@@ -141,7 +141,9 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         // Make function node
         auto func_type = builder.getFunctionType(args_types, {});
         auto func = builder.create<mlir::func::FuncOp>(loc, func_name, func_type);
-        func.setPrivate();
+        if (func_name!="main"){
+            func.setPrivate();
+        }
         mlir::Block *func_body = func.addEntryBlock();
 
         // Signature table
