@@ -266,26 +266,39 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         mlir::Value range_step = range[2];
 
         // loop-carried variables
-        auto loop_carried_variables = parse_carry(safe_get_child(get_item(ast, 4), "carry"));
-        
+        auto loop_carried_names_and_variables = parse_carry(safe_get_child(get_item(ast, 4), "carry"));
+        auto loop_carried_names = loop_carried_names_and_variables.first;
+        auto loop_carried_variables = loop_carried_names_and_variables.second;
         mlir::scf::ForOp for_op = builder.create<mlir::scf::ForOp>(loc,range_begin, range_end, range_step, loop_carried_variables);
-        // mlir::scf::ForOp for_op = builder.create<mlir::scf::ForOp>(loc,range_begin, range_end, range_step);
 
         // Add to sign table
-        mlir::Value iter_var = for_op.getInductionVar();
-        add_to_sign_table(iter_var_name, iter_var);
+        llvm::SmallVector<mlir::Value> for_args;
+        for (const auto &barg : llvm::enumerate(for_op.getBody(0)->getArguments())) {
+            for_args.push_back(barg.value());
+        }
+        add_to_sign_table(iter_var_name, for_args[0]);
+        for(int i = 1;i < for_args.size();i++){ // for_args[0] is iter var
+            add_to_sign_table(loop_carried_names[i-1], for_args[i]);
+        }
 
-        // auto current_position = builder.getInsertionPoint();
+        // Loop Body
         mlir::Block *for_body = for_op.getBody();
         block_stack.push(for_body);
         builder.setInsertionPointToStart(for_op.getBody());
 
         parse_stmt_list(safe_get_child(get_item(ast, 6), "stmt_list"));
+        // yield
+        auto yield_variables = parse_carry(safe_get_child(get_item(ast, 4), "carry")).second;
+        builder.create<mlir::scf::YieldOp>(loc, yield_variables);
 
         block_stack.pop();
         builder.setInsertionPointToEnd(block_stack.top());
 
-        // builder.setInsertionPoint(for_op);
+        // replace carry variables with new values
+        mlir::ValueRange for_result = for_op.getResults();
+        for(int i = 0;i < for_result.size();i++){ // for_args[0] is iter var
+            add_to_sign_table(loop_carried_names[i], for_result[i]);
+        }
     }
 
 /*
@@ -299,26 +312,29 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
  * 
 */
 
-llvm::SmallVector<mlir::Value> MLIRGenImpl::parse_carry(const boost::property_tree::ptree& ast){
+std::pair<llvm::SmallVector<std::string>, llvm::SmallVector<mlir::Value>> MLIRGenImpl::parse_carry(const boost::property_tree::ptree& ast){
     std::cout << "parse_carry" << std::endl;
     auto ast_carry_list = safe_get_child(get_item(ast, 2), "carry_list");
-    llvm::SmallVector carry_list = parse_carry_list(ast_carry_list);
+    std::pair<llvm::SmallVector<std::string>, llvm::SmallVector<mlir::Value>> carry_list = parse_carry_list(ast_carry_list);
     std::cout << "parse_carry finish" << std::endl;
     return carry_list;
 }
-llvm::SmallVector<mlir::Value> MLIRGenImpl::parse_carry_list(const boost::property_tree::ptree& ast){
+std::pair<llvm::SmallVector<std::string>, llvm::SmallVector<mlir::Value>> MLIRGenImpl::parse_carry_list(const boost::property_tree::ptree& ast){
     std::cout << "parse_carry_list" << std::endl;
     
+    llvm::SmallVector<std::string> var_name_list;
     llvm::SmallVector<mlir::Value> vec_carry_list;
     for (const auto& pair : ast) {
         if(pair.second.count("var")){
             auto ast_var = safe_get_child(pair.second, "var");
-            vec_carry_list.push_back(parse_var(ast_var));
+            auto var_and_name = parse_var_and_name(ast_var);
+            var_name_list.push_back(var_and_name.first);
+            vec_carry_list.push_back(var_and_name.second);
         }
     }
     // mlir::ValueRange carry_list(vec_carry_list);
     std::cout << "parse_carry_list finish" << std::endl;
-    return vec_carry_list;
+    return make_pair(var_name_list, vec_carry_list);
 }
 
 /*
@@ -593,6 +609,13 @@ void MLIRGenImpl::parse_bulitin_free(const boost::property_tree::ptree& ast){
         std::string var_name = safe_get_str(get_item(ast, 0), "text");
         mlir::Value var = get_from_sign_table(var_name);
         return var;
+    }
+
+    std::pair<std::string, mlir::Value> MLIRGenImpl::parse_var_and_name(const boost::property_tree::ptree& ast){
+        std::cout << "parse_var" << std::endl;
+        std::string var_name = safe_get_str(get_item(ast, 0), "text");
+        mlir::Value var = get_from_sign_table(var_name);
+        return std::make_pair(var_name, var);
     }
 
     int64_t MLIRGenImpl::parse_const_int(const boost::property_tree::ptree& ast){
