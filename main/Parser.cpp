@@ -451,24 +451,24 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     // check sign table
     mlir::func::FuncOp func = get_func_from_sign_table(call_func_name);
 
-    mlir::ValueRange param_list = parse_call_param_list(safe_get_child(get_item(ast, 2), "call_param_list"));
+    llvm::SmallVector<mlir::Value> param_list = parse_call_param_list(safe_get_child(get_item(ast, 2), "call_param_list"));
     mlir::func::CallOp call = builder.create<mlir::func::CallOp>(loc, func, param_list);
     std::cout << "parse_call finish" << std::endl;
     return;
 }
 
-mlir::ValueRange MLIRGenImpl::parse_call_param_list(const boost::property_tree::ptree& ast){
+llvm::SmallVector<mlir::Value> MLIRGenImpl::parse_call_param_list(const boost::property_tree::ptree& ast){
     std::cout << "parse_call_param_list" << std::endl;
-    std::vector<mlir::Value> vec_param_list;
+    llvm::SmallVector<mlir::Value> vec_param_list;
     for (const auto& pair : ast) {
         if(pair.second.count("call_param")){
             auto ast_call_param = safe_get_child(pair.second, "call_param");
             vec_param_list.push_back(parse_call_param(ast_call_param));
         }
     }
-    mlir::ValueRange param_list(vec_param_list);
+    // mlir::ValueRange param_list(vec_param_list);
     std::cout << "parse_call_param_list finish" << std::endl;
-    return param_list;
+    return vec_param_list;
 }
 
 mlir::Value MLIRGenImpl::parse_call_param(const boost::property_tree::ptree& ast){

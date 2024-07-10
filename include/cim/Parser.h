@@ -101,7 +101,7 @@ private:
     void parse_call_stmt(const boost::property_tree::ptree& ast);
     void parse_call(const boost::property_tree::ptree& ast);
     mlir::Value parse_call_return_value(const boost::property_tree::ptree& ast);
-    mlir::ValueRange parse_call_param_list(const boost::property_tree::ptree& ast);
+    llvm::SmallVector<mlir::Value> parse_call_param_list(const boost::property_tree::ptree& ast);
     mlir::Value parse_call_param(const boost::property_tree::ptree& ast);
 
     // Bulitin Functions
