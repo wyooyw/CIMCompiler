@@ -93,8 +93,8 @@ private:
     std::vector<mlir::Value> parse_for_range_3(const boost::property_tree::ptree& ast);
 
     // Carry
-    mlir::ValueRange parse_carry(const boost::property_tree::ptree& ast);
-    mlir::ValueRange parse_carry_list(const boost::property_tree::ptree& ast);
+    llvm::SmallVector<mlir::Value> parse_carry(const boost::property_tree::ptree& ast);
+    llvm::SmallVector<mlir::Value> parse_carry_list(const boost::property_tree::ptree& ast);
 
     // Call
     void parse_call_stmt(const boost::property_tree::ptree& ast);

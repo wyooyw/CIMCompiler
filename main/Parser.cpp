@@ -266,7 +266,7 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         mlir::Value range_step = range[2];
 
         // loop-carried variables
-        mlir::ValueRange loop_carried_variables = parse_carry(safe_get_child(get_item(ast, 4), "carry"));
+        auto loop_carried_variables = parse_carry(safe_get_child(get_item(ast, 4), "carry"));
         
         mlir::scf::ForOp for_op = builder.create<mlir::scf::ForOp>(loc,range_begin, range_end, range_step, loop_carried_variables);
         // mlir::scf::ForOp for_op = builder.create<mlir::scf::ForOp>(loc,range_begin, range_end, range_step);
@@ -299,25 +299,26 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
  * 
 */
 
-mlir::ValueRange MLIRGenImpl::parse_carry(const boost::property_tree::ptree& ast){
+llvm::SmallVector<mlir::Value> MLIRGenImpl::parse_carry(const boost::property_tree::ptree& ast){
     std::cout << "parse_carry" << std::endl;
     auto ast_carry_list = safe_get_child(get_item(ast, 2), "carry_list");
-    mlir::ValueRange carry_list = parse_carry_list(ast_carry_list);
+    llvm::SmallVector carry_list = parse_carry_list(ast_carry_list);
     std::cout << "parse_carry finish" << std::endl;
     return carry_list;
 }
-mlir::ValueRange MLIRGenImpl::parse_carry_list(const boost::property_tree::ptree& ast){
+llvm::SmallVector<mlir::Value> MLIRGenImpl::parse_carry_list(const boost::property_tree::ptree& ast){
     std::cout << "parse_carry_list" << std::endl;
-    std::vector<mlir::Value> vec_carry_list;
+    
+    llvm::SmallVector<mlir::Value> vec_carry_list;
     for (const auto& pair : ast) {
         if(pair.second.count("var")){
             auto ast_var = safe_get_child(pair.second, "var");
             vec_carry_list.push_back(parse_var(ast_var));
         }
     }
-    mlir::ValueRange carry_list(vec_carry_list);
+    // mlir::ValueRange carry_list(vec_carry_list);
     std::cout << "parse_carry_list finish" << std::endl;
-    return carry_list;
+    return vec_carry_list;
 }
 
 /*
