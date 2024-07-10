@@ -90,6 +90,9 @@ struct ShapeToConstant : public mlir::OpRewritePattern<mlir::cim::ShapeOp> {
     int64_t index_value = const_index_op.value();
 
     int64_t size = shape[index_value];
+    if(size==mlir::ShapedType::kDynamic){
+      return failure();
+    }
     
     mlir::Value new_constant = rewriter.create<arith::ConstantOp>(op.getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(size));
     rewriter.replaceOp(op, {new_constant});
