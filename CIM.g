@@ -63,7 +63,7 @@ var: ID;
 const_array1d: '<' constant (',' constant)* '>';
 array1d: '[' expr (',' expr)* ']';
 
-MEMORY: ('global' | 'local' | 'macro') ;
+MEMORY: ('global' | 'local' | 'macro' | 'rf') ;
 DATATYPE: ('int8' | 'int32' | 'int64' | 'index' | 'float32') ;
 BINARY_OP: ADD | SUB | MUL | DIV | INTDIV | MOD;
 ADD : '+';

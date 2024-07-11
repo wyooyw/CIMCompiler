@@ -841,21 +841,9 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
     mlir::Attribute MLIRGenImpl::parse_device(std::string device){
         std::cout << "parse_device" << std::endl;
 
-        if (device=="global"){
+        if (device=="global" || device=="local" || device=="macro"|| device=="rf"){
             mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
-            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("global")));
-            nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
-            mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
-            return attr;
-        }else if(device=="local"){
-            mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
-            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("local")));
-            nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
-            mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
-            return attr;
-        }else if(device=="macro"){
-            mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
-            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr("macro")));
+            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr(device)));
             nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
             mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
             return attr;
