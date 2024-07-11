@@ -890,13 +890,32 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
         return type;
     }
 
-    mlir::Type MLIRGenImpl::parse_param_type(const boost::property_tree::ptree& ast) {
-        std::cout << "parse_param_type" << std::endl;
-        
-        return parse_param_type_tensor( safe_get_child( get_item(ast, 0), "param_type_tensor"));
+    mlir::Type MLIRGenImpl::parse_param_type_scalar(const boost::property_tree::ptree& ast) {
+        std::cout << "parse_param_type_scalar" << std::endl;
+
+        // datatype
+        auto datatype = parse_datatype(safe_get_str(get_item(ast, 1), "text"));
+
+        return datatype;
     }
 
-    std::pair<mlir::Type, std::string> MLIRGenImpl::parse_tensor_type_and_name(const boost::property_tree::ptree& ast){
+    mlir::Type MLIRGenImpl::parse_param_type(const boost::property_tree::ptree& ast) {
+        std::cout << "parse_param_type" << std::endl;
+        auto ast_param_type = get_item(ast, 0);
+        if (ast_param_type.count("param_type_tensor")){
+            return parse_param_type_tensor( safe_get_child( ast_param_type, "param_type_tensor"));
+        }else if (ast_param_type.count("param_type_scalar")){
+            return parse_param_type_scalar( safe_get_child( ast_param_type, "param_type_scalar"));
+        }else{
+            // raise: not support yet
+            mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                "Not support param_type: " + ast_param_type.begin()->first);
+            std::exit(1);
+            return nullptr;
+        }
+    }
+
+    std::pair<mlir::Type, std::string> MLIRGenImpl::parse_param_type_and_name(const boost::property_tree::ptree& ast){
         std::cout << "parse_tensor_type_and_name" << std::endl;
         
         auto args_name =  safe_get_child( get_item(ast, 0), "param_name");
@@ -913,14 +932,10 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
         std::vector<std::string> args_names;
         int i = 0;
         for (const auto& pair : ast) {
-            if(is_tensor_args(pair.second)){
-                auto type_and_name = parse_tensor_type_and_name( safe_get_child( pair.second, "func_param"));
+            if(is_tensor_args(pair.second) || is_scalar_args(pair.second)){
+                auto type_and_name = parse_param_type_and_name( safe_get_child( pair.second, "func_param"));
                 args_types.push_back(type_and_name.first);
                 args_names.push_back(type_and_name.second);
-            }else if(is_scalar_args(pair.second)){
-                // auto type_and_name = parse_scalar_type_and_name(pair.second.get_child("func_param"));
-                // args_types.push_back(type_and_name.first);
-                // args_names.push_back(type_and_name.second);
             }
         }
         return std::make_pair(args_types, args_names);
@@ -941,5 +956,5 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
         if(!ast.count("func_param")) return false;
         auto func_param =  safe_get_child( ast, "func_param");
         auto param_type =  safe_get_child( get_item(func_param, 1), "param_type");
-        return get_item(param_type, 0).count("param_scalar_tensor");
+        return get_item(param_type, 0).count("param_type_scalar");
     }

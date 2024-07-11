@@ -76,8 +76,9 @@ private:
     mlir::Type parse_datatype(std::string datatype);
     mlir::Attribute parse_device(std::string device);
     mlir::MemRefType parse_param_type_tensor(const boost::property_tree::ptree& ast);
+    mlir::Type parse_param_type_scalar(const boost::property_tree::ptree& ast);
     mlir::Type parse_param_type(const boost::property_tree::ptree& ast);
-    std::pair<mlir::Type, std::string> parse_tensor_type_and_name(const boost::property_tree::ptree& ast);
+    std::pair<mlir::Type, std::string> parse_param_type_and_name(const boost::property_tree::ptree& ast);
     std::pair<std::vector<mlir::Type>, std::vector<std::string> > parse_func_args(const boost::property_tree::ptree& ast);
     bool is_tensor_args(const boost::property_tree::ptree& ast);
     bool is_scalar_args(const boost::property_tree::ptree& ast);
