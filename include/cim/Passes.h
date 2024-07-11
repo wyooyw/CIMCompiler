@@ -9,6 +9,7 @@ class Pass;
 namespace cim {
 std::unique_ptr<Pass> createShapeInferencePass();
 std::unique_ptr<Pass> createMemoryAddressAllocationPass();
+std::unique_ptr<Pass> createTestDecomposeAffineOpPass();
 } // namespace cim
 } // namespace mlir
 
