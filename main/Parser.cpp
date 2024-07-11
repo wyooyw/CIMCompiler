@@ -607,7 +607,13 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
     auto ast_index = safe_get_child(get_item(ast_param_list,2), "call_param");
 
     mlir::Value memref = parse_expr(safe_get_child(get_item(ast_memref, 0), "expr"));
-    mlir::SmallVector<mlir::Value> index = parse_array_1d(safe_get_child(get_item(ast_index, 0), "array1d"));
+    mlir::SmallVector<mlir::Value> _index = parse_array_1d(safe_get_child(get_item(ast_index, 0), "array1d"));
+    mlir::SmallVector<mlir::Value> index;
+    for(int i = 0; i<_index.size(); i++){
+        mlir::Value index_i = builder.create<mlir::index::CastSOp>(loc, builder.getIndexType(), _index[i]);
+        index.push_back(index_i);
+    }
+    // 
 
     mlir::Value result = builder.create<mlir::memref::LoadOp>(loc, memref, index);
     return result;
@@ -817,6 +823,10 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
             return builder.getI8Type();
         }else if(datatype=="int32"){
             return builder.getI32Type();
+        }else if(datatype=="int64"){
+            return builder.getI64Type();
+        }else if(datatype=="index"){
+            return builder.getIndexType();
         }else if(datatype=="float32"){
             return builder.getF32Type();
         }else{

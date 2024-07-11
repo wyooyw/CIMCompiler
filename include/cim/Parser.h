@@ -7,6 +7,7 @@
 #include <mlir/IR/Location.h>
 #include "mlir/Dialect/Func/Transforms/Passes.h"
 #include "mlir/InitAllDialects.h"
+#include "mlir/Dialect/Index/IR/IndexOps.h"
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <iostream>
