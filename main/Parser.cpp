@@ -730,6 +730,8 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
             return builder.create<mlir::arith::MulIOp>(loc, lhs, rhs);
         }else if (binary_op == "/"){
             return builder.create<mlir::arith::DivSIOp>(loc, lhs, rhs);
+        }else if(binary_op == "%"){
+            return builder.create<mlir::arith::RemSIOp>(loc, lhs, rhs);
         }else{
             // raise: not support yet
             mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
