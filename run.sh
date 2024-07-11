@@ -4,7 +4,9 @@ set -e
 cp op/v1/conv2d_dense.cim ./result/conv2d_dense.cim
 
 # precompile
-python precompile/remove_comment.py --in-file ./result/conv2d_dense.cim --out-file ./result/conv2d_dense_precompile.cim
+python precompile/remove_comment.py --in-file ./result/conv2d_dense.cim --out-file ./result/conv2d_dense_1_remove_comment.cim
+python precompile/macro_replace.py --in-file ./result/conv2d_dense_1_remove_comment.cim --out-file ./result/conv2d_dense_2_replace_macro.cim
+cp ./result/conv2d_dense_2_replace_macro.cim ./result/conv2d_dense_precompile.cim
 
 # antlr: code -> ast(json)
 antlr CIM.g -o .temp
