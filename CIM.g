@@ -74,6 +74,6 @@ CONST: ( CONST_NEG | CONST_POS );
 CONST_NEG : '-' CONST_POS;
 CONST_POS : [0-9]+;
 EQ : '=';
-ID : [a-zA-Z_]+ ;               // 标志符由小写字母组成
+ID : [a-zA-Z_]+[a-zA-Z_0-9]* ;               // 标志符由大小写字母,下划线和数字组成。数字不能开头
 WS : [ \t\r\n]+ -> skip ;    // 跳过空格、制表符、回车符和换行符
 
