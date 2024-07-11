@@ -10,7 +10,7 @@
 #include "cim/Parser.h"
 // #include "cim/ShapeInferenceInterface.h"
 #include "cim/Passes.h"
-
+#include "mlir/Transforms/CSE.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/IR/MLIRContext.h"
@@ -30,6 +30,8 @@
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Func/Transforms/Passes.h"
 #include "mlir/InitAllDialects.h"
+#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include <iostream>
 
 #include "llvm/ADT/StringRef.h"
@@ -72,10 +74,15 @@ int main(int argc, char **argv) {
   module.dump();
 
   mlir::PassManager pm(&context);
-  pm.addPass(mlir::createCanonicalizerPass());
+  pm.addPass(mlir::createInlinerPass());
+  // pm.addPass(mlir::createCanonicalizerPass());
   // pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
-  // mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
-  // optPM.addPass(mlir::cim::createShapeInferencePass());
+  mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
+  optPM.addPass(mlir::createCSEPass());
+  optPM.addPass(memref::createFoldMemRefAliasOpsPass());
+  optPM.addPass(mlir::cim::createTestDecomposeAffineOpPass());
+  // optPM.addPass(mlir::cim::createMemoryAddressAllocationPass());
+  // optPM.addPass(mlir::createConvertSCFToCFPass());
   if (mlir::failed(pm.run(module))) {
     std::cout << "Pass fail." << std::endl;
   }else{
