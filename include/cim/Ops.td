@@ -126,7 +126,7 @@ def PrintOp : CIM_Op<"print"> {
     print an integer
   }];
 
-  let arguments = (ins I64:$value); // TODO: which type can represent any Tensor?
+  let arguments = (ins AnyTypeOf<[AnyInteger, Index]>:$value); // TODO: which type can represent any Tensor?
 
   //let builders = [
   //  OpBuilder<(ins "Value":$value)>
