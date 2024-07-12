@@ -22,4 +22,6 @@ cd ..
 echo "ANTLR Down."
 
 # ast(json) -> mlir
-./build/bin/main
+if [ $# -lt 1 ]; then
+    ./build/bin/main
+fi
