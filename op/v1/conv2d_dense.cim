@@ -59,6 +59,93 @@ def trans_weight_to_macros(
     };
 }
 
+def trans_input_to_buffer(
+    null <int8>,
+    input_block < <-1,-1,-1>, int8, local>,
+    pim_in_buffer < <-1>, int8, rf>
+){
+    kernel_size = Shape(input_block, 0);
+    in_c = Shape(input_block, 2);
+
+    // copy input from local memory to input buffer
+    for i in range(kernel_size) carry(null) {
+        for j in range(kernel_size) carry(null) {
+            input_block_copy_src_tile = Slice(input_block, 
+                [i, j, 0],
+                [1, 1, in_c],
+                [1,1,1]
+            );
+
+            // TODO: support long expression in compiler's frontend. Currently, it only support binary expression.
+            t0 = i * kernel_size;
+            t1 = t0 + j;
+            t2 = t1 * in_c;
+            input_buffer_copy_dst_tile = Slice(pim_in_buffer, 
+                [t2],
+                [in_c],
+                [1]
+            );
+            Trans(input_block_copy_src_tile, input_buffer_copy_dst_tile);
+        };
+    };
+}
+
+def compute(
+        null <int8>,
+        input < <-1,-1,-1>, int8, local >, 
+        kernel_size < int64 >, 
+        padding  < int64 >, 
+        stride  < int64 >, 
+        macros  < <-1,-1,-1,-1>, int8, macro>,
+        outputs  < <-1,-1,-1>, int32, local>,
+        pim_in_buffer  < <-1>, int8, rf>,
+        pim_out_buffer < <-1>, int32, rf>
+    ){
+    in_h = Shape(input, 0);
+    in_w = Shape(input, 1);
+    in_c = Shape(input, 2);
+
+    ker_h = Shape(weight, 0);
+    ker_w = Shape(weight, 1);
+    in_c = Shape(weight, 2);
+    out_c = Shape(weight, 3);
+
+    out_h = Shape(outputs, 0);
+    out_w = Shape(outputs, 1);
+
+    for oh in range(out_h) carry(null) {
+        for ow in range(out_w) carry(null) {
+            // clear output buffer
+            pim_buffer_to_clear = Slice(pim_out_buffer,[0],[out_c],[1]);
+            Clear(pim_buffer_to_clear);
+            
+            // prepare input feature
+            input_block = Slice(input, 
+                [oh, ow, 0],
+                [kernel_size, kernel_size, in_c],
+                [1,1,1]
+            );
+            _t0 = kernel_size * kernel_size;
+            input_block_size = _t0 * in_c;
+            
+            // prepare input feature
+            trans_input_to_buffer(null, input_block, pim_in_buffer);
+
+            
+            for input_use_begin in range(0, input_block_size, N_COMP){
+                input_use_end = min(input_use_begin+NUM_COMPARTMENT, input_block);
+                input_use_len = input_use_end - input_use_begin;
+                input_use = Slice(input_block, [input_use_begin,input_use_end]);
+
+                pim_in_buffer_use = Slice(pim_in_buffer, [0, input_use_len])
+                Trans(input_use, pim_in_buffer_use);
+                output = Slice(pim_out_buffer,[0, out_c]);
+                CIMCompute(input_use, macros, output );
+            };
+        };
+    };  
+}
+
 def conv2d_nhwc_single_group(
     null <int8>,
     input < <-1,-1,-1>, int8, local>, 
@@ -66,13 +153,15 @@ def conv2d_nhwc_single_group(
     output < <-1,-1,-1>, int32, local>, 
     macros < <-1,-1,-1,-1>, int8, macro>,
     input_buffer < <-1>, int8, rf>, 
-    output_buffer < <-1>, int8, rf>
+    output_buffer < <-1>, int32, rf>
     ){
     max_column = N_MACRO * N_VCOL;
     ker_height = Shape(weight, 0);
     ker_width = Shape(weight, 1);
     in_channel = Shape(weight, 2);
     out_channel = Shape(weight, 3);
+    out_height = Shape(output, 0);
+    out_width = Shape(output, 1);
 
     n_row = Shape(macros, 0);
     n_comp = Shape(macros, 1);
@@ -90,6 +179,21 @@ def conv2d_nhwc_single_group(
             null, 
             use_weight, // src
             macros   // dst
+        );
+
+        use_output = Slice(output, 
+            [0,0,out_channel_begin],                // offsets
+            [out_height, out_width, max_column],    // sizes
+            [1,1,1]                                 // strides
+        );
+        compute(input, 
+            ker_height,     // window size
+            padding,
+            stride,
+            macros, 
+            use_output, 
+            input_buffer,
+            output_buffer
         );
     };
 }
