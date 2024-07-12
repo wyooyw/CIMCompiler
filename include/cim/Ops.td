@@ -118,6 +118,7 @@ def ShapeOp : CIM_Op<"shape", [Pure]> {
   ];
 
   let hasCanonicalizer = 1;
+  let hasFolder = 1;
 }
 
 def PrintOp : CIM_Op<"print"> {

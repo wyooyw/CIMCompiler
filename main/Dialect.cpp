@@ -238,6 +238,15 @@ void ShapeOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   state.addOperands({input, index});
 }
 
+OpFoldResult ShapeOp::fold(FoldAdaptor adaptor) {
+  // prefetch(memrefcast) -> prefetch
+  return succeeded(memref::foldMemRefCast(*this)) ? getResult() : Value();
+}
+
+LogicalResult CopyOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
 // Bufferize
 
 static MemRefType convertTensorToMemRef(RankedTensorType type) {
