@@ -507,7 +507,7 @@ void MLIRGenImpl::parse_bulitin_trans(const boost::property_tree::ptree& ast){
 
     mlir::Value src = parse_expr(safe_get_child(get_item(ast_src, 0), "expr"));
     mlir::Value dst = parse_expr(safe_get_child(get_item(ast_dst, 0), "expr"));
-    builder.create<mlir::memref::CopyOp>(loc, src, dst);
+    builder.create<mlir::cim::CopyOp>(loc, src, dst);
 }
 
 mlir::Value MLIRGenImpl::parse_bulitin_slice(const boost::property_tree::ptree& ast){
