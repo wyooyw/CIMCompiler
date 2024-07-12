@@ -102,6 +102,8 @@ def CastOp : CIM_Op<"cast", [
 
   let arguments = (ins AnyMemRef:$input);
   let results = (outs AnyMemRef:$output);
+
+  let hasCanonicalizer = 1;
 }
 
 def ShapeOp : CIM_Op<"shape", [Pure]> {

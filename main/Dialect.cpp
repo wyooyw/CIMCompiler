@@ -114,7 +114,7 @@ struct CIMInlinerInterface : public DialectInlinerInterface {
                                        Type resultType,
                                        Location conversionLoc) const final {
     std::cout << "materializeCallConversion" << std::endl;
-    return builder.create<mlir::memref::CastOp>(conversionLoc, resultType, input);
+    return builder.create<mlir::cim::CastOp>(conversionLoc, resultType, input);
   }
 };
 

@@ -107,3 +107,49 @@ void ShapeOp::getCanonicalizationPatterns(RewritePatternSet &results,
   std::cout << "ShapeOp::getCanonicalizationPatterns" << std::endl;                      
   results.add<ShapeToConstant>(context);
 }
+
+/*
+ Cast Op
+*/
+
+
+struct CastToNoOp : public mlir::OpRewritePattern<mlir::cim::CastOp> {
+  /// We register this pattern to match every cim.vv_add in the IR.
+  /// The "benefit" is used by the framework to order the patterns and process
+  /// them in order of profitability.
+  CastToNoOp(mlir::MLIRContext *context)
+      : OpRewritePattern<mlir::cim::CastOp>(context, /*benefit=*/1) {}
+
+  /// This method attempts to match a pattern and rewrite it.
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cim::CastOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    std::cout << "CastToNoOp" << std::endl;
+    // Look through the input of the current transpose.
+    auto operand = op.getOperand();
+
+    mlir::Value source = operand;
+    mlir::MemRefType source_type = llvm::cast<mlir::MemRefType>(source.getType());
+    ArrayRef<int64_t> source_shape = source_type.getShape();
+    // ArrayRef<int64_t> source_shape = source_type.getStride();
+
+    mlir::Value target = op.getResult();
+    mlir::MemRefType target_type = llvm::cast<mlir::MemRefType>(target.getType());
+    ArrayRef<int64_t> target_shape = target_type.getShape();
+
+    // int64_t size = shape[index_value];
+    // if(size==mlir::ShapedType::kDynamic){
+    //   return failure();
+    // }
+    
+    // mlir::Value new_constant = rewriter.create<arith::ConstantOp>(op.getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(size));
+    rewriter.replaceOp(op, {source});
+    return success();
+  }
+};
+
+void CastOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context) {
+  std::cout << "CastOp::getCanonicalizationPatterns" << std::endl;                      
+  results.add<CastToNoOp>(context);
+}
