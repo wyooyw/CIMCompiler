@@ -118,6 +118,20 @@ struct CIMInlinerInterface : public DialectInlinerInterface {
   }
 };
 
+struct CIM_InlinerInterface : public DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+  bool isLegalToInline(Operation *call, Operation *callable, bool wouldBeCloned) const final { return true; }
+  bool isLegalToInline(Operation *, Region *, bool, IRMapping &) const final { return true;}
+  bool isLegalToInline(Region *, Region *, bool, IRMapping &) const final {return true;}
+};
+
+struct IndexInlinerInterface : public DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+  bool isLegalToInline(Operation *call, Operation *callable, bool wouldBeCloned) const final { return true; }
+  bool isLegalToInline(Operation *, Region *, bool, IRMapping &) const final { return true;}
+  bool isLegalToInline(Region *, Region *, bool, IRMapping &) const final {return true;}
+};
+
 /// Dialect initialization, the instance will be owned by the context. This is
 /// the point of registration of types and operations for the dialect.
 void CIMDialect::initialize() {
@@ -125,13 +139,16 @@ void CIMDialect::initialize() {
 #define GET_OP_LIST
 #include "cim/Ops.cpp.inc"
       >();
-  // addInterfaces<CIMInlinerInterface>();
+  addInterfaces<CIM_InlinerInterface>();
 }
 
 void mlir::registerCIMInlinerInterface(
     DialectRegistry &registry) {
   registry.addExtension(+[](MLIRContext *ctx, func::FuncDialect *dialect) {
     dialect->addInterfaces<CIMInlinerInterface>();
+  });
+  registry.addExtension(+[](MLIRContext *ctx, index::IndexDialect *dialect) {
+    dialect->addInterfaces<IndexInlinerInterface>();
   });
 }
 
