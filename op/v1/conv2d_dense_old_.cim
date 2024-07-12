@@ -76,7 +76,7 @@ def conv_nhwc_single_group(input, weight){
     in_channel = Get(Shape(weight), 2);
     out_channel = Get(Shape(weight), 3);
 
-    outer_out_channel_size = out_channel // max_column;
+    outer_out_channel_size = out_channel / max_column;
 
     for out_channel_begin in range(0, out_channel, max_column){
         

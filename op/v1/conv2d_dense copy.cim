@@ -5,7 +5,7 @@
 #define WEIGHT_COL 3
 #define OUTPUT_CHANNEL 64
 
-#define N_MACRO 8
+#define N_MACRO 64
 #define N_ROW 64
 #define N_COMP 16
 #define N_VCOL 2
@@ -40,19 +40,18 @@ def trans_weight_to_macros(
                 row_idx = current_row / n_comp;
                 comp_idx = current_row % n_comp;
 
+                
+
                 src_weight = Slice(weight, 
                     [hk,wk,ic,0],
                     [1,1,1,out_channel],
                     [1,1,1,1]
                 );
-                // src_weight_flatten = Reshape(src_weight, [out_channel]);
-                
                 dst_macro = Slice(macros, 
                     [row_idx, comp_idx, 0, 0],
                     [1, 1, n_macro, n_vcol],
                     [1, 1, 1, 1]
                 );
-                // dst_macro_flatten = Reshape(dst_macro, [out_channel]);
                 Trans(src_weight, dst_macro);
             };
         };
@@ -68,6 +67,7 @@ def conv2d_nhwc_single_group(
     input_buffer < <-1>, int8, rf>, 
     output_buffer < <-1>, int8, rf>
     ){
+
     max_column = N_MACRO * N_VCOL;
     ker_height = Shape(weight, 0);
     ker_width = Shape(weight, 1);
