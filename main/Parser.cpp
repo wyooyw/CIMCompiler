@@ -529,7 +529,7 @@ mlir::Value MLIRGenImpl::parse_bulitin_slice(const boost::property_tree::ptree& 
     mlir::SmallVector<mlir::Value> strides = parse_array_1d(safe_get_child(get_item(ast_strides, 0), "array1d"));
     std::cout << "parse_bulitin_slice strides finish" << std::endl;
     std::cout << strides.size() << std::endl;
-    mlir::Value result = builder.create<mlir::memref::SubViewOp>(loc, src, offsets, sizes, strides);
+    mlir::Value result = builder.create<mlir::memref::SubViewOp>(loc, src, cast_to_index_type(offsets), cast_to_index_type(sizes), cast_to_index_type(strides));
     std::cout << "parse_bulitin_slice finish" << std::endl;
     return result;
 }
@@ -947,4 +947,14 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
         auto func_param =  safe_get_child( ast, "func_param");
         auto param_type =  safe_get_child( get_item(func_param, 1), "param_type");
         return get_item(param_type, 0).count("param_type_scalar");
+    }
+
+    mlir::SmallVector<mlir::Value> MLIRGenImpl::cast_to_index_type(mlir::SmallVector<mlir::Value> _index){
+        // cast to index
+        mlir::SmallVector<mlir::Value> index;
+        for(int i = 0; i<_index.size(); i++){
+            mlir::Value index_i = builder.create<mlir::index::CastSOp>(loc, builder.getIndexType(), _index[i]);
+            index.push_back(index_i);
+        }
+        return index;
     }

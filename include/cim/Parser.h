@@ -115,6 +115,10 @@ private:
     void parse_bulitin_print(const boost::property_tree::ptree& ast);
     void parse_bulitin_free(const boost::property_tree::ptree& ast);
     mlir::Value parse_bulitin_load(const boost::property_tree::ptree& ast);
+    mlir::Value parse_bulitin_reshape(const boost::property_tree::ptree& ast);
+
+    // Util Functions
+    mlir::SmallVector<mlir::Value> cast_to_index_type(mlir::SmallVector<mlir::Value> _index);
 };
 
 #endif // MLIRGENIMPL_H
