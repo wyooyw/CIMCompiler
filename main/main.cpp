@@ -51,10 +51,10 @@ using namespace mlir;
 
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
+  mlir::registerCIMInlinerInterface(registry);
   mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::cim::registerBufferizableOpInterfaceExternalModels(registry);
-  mlir::registerCIMInlinerInterface(registry);
   mlir::func::registerAllExtensions(registry);
   mlir::registerAllDialects(registry);
   // mlir::func::registerInlinerExtension(registry);
@@ -72,15 +72,16 @@ int main(int argc, char **argv) {
   mlir::ModuleOp module = gen_impl.parseJson("/home/wangyiou/project/cim_compiler_frontend/playground/result/conv2d_dense_ast.json");
   
   module.dump();
-
+  std::cout << "\n\n\n\n" << std::endl;
+  // return 0;
   mlir::PassManager pm(&context);
   pm.addPass(mlir::createInlinerPass());
   // pm.addPass(mlir::createCanonicalizerPass());
   // pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
   mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
-  optPM.addPass(mlir::createCSEPass());
-  optPM.addPass(memref::createFoldMemRefAliasOpsPass());
-  optPM.addPass(mlir::cim::createTestDecomposeAffineOpPass());
+  // optPM.addPass(mlir::createCSEPass());
+  // optPM.addPass(memref::createFoldMemRefAliasOpsPass());
+  // optPM.addPass(mlir::cim::createTestDecomposeAffineOpPass());
   // optPM.addPass(mlir::cim::createMemoryAddressAllocationPass());
   // optPM.addPass(mlir::createConvertSCFToCFPass());
   if (mlir::failed(pm.run(module))) {
@@ -143,28 +144,51 @@ int main(int argc, char **argv) {
   // builder.create<func::ReturnOp>(loc, call.getResults());
 
 
-  mlir::MemRefType type =  mlir::MemRefType::get({10, 10}, builder.getI32Type());
-  mlir::memref::AllocOp alloc1 = builder.create<memref::AllocOp>(loc, type);
-  // mlir::memref::AllocOp alloc2 = builder.create<memref::AllocOp>(loc, type);
-  // mlir::memref::AllocOp alloc3 = builder.create<memref::AllocOp>(loc, type);
+  mlir::MemRefType type1 =  mlir::MemRefType::get({10, 10}, builder.getI32Type());
+  mlir::memref::AllocOp alloc1 = builder.create<memref::AllocOp>(loc, type1);
   mlir::Value buf1 = alloc1.getResult();
+
+  mlir::MemRefType type2 =  mlir::MemRefType::get({2,2}, builder.getI32Type());
+  mlir::memref::AllocOp alloc2 = builder.create<memref::AllocOp>(loc, type2);
+  mlir::Value buf2 = alloc2.getResult();
   // mlir::Value buf2 = alloc2.getResult();
   // mlir::Value buf3 = alloc3.getResult();
   // builder.create<mlir::cim::VVAddOp>(loc, buf1, buf2, buf3);
-
-  // mlir::Value a1 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(0));
-  // mlir::Value a2 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(0));
-  // mlir::Value b1 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(4));
-  // mlir::Value b2 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(4));
-  // mlir::Value c1 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(1));
-  // mlir::Value c2 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(1));
-  // mlir::ValueRange offsets1 = {a1,a2};
+  mlir::Value _a1 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(0));
+  mlir::Value _a2 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(0));
+  OpFoldResult a1 = OpFoldResult(_a1);
+  OpFoldResult a2 = OpFoldResult(_a2);
+  OpFoldResult b1 = OpFoldResult(builder.getI64IntegerAttr(1));
+  OpFoldResult b2 = OpFoldResult(builder.getI64IntegerAttr(4));
+  OpFoldResult c1 = OpFoldResult(builder.getI64IntegerAttr(1));
+  OpFoldResult c2 = OpFoldResult(builder.getI64IntegerAttr(1));
+  llvm::SmallVector<OpFoldResult> offsets1 = {a1,a2};
+  llvm::SmallVector<OpFoldResult> sizes1 = {b1,b2};
+  llvm::SmallVector<OpFoldResult> strides1 = {c1,c2};
   // mlir::ValueRange sizes1 = {b1,b2};
   // mlir::ValueRange strides1 = {c1,c2};
-  std::vector<int64_t> offsets1 = {2,2};
-  std::vector<int64_t> sizes1 = {4,4};
-  std::vector<int64_t> strides1 = {1,1};
-  mlir::Value result = builder.create<mlir::memref::SubViewOp>(loc, buf1, offsets1, sizes1, offsets1);
+  // std::vector<int64_t> offsets1 = {0,0};
+  // std::vector<int64_t> sizes1 = {1,4};
+  // std::vector<int64_t> strides1 = {1,1};
+  mlir::Value result = builder.create<mlir::memref::SubViewOp>(loc, buf1, offsets1, sizes1, strides1);
+  // llvm::SmallVector<ReassociationIndices> reassociation1;
+  // ReassociationIndices collapsedIndices1 = {0,1};
+  // reassociation1.push_back(collapsedIndices1);
+  // mlir::Value flatten_buf1 = builder.create<mlir::memref::CollapseShapeOp>(loc, result, reassociation1);
+  // mlir::Value _tmp = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(4));
+  // FailureOr<Value> _reduce_rank_buf1 = mlir::memref::SubViewOp::rankReduceIfNeeded(builder, loc,result,{mlir::ShapedType::kDynamic});
+  // if (failed(_reduce_rank_buf1)){
+  //   std::cout << "fail" << std::endl;
+  //   std::exit(1);
+  // }
+  // mlir::Value reduce_rank_buf1 = *_reduce_rank_buf1;
+  // std::cout << "A" << std::endl;
+  // llvm::SmallVector<ReassociationIndices> reassociation;
+  // ReassociationIndices collapsedIndices = {0,1};
+  // reassociation.push_back(collapsedIndices);
+  // mlir::Value flatten_buf2 = builder.create<mlir::memref::CollapseShapeOp>(loc, buf2, reassociation);
+  // std::cout << "B" << std::endl;
+  builder.create<mlir::cim::CopyOp>(loc, buf2, result);
   // builder.create<func::ReturnOp>(loc, buf3);
 
   // mlir::Value a3 = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(0));
@@ -176,10 +200,10 @@ int main(int argc, char **argv) {
   // mlir::ValueRange offsets2 = {a3,a4};
   // mlir::ValueRange sizes2 = {b3,b4};
   // mlir::ValueRange strides2 = {c3,c4};
-  std::vector<int64_t> offsets2 = {2,2};
-  std::vector<int64_t> sizes2 = {2,2};
-  std::vector<int64_t> strides2 = {1,1};
-  mlir::Value result2 = builder.create<mlir::memref::SubViewOp>(loc, result, offsets2, sizes2, strides2);
+  // std::vector<int64_t> offsets2 = {2,2};
+  // std::vector<int64_t> sizes2 = {2,2};
+  // std::vector<int64_t> strides2 = {1,1};
+  // mlir::Value result2 = builder.create<mlir::memref::SubViewOp>(loc, result, offsets2, sizes2, strides2);
   theModule.dump();
 
   // mlir::PassManager pm(&context);
