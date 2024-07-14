@@ -44,8 +44,8 @@ static Value getValue(OpFoldResult offset, PatternRewriter &rewriter){
     }
 }
 
-static Value getAddrValue(cim::CopyOp op, PatternRewriter &rewriter, int isDst){
-  auto subViewOp = op.getOperand(isDst).getDefiningOp<memref::SubViewOp>();
+static Value getAddrValue(cim::CopyOp op, PatternRewriter &rewriter, int operand_index){
+  auto subViewOp = op.getOperand(operand_index).getDefiningOp<memref::SubViewOp>();
   auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
   llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
   SmallVector<OpFoldResult> offsets = subViewOp.getMixedOffsets();
@@ -68,8 +68,12 @@ static Value getSizeValue(cim::CopyOp op, PatternRewriter &rewriter){
   auto subViewOp = op.getOperand(0).getDefiningOp<memref::SubViewOp>();
   SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
   
-  Value size = getValue(shapes[0], rewriter);
-  for(int i = 1; i<shapes.size(); i++){
+  MemRefType type = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
+  int bitwidth = type.getElementType().getIntOrFloatBitWidth();
+  int bytewidth = bitwidth / 8;
+  
+  Value size = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), bytewidth);
+  for(int i = 0; i<shapes.size(); i++){
     if(Value shape_i = getValue(shapes[i],rewriter)){
       size = rewriter.create<arith::MulIOp>(op.getLoc(), size, shape_i);
     }else{
