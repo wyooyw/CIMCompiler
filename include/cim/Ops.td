@@ -66,19 +66,13 @@ def VSMulOp : CIM_Op<"vs_mul", [Pure]> {
 // CIM Compute //
 /////////////////////////////////
 
-def CIMComputeOp : CIM_Op<"cim_compute", [Pure]> {
+def CIMComputeOp : CIM_Op<"cim_compute"> {
   let summary = "cim compute";
   let description = [{
     cim compute use macro
   }];
 
-  let arguments = (ins AnyMemRef:$in_vector, AnyMemRef:$in_matrix);
-  let results = (outs AnyMemRef:$out_vector);
-
-  // Allow building an AddOp with from the two input operands.
-  let builders = [
-    OpBuilder<(ins "Value":$in_vector, "Value":$in_matrix)>
-  ];
+  let arguments = (ins AnyMemRef:$input, AnyMemRef:$macro, AnyMemRef:$output);
 }
 
 

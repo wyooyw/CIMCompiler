@@ -223,11 +223,7 @@ void VSMulOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 //===----------------------------------------------------------------------===//
 
 
-void CIMComputeOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                  mlir::Value vec, mlir::Value mat) {
-  state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
-  state.addOperands({vec, mat});
-}
+
 
 //===----------------------------------------------------------------------===//
 // CastOp

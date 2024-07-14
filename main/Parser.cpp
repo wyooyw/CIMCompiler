@@ -450,6 +450,9 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     }else if(call_func_name=="Free") {
         parse_bulitin_free(ast);
         return;
+    }else if(call_func_name=="CIMCompute"){
+        parse_bulitin_cimcompute(ast);
+        return;
     }
 
     // check sign table
@@ -618,6 +621,21 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
     mlir::Value result = builder.create<mlir::memref::LoadOp>(loc, memref, index);
     return result;
 }
+
+void MLIRGenImpl::parse_bulitin_cimcompute(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_cimcompute" << std::endl;
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_input = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_macro = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_output = safe_get_child(get_item(ast_param_list,4), "call_param");
+
+    mlir::Value input = parse_expr(safe_get_child(get_item(ast_input, 0), "expr"));
+    mlir::Value macro = parse_expr(safe_get_child(get_item(ast_macro, 0), "expr"));
+    mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
+    builder.create<mlir::cim::CIMComputeOp>(loc, input, macro, output);
+}
+
 /*
  * Bulitin Functions End
  */
