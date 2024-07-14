@@ -16,6 +16,7 @@ add_llvm_executable(main
         pass/ShapeInferencePass.cpp
         pass/MemoryAddressAllocationPass.cpp
         pass/DecomposeAffineOpPass.cpp
+        pass/FoldMemRefAliasPass.cpp
 
         DEPENDS
         CIMOpsIncGen
