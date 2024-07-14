@@ -13,9 +13,9 @@ add_llvm_executable(main
         Dialect.cpp
         Combine.cpp
         Parser.cpp
-        ShapeInferencePass.cpp
-        MemoryAddressAllocationPass.cpp
-        DecomposeAffineOpPass.cpp
+        pass/ShapeInferencePass.cpp
+        pass/MemoryAddressAllocationPass.cpp
+        pass/DecomposeAffineOpPass.cpp
 
         DEPENDS
         CIMOpsIncGen
