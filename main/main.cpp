@@ -10,6 +10,7 @@
 #include "cim/Parser.h"
 // #include "cim/ShapeInferenceInterface.h"
 #include "cim/Passes.h"
+#include "cimisa/Dialect.h"
 #include "mlir/Transforms/CSE.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/Support/LogicalResult.h"
@@ -66,6 +67,7 @@ int main(int argc, char **argv) {
   context.getOrLoadDialect<mlir::tensor::TensorDialect>();
   context.getOrLoadDialect<mlir::bufferization::BufferizationDialect>();
   context.getOrLoadDialect<mlir::cim::CIMDialect>();
+  context.getOrLoadDialect<mlir::cimisa::CIMISADialect>();
   
 
   MLIRGenImpl gen_impl(context);
@@ -76,18 +78,32 @@ int main(int argc, char **argv) {
   // return 0;
   mlir::PassManager pm(&context);
   pm.addPass(mlir::createInlinerPass());
-  // pm.addPass(mlir::createCanonicalizerPass());
+  pm.addPass(mlir::createCanonicalizerPass());
   // pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
   mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
   // optPM.addPass(mlir::createCSEPass());
-  // optPM.addPass(memref::createFoldMemRefAliasOpsPass());
+  optPM.addPass(cim::createFoldMemRefAliasOpsPass());
   // optPM.addPass(mlir::cim::createTestDecomposeAffineOpPass());
   // optPM.addPass(mlir::cim::createMemoryAddressAllocationPass());
   // optPM.addPass(mlir::createConvertSCFToCFPass());
+  
   if (mlir::failed(pm.run(module))) {
     std::cout << "Pass fail." << std::endl;
   }else{
     std::cout << "Pass success." << std::endl;
+  }
+  module.dump();
+  std::cout << "\n\n\n\n" << std::endl;
+
+
+  mlir::PassManager lower_passes(&context);
+  lower_passes.addPass(mlir::cim::createCIMLoweringPass());
+  lower_passes.addPass(mlir::createCanonicalizerPass());
+  lower_passes.addPass(mlir::createLoopInvariantCodeMotionPass());
+  if (mlir::failed(lower_passes.run(module))) {
+    std::cout << "Lower Passes fail." << std::endl;
+  }else{
+    std::cout << "Lower Passes success." << std::endl;
   }
   module.dump();
   
