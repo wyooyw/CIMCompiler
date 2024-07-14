@@ -33,6 +33,7 @@
 #include "mlir/InitAllDialects.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
+#include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include <iostream>
 
 #include "llvm/ADT/StringRef.h"
@@ -83,6 +84,7 @@ int main(int argc, char **argv) {
   mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
   // optPM.addPass(mlir::createCSEPass());
   optPM.addPass(cim::createFoldMemRefAliasOpsPass());
+  optPM.addPass(mlir::createLowerAffinePass());
   // optPM.addPass(mlir::cim::createTestDecomposeAffineOpPass());
   // optPM.addPass(mlir::cim::createMemoryAddressAllocationPass());
   // optPM.addPass(mlir::createConvertSCFToCFPass());
@@ -95,11 +97,12 @@ int main(int argc, char **argv) {
   module.dump();
   std::cout << "\n\n\n\n" << std::endl;
 
-
+  // return 0;
   mlir::PassManager lower_passes(&context);
   lower_passes.addPass(mlir::cim::createCIMLoweringPass());
   lower_passes.addPass(mlir::createCanonicalizerPass());
   lower_passes.addPass(mlir::createLoopInvariantCodeMotionPass());
+  lower_passes.addPass(mlir::createConvertSCFToCFPass());
   if (mlir::failed(lower_passes.run(module))) {
     std::cout << "Lower Passes fail." << std::endl;
   }else{
