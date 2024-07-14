@@ -86,7 +86,7 @@ struct ShapeToConstant : public mlir::OpRewritePattern<mlir::cim::ShapeOp> {
     ArrayRef<int64_t> shape = source_type.getShape();
 
     mlir::Value index = operands[1];
-    mlir::arith::ConstantIntOp const_index_op = index.getDefiningOp<mlir::arith::ConstantIntOp>();
+    mlir::arith::ConstantIndexOp const_index_op = index.getDefiningOp<mlir::arith::ConstantIndexOp>();
     int64_t index_value = const_index_op.value();
 
     int64_t size = shape[index_value];
@@ -94,7 +94,7 @@ struct ShapeToConstant : public mlir::OpRewritePattern<mlir::cim::ShapeOp> {
       return failure();
     }
     
-    mlir::Value new_constant = rewriter.create<arith::ConstantOp>(op.getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(size));
+    mlir::Value new_constant = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), size);
     rewriter.replaceOp(op, {new_constant});
     return success();
   }

@@ -373,9 +373,9 @@ std::vector<mlir::Value> MLIRGenImpl::parse_for_range(const boost::property_tree
 std::vector<mlir::Value> MLIRGenImpl::parse_for_range_1(const boost::property_tree::ptree& ast){
     std::cout << "parse_for_range_1" << std::endl;
 
-    mlir::Value begin = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64Type(), builder.getI64IntegerAttr(0));
+    mlir::Value begin = builder.create<mlir::arith::ConstantIndexOp>(loc, 0);
     mlir::Value end = parse_const_or_var(safe_get_child(get_item(ast, 1), "const_or_var"));
-    mlir::Value stride = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64Type(), builder.getI64IntegerAttr(1));
+    mlir::Value stride = builder.create<mlir::arith::ConstantIndexOp>(loc, 1);
 
     std::cout << "parse_for_range_1 finish" << std::endl;
     return {begin, end, stride};
@@ -386,7 +386,7 @@ std::vector<mlir::Value> MLIRGenImpl::parse_for_range_2(const boost::property_tr
 
     mlir::Value begin = parse_const_or_var(safe_get_child(get_item(ast, 1), "const_or_var"));
     mlir::Value end = parse_const_or_var(safe_get_child(get_item(ast, 3), "const_or_var"));
-    mlir::Value stride = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64Type(), builder.getI64IntegerAttr(1));
+    mlir::Value stride = builder.create<mlir::arith::ConstantIndexOp>(loc, 1);
 
     std::cout << "parse_for_range_2 finish" << std::endl;
     return {begin, end, stride};
@@ -611,12 +611,7 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
 
     mlir::Value memref = parse_expr(safe_get_child(get_item(ast_memref, 0), "expr"));
     mlir::SmallVector<mlir::Value> _index = parse_array_1d(safe_get_child(get_item(ast_index, 0), "array1d"));
-    mlir::SmallVector<mlir::Value> index;
-    for(int i = 0; i<_index.size(); i++){
-        mlir::Value index_i = builder.create<mlir::index::CastSOp>(loc, builder.getIndexType(), _index[i]);
-        index.push_back(index_i);
-    }
-    // 
+    mlir::SmallVector<mlir::Value> index = cast_to_index_type(_index);
 
     mlir::Value result = builder.create<mlir::memref::LoadOp>(loc, memref, index);
     return result;
@@ -672,7 +667,7 @@ void MLIRGenImpl::parse_bulitin_cimcompute(const boost::property_tree::ptree& as
 
         auto const_node = get_item(ast, 0);
         int value = std::stoi(safe_get_str(const_node, "text"));
-        mlir::Value const_value = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64Type(), builder.getI64IntegerAttr(value));
+        mlir::Value const_value = builder.create<mlir::arith::ConstantIndexOp>(loc, value);
         std::cout << "parse_const finish" << std::endl;
         return const_value;
     }
@@ -969,10 +964,10 @@ void MLIRGenImpl::parse_bulitin_cimcompute(const boost::property_tree::ptree& as
 
     mlir::SmallVector<mlir::Value> MLIRGenImpl::cast_to_index_type(mlir::SmallVector<mlir::Value> _index){
         // cast to index
-        mlir::SmallVector<mlir::Value> index;
-        for(int i = 0; i<_index.size(); i++){
-            mlir::Value index_i = builder.create<mlir::index::CastSOp>(loc, builder.getIndexType(), _index[i]);
-            index.push_back(index_i);
-        }
-        return index;
+        // mlir::SmallVector<mlir::Value> index;
+        // for(int i = 0; i<_index.size(); i++){
+        //     mlir::Value index_i = builder.create<mlir::index::CastSOp>(loc, builder.getIndexType(), _index[i]);
+        //     index.push_back(index_i);
+        // }
+        return _index;
     }

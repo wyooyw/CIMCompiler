@@ -248,7 +248,7 @@ bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
 
 void ShapeOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                   mlir::Value input, mlir::Value index) {
-  state.addTypes(builder.getI64Type());
+  state.addTypes(builder.getIndexType());
   state.addOperands({input, index});
 }
 

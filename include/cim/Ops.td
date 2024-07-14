@@ -108,8 +108,8 @@ def ShapeOp : CIM_Op<"shape", [Pure]> {
     get shape of a tensor
   }];
 
-  let arguments = (ins AnyMemRef:$input, I64:$index); // TODO: which type can represent any Tensor?
-  let results = (outs I64:$output);
+  let arguments = (ins AnyMemRef:$input, Index:$index); // TODO: which type can represent any Tensor?
+  let results = (outs Index:$output);
 
   let builders = [
     OpBuilder<(ins "Value":$input, "Value":$index)>
