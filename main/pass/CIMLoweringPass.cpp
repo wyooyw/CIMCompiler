@@ -31,11 +31,6 @@
 #include <iostream>
 using namespace mlir;
 
-static void lowerTrans(Operation *op, ValueRange operands, PatternRewriter &rewriter){
-    // lower cim.copy to cimisa.trans
-    std::cout << "lowerTrans!!!" << std::endl;
-}
-
 static Value getValue(OpFoldResult offset, PatternRewriter &rewriter){
     if (Attribute attr = llvm::dyn_cast_if_present<Attribute>(offset)) {
         Value value = rewriter.create<arith::ConstantIndexOp>(
@@ -56,8 +51,6 @@ static Value getAddrValue(cim::CopyOp op, PatternRewriter &rewriter, int isDst){
   SmallVector<OpFoldResult> offsets = subViewOp.getMixedOffsets();
   
   Value addr_offset = getValue(offsets[0], rewriter);
-  // std::vector<Value> temp;
-  // temp.push_back(addr_offset);
   for(int i = 1; i<offsets.size(); i++){
     if(Value offset_i = getValue(offsets[i],rewriter)){
       Value shape_i = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), allocShapes[i]);
@@ -85,23 +78,10 @@ static Value getSizeValue(cim::CopyOp op, PatternRewriter &rewriter){
   }
   return size;
 }
-// static Value getSubviewSize(){
 
-// }
 // why need this namespace ?
 namespace {
-    // struct TransOpLowering : public ConversionPattern {
-    //     TransOpLowering(MLIRContext *ctx)
-    //         : ConversionPattern(cim::CopyOp::getOperationName(), 1, ctx) {}
 
-    //     LogicalResult
-    //     matchAndRewrite(Operation *op, ArrayRef<Value> operands,
-    //                     ConversionPatternRewriter &rewriter) const final {
-    //         auto loc = op->getLoc();
-    //         lowerTrans(op, operands, rewriter);
-    //         return success();
-    //     }
-    // };
 
     struct TransOpLowering : public OpRewritePattern<cim::CopyOp> {
       using OpRewritePattern<cim::CopyOp>::OpRewritePattern;
