@@ -73,6 +73,8 @@ def CIMComputeOp : CIM_Op<"cim_compute"> {
   }];
 
   let arguments = (ins AnyMemRef:$input, AnyMemRef:$macro, AnyMemRef:$output);
+
+  let hasFolder = 1;
 }
 
 

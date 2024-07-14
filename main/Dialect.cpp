@@ -261,6 +261,11 @@ LogicalResult CopyOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::Op
   // prefetch(memrefcast) -> prefetch
   return memref::foldMemRefCast(*this);
 }
+
+LogicalResult CIMComputeOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
 // Bufferize
 
 static MemRefType convertTensorToMemRef(RankedTensorType type) {
