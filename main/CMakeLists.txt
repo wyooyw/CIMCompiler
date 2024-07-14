@@ -11,6 +11,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti")
 add_llvm_executable(main 
         main.cpp 
         Dialect.cpp
+        CIMISADialect.cpp
         Combine.cpp
         Parser.cpp
         pass/ShapeInferencePass.cpp
@@ -20,7 +21,8 @@ add_llvm_executable(main
 
         DEPENDS
         CIMOpsIncGen
-        CIMShapeInferenceInterfaceIncGen)
+        CIMShapeInferenceInterfaceIncGen
+        CIMISAOpsIncGen)
 # add_dependencies(main )
 
 set(LLVM_ENABLE_EH ON)
