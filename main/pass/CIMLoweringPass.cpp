@@ -44,18 +44,22 @@ static Value getValue(OpFoldResult offset, PatternRewriter &rewriter){
     }
 }
 
-static Value getAddrValue(cim::CopyOp op, PatternRewriter &rewriter, int operand_index){
-  auto subViewOp = op.getOperand(operand_index).getDefiningOp<memref::SubViewOp>();
+static Value getAddrValue(Value operand, PatternRewriter &rewriter){
+  auto subViewOp = operand.getDefiningOp<memref::SubViewOp>();
   auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
+  if (!allocOp){
+    std::cout << "getAddrValue allocOp==nullptr" << std::endl;
+    return nullptr;
+  }
   llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
   SmallVector<OpFoldResult> offsets = subViewOp.getMixedOffsets();
   
   Value addr_offset = getValue(offsets[0], rewriter);
   for(int i = 1; i<offsets.size(); i++){
     if(Value offset_i = getValue(offsets[i],rewriter)){
-      Value shape_i = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), allocShapes[i]);
-      Value mul = rewriter.create<arith::MulIOp>(op.getLoc(), addr_offset, shape_i);
-      Value add = rewriter.create<arith::AddIOp>(op.getLoc(), mul, offset_i);
+      Value shape_i = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[i]);
+      Value mul = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, shape_i);
+      Value add = rewriter.create<arith::AddIOp>(rewriter.getUnknownLoc(), mul, offset_i);
       addr_offset = add;
     }else{
       return nullptr;
@@ -83,6 +87,53 @@ static Value getSizeValue(cim::CopyOp op, PatternRewriter &rewriter){
   return size;
 }
 
+static std::vector<Value> _getMacroActivatePositionBySubview(cim::CIMComputeOp op, PatternRewriter &rewriter, int operand_index){
+  // <N_ROW, N_COMP, N_MACRO, N_VCOL>
+  auto subViewOp = op.getOperand(operand_index).getDefiningOp<memref::SubViewOp>();
+  auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
+  llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
+  SmallVector<OpFoldResult> offsets = subViewOp.getMixedOffsets();
+  SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
+  
+  // get activate row
+  Value activate_row_begin = getValue(offsets[0], rewriter);
+  // Value activate_row_length = getValue(shapes[0], rewriter);
+
+  // get activate compartment
+  // Value activate_comp_begin = getValue(shapes[1], rewriter);
+  // Value activate_comp_length = getValue(shapes[1], rewriter);
+
+  // get activate macro
+  // Value activate_macro_begin = getValue(shapes[2], rewriter);
+  Value activate_macro_length = getValue(shapes[2], rewriter);
+
+  // get activate element in macro
+  // Value activate_element_begin = getValue(shapes[3], rewriter);
+  // Value activate_element_length = getValue(shapes[3], rewriter);
+
+  Value element_per_macro = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), allocShapes[3]);
+  Value activate_element_num = rewriter.create<arith::MulIOp>(op.getLoc(), activate_macro_length, element_per_macro);
+
+  return {
+    activate_row_begin, 
+    activate_element_num
+  };
+}
+
+static std::vector<Value> getMacroActivatePosition(cim::CIMComputeOp op, PatternRewriter &rewriter, int operand_index){
+  if(op.getOperand(operand_index).getDefiningOp<memref::SubViewOp>()){
+    return _getMacroActivatePositionBySubview(op, rewriter, operand_index);
+  }else{
+    // fail
+    std::cout << "getMacroActivatePosition fail" << std::endl;
+    return {};
+  }
+}
+
+static IntegerAttr getI1IntegerAttr(int32_t value, PatternRewriter &rewriter) {
+  return IntegerAttr::get(rewriter.getIntegerType(1), APInt(1, value));
+}
+
 // why need this namespace ?
 namespace {
 
@@ -93,8 +144,8 @@ namespace {
       LogicalResult
       matchAndRewrite(cim::CopyOp op, PatternRewriter &rewriter) const final {
 
-        Value addr_src = getAddrValue(op, rewriter, 0);
-        Value addr_dst = getAddrValue(op, rewriter, 1);
+        Value addr_src = getAddrValue(op.getOperand(0), rewriter);
+        Value addr_dst = getAddrValue(op.getOperand(1), rewriter);
         Value size = getSizeValue(op, rewriter);
         std::cout << "TransOpLowering::matchAndRewrite" << std::endl;
         if (!addr_src || !addr_dst || !size) {
@@ -104,6 +155,57 @@ namespace {
         std::cout << "TransOpLowering::matchAndRewrite success" << std::endl;
         
         rewriter.replaceOpWithNewOp<cimisa::TransOp>(op, addr_src, addr_dst, size);
+
+        return success();
+      }
+    };
+
+    struct CIMComputeOpLowering : public OpRewritePattern<cim::CIMComputeOp> {
+      using OpRewritePattern<cim::CIMComputeOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::CIMComputeOp op, PatternRewriter &rewriter) const final {
+        std::cout << "CIMComputeOpLowering::matchAndRewrite 1" << std::endl;
+        Value addr_input = getAddrValue(op.getOperand(0), rewriter);
+        std::cout << "CIMComputeOpLowering::matchAndRewrite 2" << std::endl;
+        Value addr_output = getAddrValue(op.getOperand(2), rewriter);
+        std::cout << "CIMComputeOpLowering::matchAndRewrite 3" << std::endl;
+        std::vector<Value> macro_activate = getMacroActivatePosition(op, rewriter, 1);
+        std::cout << "CIMComputeOpLowering::matchAndRewrite 4" << std::endl;
+        if(macro_activate.size() < 2){
+          std::cout << "CIMComputeOpLowering::matchAndRewrite fail 1" << std::endl;
+          return failure();
+        }
+        Value row_index = macro_activate[0];
+        Value activate_element_num = macro_activate[1];
+
+        
+        if (!addr_input || !addr_output || !row_index || !activate_element_num) {
+          std::cout << "CIMComputeOpLowering::matchAndRewrite fail 2" << std::endl;
+          return failure();
+        }
+        std::cout << "CIMComputeOpLowering::matchAndRewrite success" << std::endl;
+
+        IntegerAttr input_bw = rewriter.getI8IntegerAttr(8);
+        IntegerAttr output_bw = rewriter.getI8IntegerAttr(32);
+        IntegerAttr weight_bw = rewriter.getI8IntegerAttr(8);
+
+        IntegerAttr acc_flag = getI1IntegerAttr(1, rewriter);
+        IntegerAttr value_sparse_flag = getI1IntegerAttr(0, rewriter);
+        IntegerAttr bit_sparse_flag = getI1IntegerAttr(0, rewriter);
+        
+        rewriter.replaceOpWithNewOp<cimisa::CIMComputeOp>(op, 
+              addr_input,           // AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
+              addr_output,          // AnyTypeOf<[AnyInteger, Index]>:$output_addr, 
+              row_index,            // AnyTypeOf<[AnyInteger, Index]>:$row_index,
+              activate_element_num, // AnyTypeOf<[AnyInteger, Index]>:$activate_element_num,
+              input_bw,             // I8:$input_bw,
+              output_bw,            // I8:$output_bw, 
+              weight_bw,            // I8:$weight_bw,
+              acc_flag,             // I1:$acc_flag,
+              value_sparse_flag,    // I1:$value_sparse_flag,
+              bit_sparse_flag       // I1:$bit_sparse_flag
+        );
 
         return success();
       }
@@ -153,7 +255,7 @@ void CIMLoweringPass::runOnOperation() {
   // Now that the conversion target has been defined, we just need to provide
   // the set of patterns that will lower the Toy operations.
   RewritePatternSet patterns(&getContext());
-  patterns.add<TransOpLowering>(
+  patterns.add<TransOpLowering,CIMComputeOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

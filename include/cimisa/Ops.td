@@ -58,16 +58,14 @@ def CIMComputeOp : CIMISA_Op<"cim_compute"> {
   let arguments = (ins 
     AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
     AnyTypeOf<[AnyInteger, Index]>:$output_addr, 
-    AnyTypeOf<[AnyInteger, Index]>:$out_addr,
     AnyTypeOf<[AnyInteger, Index]>:$row_index,
-    AnyTypeOf<[AnyInteger, Index]>:$size,
-    AnyTypeOf<[AnyInteger, Index]>:$input_bw, // bw: bit width
-    AnyTypeOf<[AnyInteger, Index]>:$output_bw, 
-    AnyTypeOf<[AnyInteger, Index]>:$weight_bw,
     AnyTypeOf<[AnyInteger, Index]>:$activate_element_num,
-    I1:$acc_flag,
-    I1:$value_sparse_flag,
-    I1:$bit_sparse_flag
+    I8Attr:$input_bw, // bw: bit width
+    I8Attr:$output_bw, 
+    I8Attr:$weight_bw,
+    I1Attr:$acc_flag,
+    I1Attr:$value_sparse_flag,
+    I1Attr:$bit_sparse_flag
   );
 
 }
