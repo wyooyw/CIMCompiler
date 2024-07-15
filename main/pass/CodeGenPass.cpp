@@ -240,7 +240,7 @@ static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, i
   Inst inst = {
     {"class", 0b111},
     {"type", 0b100},
-    {"offset", 0},
+    {"offset", -1},
   };
   instr_list.push_back(inst);
 }
@@ -270,14 +270,15 @@ static void codeGen(mlir::cf::CondBranchOp op, std::unordered_map<llvm::hash_cod
     {"type", 0},
     {"rs1", getReg(regmap, cmpi_op.getLhs())},
     {"rs2", getReg(regmap, cmpi_op.getRhs())},
-    {"offset", 0},
+    {"offset", -1},
   };
   instr_list.push_back(inst);
 }
 
 
-static void codeGen(mlir::func::FuncOp func, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+static void codeGen(mlir::func::FuncOp func, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list, std::map<Operation*, int>& op2line){
   func.walk([&](mlir::Operation *op) {
+    op2line[op] = instr_list.size();
     if(auto _op = dyn_cast<mlir::arith::ConstantOp>(op) ){
       codeGen(_op, regmap, instr_list);
     }else if(auto _op = dyn_cast<mlir::arith::AddIOp>(op)){
@@ -406,6 +407,33 @@ static string instToStr(Inst& inst){
     return json;
 }
 
+static void fillJumpBranchOffset(mlir::func::FuncOp func, std::vector<Inst>& instr_list, std::map<Operation*, int>& op2line){
+  func.walk([&](mlir::Operation *op) {
+    if(auto _op = dyn_cast<mlir::cf::BranchOp>(op)){
+      Block* dest_block = _op.getDest();
+      Operation &dest_op = dest_block->getOperations().front();
+      if(!op2line.count(&dest_op)){
+        std::cerr << "error: can't find branch target" << std::endl;
+        std::exit(1);
+      }
+      int target_line = op2line[&dest_op];
+      int current_line = op2line[op];
+      int offset = target_line - current_line;
+      instr_list[current_line]["offset"] = offset;
+    }else if(auto _op = dyn_cast<mlir::cf::CondBranchOp>(op)){
+      Block* dest_block = _op.getTrueDest();
+      Operation &dest_op = dest_block->getOperations().front();
+      if(!op2line.count(&dest_op)){
+        std::cerr << "error: can't find branch target" << std::endl;
+        std::exit(1);
+      }
+      int target_line = op2line[&dest_op];
+      int current_line = op2line[op];
+      int offset = target_line - current_line;
+      instr_list[current_line]["offset"] = offset;
+    }
+  });
+}
 struct CodeGenerationPass
     : public mlir::PassWrapper<CodeGenerationPass, OperationPass<mlir::func::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CodeGenerationPass)
@@ -417,9 +445,11 @@ struct CodeGenerationPass
 
     std::unordered_map<llvm::hash_code, int > regmap = getRegisterMapping(f);
     std::vector<Inst> instr_list;
+    std::map<Operation*, int> op2line;
     std::cout << "getRegisterMapping finish!" << std::endl;
-    codeGen(f, regmap, instr_list);
+    codeGen(f, regmap, instr_list, op2line);
     std::cout << "codegen finish!" << std::endl;
+    fillJumpBranchOffset(f, instr_list, op2line);
 
     std::string filename = "result.json";
     std::ofstream file(filename);
