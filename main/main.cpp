@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
   module.dump();
   std::cout << "\n\n\n\n" << std::endl;
 
-  // return 0;
+  // step3: lower
   mlir::PassManager lower_passes(&context);
   lower_passes.addPass(mlir::cim::createCIMLoweringPass());
   lower_passes.addPass(mlir::createCanonicalizerPass());
@@ -105,10 +105,24 @@ int main(int argc, char **argv) {
   lower_passes.addPass(mlir::createConvertSCFToCFPass());
   if (mlir::failed(lower_passes.run(module))) {
     std::cout << "Lower Passes fail." << std::endl;
+    module.dump();
+    return 1;
   }else{
     std::cout << "Lower Passes success." << std::endl;
+    module.dump();
   }
-  module.dump();
+
+  // step4: codegen
+  std::cout << "\n\n\n\n" << std::endl;
+  mlir::PassManager codegen_passes(&context);
+  mlir::OpPassManager &codegen_op_passes = codegen_passes.nest<mlir::func::FuncOp>();
+  codegen_op_passes.addPass(cim::createCodeGenerationPass());
+  if (mlir::failed(codegen_passes.run(module))) {
+    std::cout << "CodeGen Passes fail." << std::endl;
+    return 1;
+  }else{
+    std::cout << "CodeGen Passes success." << std::endl;
+  }
   
   return 0;
 

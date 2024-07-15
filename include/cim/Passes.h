@@ -12,6 +12,7 @@ std::unique_ptr<Pass> createMemoryAddressAllocationPass();
 std::unique_ptr<Pass> createTestDecomposeAffineOpPass();
 std::unique_ptr<Pass> createFoldMemRefAliasOpsPass();
 std::unique_ptr<Pass> createCIMLoweringPass();
+std::unique_ptr<Pass> createCodeGenerationPass();
 } // namespace cim
 } // namespace mlir
 

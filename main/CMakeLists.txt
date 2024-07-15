@@ -19,6 +19,7 @@ add_llvm_executable(main
         pass/DecomposeAffineOpPass.cpp
         pass/FoldMemRefAliasPass.cpp
         pass/CIMLoweringPass.cpp
+        pass/CodeGenPass.cpp
 
         DEPENDS
         CIMOpsIncGen
