@@ -23,8 +23,13 @@ class MacroUtil:
         if type(data_type)==int:
             bitwidth = data_type
             data_type = get_dtype_from_bitwidth(bitwidth)
-        else:
+        elif type(data_type)== np.int32:
+            bitwidth = data_type.item()
+            data_type = get_dtype_from_bitwidth(bitwidth)
+        elif data_type in [np.int8, np.int16, np.int32]:
             bitwidth = get_bitwidth_from_dtype(data_type)
+        else:
+            assert False, f"Unsupport {data_type=}"
         data_bytes = self.macro_memory.read_all()
         macro = np.frombuffer(data_bytes, dtype=data_type)
         macro = macro.reshape(self.macro_config.n_row, 
@@ -39,6 +44,7 @@ class MacroUtil:
         activate_element_row_num,
         activate_element_col_num):
         
-        macro = self.extract_macro_structure_from_memory(data_type).reshape(*macro.shape[:2], -1)
+        macro = self.extract_macro_structure_from_memory(data_type)
+        macro = macro.reshape(*macro.shape[:2], -1)
         data = macro[activate_row, :activate_element_row_num, :activate_element_col_num]
         return data

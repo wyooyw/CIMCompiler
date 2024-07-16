@@ -1,6 +1,8 @@
 from enum import Enum
 import numpy as np
 from simulator.macro_utils import MacroUtil, MacroConfig
+import copy
+from simulator.data_type import get_dtype_from_bitwidth, get_bitwidth_from_dtype
 
 class SpecialReg(Enum):
 
@@ -63,10 +65,11 @@ class Memory:
 
     def read(self, offset, size):
         assert self._check_range(offset, size)
-        return self._data[offset: offset+size]
+        offset = offset - self.offset
+        return copy.copy(self._data[offset: offset+size])
 
     def read_all(self):
-        return self._data
+        return copy.copy(self._data)
 
     def write(self, data, offset, size):
         assert self._check_range(offset, size)
@@ -74,7 +77,11 @@ class Memory:
         if type(data) in [np.array, np.ndarray]:
             data = bytearray(data)
         assert len(data) == size, f"{len(data)=}, {size=}"
+
+        offset = offset - self.offset
         self._data[offset: offset+size] = data
+        assert len(self._data) == self.size, f"{len(self._data)=}, {self.size=}, {offset=}, "
+
 
 class MemorySpace:
     def __init__(self):
@@ -134,8 +141,9 @@ class MemorySpace:
         """
         for memory in self.memory_space:
             if offset >= memory.offset and (offset+size <= memory.offset+memory.size):
-                assert memory.memtype==memtype
-        assert False, 'can not find memory!'
+                assert memory.memtype==memtype, f"require {memtype=}, but get {memory.memtype=}"
+                return
+        assert False, f'can not find memory! {offset=}, {size=}, {memtype=}'
 
     def read(self, offset, size):
         memory = self.get_memory_and_check_range(offset, size)
@@ -157,6 +165,12 @@ class MemorySpace:
                 return memory
         return None
 
+    def get_base_of(self, name):
+        for memory in self.memory_space:
+            if memory.name==name:
+                return memory.offset
+        assert False, f"Can not find {name=}"
+        return None
 
 class Simulator:
     FINISH = 0
@@ -226,9 +240,15 @@ class Simulator:
         self.write_reg(self.general_rf, regid, value)
 
     def read_special_reg(self, regid):
+        if type(regid)==SpecialReg:
+            regid = regid.value
+        assert type(regid)==int, f"{regid=}"
         return self.read_reg(self.special_rf, regid)
 
     def write_special_reg(self, regid, value):
+        if type(regid)==SpecialReg:
+            regid = regid.value
+        assert type(regid)==int, f"{regid=}"
         self.write_reg(self.special_rf, regid, value)
 
     def read_reg(self, rf, regid):
@@ -245,7 +265,7 @@ class Simulator:
     """
     def _run_pim_class_inst(self, inst):
         inst_type = inst["type"]
-        if inst_type==PIMInstType.PIM_COMPUTE:
+        if inst_type==PIMInstType.PIM_COMPUTE.value:
             self._run_pim_class_pim_compute_type_inst(inst)
         else:
             assert False, f"Not support"
@@ -519,27 +539,32 @@ class Simulator:
         output_offset = self.read_general_reg(inst["rd"])
         input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
-        width_bw = self.read_special_reg(SpecialReg.WIDTH_BIT_WIDTH)
+        width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
         activation_element_col_num = self.read_special_reg(SpecialReg.ACTIVATION_ELEMENT_COL_NUM)
 
         # Get input vector
         input_byte_size = input_size * input_bw // 8
         self.memory_space.check_memory_type(input_offset, input_byte_size, "rf")
         input_data = self.memory_space.read_as(input_offset, input_byte_size, self.get_dtype(input_bw))
-
+        print(f"{input_size=}, {input_bw=}, {self.get_dtype(input_bw)=}, {input_data=}")
         # Get weight matrix
         activate_element_row_num = input_size
         weight_data = self.macro_util.get_macro_data(activate_row, width_bw, activate_element_row_num, activation_element_col_num)
         
-        assert input_data.dim()==1
-        assert weight_data.dim()==2
-        assert input_data.shape[0] == weight_data.shape[0]
+        assert input_data.ndim==1
+        assert weight_data.ndim==2
+        assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
         out_dtype = get_dtype_from_bitwidth(output_bw)
         output_data = np.dot(input_data.astype(out_dtype), weight_data.astype(out_dtype))
         
         # Save output
-        output_byte_size = output_data.numel() * output_bw // 8
+        output_byte_size = output_data.size * output_bw // 8
         self.memory_space.check_memory_type(output_offset, output_byte_size, "rf")
+
+        # Accumulate
+        if inst["accumulate"] == 1:
+            output_data_ori = self.memory_space.read_as(output_offset, output_byte_size, out_dtype)
+            output_data = output_data + output_data_ori
         self.memory_space.write(output_data, output_offset, output_byte_size)
 
     def _run_debug_class_inst(self, inst):

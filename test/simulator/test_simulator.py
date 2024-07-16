@@ -15,12 +15,15 @@ def init_memory_space():
 
 def init_macro_config():
     macro_config = MacroConfig(n_macro=4, n_row=64, n_comp=16, n_bcol=16)
+    return macro_config
 
 class TestSimulator:
-    def __init__(self):
-        self.inst_util = InstUtil()
-        self.memory_space = init_memory_space()
-        self.macro_config = init_macro_config()
+
+    @classmethod
+    def setup_class(cls):
+        cls.inst_util = InstUtil()
+        cls.memory_space = init_memory_space()
+        cls.macro_config = init_macro_config()
 
     def test_general_li(self):
         inst_list = [
@@ -244,13 +247,11 @@ class TestSimulator:
 
         assert status==simulator.FINISH
         assert (simulator.memory_space.read_as(128, 64, np.int8)==data).all()
-
-    def test_pim_compute(self):
-        pass
     
 
 
 if __name__=="__main__":
+    TestSimulator.setup_class()
     test_simulator = TestSimulator()
     test_simulator.test_general_li()
     test_simulator.test_special_li()

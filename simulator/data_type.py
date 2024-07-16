@@ -17,4 +17,4 @@ def get_bitwidth_from_dtype(dtype):
     elif dtype==np.int32:
         return 32
     else:
-        assert False, f"Unsupport {dtype=}"
+        assert False, f"Unsupport {dtype=}, {type(dtype)=}"
