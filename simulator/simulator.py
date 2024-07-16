@@ -1,6 +1,6 @@
 from enum import Enum
 import numpy as np
-from macro_utils import MacroUtil, MacroConfig
+from simulator.macro_utils import MacroUtil, MacroConfig
 
 class SpecialReg(Enum):
 
@@ -70,17 +70,18 @@ class Memory:
 
     def write(self, data, offset, size):
         assert self._check_range(offset, size)
-        assert type(data)==np.array
-        data_bytes = bytearray(data)
-        assert len(data_bytes) == size
-        self._data[offset: offset+size] = data_bytes
+        assert type(data) in [np.array, np.ndarray, bytearray], f"{type(data)=}"
+        if type(data) in [np.array, np.ndarray]:
+            data = bytearray(data)
+        assert len(data) == size, f"{len(data)=}, {size=}"
+        self._data[offset: offset+size] = data
 
 class MemorySpace:
     def __init__(self):
         self.memory_space = []
 
     def _sort_by_offset(self):
-        people.sort(key=lambda m: m.offset)
+        self.memory_space.sort(key=lambda m: m.offset)
 
     def _check_no_overlap(self):
         self._sort_by_offset()
@@ -158,15 +159,18 @@ class MemorySpace:
 
 
 class Simulator:
-    def __init__(self):
-        super().__init__(memory_space, macro_config)
+    FINISH = 0
+    TIMEOUT = 1
+    ERROR = 2
+    def __init__(self, memory_space, macro_config, safe_time=999999):
+        super().__init__()
         self.general_rf = np.zeros([32], dtype=np.int32)
         self.special_rf = np.zeros([32], dtype=np.int32)
-        self.memory_spcae = memory_space
-        self.macro_util = MacroUtil(self.memory_spcae.get_macro_memory(), macro_config)
+        self.memory_space = memory_space
+        self.macro_util = MacroUtil(self.memory_space.get_macro_memory(), macro_config)
 
         self.jump_offset = None
-        self.safe_time = 999999
+        self.safe_time = safe_time
 
         self._int_data_type = {
             8: np.int8,
@@ -181,23 +185,23 @@ class Simulator:
     def run_code(self, code: list[dict]):
         pc = 0
         cnt = 0
+        
         while pc < len(code) and cnt < self.safe_time:
             inst = code[pc]
             inst_class = inst["class"]
-            if inst_class==InstClass.PIM_CLASS:
+            if inst_class==InstClass.PIM_CLASS.value:
                 self._run_pim_class_inst(inst)
-            elif inst_class==InstClass.SIMD_CLASS:
+            elif inst_class==InstClass.SIMD_CLASS.value:
                 self._run_simd_class_inst(inst)
-            elif inst_class==InstClass.SCALAR_CLASS:
+            elif inst_class==InstClass.SCALAR_CLASS.value:
                 self._run_scalar_class_inst(inst)
-            elif inst_class==InstClass.TRANS_CLASS:
+            elif inst_class==InstClass.TRANS_CLASS.value:
                 self._run_trans_class_inst(inst)
-            elif inst_class==InstClass.CTR_CLASS:
+            elif inst_class==InstClass.CTR_CLASS.value:
                 self._run_control_class_inst(inst)
-            elif inst_class==InstClass.DEBUG_CLASS:
+            elif inst_class==InstClass.DEBUG_CLASS.value:
                 self._run_debug_class_inst(inst)
-
-            if self.jump_offset is None:
+            if self.jump_offset is not None:
                 pc += self.jump_offset
                 self.jump_offset = None
             else:
@@ -207,10 +211,13 @@ class Simulator:
 
         if pc == len(code):
             print("Run finish!")
+            return self.FINISH
         elif pc < len(code) and cnt == self.safe_time:
             print("Meet safe time!")
+            return self.TIMEOUT
         else:
             print(f"Strange exit situation! {pc=}, {len(code)=}, {cnt=}, {self.safe_time=}")
+            return self.ERROR
     
     def read_general_reg(self, regid):
         return self.read_reg(self.general_rf, regid)
@@ -225,7 +232,7 @@ class Simulator:
         self.write_reg(self.special_rf, regid, value)
 
     def read_reg(self, rf, regid):
-        assert 0 <= regid and regid < rf.shape[0]
+        assert 0 <= regid and regid < rf.shape[0], f"{regid=}"
         return rf[regid]
 
     def write_reg(self, rf, regid, value):
@@ -270,32 +277,33 @@ class Simulator:
 
     def _run_scalar_class_inst(self, inst):
         inst_type = inst["type"]
-        if inst_type==ScalarInstType.RR:
+        # import pdb; pdb.set_trace()
+        if inst_type==ScalarInstType.RR.value:
             self._run_scalar_class_rr_type_inst(inst)
         # elif inst_type==ScalarInstType.RI:
         #     self._run_scalar_class_ri_type_inst(inst)
         # elif inst_type==ScalarInstType.LOAD_STORE:
         #     self._run_scalar_class_load_store_type_inst(inst)
-        # elif inst_type==ScalarInstType.OTHER:
-        #     self._run_scalar_class_other_type_inst(inst)
+        elif inst_type==ScalarInstType.OTHER.value:
+            self._run_scalar_class_other_type_inst(inst)
         else:
             assert False, f"Not support"
 
     def _run_control_class_inst(self, inst):
         inst_type = inst["type"]
-        if inst_type in [ControlInstType.EQ_BR, 
-                            ControlInstType.NE_BR, 
-                            ControlInstType.GT_BR, 
-                            ControlInstType.LT_BR]:
+        if inst_type in [ControlInstType.EQ_BR.value, 
+                            ControlInstType.NE_BR.value, 
+                            ControlInstType.GT_BR.value, 
+                            ControlInstType.LT_BR.value]:
             self._run_control_class_br_type_inst(inst)
-        elif inst_type==ControlInstType.JUMP:
+        elif inst_type==ControlInstType.JUMP.value:
             self._run_control_class_jump_type_inst(inst)
         else:
             assert False, f"Not support"
 
     def _run_trans_class_inst(self, inst):
         inst_type = inst["type"]
-        if inst_type==TransInstType.TRANS:
+        if inst_type==TransInstType.TRANS.value:
             self._run_trans_class_trans_type_inst(inst)
         else:
             assert False, f"Not support"
@@ -416,7 +424,7 @@ class Simulator:
         if inst_type==0b000: # equals
             cond = (val1 == val2)
         elif inst_type==0b001: # not equals
-            cond = (val1 == val2)
+            cond = not (val1 == val2)
         elif inst_type==0b010: # greater than
             cond = (val1 > val2)
         elif inst_type==0b011: # less than
@@ -427,7 +435,7 @@ class Simulator:
         if cond:
             self.jump_offset = inst["offset"]
         
-    def _run_control_class_jump_type_inst(seof, inst):
+    def _run_control_class_jump_type_inst(self, inst):
         """
             无条件跳转指令：jmp
             指令字段划分：
@@ -436,7 +444,22 @@ class Simulator:
             - [25, 0]，26bit：offset，立即数，表示跳转指令地址相对于该指令的偏移值
         """
         self.jump_offset = inst["offset"]
-    
+
+    def _run_scalar_class_other_type_inst(self, inst):
+        opcode = inst["opcode"]
+        if opcode==0b00: # general-li
+            self.write_general_reg(inst["rd"], inst["imm"])
+        elif opcode==0b01: # special-li
+            self.write_special_reg(inst["rd"], inst["imm"])
+        elif opcode==0b10: # general-to-special
+            val = self.read_general_reg(inst["rs1"])
+            self.write_special_reg(inst["rs2"], val)
+        elif opcode==0b11: # special-to-general
+            val = self.read_special_reg(inst["rs2"])
+            self.write_general_reg(inst["rs1"], val)
+        else:
+            assert False, "Not support yet"
+
     def _run_pim_class_pim_compute_type_inst(self, inst):
         """
         pim计算：pim-compute

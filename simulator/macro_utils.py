@@ -1,4 +1,4 @@
-from data_type import *
+from simulator.data_type import *
 
 class MacroConfig:
     def __init__(self, n_macro, n_row, n_comp, n_bcol):
