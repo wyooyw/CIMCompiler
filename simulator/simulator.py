@@ -546,7 +546,7 @@ class Simulator:
         input_byte_size = input_size * input_bw // 8
         self.memory_space.check_memory_type(input_offset, input_byte_size, "rf")
         input_data = self.memory_space.read_as(input_offset, input_byte_size, self.get_dtype(input_bw))
-        print(f"{input_size=}, {input_bw=}, {self.get_dtype(input_bw)=}, {input_data=}")
+
         # Get weight matrix
         activate_element_row_num = input_size
         weight_data = self.macro_util.get_macro_data(activate_row, width_bw, activate_element_row_num, activation_element_col_num)
