@@ -1,3 +1,5 @@
 # Ignore build folder
 build/
-run
+.result/
+.temp/
+__pycache__/

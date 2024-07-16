@@ -1,7 +1,7 @@
 set -e
 
 input_file="${PWD}/op/v1/conv2d_dense.cim"
-output_path="${PWD}/result"
+output_path="${PWD}/.result"
 mkdir -p $output_path
 # copy source file
 cp $input_file $output_path/origin_code.cim
