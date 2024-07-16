@@ -88,7 +88,48 @@ class InstUtil:
             "offset": offset,
             "size": size
         }
+
+    def pimcompute_dense_single_group(self, accumulate, rs1, rs2, rs3, rd):
+        return self.pimcompute(0, 0, 0, 0, accumulate, rs1, rs2, rs3, rd)
+
+    def pimcompute_dense(self, group, group_input_mode, accumulate, rs1, rs2, rs3, rd):
+        return self.pimcompute(0, 0, group, group_input_mode, accumulate, rs1, rs2, rs3, rd)
     
+    def pimcompute(self, value_sparse, bit_sparse, group, group_input_mode, accumulate, rs1, rs2, rs3, rd):
+        """
+        pim计算：pim-compute
+        指令字段划分：
+        - [31, 30]，2bit：class，指令类别码，值为00
+        - [29, 29]，1bit：type，指令类型码，值为0
+        - [28, 25]，4bit：reserve，保留字段
+        - [24, 20]，5bit：flag，功能扩展字段
+            - [24]，1bit：value sparse，表示是否使用值稀疏，稀疏掩码Mask的起始地址由专用寄存器给出
+            - [23]，1bit：bit sparse，表示是否使用bit级稀疏，稀疏Meta数据的起始地址由专用寄存器给出
+            - [22]，1bit：group，表示是否进行分组，组大小及激活的组数量由专用寄存器给出
+            - [21]，1bit：group input mode，表示多组输入的模式
+                - 0：每一组输入向量的起始地址相对于上一组的增量（步长，step）是一个定值，由专用寄存器给出
+                - 1：每一组输入向量的起始地址相对于上一组的增量不是定值，其相对于rs1的偏移量（offset）在存储器中给出，地址（offset addr）由专用寄存器给出
+        - [20]，1bit：accumulate，表示是否进行累加
+        - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址
+        - [14, 10]，5bit：rs2，通用寄存器2，表示input向量长度
+        - [9, 5]，5bit：rs3，通用寄存器3，表示激活的row的index
+        - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
+        """
+        # value_sparse, bit_sparse, group, group_input_mode, accumulate, rs1, rs2, rs3, rd
+        return {
+            "class": 0b00,
+            "type": 0b0,
+            "value_sparse": value_sparse,
+            "bit_sparse": bit_sparse,
+            "group":group,
+            "group_input_mode": group_input_mode,
+            "accumulate": accumulate,
+            "rs1": rs1,
+            "rs2": rs2,
+            "rs3": rs3,
+            "rd": rd
+        }
+
     def debug_print(self, rd):
         return {
             "class": -1,
