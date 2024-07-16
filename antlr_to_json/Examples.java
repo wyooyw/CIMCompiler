@@ -55,15 +55,20 @@ public class Examples {
   }
 
   public static void main(String[] args) {
-    String filePath = "/home/wangyiou/project/cim_compiler_frontend/playground/result/conv2d_dense_precompile.cim";
+    // system.out.println(args[0]);
+    // System.out.println("args.length: " + args.length);
+    System.out.println("read cim code from " + args[0]);
+    System.out.println("write json to " + args[1]);
+    String srcFilePath = args[0];
+    String dstFilePath = args[1];
     try {
-        String source = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
+        String source = new String(Files.readAllBytes(Paths.get(srcFilePath)), StandardCharsets.UTF_8);
         CIMLexer lexer = new CIMLexer(CharStreams.fromString(source));
         CIMParser parser = new CIMParser(new CommonTokenStream(lexer));
         String json = toJson(parser.program());
         // System.out.println(json);
         // write to file
-        Files.write(Paths.get("/home/wangyiou/project/cim_compiler_frontend/playground/result/conv2d_dense_ast.json"), json.getBytes());
+        Files.write(Paths.get(dstFilePath), json.getBytes());
     } catch (IOException e) {
         e.printStackTrace();
     }

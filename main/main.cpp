@@ -52,6 +52,13 @@ using namespace mlir;
 
 
 int main(int argc, char **argv) {
+  if (argc < 3) {
+    std::cerr << "Error: Not enough arguments provided." << std::endl;
+    return 1;
+  }
+  std::string inputFilePath(argv[1]);
+  std::string outputFilePath(argv[2]);
+
   mlir::DialectRegistry registry;
   mlir::registerCIMInlinerInterface(registry);
   mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
@@ -72,7 +79,7 @@ int main(int argc, char **argv) {
   
 
   MLIRGenImpl gen_impl(context);
-  mlir::ModuleOp module = gen_impl.parseJson("/home/wangyiou/project/cim_compiler_frontend/playground/result/conv2d_dense_ast.json");
+  mlir::ModuleOp module = gen_impl.parseJson(inputFilePath);
   
   module.dump();
   std::cout << "\n\n\n\n" << std::endl;
@@ -116,7 +123,8 @@ int main(int argc, char **argv) {
   std::cout << "\n\n\n\n" << std::endl;
   mlir::PassManager codegen_passes(&context);
   mlir::OpPassManager &codegen_op_passes = codegen_passes.nest<mlir::func::FuncOp>();
-  codegen_op_passes.addPass(cim::createCodeGenerationPass());
+  std::cout << outputFilePath << std::endl;
+  codegen_op_passes.addPass(cim::createCodeGenerationPass(outputFilePath));
   if (mlir::failed(codegen_passes.run(module))) {
     std::cout << "CodeGen Passes fail." << std::endl;
     return 1;

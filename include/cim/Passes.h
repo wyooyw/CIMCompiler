@@ -2,7 +2,7 @@
 #define CIM_PASSES_H
 
 #include <memory>
-
+#include <string>
 namespace mlir {
 class Pass;
 
@@ -12,7 +12,7 @@ std::unique_ptr<Pass> createMemoryAddressAllocationPass();
 std::unique_ptr<Pass> createTestDecomposeAffineOpPass();
 std::unique_ptr<Pass> createFoldMemRefAliasOpsPass();
 std::unique_ptr<Pass> createCIMLoweringPass();
-std::unique_ptr<Pass> createCodeGenerationPass();
+std::unique_ptr<Pass> createCodeGenerationPass(std::string outputFilePath);
 } // namespace cim
 } // namespace mlir
 

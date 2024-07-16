@@ -438,6 +438,8 @@ struct CodeGenerationPass
     : public mlir::PassWrapper<CodeGenerationPass, OperationPass<mlir::func::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CodeGenerationPass)
 
+  std::string outputFilePath;
+
   void runOnOperation() override {
     std::cout << "run on operation" << std::endl;
     auto f = getOperation();
@@ -451,10 +453,10 @@ struct CodeGenerationPass
     std::cout << "codegen finish!" << std::endl;
     fillJumpBranchOffset(f, instr_list, op2line);
 
-    std::string filename = "result.json";
-    std::ofstream file(filename);
+    // std::string filename = "result.json";
+    std::ofstream file(outputFilePath);
     if (!file.is_open()) {
-        std::cerr << "Unable to open file: " << filename << std::endl;
+        std::cerr << "Unable to open file: " << outputFilePath << std::endl;
     } else {
         file << "[\n";
         for(auto it = instr_list.begin(); it != instr_list.end();){
@@ -468,13 +470,15 @@ struct CodeGenerationPass
         // 关闭文件
         file.close();
     }
-    std::cout << "Generated code was saved to " << filename << std::endl;
+    std::cout << "Generated code was saved to " << outputFilePath << std::endl;
   }
 
 };
 } // namespace
 
 /// Create a Shape Inference pass.
-std::unique_ptr<mlir::Pass> mlir::cim::createCodeGenerationPass() {
-  return std::make_unique<CodeGenerationPass>();
+std::unique_ptr<mlir::Pass> mlir::cim::createCodeGenerationPass(std::string outputFilePath) {
+  auto pass = std::make_unique<CodeGenerationPass>();
+  pass->outputFilePath = outputFilePath;
+  return pass;
 }
