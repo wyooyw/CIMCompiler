@@ -82,6 +82,9 @@ class Memory:
         self._data[offset: offset+size] = data
         assert len(self._data) == self.size, f"{len(self._data)=}, {self.size=}, {offset=}, "
 
+    def clear(self):
+        self._data[:] = bytearray(np.zeros((self.size,) , dtype=np.int8))
+
 
 class MemorySpace:
     def __init__(self):
@@ -171,6 +174,10 @@ class MemorySpace:
                 return memory.offset
         assert False, f"Can not find {name=}"
         return None
+
+    def clear(self):
+        for memory in self.memory_space:
+            memory.clear()
 
 class Simulator:
     FINISH = 0
