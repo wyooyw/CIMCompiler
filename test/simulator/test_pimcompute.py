@@ -28,6 +28,10 @@ class TestSimulatorPIMCompute:
         cls.inst_util = InstUtil()
         cls.memory_space = init_memory_space()
         cls.macro_config = init_macro_config()
+        cls.simulator = Simulator(cls.memory_space , cls.macro_config)
+
+    def setup_method(self):
+        self.simulator.clear()
 
     def test_pimcompute_dense_single_group(self):
         """
@@ -36,11 +40,10 @@ class TestSimulatorPIMCompute:
         A: int8, shape=[4, 4], memory=macro, addr=MACRO_BASE, size=16
         y: int32, shape=[4], memory=local, addr=LOCAL_BASE+4, size=16
         """
-        simulator = Simulator(self.memory_space , self.macro_config)
 
-        input_buffer_base = simulator.memory_space.get_base_of("input_buffer")
-        output_buffer_base = simulator.memory_space.get_base_of("output_buffer")
-        macro_base = simulator.memory_space.get_base_of("macro")
+        input_buffer_base = self.simulator.memory_space.get_base_of("input_buffer")
+        output_buffer_base = self.simulator.memory_space.get_base_of("output_buffer")
+        macro_base = self.simulator.memory_space.get_base_of("macro")
 
         input_addr = input_buffer_base
         input_size = 4
@@ -71,13 +74,13 @@ class TestSimulatorPIMCompute:
         weight = np.arange(16, dtype=np.int8).reshape(4,4)
         output_golden = np.dot(input.astype(np.int32), weight.astype(np.int32))
 
-        simulator.memory_space.write(input, input_addr, 4)
-        simulator.memory_space.write(weight, macro_base, 16)
-        status = simulator.run_code(inst_list)
+        self.simulator.memory_space.write(input, input_addr, 4)
+        self.simulator.memory_space.write(weight, macro_base, 16)
+        status = self.simulator.run_code(inst_list)
 
-        assert status==simulator.FINISH
+        assert status==self.simulator.FINISH
         
-        output = simulator.memory_space.read_as(output_addr, 16, np.int32)
+        output = self.simulator.memory_space.read_as(output_addr, 16, np.int32)
         assert (output==output_golden).all()
 
     def test_pimcompute_dense_single_group_accumulate(self):
@@ -88,11 +91,10 @@ class TestSimulatorPIMCompute:
         B: int8, shape=[4, 4], memory=macro, addr=MACRO_BASE+16, size=16
         y: int32, shape=[4], memory=local, addr=LOCAL_BASE+4, size=16
         """
-        simulator = Simulator(self.memory_space , self.macro_config)
 
-        input_buffer_base = simulator.memory_space.get_base_of("input_buffer")
-        output_buffer_base = simulator.memory_space.get_base_of("output_buffer")
-        macro_base = simulator.memory_space.get_base_of("macro")
+        input_buffer_base = self.simulator.memory_space.get_base_of("input_buffer")
+        output_buffer_base = self.simulator.memory_space.get_base_of("output_buffer")
+        macro_base = self.simulator.memory_space.get_base_of("macro")
 
         input_addr = input_buffer_base
         input_size = 4
@@ -133,14 +135,14 @@ class TestSimulatorPIMCompute:
         weight_B = np.arange(16,32, dtype=np.int8).reshape(4,4)
         output_golden = np.dot(input.astype(np.int32), weight_A.astype(np.int32)) + np.dot(input.astype(np.int32), weight_B.astype(np.int32))
 
-        simulator.memory_space.write(input, input_addr, 4)
-        simulator.memory_space.write(weight_A, macro_base, 16)
-        simulator.memory_space.write(weight_B, macro_base+16, 16)
-        status = simulator.run_code(inst_list)
+        self.simulator.memory_space.write(input, input_addr, 4)
+        self.simulator.memory_space.write(weight_A, macro_base, 16)
+        self.simulator.memory_space.write(weight_B, macro_base+16, 16)
+        status = self.simulator.run_code(inst_list)
 
-        assert status==simulator.FINISH
+        assert status==self.simulator.FINISH
         
-        output = simulator.memory_space.read_as(output_addr, 16, np.int32)
+        output = self.simulator.memory_space.read_as(output_addr, 16, np.int32)
         assert (output==output_golden).all()
     
 

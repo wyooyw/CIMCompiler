@@ -199,6 +199,11 @@ class Simulator:
             32: np.int32
         }
     
+    def clear(self):
+        self.memory_space.clear()
+        self.general_rf = np.zeros([32], dtype=np.int32)
+        self.special_rf = np.zeros([32], dtype=np.int32)
+
     def get_dtype(self, bitwidth):
         assert bitwidth in self._int_data_type
         return self._int_data_type[bitwidth]
@@ -557,7 +562,7 @@ class Simulator:
         # Get weight matrix
         activate_element_row_num = input_size
         weight_data = self.macro_util.get_macro_data(activate_row, width_bw, activate_element_row_num, activation_element_col_num)
-        
+
         assert input_data.ndim==1
         assert weight_data.ndim==2
         assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
