@@ -145,6 +145,61 @@ class TestSimulatorPIMCompute:
         output = self.simulator.memory_space.read_as(output_addr, 16, np.int32)
         assert (output==output_golden).all()
     
+    def test_pimcompute_dense_single_group_part(self):
+        """
+        y = xA
+        x: int8, shape=[3], memory=local, addr=input_buffer_base, size=3
+        A: int8, shape=[3, 3], memory=macro. addr=
+            A[0,:]: MACRO_BASE, size=3,
+            A[1,:]: MACRO_BASE + 4, size=3,
+            A[2,:]: MACRO_BASE + 8, size=3,
+        y: int32, shape=[3], memory=local, addr=output_buffer_base, size=3
+        """
+        input_buffer_base = self.simulator.memory_space.get_base_of("input_buffer")
+        output_buffer_base = self.simulator.memory_space.get_base_of("output_buffer")
+        macro_base = self.simulator.memory_space.get_base_of("macro")
+
+        input_addr = input_buffer_base
+        input_size = 3
+        output_addr = output_buffer_base
+        output_size = 3
+
+        inst_list = [
+            # set general register
+            self.inst_util.general_li(0, input_addr), # input addr
+            self.inst_util.general_li(1, input_size), # input size
+            self.inst_util.general_li(2, 0), # activate row
+            self.inst_util.general_li(3, output_addr), # output addr
+
+            # set special register
+            self.inst_util.special_li(SpecialReg.INPUT_BIT_WIDTH, 8),
+            self.inst_util.special_li(SpecialReg.WEIGHT_BIT_WIDTH, 8),
+            self.inst_util.special_li(SpecialReg.OUTPUT_BIT_WIDTH, 32),
+            self.inst_util.special_li(SpecialReg.ACTIVATION_ELEMENT_COL_NUM, 3),
+
+            self.inst_util.pimcompute_dense_single_group(
+                0, # accumulate
+                0, # rs1 input addr
+                1, # rs2 input size
+                2, # rs3 activate row
+                3, # rd output addr
+            )
+        ]
+        input = np.arange(4, dtype=np.int8)
+        weight = np.arange(16, dtype=np.int8).reshape(4, 4)
+        output_golden = np.dot(input[:3].astype(np.int32), weight[:3,:3].astype(np.int32))
+
+        self.simulator.memory_space.write(input, input_addr, 4)
+        self.simulator.memory_space.write(weight, macro_base, 16)
+        status = self.simulator.run_code(inst_list)
+
+        assert status==self.simulator.FINISH
+        
+        output = self.simulator.memory_space.read_as(output_addr, 32, np.int32)
+        print(output)
+        print(output_golden)
+        assert (output[:3]==output_golden).all()
+        assert output[3]==0
 
 
 if __name__=="__main__":
@@ -152,3 +207,4 @@ if __name__=="__main__":
     test_simulator = TestSimulatorPIMCompute()
     test_simulator.test_pimcompute_dense_single_group()
     test_simulator.test_pimcompute_dense_single_group_accumulate()
+    test_simulator.test_pimcompute_dense_single_group_part()
