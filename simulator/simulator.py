@@ -290,11 +290,17 @@ class Simulator:
         指令字段划分：
         - [31, 30]，2bit：class，指令类别码，值为01
         - [29, 28]，2bit：input num，input向量的个数，范围是1到4
-        - 00：1个输入向量，地址由rs1给出
-        - 01：2个输入向量，地址由rs1和rs2给出
-        - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
-        - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
+            - 00：1个输入向量，地址由rs1给出
+            - 01：2个输入向量，地址由rs1和rs2给出
+            - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
+            - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
         - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
+            - 0x00：add，向量加法
+            - 0x01：add-scalar，向量和标量加法
+            - 0x02：multiply，向量逐元素乘法
+            - 0x03：quantify，量化
+            - 0x04：quantify-resadd，resadd量化
+            - 0x05：quantify-multiply，乘法量化
         - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
         - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
         - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
@@ -306,8 +312,13 @@ class Simulator:
         - input 4 bit width：输入向量4每个元素的bit长度
         - output bit width：输出向量每个元素的bit长度
         """
-        pass
-
+        opcode = inst["opcode"]
+        if opcode in [0x00, 0x02]: # vec add
+            self._run_simd_class_vector_vector_inst(inst)
+        elif opcode==0b01: # scalar add
+            self._run_simd_class_scalar_vector_inst(inst)
+        else:
+            assert False, f"Not support {opcode=} yet."
 
     def _run_scalar_class_inst(self, inst):
         inst_type = inst["type"]
@@ -585,3 +596,78 @@ class Simulator:
         rs = inst['rs']
         val = self.read_general_reg(rs)
         print(f"[debug] general_reg[{rs}] = {val}")
+
+
+    def _run_simd_class_vector_vector_inst(self, inst):
+        """
+        support: 1.vec add; 2.vec mul
+        """
+        opcode = inst["opcode"]
+
+        # Prepare input
+        input_size = self.read_general_reg(inst["rs3"])
+
+        input1_addr = self.read_general_reg(inst["rs1"])
+        input1_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
+        input1_byte_size = input1_bitwidth * input_size // 8
+        self.memory_space.check_memory_type(input1_addr, input1_byte_size, "sram")
+
+        input2_addr = self.read_general_reg(inst["rs2"])
+        input2_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_2_BIT_WIDTH)
+        input2_byte_size = input2_bitwidth * input_size // 8
+        self.memory_space.check_memory_type(input2_addr, input2_byte_size, "sram")
+
+        output_addr = self.read_general_reg(inst["rd"])
+        output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
+        output_dtype = get_dtype_from_bitwidth(output_bitwidth)
+
+        input1_data = self.memory_space.read_as(input1_addr, input1_byte_size , get_dtype_from_bitwidth(input1_bitwidth))
+        input2_data = self.memory_space.read_as(input2_addr, input2_byte_size , get_dtype_from_bitwidth(input2_bitwidth))
+
+        # Compute
+        if opcode==0x00:
+            output_data = input1_data.astype(output_dtype) + input2_data.astype(output_dtype)
+        elif opcode==0x02:
+            output_data = input1_data.astype(output_dtype) * input2_data.astype(output_dtype)
+        else:
+            assert False, f"Not support: {opcode=}"
+
+        # Save output
+        output_byte_size = output_data.size * output_bitwidth // 8
+        self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
+
+        self.memory_space.write(output_data, output_addr, output_byte_size)
+
+    def _run_simd_class_scalar_vector_inst(self, inst):
+        """
+        support: scalar-vec add
+        """
+        opcode = inst["opcode"]
+
+        # Prepare input
+        input_size = self.read_general_reg(inst["rs3"])
+
+        input1_addr = self.read_general_reg(inst["rs1"])
+        input1_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
+        input1_byte_size = input1_bitwidth * input_size // 8
+        self.memory_space.check_memory_type(input1_addr, input1_byte_size, "sram")
+
+        input2_value = self.read_general_reg(inst["rs2"])
+        input2_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_2_BIT_WIDTH)
+        input2_dtype = get_dtype_from_bitwidth(input2_bitwidth)
+
+        output_addr = self.read_general_reg(inst["rd"])
+        output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
+        output_dtype = get_dtype_from_bitwidth(output_bitwidth)
+
+        input1_data = self.memory_space.read_as(input1_addr, input1_byte_size , get_dtype_from_bitwidth(input1_bitwidth))
+        input2_data = np.array([input2_value], dtype=output_dtype)
+
+        # Compute
+        output_data = input2_data.astype(output_dtype) + input1_data.astype(output_dtype)
+
+        # Save output
+        output_byte_size = output_data.size * output_bitwidth // 8
+        self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
+
+        self.memory_space.write(output_data, output_addr, output_byte_size)
