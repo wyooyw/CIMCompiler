@@ -264,10 +264,12 @@ class Simulator:
         self.write_reg(self.special_rf, regid, value)
 
     def read_reg(self, rf, regid):
+        assert type(regid)==int, f"{regid=}"
         assert 0 <= regid and regid < rf.shape[0], f"{regid=}"
         return rf[regid]
 
     def write_reg(self, rf, regid, value):
+        assert type(regid)==int, f"{regid=}"
         assert 0 <= regid and regid < rf.shape[0]
         # TODO: check value is in range of int32
         rf[regid] = value
