@@ -179,6 +179,26 @@ class MemorySpace:
         for memory in self.memory_space:
             memory.clear()
 
+    def load_memory_image(self, memory_image_path):
+        with open(memory_image_path, 'rb') as file:
+            content = file.read()
+        byte_array = bytearray(content)
+        total_size = sum([memory.size for memory in self.memory_space])
+        assert len(byte_array) == total_size, f"{len(byte_array)=}, {total_size=}"
+
+        offset = 0
+        for memory in self.memory_space:
+            size = memory.size
+            memory.write(byte_array[offset: offset+size], memory.offset, size)
+            offset += size
+    
+    def save_memory_image(self, memory_image_path):
+        byte_array = bytearray()
+        for memory in self.memory_space:
+            byte_array += memory.read_all()
+        with open(memory_image_path, 'wb') as file:
+            file.write(byte_array)
+
 class Simulator:
     FINISH = 0
     TIMEOUT = 1
