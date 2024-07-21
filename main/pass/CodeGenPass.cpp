@@ -387,7 +387,26 @@ static void _getRegisterMappingAliasBetweenBasicBlock(
       }
     }
   }
+}
+
+static void _getRegisterMappingForBlockArgs(
+  mlir::func::FuncOp func,
+  std::unordered_map<llvm::hash_code, int >& mapping,
+  int& reg_cnt){
     
+
+  auto regions = func->getRegions();
+  for (Region &region : regions){
+    // for each block
+    for (Block &block : region.getBlocks()){
+      auto block_arguments = block.getArguments();
+      for (int arg_i = 0; arg_i < block_arguments.size(); arg_i++){
+        BlockArgument block_arg = block_arguments[arg_i];
+        mlir::Value block_arg_val = llvm::cast<mlir::Value>(block_arg);
+        mapValueAsRegister(block_arg_val, mapping, reg_cnt);
+      }
+    }
+  }
 }
 
 static void _getRegisterMappingGeneral(
@@ -422,7 +441,8 @@ static std::unordered_map<llvm::hash_code, int > getRegisterMapping(mlir::func::
   int reg_cnt = 0;
 
 
-  _getRegisterMappingAliasBetweenBasicBlock(func, mapping, reg_cnt);
+  // _getRegisterMappingAliasBetweenBasicBlock(func, mapping, reg_cnt);
+  _getRegisterMappingForBlockArgs(func, mapping, reg_cnt);
   _getRegisterMappingGeneral(func, mapping, reg_cnt);
   std::cout << "getRegisterMapping finish" << std::endl;
   return mapping;
