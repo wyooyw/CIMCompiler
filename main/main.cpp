@@ -16,6 +16,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/InitAllDialects.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 // #include "mlir/InitAllPasses.h"
 #include "mlir/Support/FileUtilities.h"
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
@@ -71,6 +72,7 @@ int main(int argc, char **argv) {
   mlir::MLIRContext context(registry);
   context.getOrLoadDialect<mlir::arith::ArithDialect>();
   context.getOrLoadDialect<mlir::scf::SCFDialect>();
+  context.getOrLoadDialect<mlir::cf::ControlFlowDialect>();
   context.getOrLoadDialect<mlir::func::FuncDialect>();
   context.getOrLoadDialect<mlir::tensor::TensorDialect>();
   context.getOrLoadDialect<mlir::bufferization::BufferizationDialect>();
@@ -119,7 +121,20 @@ int main(int argc, char **argv) {
     module.dump();
   }
 
-  // step4: codegen
+  // step4: convert control flow
+  std::cout << "\n\n\n\n" << std::endl;
+  mlir::PassManager cf_convert_passes(&context);
+  cf_convert_passes.addPass(mlir::cim::createCIMBranchConvertPass());
+  if (mlir::failed(cf_convert_passes.run(module))) {
+    std::cout << "CF Convert Passes fail." << std::endl;
+    module.dump();
+    return 1;
+  }else{
+    std::cout << "CF Convert Passes success." << std::endl;
+    module.dump();
+  }
+
+  // step5: codegen
   std::cout << "\n\n\n\n" << std::endl;
   mlir::PassManager codegen_passes(&context);
   mlir::OpPassManager &codegen_op_passes = codegen_passes.nest<mlir::func::FuncOp>();
