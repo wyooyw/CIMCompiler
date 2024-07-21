@@ -142,6 +142,26 @@ static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regma
   instr_list.push_back(inst);
 }
 
+static void codeGen(mlir::cim::PrintOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+  /*
+  - [31, 29]，3bit：class，指令类别码，值为110
+  - [28, 28]，1bit：type，指令类型码，值为0
+  - [27, 26]，1bit：offset mask，偏移值掩码，0表示该地址不使用偏移值，1表示使用偏移值
+    - [27]，1bit：source offset mask，源地址偏移值掩码
+    - [26]，1bit：destination offset mask，目的地址偏移值掩码
+  - [25, 21]，5bit：rs，通用寄存器1，表示传输源地址的基址
+  - [20, 16]，5bit：rd，通用寄存器2，表示传输目的地址的基址
+  - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
+    - 源地址计算公式：$rs + offset * [27]
+    - 目的地址计算公式：$rd + offset * [26]
+  */
+  int rs = getReg(regmap, op.getOperand());
+  Inst inst = {
+    {"class", -1},
+    {"rs", rs}
+  };
+  instr_list.push_back(inst);
+}
 
 static void codeGen(mlir::cimisa::TransOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
   /*
