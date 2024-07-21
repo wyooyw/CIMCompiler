@@ -218,11 +218,15 @@ class Simulator:
             16: np.int16,
             32: np.int32
         }
+
+        self.print_record = list()
     
     def clear(self):
         self.memory_space.clear()
         self.general_rf = np.zeros([32], dtype=np.int32)
         self.special_rf = np.zeros([32], dtype=np.int32)
+        self.print_record = list()
+        self.jump_offset = None
 
     def get_dtype(self, bitwidth):
         assert bitwidth in self._int_data_type
@@ -615,6 +619,7 @@ class Simulator:
     def _run_debug_class_inst(self, inst):
         rs = inst['rs']
         val = self.read_general_reg(rs)
+        self.print_record.append(val)
         print(f"[debug] general_reg[{rs}] = {val}")
 
 
