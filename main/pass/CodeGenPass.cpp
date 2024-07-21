@@ -257,6 +257,33 @@ static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, i
 - [28, 26]，3bit：type，指令类型码，值为100
 - [25, 0]，26bit：offset，立即数，表示跳转指令地址相对于该指令的偏移值
   */
+  Block* dest_block = op.getDest();
+  auto dest_args = dest_block->getArguments();
+  auto dest_operands = op.getDestOperands();
+  int args_size = dest_args.size();
+  int operands_size = dest_operands.size();
+  if (args_size != operands_size){
+    std::cerr << "error: args_size != operands_size" << args_size << " vs "<< operands_size << std::endl;
+    std::exit(1);
+  }
+
+  for (int i = 0; i < args_size; i++){
+    mlir::Value arg = llvm::cast<mlir::Value>(dest_args[i]);
+    mlir::Value operand = dest_operands[i];
+    int arg_reg = getReg(regmap, arg);
+    int operand_reg = getReg(regmap, operand);
+    // we don't have a move instruct between general register, so we use addi zero instead
+    Inst add_zero_inst = {
+      {"class", 0b10},
+      {"type", 0b01},
+      {"opcode", 0b00},
+      {"rs", operand_reg},
+      {"rd", arg_reg},
+      {"imm", 0}
+    };
+    instr_list.push_back(add_zero_inst);
+  }
+
   Inst inst = {
     {"class", 0b111},
     {"type", 0b100},
@@ -308,38 +335,138 @@ static void codeGen(mlir::cf::CondBranchOp op, std::unordered_map<llvm::hash_cod
   instr_list.push_back(inst);
 }
 
+static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
+  std::cout << "getBlockList begin" << std::endl;
+  auto regions = func->getRegions();
+  if (regions.size()>1){
+    std::cout << "regions.size()" << regions.size() << std::endl;
+    std::exit(1);
+  }
+  Region &region = regions.front();
+  std::vector<Block*> blocks;
+  std::unordered_map<Block*, bool> blocks_completed;
+  for (Block &block : region.getBlocks()){
+    blocks_completed[&block] = false;
+  }
 
-static void codeGen(mlir::func::FuncOp func, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list, std::map<Operation*, int>& op2line){
-  func.walk([&](mlir::Operation *op) {
-    op2line[op] = instr_list.size();
-    if(auto _op = dyn_cast<mlir::arith::ConstantOp>(op) ){
-      codeGen(_op, regmap, instr_list);
-    }else if(auto _op = dyn_cast<mlir::arith::AddIOp>(op)){
-      codeGenArith<mlir::arith::AddIOp>(_op, regmap, instr_list);
-    }else if(auto _op = dyn_cast<mlir::arith::SubIOp>(op)){
-      codeGenArith<mlir::arith::SubIOp>(_op, regmap, instr_list);
-    }else if(auto _op = dyn_cast<mlir::arith::MulIOp>(op)){
-      codeGenArith<mlir::arith::MulIOp>(_op, regmap, instr_list);
-    }else if(auto _op = dyn_cast<mlir::arith::DivSIOp>(op)){
-      codeGenArith<mlir::arith::DivSIOp>(_op, regmap, instr_list);
-    }else if(auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)){
-      codeGen(_op, regmap, instr_list);
-    }else if(auto _op = dyn_cast<mlir::cimisa::TransOp>(op)){
-      codeGen(_op, regmap, instr_list);
-    }else if(auto _op = dyn_cast<mlir::cf::CondBranchOp>(op)){
-      codeGen(_op, regmap, instr_list);
-    }else if(auto _op = dyn_cast<mlir::cf::BranchOp>(op)){
-      codeGen(_op, regmap, instr_list);
+  int block_cnt = 0;
+  int total_block_cnt = region.getBlocks().size();
+  while(block_cnt < total_block_cnt){
+    if (block_cnt==0){
+
+      // find the block with no predeccessor
+      for (Block &block : region.getBlocks()){
+        int num_predecessors = 0;
+        for (auto *b : block.getPredecessors()) num_predecessors++;
+        if (num_predecessors==0){
+          blocks.push_back(&block);
+          blocks_completed[&block] = true;
+          break;
+        }
+      }
+      block_cnt = 1;
+
     }else{
-      std::cerr << "error: unsupport operator: " << op->getName().getStringRef().str() << std::endl;
+
+      // find the block with no false-dest predecessor
+      int find = 0;
+      for (Block &block : region.getBlocks()){
+        if (blocks_completed[&block]) continue;
+        int flag = 1;
+        for (auto *b : block.getPredecessors()){
+          auto terminator = b->getTerminator();
+          if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
+            if (_op.getFalseDest()==&block){
+              flag = 0;
+              break;
+            }
+          }
+        }
+        if (flag){
+          find = 1;
+          blocks.push_back(&block);
+          blocks_completed[&block] = true;
+          break;
+        }
+      }
+      if (!find){
+        std::cout << "can't find block with no false-dest predecessor" << std::endl;
+        std::exit(1);
+      }
+      block_cnt++;
+
+    } // end if block_cnt==0
+
+    Block *selected_block = blocks.back();
+
+    // False-dest chain
+    while(true){
+      auto terminator = selected_block->getTerminator();
+      if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
+        if (blocks_completed[_op.getFalseDest()]){
+          std::cerr << "Error: false-dest block already completed" << std::endl;
+          std::exit(1);
+        }
+        blocks.push_back(_op.getFalseDest());
+        blocks_completed[_op.getFalseDest()] = true;
+        selected_block = _op.getFalseDest();
+        block_cnt++;
+      }else{
+        break;
+      }
     }
-  });
+  }
+  std::cout << "getBlockList end" << std::endl;
+  return blocks;
+}
+
+static void codeGen(mlir::func::FuncOp func, std::unordered_map<llvm::hash_code, int > &regmap, 
+          std::vector<Inst>& instr_list, 
+          std::map<Block*, int>& block2line,
+          std::map<Operation*, int>& jump2line){
+  std::vector<Block*> blocks = getBlockList(func);
+  
+  for (Block *block : blocks){
+    // iter all Operation in this block
+    block2line[block] = instr_list.size();
+    for (Operation &op_obj : block->getOperations()){
+      Operation *op = &op_obj;
+      
+      if(auto _op = dyn_cast<mlir::arith::ConstantOp>(op) ){
+        codeGen(_op, regmap, instr_list);
+      }else if(auto _op = dyn_cast<mlir::arith::AddIOp>(op)){
+        codeGenArith<mlir::arith::AddIOp>(_op, regmap, instr_list);
+      }else if(auto _op = dyn_cast<mlir::arith::SubIOp>(op)){
+        codeGenArith<mlir::arith::SubIOp>(_op, regmap, instr_list);
+      }else if(auto _op = dyn_cast<mlir::arith::MulIOp>(op)){
+        codeGenArith<mlir::arith::MulIOp>(_op, regmap, instr_list);
+      }else if(auto _op = dyn_cast<mlir::arith::DivSIOp>(op)){
+        codeGenArith<mlir::arith::DivSIOp>(_op, regmap, instr_list);
+      }else if(auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)){
+        codeGen(_op, regmap, instr_list);
+      }else if(auto _op = dyn_cast<mlir::cimisa::TransOp>(op)){
+        codeGen(_op, regmap, instr_list);
+      }else if(auto _op = dyn_cast<mlir::cim::PrintOp>(op)){
+        codeGen(_op, regmap, instr_list);
+      }else if(auto _op = dyn_cast<mlir::cf::CondBranchOp>(op)){
+        codeGen(_op, regmap, instr_list);
+        jump2line[op] = instr_list.size() - 1;
+      }else if(auto _op = dyn_cast<mlir::cf::BranchOp>(op)){
+        codeGen(_op, regmap, instr_list);
+        jump2line[op] = instr_list.size() - 1;
+      }else{
+        std::cerr << "error: unsupport operator: " << op->getName().getStringRef().str() << std::endl;
+      }
+    }
+  }
 }
 
 static void mapValueAsRegister(mlir::Value& value, std::unordered_map<llvm::hash_code, int>& mapping, int &reg_cnt){
   llvm::hash_code hash_code = mlir::hash_value(value);
   if(!mapping.count(hash_code)){
     mapping[hash_code] = reg_cnt++; 
+  }else{
+    std::cout << "register already allocted! " << mapping[hash_code] << std::endl;
   }
 }
 
@@ -378,10 +505,11 @@ static void _getRegisterMappingAliasBetweenBasicBlock(
                 alias_values.push_back(caller_operand);
               });
         }
-
+        std::cout << "reg = " << reg_cnt << ", alias_values.size() = " << alias_values.size() << std::endl;
         // map all alias to same
         for(mlir::Value& alias : alias_values){
-          mapValueAsRegister(alias, mapping, reg_cnt);
+          int _reg_cnt = reg_cnt;
+          mapValueAsRegister(alias, mapping, _reg_cnt);
         }
         reg_cnt++;
       }
@@ -460,30 +588,40 @@ static string instToStr(Inst& inst){
     return json;
 }
 
-static void fillJumpBranchOffset(mlir::func::FuncOp func, std::vector<Inst>& instr_list, std::map<Operation*, int>& op2line){
+static void fillJumpBranchOffset(mlir::func::FuncOp func, std::vector<Inst>& instr_list, 
+    std::map<Block*, int>& block2line, 
+    std::map<Operation*, int>& jump2line){
   func.walk([&](mlir::Operation *op) {
     if(auto _op = dyn_cast<mlir::cf::BranchOp>(op)){
       Block* dest_block = _op.getDest();
-      Operation &dest_op = dest_block->getOperations().front();
-      if(!op2line.count(&dest_op)){
+      if(!block2line.count(dest_block)){
         std::cerr << "error: can't find branch target" << std::endl;
         std::exit(1);
       }
-      int target_line = op2line[&dest_op];
-      int current_line = op2line[op];
+      if(!jump2line.count(op)){
+        std::cerr << "error: can't find op in jump2line" << std::endl;
+        std::exit(1);
+      }
+      int target_line = block2line[dest_block];
+      int current_line = jump2line[op];
       int offset = target_line - current_line;
       instr_list[current_line]["offset"] = offset;
+      std::cout << "[jump]set offset in line "<< current_line << " to " << offset << std::endl;
     }else if(auto _op = dyn_cast<mlir::cf::CondBranchOp>(op)){
       Block* dest_block = _op.getTrueDest();
-      Operation &dest_op = dest_block->getOperations().front();
-      if(!op2line.count(&dest_op)){
+      if(!block2line.count(dest_block)){
         std::cerr << "error: can't find branch target" << std::endl;
         std::exit(1);
       }
-      int target_line = op2line[&dest_op];
-      int current_line = op2line[op];
+      if(!jump2line.count(op)){
+        std::cerr << "error: can't find op in jump2line" << std::endl;
+        std::exit(1);
+      }
+      int target_line = block2line[dest_block];
+      int current_line = jump2line[op];
       int offset = target_line - current_line;
       instr_list[current_line]["offset"] = offset;
+      std::cout << "[condbranch]set offset in line "<< current_line << " to " << offset << std::endl;
     }
   });
 }
@@ -500,11 +638,12 @@ struct CodeGenerationPass
 
     std::unordered_map<llvm::hash_code, int > regmap = getRegisterMapping(f);
     std::vector<Inst> instr_list;
-    std::map<Operation*, int> op2line;
+    std::map<Block*, int> block2line;
+    std::map<Operation*, int> jump2line;
     std::cout << "getRegisterMapping finish!" << std::endl;
-    codeGen(f, regmap, instr_list, op2line);
+    codeGen(f, regmap, instr_list, block2line, jump2line);
     std::cout << "codegen finish!" << std::endl;
-    fillJumpBranchOffset(f, instr_list, op2line);
+    fillJumpBranchOffset(f, instr_list, block2line, jump2line);
 
     // std::string filename = "result.json";
     std::ofstream file(outputFilePath);
