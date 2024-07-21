@@ -281,13 +281,26 @@ static void codeGen(mlir::cf::CondBranchOp op, std::unordered_map<llvm::hash_cod
   if(!cmpi_op){
     std::cerr << "cmpi_op is null!" << std::endl;
   }
-  string predicate = cmpi_op.getPredicateAttrName().str();
+  auto predicate = cmpi_op.getPredicate();
+  int compare = 0;
+  if (predicate == arith::CmpIPredicate::eq){
+    compare = 0;
+  }else if(predicate == arith::CmpIPredicate::ne){
+    compare = 1;
+  }else if(predicate == arith::CmpIPredicate::sgt){
+    compare = 2;
+  }else if(predicate == arith::CmpIPredicate::slt){
+    compare = 3;
+  }else{
+    std::cerr << "error: unsupport predicate" << std::endl;
+    std::exit(1);
+  }
   mlir::Value lhs = cmpi_op.getLhs();
   mlir::Value rhs = cmpi_op.getRhs();
-  std::cout << "predicate=" << predicate << std::endl;
+
   Inst inst = {
     {"class", 0b111},
-    {"type", 0},
+    {"type", compare},
     {"rs1", getReg(regmap, cmpi_op.getLhs())},
     {"rs2", getReg(regmap, cmpi_op.getRhs())},
     {"offset", -1},
