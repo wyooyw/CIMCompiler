@@ -349,8 +349,8 @@ class Simulator:
         # import pdb; pdb.set_trace()
         if inst_type==ScalarInstType.RR.value:
             self._run_scalar_class_rr_type_inst(inst)
-        # elif inst_type==ScalarInstType.RI:
-        #     self._run_scalar_class_ri_type_inst(inst)
+        elif inst_type==ScalarInstType.RI.value:
+            self._run_scalar_class_ri_type_inst(inst)
         # elif inst_type==ScalarInstType.LOAD_STORE:
         #     self._run_scalar_class_load_store_type_inst(inst)
         elif inst_type==ScalarInstType.OTHER.value:
@@ -415,6 +415,31 @@ class Simulator:
             assert False, "Not support srl yet"
         elif opcode==0b110: # sra
             assert False, "Not support sra yet"
+        else:
+            assert False, f"Not support {opcode=}."
+        self.write_general_reg(inst["rd"], result)
+
+    def _run_scalar_class_ri_type_inst(self, inst):
+        """
+            R-I型整数运算指令：scalar-RI
+            指令字段划分：
+            - [31, 30]，2bit：class，指令类别码，值为10
+            - [29, 28]，2bit：type，指令类型码，值为01
+            - [27, 26]，2bit：opcode，操作类别码，表示具体计算的类型
+            - 00：addi，整型立即数加法
+            - 01：muli，整型立即数乘法，结果寄存器仅保留低32位
+            - 10：lui，高16位立即数赋值
+            - [25, 21]，5bit：rs，通用寄存器1，表示运算数1的值
+            - [20, 16]，5bit：rd，通用寄存器2，即运算结果写回的寄存器
+            - [15, 0]，16bit：imm，立即数，表示运算数2的值
+        """
+        value = self.read_general_reg(inst["rs"])
+        imm = self.read_general_reg(inst["imm"])
+        opcode = inst["opcode"]
+        if opcode==0b00: # add
+            result = value + imm
+        elif opcode==0b01: # sub
+            result = value * imm
         else:
             assert False, f"Not support {opcode=}."
         self.write_general_reg(inst["rd"], result)
