@@ -1,0 +1,12 @@
+def main(null<int8>){
+    a = 1;
+    b = 1;
+    Print(a);
+    Print(b);
+    for i in range(6) carry (a, b){
+        c = a + b;
+        a = b;
+        b = c;
+        Print(c);
+    };
+}
