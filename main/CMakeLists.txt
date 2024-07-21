@@ -20,7 +20,7 @@ add_llvm_executable(main
         pass/FoldMemRefAliasPass.cpp
         pass/CIMLoweringPass.cpp
         pass/CIMBranchConvertPass.cpp
-        pass/CodeGenPass.cpp
+        codegen/CodeGenPass.cpp
 
         DEPENDS
         CIMOpsIncGen
