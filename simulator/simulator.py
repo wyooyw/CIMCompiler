@@ -351,8 +351,8 @@ class Simulator:
             self._run_scalar_class_rr_type_inst(inst)
         elif inst_type==ScalarInstType.RI.value:
             self._run_scalar_class_ri_type_inst(inst)
-        # elif inst_type==ScalarInstType.LOAD_STORE:
-        #     self._run_scalar_class_load_store_type_inst(inst)
+        elif inst_type==ScalarInstType.LOAD_STORE.value:
+            self._run_scalar_class_load_store_type_inst(inst)
         elif inst_type==ScalarInstType.OTHER.value:
             self._run_scalar_class_other_type_inst(inst)
         else:
@@ -443,6 +443,39 @@ class Simulator:
         else:
             assert False, f"Not support {opcode=}."
         self.write_general_reg(inst["rd"], result)
+
+    def _run_scalar_class_load_store_type_inst(self, inst):
+        """
+            Load/Store指令：scalar-SL
+            指令字段划分：
+            - [31, 30]，2bit：class，指令类别码，值为10
+            - [29, 28]，2bit：type，指令类型码，值为10
+            - [27, 26]，2bit：opcode，操作类别码，表示具体操作的类型
+            - 00：本地存储load至寄存器
+            - 01：寄存器值store至本地存储
+            - 10：全局存储load至寄存器
+            - 11：寄存器值store至全局存储
+            - [25, 21]，5bit：rs1，通用寄存器1，即寻址的基址寄存器base
+            - [20, 16]，5bit：rs2，通用寄存器2，即存储load/store值的寄存器
+            - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
+            - 地址计算公式：$rs + offset
+        """
+        opcode = inst["opcode"]
+        if opcode==0b00: # load
+
+            addr = self.read_general_reg(inst["rs1"])
+            value = self.memory_space.read_as(addr, 4, np.int32).item()
+            self.write_general_reg(inst["rs2"], value)
+
+        elif opcode==0b01: # store
+
+            addr = self.read_general_reg(inst["rs1"])
+            value = self.read_general_reg(inst["rs2"])
+            self.memory_space.write(np.array([value], dtype=np.int32), addr, 4)
+
+        else:
+            assert False, f"Not support {opcode=}."
+        
 
     def _run_scalar_class_other_type_inst(self, inst):
         """

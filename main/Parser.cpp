@@ -453,6 +453,9 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     }else if(call_func_name=="CIMCompute"){
         parse_bulitin_cimcompute(ast);
         return;
+    }else if(call_func_name=="Save") {
+        parse_bulitin_save(ast);
+        return;
     }
 
     // check sign table
@@ -615,6 +618,23 @@ mlir::Value MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree& a
 
     mlir::Value result = builder.create<mlir::memref::LoadOp>(loc, memref, index);
     return result;
+}
+
+void MLIRGenImpl::parse_bulitin_save(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_save" << std::endl;
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_memref = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_index = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_value = safe_get_child(get_item(ast_param_list,4), "call_param");
+
+    mlir::Value memref = parse_expr(safe_get_child(get_item(ast_memref, 0), "expr"));
+    mlir::Value value = parse_expr(safe_get_child(get_item(ast_value, 0), "expr"));
+    mlir::SmallVector<mlir::Value> _index = parse_array_1d(safe_get_child(get_item(ast_index, 0), "array1d"));
+    mlir::SmallVector<mlir::Value> index = cast_to_index_type(_index);
+
+    builder.create<mlir::memref::StoreOp>(loc, value, memref, index);
+    // return result;
 }
 
 void MLIRGenImpl::parse_bulitin_cimcompute(const boost::property_tree::ptree& ast){

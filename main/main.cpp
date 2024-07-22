@@ -93,6 +93,7 @@ int main(int argc, char **argv) {
   mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
   // optPM.addPass(mlir::createCSEPass());
   optPM.addPass(cim::createFoldMemRefAliasOpsPass());
+  optPM.addPass(cim::createExtractAddressComputationPass());
   optPM.addPass(mlir::createLowerAffinePass());
   // optPM.addPass(mlir::cim::createTestDecomposeAffineOpPass());
   // optPM.addPass(mlir::cim::createMemoryAddressAllocationPass());

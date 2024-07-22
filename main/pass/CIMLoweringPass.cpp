@@ -19,6 +19,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
@@ -137,6 +138,54 @@ static IntegerAttr getI1IntegerAttr(int32_t value, PatternRewriter &rewriter) {
 // why need this namespace ?
 namespace {
 
+    struct LoadOpLowering : public OpRewritePattern<memref::LoadOp> {
+      using OpRewritePattern<memref::LoadOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(memref::LoadOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "LoadOpLowering::matchAndRewrite 1" << std::endl;
+        Value addr_src = getAddrValue(op.getOperand(0), rewriter);
+        std::cout << "LoadOpLowering::matchAndRewrite 4" << std::endl;
+        if (!addr_src) {
+          std::cout << "LoadOpLowering::matchAndRewrite fail" << std::endl;
+          return failure();
+        }
+        std::cout << "LoadOpLowering::matchAndRewrite success" << std::endl;
+
+        MemRefType memtype = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
+        Type type = memtype.getElementType();
+        mlir::cimisa::LoadOp new_op = rewriter.create<mlir::cimisa::LoadOp>(op.getLoc(), type, addr_src);
+        rewriter.replaceOp(op, {new_op.getResult()});
+        // rewriter.replaceOpWithNewOp<mlir::cimisa::LoadOp>(op, type, addr_src);
+        return success();
+      }
+    };
+
+    struct StoreOpLowering : public OpRewritePattern<memref::StoreOp> {
+      using OpRewritePattern<memref::StoreOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(memref::StoreOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "StoreOpLowering::matchAndRewrite 1" << std::endl;
+        Value value = op.getOperand(0);
+        Value addr_dst = getAddrValue(op.getOperand(1), rewriter);
+        std::cout << "StoreOpLowering::matchAndRewrite 4" << std::endl;
+        if (!addr_dst || !value) {
+          std::cout << "StoreOpLowering::matchAndRewrite fail" << std::endl;
+          return failure();
+        }
+        std::cout << "StoreOpLowering::matchAndRewrite success" << std::endl;
+
+        rewriter.replaceOpWithNewOp<cimisa::StoreOp>(op, addr_dst, value);
+        return success();
+      }
+    };
 
     struct TransOpLowering : public OpRewritePattern<cim::CopyOp> {
       using OpRewritePattern<cim::CopyOp>::OpRewritePattern;
@@ -236,9 +285,9 @@ void CIMLoweringPass::runOnOperation() {
   // We define the specific operations, or dialects, that are legal targets for
   // this lowering. In our case, we are lowering to a combination of the
   // `Affine`, `Arith`, `Func`, and `MemRef` dialects.
-  target.addLegalDialect<affine::AffineDialect, BuiltinDialect,
-                         arith::ArithDialect, func::FuncDialect,
-                         memref::MemRefDialect, cimisa::CIMISADialect>();
+  // target.addLegalDialect<affine::AffineDialect, BuiltinDialect,
+  //                        arith::ArithDialect, func::FuncDialect,
+  //                        cimisa::CIMISADialect>();
 
   // We also define the Toy dialect as Illegal so that the conversion will fail
   // if any of these operations are *not* converted. Given that we actually want
@@ -255,14 +304,17 @@ void CIMLoweringPass::runOnOperation() {
   // Now that the conversion target has been defined, we just need to provide
   // the set of patterns that will lower the Toy operations.
   RewritePatternSet patterns(&getContext());
-  patterns.add<TransOpLowering,CIMComputeOpLowering>(
+  patterns.add<TransOpLowering,CIMComputeOpLowering,LoadOpLowering,StoreOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`
   // operations were not converted successfully.
+  // if (failed(
+  //         applyPartialConversion(getOperation(), target, std::move(patterns))))
+  //   signalPassFailure();
   if (failed(
-          applyPartialConversion(getOperation(), target, std::move(patterns))))
+          applyPatternsAndFoldGreedily(getOperation(), std::move(patterns))))
     signalPassFailure();
   std::cout << "CIMLoweringPass::runOnOperation finish!" << std::endl;
 }

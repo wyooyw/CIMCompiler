@@ -182,11 +182,71 @@ static void codeGen(mlir::cimisa::TransOp op, std::unordered_map<llvm::hash_code
   Inst inst = {
     {"class", 0b110},
     {"type", 0b0},
-    {"offset mask", 0b0},
+    {"source_offset_mask", 0b0},
+    {"destination_offset_mask", 0b0},
     {"rs", rs},
     {"rd", rd},
     {"offset", 0b0},
     {"size", size},
+  };
+  instr_list.push_back(inst);
+}
+
+static void codeGen(mlir::cimisa::LoadOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+  /*
+    Load/Store指令：scalar-SL
+    指令字段划分：
+    - [31, 30]，2bit：class，指令类别码，值为10
+    - [29, 28]，2bit：type，指令类型码，值为10
+    - [27, 26]，2bit：opcode，操作类别码，表示具体操作的类型
+      - 00：本地存储load至寄存器
+      - 01：寄存器值store至本地存储
+      - 10：全局存储load至寄存器
+      - 11：寄存器值store至全局存储
+    - [25, 21]，5bit：rs1，通用寄存器1，即寻址的基址寄存器base
+    - [20, 16]，5bit：rs2，通用寄存器2，即存储load/store值的寄存器
+    - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
+      - 地址计算公式：$rs + offset
+  */
+  int rs1 = getReg(regmap, op.getOperand());
+  int rs2 = getReg(regmap, op.getResult());
+  Inst inst = {
+    {"class", 0b10},
+    {"type", 0b10},
+    {"opcode", 0b00},
+    {"rs1", rs1},
+    {"rs2", rs2},
+    {"offset", 0b0},
+  };
+  instr_list.push_back(inst);
+}
+
+
+static void codeGen(mlir::cimisa::StoreOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+  /*
+    Load/Store指令：scalar-SL
+    指令字段划分：
+    - [31, 30]，2bit：class，指令类别码，值为10
+    - [29, 28]，2bit：type，指令类型码，值为10
+    - [27, 26]，2bit：opcode，操作类别码，表示具体操作的类型
+      - 00：本地存储load至寄存器
+      - 01：寄存器值store至本地存储
+      - 10：全局存储load至寄存器
+      - 11：寄存器值store至全局存储
+    - [25, 21]，5bit：rs1，通用寄存器1，即寻址的基址寄存器base
+    - [20, 16]，5bit：rs2，通用寄存器2，即存储load/store值的寄存器
+    - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
+      - 地址计算公式：$rs + offset
+  */
+  int rs1 = getReg(regmap, op.getOperand(0));
+  int rs2 = getReg(regmap, op.getOperand(1));
+  Inst inst = {
+    {"class", 0b10},
+    {"type", 0b10},
+    {"opcode", 0b01},
+    {"rs1", rs1},
+    {"rs2", rs2},
+    {"offset", 0b0},
   };
   instr_list.push_back(inst);
 }
@@ -446,6 +506,10 @@ static void codeGen(mlir::func::FuncOp func, std::unordered_map<llvm::hash_code,
         codeGen(_op, regmap, instr_list);
       }else if(auto _op = dyn_cast<mlir::cimisa::TransOp>(op)){
         codeGen(_op, regmap, instr_list);
+      }else if(auto _op = dyn_cast<mlir::cimisa::LoadOp>(op)){
+        codeGen(_op, regmap, instr_list);
+      }else if(auto _op = dyn_cast<mlir::cimisa::StoreOp>(op)){
+        codeGen(_op, regmap, instr_list);
       }else if(auto _op = dyn_cast<mlir::cim::PrintOp>(op)){
         codeGen(_op, regmap, instr_list);
       }else if(auto _op = dyn_cast<mlir::cf::CondBranchOp>(op)){
@@ -555,6 +619,8 @@ static void _getRegisterMappingGeneral(
       mapResultAsRegister<mlir::arith::DivSIOp>(_op, mapping, reg_cnt);
     }else if(auto _op = dyn_cast<mlir::arith::RemSIOp>(op)){
       mapResultAsRegister<mlir::arith::RemSIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::LoadOp>(op)){
+      mapResultAsRegister<mlir::cimisa::LoadOp>(_op, mapping, reg_cnt);
     }
   });
   std::cout << "_getRegisterMappingGeneral finish" << std::endl;

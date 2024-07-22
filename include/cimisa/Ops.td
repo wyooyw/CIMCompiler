@@ -113,4 +113,28 @@ def JumpOp: CIMISA_Op<"jump"> {
   let arguments = (ins Variadic<AnyType>:$trueDestOperands);
 }
 
+def StoreOp : CIMISA_Op<"store"> {
+  let summary = "trans";
+  let description = [{
+    store
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$dst_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$value
+  );
+}
+// TODO: mark source addr is global or local.
+def LoadOp : CIMISA_Op<"load"> {
+  let summary = "load";
+  let description = [{
+    load
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$src_addr
+  );
+  let results = (outs AnyTypeOf<[AnyInteger, Index]>);
+}
+
 #endif // CIMISA_OPS
