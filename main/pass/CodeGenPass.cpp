@@ -34,6 +34,7 @@
 #include <sstream>
 #include <string>
 #include <fstream>
+#include <algorithm>
 
 #define DEBUG_TYPE "shape-inference"
 
@@ -625,6 +626,78 @@ static void fillJumpBranchOffset(mlir::func::FuncOp func, std::vector<Inst>& ins
     }
   });
 }
+
+static bool isPrefix(const std::string& str, const std::string& prefix) {
+    // 检查前缀长度是否大于字符串长度
+    if (prefix.length() > str.length()) {
+        return false;
+    }
+
+    // 获取字符串的子串，长度等于前缀的长度，从字符串的开始位置
+    std::string strPrefix = str.substr(0, prefix.length());
+
+    // 比较子串和前缀是否相等
+    return strPrefix == prefix;
+}
+
+static void mappingRegisterLogicalToPhysical(std::vector<Inst>& instr_list){
+
+  // Step 1: get life cycle of each logical register
+  unordered_map<int, int> logic_reg_life_begin;
+  unordered_map<int, int> logic_reg_life_end;
+  for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
+    Inst inst = instr_list[inst_id];
+    for (const auto& [key, value] : inst) {
+      if(isPrefix(key, "rs") || isPrefix(key, "rd")){
+        int reg_id = value;
+        if (!logic_reg_life_begin.count(reg_id)){
+          logic_reg_life_begin[reg_id] = inst_id;
+          logic_reg_life_end[reg_id] = inst_id + 1;
+        }else{
+          logic_reg_life_end[reg_id] = inst_id;
+        }
+      }
+    }
+  }
+  
+  // Step 2: Construct a mapping from logical register to physical register
+  int num_logical_regs = logic_reg_life_begin.size();
+  int num_physical_regs = 32;
+  std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
+  std::unordered_map<int, int> logical_to_physical_mapping;
+  for(int i = 0; i < num_physical_regs; i++) physical_regs.push(i);
+  for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
+    for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
+      if(logic_reg_life_begin[logical_reg_id]==inst_id){
+        if (physical_regs.empty()){
+          std::cerr << "No more physical_regs can use!" << std::cout;
+          std::exit(1);
+        }
+        int physical_reg = physical_regs.top();
+        physical_regs.pop();
+        logical_to_physical_mapping[logic_reg_life_begin] = physical_reg;
+      }else if(logic_reg_life_end[logical_reg_id]==inst_id){
+        int physical_reg = logical_to_physical_mapping[logic_reg_life_begin];
+        physical_regs.push(physical_reg);
+      }
+    }
+  }
+
+  // Step 3: replace logical register to physical register
+  for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
+    Inst inst = instr_list[inst_id];
+    std::unordered_map<string, int> replace;
+    for (const auto& [key, value] : inst) {
+      if(isPrefix(key, "rs") || isPrefix(key, "rd")){
+        replace[key] = logical_to_physical_mapping[value];
+      }
+    }
+    for (const auto& [key, value] : replace) {
+      inst[key] = value;
+    }
+  }
+}
+
 struct CodeGenerationPass
     : public mlir::PassWrapper<CodeGenerationPass, OperationPass<mlir::func::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CodeGenerationPass)
@@ -644,6 +717,7 @@ struct CodeGenerationPass
     codeGen(f, regmap, instr_list, block2line, jump2line);
     std::cout << "codegen finish!" << std::endl;
     fillJumpBranchOffset(f, instr_list, block2line, jump2line);
+    mappingRegisterLogicalToPhysical(instr_list);
 
     // std::string filename = "result.json";
     std::ofstream file(outputFilePath);
