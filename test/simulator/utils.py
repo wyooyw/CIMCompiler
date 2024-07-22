@@ -90,7 +90,10 @@ class InstUtil:
         }
 
     def pimcompute_dense_single_group(self, accumulate, rs1, rs2, rs3, rd):
-        return self.pimcompute(0, 0, 0, 0, accumulate, rs1, rs2, rs3, rd)
+        return self.pimcompute_dense(1, 0, accumulate, rs1, rs2, rs3, rd)
+
+    def pimcompute_dense_multi_group(self, accumulate, rs1, rs2, rs3, rd):
+        return self.pimcompute_dense(1, 0, accumulate, rs1, rs2, rs3, rd)
 
     def pimcompute_dense(self, group, group_input_mode, accumulate, rs1, rs2, rs3, rd):
         return self.pimcompute(0, 0, group, group_input_mode, accumulate, rs1, rs2, rs3, rd)

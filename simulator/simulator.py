@@ -13,7 +13,8 @@ class SpecialReg(Enum):
     GROUP_SIZE = 3
     ACTIVATION_GROUP_NUM = 4
     ACTIVATION_ELEMENT_COL_NUM = 5
-    GROUP_INPUT_STEP_ADDR = 6
+    GROUP_INPUT_STEP = 6
+    GROUP_INPUT_OFFSET_ADDR = 6
     VALUE_SPARSE_MASK_ADDR = 7
     BIT_SPARSE_META_ADDR = 8
 
@@ -208,6 +209,7 @@ class Simulator:
         self.general_rf = np.zeros([32], dtype=np.int32)
         self.special_rf = np.zeros([32], dtype=np.int32)
         self.memory_space = memory_space
+        self.macro_config = macro_config
         self.macro_util = MacroUtil(self.memory_space.get_macro_memory(), macro_config)
 
         self.jump_offset = None
@@ -617,7 +619,7 @@ class Simulator:
         - value sparse mask addr：值稀疏掩码Mask的起始地址
         - bit sparse meta addr：Bit级稀疏Meta数据的起始地址
         """
-        assert inst["group"] == 0, "Not support group yet."
+        # assert inst["group"] == 0, "Not support group yet."
         if inst["value_sparse"] == 1 and inst["bit_sparse"] == 1:
             self._run_pim_class_pim_compute_type_inst_value_bit_sparse(inst)
         elif inst["value_sparse"] == 1:
@@ -649,30 +651,67 @@ class Simulator:
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
         activation_element_col_num = self.read_special_reg(SpecialReg.ACTIVATION_ELEMENT_COL_NUM)
 
+        activation_group_num = self.read_special_reg(SpecialReg.ACTIVATION_GROUP_NUM)
+        group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
+        assert self.macro_config.n_macro % group_size == 0
+        group_num =  self.macro_config.n_macro // group_size
+        group_input_step = self.read_special_reg(SpecialReg.GROUP_INPUT_STEP)
+        assert inst.get("group", -1)==1
+        assert inst.get("group_input_mode", -1)==0
+        print(f"{group_num=}")
         # Get input vector
         input_byte_size = input_size * input_bw // 8
         self.memory_space.check_memory_type(input_offset, input_byte_size, "rf")
-        input_data = self.memory_space.read_as(input_offset, input_byte_size, self.get_dtype(input_bw))
+        group_input_data = []
+        for group_id in range(activation_group_num):
+            group_input_offset = input_offset + group_id * group_input_step
+            input_data = self.memory_space.read_as(group_input_offset, input_byte_size, self.get_dtype(input_bw))
+            group_input_data.append(input_data)
 
         # Get weight matrix
         activate_element_row_num = input_size
-        weight_data = self.macro_util.get_macro_data(activate_row, width_bw, activate_element_row_num, activation_element_col_num)
+        weight_data = self.macro_util.get_macro_data(
+            activate_row, 
+            width_bw, 
+            group_num,
+            activate_element_row_num, 
+            activation_element_col_num,
+            activation_group_num
+        ) # shape: [compartment, group, vcolumn]
+        print(f"{weight_data.shape=}")
+        group_weight_data = []
+        for group_id in range(activation_group_num):
+            group_weight_data.append(weight_data[:,group_id,:])
 
-        assert input_data.ndim==1
-        assert weight_data.ndim==2
-        assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
-        out_dtype = get_dtype_from_bitwidth(output_bw)
-        output_data = np.dot(input_data.astype(out_dtype), weight_data.astype(out_dtype))
+        # compute
+        group_output_data = []
+        for group_id in range(activation_group_num):
+            input_data = group_input_data[group_id]
+            weight_data = group_weight_data[group_id]
+            print(f"{input_data=}, {weight_data=}")
+
+            assert input_data.ndim==1
+            assert weight_data.ndim==2, f"{weight_data.shape=}"
+            assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
+            out_dtype = get_dtype_from_bitwidth(output_bw)
+            output_data = np.dot(input_data.astype(out_dtype), weight_data.astype(out_dtype))
+
+            group_output_data.append(output_data)
         
         # Save output
-        output_byte_size = output_data.size * output_bw // 8
-        self.memory_space.check_memory_type(output_offset, output_byte_size, "rf")
+        n_macro_per_group = self.macro_config.n_macro // group_num
+        group_output_step = self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
+        for group_id in range(activation_group_num):
+            output_data = group_output_data[group_id]
+            output_byte_size = output_data.size * output_bw // 8
+            group_output_offset = output_offset + group_id * group_output_step
+            self.memory_space.check_memory_type(group_output_offset, output_byte_size, "rf")
 
-        # Accumulate
-        if inst["accumulate"] == 1:
-            output_data_ori = self.memory_space.read_as(output_offset, output_byte_size, out_dtype)
-            output_data = output_data + output_data_ori
-        self.memory_space.write(output_data, output_offset, output_byte_size)
+            # Accumulate
+            if inst["accumulate"] == 1:
+                output_data_ori = self.memory_space.read_as(group_output_offset, output_byte_size, out_dtype)
+                output_data = output_data + output_data_ori
+            self.memory_space.write(output_data, group_output_offset, output_byte_size)
 
     def _run_debug_class_inst(self, inst):
         rs = inst['rs']
