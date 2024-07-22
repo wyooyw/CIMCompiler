@@ -45,47 +45,94 @@ static Value getValue(OpFoldResult offset, PatternRewriter &rewriter){
     }
 }
 
-static Value getAddrValue(Value operand, PatternRewriter &rewriter){
-  auto subViewOp = operand.getDefiningOp<memref::SubViewOp>();
-  auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
-  if (!allocOp){
-    std::cout << "getAddrValue allocOp==nullptr" << std::endl;
-    return nullptr;
+static int getBitWidth(mlir::Type type){
+  if(type.isa<mlir::IntegerType>()){
+    return type.getIntOrFloatBitWidth();
+  }else if(type.isa<mlir::FloatType>()){
+    return type.getIntOrFloatBitWidth();
+  }else if(type.isa<mlir::IndexType>()){
+    return 32;
+  }else{
+    std::cout << "getBitWidth fail" << std::endl;
+    std::exit(1);
+    return 0;
   }
-  llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
-  SmallVector<OpFoldResult> offsets = subViewOp.getMixedOffsets();
-  
-  Value addr_offset = getValue(offsets[0], rewriter);
-  for(int i = 1; i<offsets.size(); i++){
-    if(Value offset_i = getValue(offsets[i],rewriter)){
-      Value shape_i = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[i]);
-      Value mul = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, shape_i);
-      Value add = rewriter.create<arith::AddIOp>(rewriter.getUnknownLoc(), mul, offset_i);
-      addr_offset = add;
-    }else{
-      return nullptr;
-    }
-  }
-  return addr_offset;
 }
 
-static Value getSizeValue(cim::CopyOp op, PatternRewriter &rewriter){
-  auto subViewOp = op.getOperand(0).getDefiningOp<memref::SubViewOp>();
-  SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
-  
-  MemRefType type = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
-  int bitwidth = type.getElementType().getIntOrFloatBitWidth();
-  int bytewidth = bitwidth / 8;
-  
-  Value size = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), bytewidth);
-  for(int i = 0; i<shapes.size(); i++){
-    if(Value shape_i = getValue(shapes[i],rewriter)){
-      size = rewriter.create<arith::MulIOp>(op.getLoc(), size, shape_i);
-    }else{
+static Value getAddrValue(Value operand, PatternRewriter &rewriter){
+  if(auto alloc_op = operand.getDefiningOp<memref::AllocOp>()){
+    mlir::Value zero = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 0);
+    return zero;
+  }else if(auto subViewOp = operand.getDefiningOp<memref::SubViewOp>()){
+    auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
+    if (!allocOp){
+      std::cout << "getAddrValue allocOp==nullptr" << std::endl;
       return nullptr;
     }
+    llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
+    SmallVector<OpFoldResult> offsets = subViewOp.getMixedOffsets();
+    
+    Value addr_offset = getValue(offsets[0], rewriter);
+    for(int i = 1; i<offsets.size(); i++){
+      if(Value offset_i = getValue(offsets[i],rewriter)){
+        Value shape_i = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[i]);
+        Value mul = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, shape_i);
+        Value add = rewriter.create<arith::AddIOp>(rewriter.getUnknownLoc(), mul, offset_i);
+        addr_offset = add;
+      }else{
+        return nullptr;
+      }
+    }
+    MemRefType type = llvm::cast<mlir::MemRefType>(operand.getType());
+    int64_t bitwidth = getBitWidth(type.getElementType());
+    int64_t bytewidth = bitwidth / 8;
+    Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+    Value byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
+    return byte_addr_offset;
+  }else{
+    std::cout << "getAddrValue fail" << std::endl;
+    std::exit(1);
+    return nullptr;
   }
-  return size;
+  
+}
+
+
+
+static Value getSizeValue(cim::CopyOp op, PatternRewriter &rewriter){
+  if(auto allocOp = op.getOperand(0).getDefiningOp<memref::AllocOp>()){
+    MemRefType type = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
+    int bitwidth = getBitWidth(type.getElementType());
+    int bytewidth = bitwidth / 8;
+
+    llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
+    int64_t size = bytewidth;
+    for(int i = 0; i<allocShapes.size(); i++){
+      size *= allocShapes[i];
+    }
+    mlir::Value zero = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), size);
+    return zero;
+  }else if(auto subViewOp = op.getOperand(0).getDefiningOp<memref::SubViewOp>()){
+    SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
+    
+    MemRefType type = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
+    int bitwidth = getBitWidth(type.getElementType());
+    int bytewidth = bitwidth / 8;
+    
+    Value size = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), bytewidth);
+    for(int i = 0; i<shapes.size(); i++){
+      if(Value shape_i = getValue(shapes[i],rewriter)){
+        size = rewriter.create<arith::MulIOp>(op.getLoc(), size, shape_i);
+      }else{
+        return nullptr;
+      }
+    }
+    return size;
+  }else{
+    std::cout << "getSizeValue fail" << std::endl;
+    std::exit(1);
+    return nullptr;
+  }
 }
 
 static std::vector<Value> _getMacroActivatePositionBySubview(cim::CIMComputeOp op, PatternRewriter &rewriter, int operand_index){
