@@ -2,12 +2,17 @@ import pytest
 from test.simulator.utils import InstUtil
 from simulator.simulator import MemorySpace, Memory, Simulator, SpecialReg
 from simulator.macro_utils import MacroConfig
+from simulator.mask_utils import MaskConfig
 import numpy as np
 
 def init_macro_config():
     macro_config = MacroConfig(n_macro=2, n_row=4, n_comp=4, n_bcol=16)
     return macro_config
-    
+
+def init_mask_config():
+    mask_config = MaskConfig(n_from=128, n_to=16)
+    return mask_config
+
 def init_memory_space(macro_config):
     memory_space = MemorySpace()
     global_memory = Memory("global_memory", "dram", 0, 128)
@@ -28,8 +33,9 @@ class TestSimulatorPIMCompute:
     def setup_class(cls):
         cls.inst_util = InstUtil()
         cls.macro_config = init_macro_config()
+        cls.mask_config = init_mask_config()
         cls.memory_space = init_memory_space(cls.macro_config)
-        cls.simulator = Simulator(cls.memory_space , cls.macro_config)
+        cls.simulator = Simulator(cls.memory_space , cls.macro_config, cls.mask_config)
 
     def setup_method(self):
         self.simulator.clear()
@@ -361,6 +367,7 @@ if __name__=="__main__":
     TestSimulatorPIMCompute.setup_class()
     test_simulator = TestSimulatorPIMCompute()
     test_simulator.setup_method()
-    test_simulator.test_pimcompute_dense_multi_group_accumulate_fix_step()
+    test_simulator.test_pimcompute_dense_single_group()
+    # test_simulator.test_pimcompute_dense_multi_group_accumulate_fix_step()
     # test_simulator.test_pimcompute_dense_single_group_accumulate()
     # test_simulator.test_pimcompute_dense_single_group_part()

@@ -89,6 +89,9 @@ class InstUtil:
             "size": size
         }
 
+    def pimcompute_value_sparse(self, accumulate, rs1, rs2, rs3, rd):
+        return self.pimcompute(1, 0, group=1, group_input_mode=0, accumulate=accumulate, rs1=rs1, rs2=rs2, rs3=rs3, rd=rd)
+
     def pimcompute_dense_single_group(self, accumulate, rs1, rs2, rs3, rd):
         return self.pimcompute_dense(1, 0, accumulate, rs1, rs2, rs3, rd)
 

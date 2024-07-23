@@ -57,5 +57,5 @@ class MacroUtil:
         macro = self.extract_macro_structure_from_memory(data_type, group_num)
         print(f"{macro.shape=}")
         macro = macro.reshape(*macro.shape[:3], -1)
-        data = macro[activate_row, :activate_element_row_num, :activate_group_num, :activate_element_col_num]
+        data = macro[activate_row, :, :activate_group_num, :activate_element_col_num]
         return data
