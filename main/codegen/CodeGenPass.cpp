@@ -525,42 +525,48 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
     // iter all Operation in this block
     block2line[block] = instr_list.size();
 
-    std::set<int> _def;
-    std::set<int> _use;
+    std::set<int> _write;
+    std::set<int> _read;
     for (Operation &op_obj : block->getOperations()){
       Operation *op = &op_obj;
       
       if(auto _op = dyn_cast<mlir::arith::ConstantOp>(op) ){
-        codeGen(_op, regmap, instr_list, _def, _use);
+        codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::AddIOp>(op)){
-        codeGenArith<mlir::arith::AddIOp>(_op, regmap, instr_list, _def, _use);
+        codeGenArith<mlir::arith::AddIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::SubIOp>(op)){
-        codeGenArith<mlir::arith::SubIOp>(_op, regmap, instr_list, _def, _use);
+        codeGenArith<mlir::arith::SubIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::MulIOp>(op)){
-        codeGenArith<mlir::arith::MulIOp>(_op, regmap, instr_list, _def, _use);
+        codeGenArith<mlir::arith::MulIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::DivSIOp>(op)){
-        codeGenArith<mlir::arith::DivSIOp>(_op, regmap, instr_list, _def, _use);
+        codeGenArith<mlir::arith::DivSIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)){
-        codeGen(_op, regmap, instr_list, _def, _use);
+        codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::TransOp>(op)){
-        codeGen(_op, regmap, instr_list, _def, _use);
+        codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::LoadOp>(op)){
-        codeGen(_op, regmap, instr_list, _def, _use);
+        codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::StoreOp>(op)){
-        codeGen(_op, regmap, instr_list, _def, _use);
+        codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cim::PrintOp>(op)){
-        codeGen(_op, regmap, instr_list, _def, _use);
+        codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cf::CondBranchOp>(op)){
-        codeGen(_op, regmap, instr_list, _def, _use);
+        codeGen(_op, regmap, instr_list, _write, _read);
         jump2line[op] = instr_list.size() - 1;
       }else if(auto _op = dyn_cast<mlir::cf::BranchOp>(op)){
-        codeGen(_op, regmap, instr_list, _def, _use);
+        codeGen(_op, regmap, instr_list, _write, _read);
         jump2line[op] = instr_list.size() - 1;
       }else{
         std::cerr << "error: unsupport operator: " << op->getName().getStringRef().str() << std::endl;
       }
     }
     block2line_end[block] = instr_list.size() - 1;
+
+    std::set<int> _def;
+    std::set<int> _use;
+    _def.insert(_write.begin(), _write.end());
+    std::set_difference(_read.begin(), _read.end(), _write.begin(), _write.end(), std::inserter(_use, _use.begin()));
+    
     def[block] = _def;
     use[block] = _use;
   }
@@ -740,6 +746,10 @@ static void liveVariableAnalysis(
     std::map<Block*, std::set<int> > &in,
     std::map<Block*, std::set<int> > &out ){
     Block* exit_block = blocks.back();
+    if(exit_block->getSuccessors().size()!=0){
+      std::cerr << "error: exit block should have no successor" << std::endl;
+      std::exit(1);
+    }
     for(Block* block : blocks){
       in[block] = {};
     }
@@ -748,16 +758,16 @@ static void liveVariableAnalysis(
       change = 0;
       for(int i = 0; i<blocks.size()-1; i++){ // TODO: 必须保证blocks有一个单独的exit block,且位于最后一个位置
         Block* block = blocks[i];
-        std::set<int> &_in = in[block];
-        std::set<int> &_out = out[block];
-        std::set<int> &_def = def[block];
-        std::set<int> &_use = use[block];
+        std::set<int> _in = in[block];
+        std::set<int> _out = out[block];
+        std::set<int> _def = def[block];
+        std::set<int> _use = use[block];
         std::set<int> _new_in;
         std::set<int> _new_out;
 
         // out[B] = \union_{S:successor of B} in[B]
         for(Block *successor : block->getSuccessors()){
-          std::set<int> &_succ_in = in[successor];
+          std::set<int> _succ_in = in[successor];
           _new_out.insert(_succ_in.begin(), _succ_in.end());
         }
 
@@ -765,9 +775,9 @@ static void liveVariableAnalysis(
         std::set<int> difference;
         std::set_difference(_new_out.begin(), _new_out.end(), _def.begin(), _def.end(), std::inserter(difference, difference.begin()));
         std::set_union(difference.begin(), difference.end(), _use.begin(), _use.end(), std::inserter(_new_in, _new_in.begin()));
-        
-        bool is_equal_in = std::equal(_in.begin(), _in.end(), _new_in.begin());
-        bool is_equal_out = std::equal(_out.begin(), _out.end(), _new_out.begin());
+
+        bool is_equal_in = (_in==_new_in);
+        bool is_equal_out = (_out==_new_out);
         bool is_equal = is_equal_in && is_equal_out;
         if(!is_equal) change = 1;
 
@@ -809,7 +819,7 @@ static void mappingRegisterLogicalToPhysical(
         int reg_id = value;
         if (!logic_reg_life_begin.count(reg_id)){
           logic_reg_life_begin[reg_id] = inst_id;
-          logic_reg_life_end[reg_id] = inst_id + 1;
+          logic_reg_life_end[reg_id] = inst_id ;
         }else{
           logic_reg_life_end[reg_id] = inst_id;
         }
@@ -851,10 +861,16 @@ static void mappingRegisterLogicalToPhysical(
       }
     }
   }
-
+  for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
+    std::cout << "logical_reg: " << logical_reg_id << " -> physical_reg: " << logical_to_physical_mapping[logical_reg_id] << std::endl;
+  }
+  for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
+    std::cout << "logical_reg:" << logical_reg_id << " begin: " << logic_reg_life_begin[logical_reg_id] << " end: " << logic_reg_life_end[logical_reg_id] << std::endl;
+  }
+  // return;
   // Step 3: replace logical register to physical register
   for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
-    Inst inst = instr_list[inst_id];
+    Inst &inst = instr_list[inst_id];
     std::unordered_map<string, int> replace;
     for (const auto& [key, value] : inst) {
       if(isPrefix(key, "rs") || isPrefix(key, "rd")){
