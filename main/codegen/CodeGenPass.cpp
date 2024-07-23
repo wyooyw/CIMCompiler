@@ -736,14 +736,14 @@ static void mappingRegisterLogicalToPhysical(std::vector<Inst>& instr_list){
     for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
       if(logic_reg_life_begin[logical_reg_id]==inst_id){
         if (physical_regs.empty()){
-          std::cerr << "No more physical_regs can use!" << std::cout;
+          std::cerr << "No more physical_regs can use!" << std::endl;
           std::exit(1);
         }
         int physical_reg = physical_regs.top();
         physical_regs.pop();
-        logical_to_physical_mapping[logic_reg_life_begin] = physical_reg;
+        logical_to_physical_mapping[logical_reg_id] = physical_reg;
       }else if(logic_reg_life_end[logical_reg_id]==inst_id){
-        int physical_reg = logical_to_physical_mapping[logic_reg_life_begin];
+        int physical_reg = logical_to_physical_mapping[logical_reg_id];
         physical_regs.push(physical_reg);
       }
     }
