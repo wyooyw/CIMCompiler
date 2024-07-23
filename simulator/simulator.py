@@ -237,7 +237,7 @@ class Simulator:
     def run_code(self, code: list[dict]):
         pc = 0
         cnt = 0
-        
+
         while pc < len(code) and cnt < self.safe_time:
             inst = code[pc]
             inst_class = inst["class"]
@@ -436,7 +436,7 @@ class Simulator:
             - [15, 0]，16bit：imm，立即数，表示运算数2的值
         """
         value = self.read_general_reg(inst["rs"])
-        imm = self.read_general_reg(inst["imm"])
+        imm = inst["imm"]
         opcode = inst["opcode"]
         if opcode==0b00: # add
             result = value + imm
