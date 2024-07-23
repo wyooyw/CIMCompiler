@@ -1,6 +1,7 @@
 from enum import Enum
 import numpy as np
 from simulator.macro_utils import MacroUtil, MacroConfig
+from simulator.mask_utils import MaskUtil
 import copy
 from simulator.data_type import get_dtype_from_bitwidth, get_bitwidth_from_dtype
 
@@ -59,6 +60,7 @@ class Memory:
         self.memtype = memtype
         self.offset = offset
         self.size = size
+        self.end = self.offset + self.size
         self._data = bytearray(np.zeros((size,) , dtype=np.int8))
 
     def _check_range(self, offset, size):
@@ -169,6 +171,12 @@ class MemorySpace:
                 return memory
         return None
 
+    def get_mask_memory(self):
+        for memory in self.memory_space:
+            if memory.name=="mask":
+                return memory
+        return None
+
     def get_base_of(self, name):
         for memory in self.memory_space:
             if memory.name==name:
@@ -204,13 +212,15 @@ class Simulator:
     FINISH = 0
     TIMEOUT = 1
     ERROR = 2
-    def __init__(self, memory_space, macro_config, safe_time=999999):
+    def __init__(self, memory_space, macro_config, mask_config, safe_time=999999):
         super().__init__()
         self.general_rf = np.zeros([32], dtype=np.int32)
         self.special_rf = np.zeros([32], dtype=np.int32)
         self.memory_space = memory_space
         self.macro_config = macro_config
+        self.mask_config = mask_config
         self.macro_util = MacroUtil(self.memory_space.get_macro_memory(), macro_config)
+        self.mask_util = MaskUtil(self.memory_space.get_mask_memory(), macro_config, mask_config)
 
         self.jump_offset = None
         self.safe_time = safe_time
@@ -622,8 +632,8 @@ class Simulator:
         # assert inst["group"] == 0, "Not support group yet."
         if inst["value_sparse"] == 1 and inst["bit_sparse"] == 1:
             self._run_pim_class_pim_compute_type_inst_value_bit_sparse(inst)
-        elif inst["value_sparse"] == 1:
-            self._run_pim_class_pim_compute_type_inst_value_sparse(inst)
+        # elif inst["value_sparse"] == 1:
+        #     self._run_pim_class_pim_compute_type_inst_value_sparse(inst)
         elif inst["bit_sparse"] == 1:
             self._run_pim_class_pim_compute_type_inst_bit_sparse(inst)
         else:
@@ -640,6 +650,52 @@ class Simulator:
 
     def _run_pim_class_pim_compute_type_inst_bit_sparse(self, inst):
         assert False, "Executor not support bit sparse yet."
+
+    def _value_sparsity_compute(self, inst, input_data, weight_data):
+        if inst["value_sparse"]==0:
+            return input_data
+        output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
+        width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
+        group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
+        print(f"old {weight_data.shape=}")
+        weight_data = np.pad(weight_data, ((0,0),(0, group_size * self.macro_config.n_vcol(width_bw) - weight_data.shape[1])), mode='constant', constant_values=0)
+        print(f"new {weight_data.shape=}")
+        weight_data = weight_data.reshape(self.macro_config.n_comp, self.macro_config.n_macro, self.macro_config.n_vcol(width_bw))
+        
+        assert weight_data.ndim==3
+        assert weight_data.shape[0] == self.macro_config.n_comp
+        assert weight_data.shape[1] == self.macro_config.n_macro
+        assert weight_data.shape[2] == self.macro_config.n_vcol(width_bw)
+
+        assert input_data.size==self.mask_config.n_from
+        mask_addr = self.read_special_reg(SpecialReg.VALUE_SPARSE_MASK_ADDR)
+        mask_data = self.mask_util.get_mask(mask_addr, input_data.size, group_size)
+        assert mask_data.ndim==2, f"{mask_data.ndim=}"
+        assert mask_data.shape[0]==group_size and mask_data.shape[1]==self.mask_config.n_from, f"{mask_data.shape=}, {group_size=}, {self.mask_config.n_from=}"
+        assert mask_data.dtype==bool, f"{mask_data.dtype}"
+        assert (mask_data.sum(axis=1) <= self.mask_config.n_to).all(), f"{mask_data.sum(dim=1)=}, {self.mask_config.n_to=}"
+        
+        output_list = []
+        out_dtype = get_dtype_from_bitwidth(output_bw)
+        for macro_id in range(group_size):
+            # get macro input data
+            macro_mask = mask_data[macro_id]
+            macro_input_data = input_data[macro_mask]
+            print(f"{input_data=}, {macro_mask=}, {macro_input_data=}")
+            assert macro_input_data.ndim == 1
+            assert macro_input_data.size <= self.mask_config.n_to
+            macro_input_data = np.pad(macro_input_data, (0, self.mask_config.n_to-macro_input_data.size), mode='constant', constant_values=0)
+            assert macro_input_data.size == self.mask_config.n_to
+
+            macro_weight = weight_data[:,macro_id,:]
+            macro_output = np.dot(macro_input_data.astype(out_dtype), macro_weight.astype(out_dtype))
+            print(f"{macro_input_data=}, {macro_weight=}, {macro_output=}")
+            output_list.append(macro_output)
+        output_data = np.concatenate(output_list)
+        # print(f"{output_data=}")
+        return output_data
+        
+        
 
     def _run_pim_class_pim_compute_type_inst_dense(self, inst):
         input_offset = self.read_general_reg(inst["rs1"])
@@ -659,6 +715,10 @@ class Simulator:
         assert inst.get("group", -1)==1
         assert inst.get("group_input_mode", -1)==0
         print(f"{group_num=}")
+        # print(f"{self.macro_config.n_macro=}")
+        # print(f"{self.macro_config.n_macro=}")
+
+        value_sparsity = inst["value_sparse"]
         # Get input vector
         input_byte_size = input_size * input_bw // 8
         self.memory_space.check_memory_type(input_offset, input_byte_size, "rf")
@@ -692,14 +752,19 @@ class Simulator:
 
             assert input_data.ndim==1
             assert weight_data.ndim==2, f"{weight_data.shape=}"
-            assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
             out_dtype = get_dtype_from_bitwidth(output_bw)
-            output_data = np.dot(input_data.astype(out_dtype), weight_data.astype(out_dtype))
+            if value_sparsity:
+                output_data = self._value_sparsity_compute(inst, input_data, weight_data)
+            else:
+                assert 0 < input_data.size and input_data.size <= self.macro_config.n_comp, f"{input_data.size=}, {self.macro_config.n_comp=}"
+                input_data = np.pad(input_data, (0, self.macro_config.n_comp - input_data.size), mode='constant', constant_values=0)
+                assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
+                output_data = np.dot(input_data.astype(out_dtype), weight_data.astype(out_dtype))
 
             group_output_data.append(output_data)
         
         # Save output
-        n_macro_per_group = self.macro_config.n_macro // group_num
+        n_macro_per_group = group_size
         group_output_step = self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
         for group_id in range(activation_group_num):
             output_data = group_output_data[group_id]
