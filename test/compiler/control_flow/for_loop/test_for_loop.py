@@ -2,6 +2,7 @@ import pytest
 from test.simulator.utils import InstUtil
 from simulator.simulator import MemorySpace, Memory, Simulator, SpecialReg
 from simulator.macro_utils import MacroConfig
+from simulator.mask_utils import MaskConfig
 import numpy as np
 import subprocess
 import os
@@ -24,6 +25,10 @@ def init_macro_config():
     macro_config = MacroConfig(n_macro=2, n_row=4, n_comp=4, n_bcol=16)
     return macro_config
 
+def init_mask_config():
+    mask_config = MaskConfig(n_from=8, n_to=4) # 8选4
+    return mask_config
+    
 class TestForLoop:
 
     @classmethod
@@ -31,7 +36,8 @@ class TestForLoop:
         cls.inst_util = InstUtil()
         cls.memory_space = init_memory_space()
         cls.macro_config = init_macro_config()
-        cls.simulator = Simulator(cls.memory_space , cls.macro_config)
+        cls.mask_config = init_mask_config()
+        cls.simulator = Simulator(cls.memory_space , cls.macro_config, cls.mask_config)
 
     def setup_method(self):
         self.simulator.clear()
