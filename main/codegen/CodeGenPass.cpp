@@ -78,7 +78,8 @@ static int getReg(std::unordered_map<llvm::hash_code, int > &regmap, mlir::Value
 
 typedef map<string, int> Inst;
 
-static void codeGen(mlir::arith::ConstantOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+static void codeGen(mlir::arith::ConstantOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
   /*
     - [31, 30]，2bit：class，指令类别码，值为10
     - [29, 28]，2bit：type，指令类型码，值为11
@@ -88,6 +89,7 @@ static void codeGen(mlir::arith::ConstantOp op, std::unordered_map<llvm::hash_co
   */
   int value = cast<IntegerAttr>(op.getValueAttr()).getInt();
   int reg = getReg(regmap, op.getResult());
+  def.insert(reg);
   Inst inst = {
     {"class", 0b10},
     {"type", 0b11},
@@ -99,7 +101,8 @@ static void codeGen(mlir::arith::ConstantOp op, std::unordered_map<llvm::hash_co
 }
 
 template <typename Ty>
-static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
   /*
   - [31, 30]，2bit：class，指令类别码，值为10
   - [29, 28]，2bit：type，指令类型码，值为00
@@ -120,6 +123,9 @@ static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regma
   int rs1 = getReg(regmap, op.getOperand(0));
   int rs2 = getReg(regmap, op.getOperand(1));
   int rd = getReg(regmap, op.getResult());
+  def.insert(rd);
+  use.insert(rs1);
+  use.insert(rs2);
 
   int opcode = 0b000; // 默认值
   if constexpr (std::is_same<Ty, mlir::arith::AddIOp>::value) {
@@ -143,7 +149,8 @@ static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regma
   instr_list.push_back(inst);
 }
 
-static void codeGen(mlir::cim::PrintOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+static void codeGen(mlir::cim::PrintOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
   /*
   - [31, 29]，3bit：class，指令类别码，值为110
   - [28, 28]，1bit：type，指令类型码，值为0
@@ -157,6 +164,7 @@ static void codeGen(mlir::cim::PrintOp op, std::unordered_map<llvm::hash_code, i
     - 目的地址计算公式：$rd + offset * [26]
   */
   int rs = getReg(regmap, op.getOperand());
+  use.insert(rs);
   Inst inst = {
     {"class", -1},
     {"rs", rs}
@@ -164,7 +172,8 @@ static void codeGen(mlir::cim::PrintOp op, std::unordered_map<llvm::hash_code, i
   instr_list.push_back(inst);
 }
 
-static void codeGen(mlir::cimisa::TransOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+static void codeGen(mlir::cimisa::TransOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
   /*
   - [31, 29]，3bit：class，指令类别码，值为110
   - [28, 28]，1bit：type，指令类型码，值为0
@@ -180,6 +189,9 @@ static void codeGen(mlir::cimisa::TransOp op, std::unordered_map<llvm::hash_code
   int rs = getReg(regmap, op.getOperand(0));
   int rd = getReg(regmap, op.getOperand(1));
   int size = getReg(regmap, op.getOperand(2));
+  use.insert(rs);
+  use.insert(rd);
+  use.insert(size);
   Inst inst = {
     {"class", 0b110},
     {"type", 0b0},
@@ -193,7 +205,8 @@ static void codeGen(mlir::cimisa::TransOp op, std::unordered_map<llvm::hash_code
   instr_list.push_back(inst);
 }
 
-static void codeGen(mlir::cimisa::LoadOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+static void codeGen(mlir::cimisa::LoadOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
   /*
     Load/Store指令：scalar-SL
     指令字段划分：
@@ -211,6 +224,8 @@ static void codeGen(mlir::cimisa::LoadOp op, std::unordered_map<llvm::hash_code,
   */
   int rs1 = getReg(regmap, op.getOperand());
   int rs2 = getReg(regmap, op.getResult());
+  use.insert(rs1);
+  def.insert(rs2);
   Inst inst = {
     {"class", 0b10},
     {"type", 0b10},
@@ -223,7 +238,8 @@ static void codeGen(mlir::cimisa::LoadOp op, std::unordered_map<llvm::hash_code,
 }
 
 
-static void codeGen(mlir::cimisa::StoreOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+static void codeGen(mlir::cimisa::StoreOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+ std::set<int> &def, std::set<int> &use){
   /*
     Load/Store指令：scalar-SL
     指令字段划分：
@@ -241,6 +257,8 @@ static void codeGen(mlir::cimisa::StoreOp op, std::unordered_map<llvm::hash_code
   */
   int rs1 = getReg(regmap, op.getOperand(0));
   int rs2 = getReg(regmap, op.getOperand(1));
+  use.insert(rs1);
+  use.insert(rs2);
   Inst inst = {
     {"class", 0b10},
     {"type", 0b10},
@@ -252,7 +270,9 @@ static void codeGen(mlir::cimisa::StoreOp op, std::unordered_map<llvm::hash_code
   instr_list.push_back(inst);
 }
 
-static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+    std::set<int> &def, std::set<int> &use){
+  // TODO: 这里没加上input_size寄存器
   /*
     - [31, 30]，2bit：class，指令类别码，值为00
     - [29, 29]，1bit：type，指令类型码，值为0
@@ -278,6 +298,9 @@ static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash
   int input_addr_reg = getReg(regmap, op.getOperand(0));
   int output_addr_reg = getReg(regmap, op.getOperand(1));
   int activate_row_reg = getReg(regmap, op.getOperand(2));
+  use.insert(input_addr_reg);
+  use.insert(output_addr_reg);
+  use.insert(activate_row_reg);
   Inst inst = {
     {"class", 0b00},
     {"type", 0b0},
@@ -312,7 +335,8 @@ static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash
   instr_list.push_back(inst);
 }
 
-static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+    std::set<int> &def, std::set<int> &use ){
   /*
 - [31, 29]，3bit：class，指令类别码，值为111
 - [28, 26]，3bit：type，指令类型码，值为100
@@ -343,6 +367,8 @@ static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, i
       {"imm", 0}
     };
     instr_list.push_back(add_zero_inst);
+    use.insert(operand_reg);
+    def.insert(arg_reg);
   }
 
   Inst inst = {
@@ -353,7 +379,8 @@ static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, i
   instr_list.push_back(inst);
 }
 
-static void codeGen(mlir::cf::CondBranchOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list){
+static void codeGen(mlir::cf::CondBranchOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list, 
+    std::set<int> &def, std::set<int> &use ){
   /*
     - [31, 29]，3bit：class，指令类别码，值为111
     - [28, 26]，3bit：type，指令类型码
@@ -386,14 +413,18 @@ static void codeGen(mlir::cf::CondBranchOp op, std::unordered_map<llvm::hash_cod
   mlir::Value lhs = cmpi_op.getLhs();
   mlir::Value rhs = cmpi_op.getRhs();
 
+  int lhs_reg = getReg(regmap, cmpi_op.getLhs());
+  int rhs_reg = getReg(regmap, cmpi_op.getRhs());
   Inst inst = {
     {"class", 0b111},
     {"type", compare},
-    {"rs1", getReg(regmap, cmpi_op.getLhs())},
-    {"rs2", getReg(regmap, cmpi_op.getRhs())},
+    {"rs1", lhs_reg},
+    {"rs2", rhs_reg},
     {"offset", -1},
   };
   instr_list.push_back(inst);
+  use.insert(lhs_reg);
+  use.insert(rhs_reg);
 }
 
 static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
@@ -481,48 +512,57 @@ static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
   return blocks;
 }
 
-static void codeGen(mlir::func::FuncOp func, std::unordered_map<llvm::hash_code, int > &regmap, 
+static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_code, int > &regmap, 
           std::vector<Inst>& instr_list, 
           std::map<Block*, int>& block2line,
-          std::map<Operation*, int>& jump2line){
-  std::vector<Block*> blocks = getBlockList(func);
+          std::map<Block*, int>& block2line_end,
+          std::map<Operation*, int>& jump2line,
+          std::map<Block*, std::set<int> >& def,
+          std::map<Block*, std::set<int> >& use
+          ){
   
   for (Block *block : blocks){
     // iter all Operation in this block
     block2line[block] = instr_list.size();
+
+    std::set<int> _def;
+    std::set<int> _use;
     for (Operation &op_obj : block->getOperations()){
       Operation *op = &op_obj;
       
       if(auto _op = dyn_cast<mlir::arith::ConstantOp>(op) ){
-        codeGen(_op, regmap, instr_list);
+        codeGen(_op, regmap, instr_list, _def, _use);
       }else if(auto _op = dyn_cast<mlir::arith::AddIOp>(op)){
-        codeGenArith<mlir::arith::AddIOp>(_op, regmap, instr_list);
+        codeGenArith<mlir::arith::AddIOp>(_op, regmap, instr_list, _def, _use);
       }else if(auto _op = dyn_cast<mlir::arith::SubIOp>(op)){
-        codeGenArith<mlir::arith::SubIOp>(_op, regmap, instr_list);
+        codeGenArith<mlir::arith::SubIOp>(_op, regmap, instr_list, _def, _use);
       }else if(auto _op = dyn_cast<mlir::arith::MulIOp>(op)){
-        codeGenArith<mlir::arith::MulIOp>(_op, regmap, instr_list);
+        codeGenArith<mlir::arith::MulIOp>(_op, regmap, instr_list, _def, _use);
       }else if(auto _op = dyn_cast<mlir::arith::DivSIOp>(op)){
-        codeGenArith<mlir::arith::DivSIOp>(_op, regmap, instr_list);
+        codeGenArith<mlir::arith::DivSIOp>(_op, regmap, instr_list, _def, _use);
       }else if(auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)){
-        codeGen(_op, regmap, instr_list);
+        codeGen(_op, regmap, instr_list, _def, _use);
       }else if(auto _op = dyn_cast<mlir::cimisa::TransOp>(op)){
-        codeGen(_op, regmap, instr_list);
+        codeGen(_op, regmap, instr_list, _def, _use);
       }else if(auto _op = dyn_cast<mlir::cimisa::LoadOp>(op)){
-        codeGen(_op, regmap, instr_list);
+        codeGen(_op, regmap, instr_list, _def, _use);
       }else if(auto _op = dyn_cast<mlir::cimisa::StoreOp>(op)){
-        codeGen(_op, regmap, instr_list);
+        codeGen(_op, regmap, instr_list, _def, _use);
       }else if(auto _op = dyn_cast<mlir::cim::PrintOp>(op)){
-        codeGen(_op, regmap, instr_list);
+        codeGen(_op, regmap, instr_list, _def, _use);
       }else if(auto _op = dyn_cast<mlir::cf::CondBranchOp>(op)){
-        codeGen(_op, regmap, instr_list);
+        codeGen(_op, regmap, instr_list, _def, _use);
         jump2line[op] = instr_list.size() - 1;
       }else if(auto _op = dyn_cast<mlir::cf::BranchOp>(op)){
-        codeGen(_op, regmap, instr_list);
+        codeGen(_op, regmap, instr_list, _def, _use);
         jump2line[op] = instr_list.size() - 1;
       }else{
         std::cerr << "error: unsupport operator: " << op->getName().getStringRef().str() << std::endl;
       }
     }
+    block2line_end[block] = instr_list.size() - 1;
+    def[block] = _def;
+    use[block] = _use;
   }
 }
 
@@ -693,6 +733,52 @@ static void fillJumpBranchOffset(mlir::func::FuncOp func, std::vector<Inst>& ins
   });
 }
 
+static void liveVariableAnalysis(
+    std::vector<Block*> blocks,
+    std::map<Block*, std::set<int> > &def, 
+    std::map<Block*, std::set<int> > &use,
+    std::map<Block*, std::set<int> > &in,
+    std::map<Block*, std::set<int> > &out ){
+    Block* exit_block = blocks.back();
+    for(Block* block : blocks){
+      in[block] = {};
+    }
+    int change;
+    do{
+      change = 0;
+      for(int i = 0; i<blocks.size()-1; i++){ // TODO: 必须保证blocks有一个单独的exit block,且位于最后一个位置
+        Block* block = blocks[i];
+        std::set<int> &_in = in[block];
+        std::set<int> &_out = out[block];
+        std::set<int> &_def = def[block];
+        std::set<int> &_use = use[block];
+        std::set<int> _new_in;
+        std::set<int> _new_out;
+
+        // out[B] = \union_{S:successor of B} in[B]
+        for(Block *successor : block->getSuccessors()){
+          std::set<int> &_succ_in = in[successor];
+          _new_out.insert(_succ_in.begin(), _succ_in.end());
+        }
+
+        // in[B] = use[B] \union (out[B] - def[B])
+        std::set<int> difference;
+        std::set_difference(_new_out.begin(), _new_out.end(), _def.begin(), _def.end(), std::inserter(difference, difference.begin()));
+        std::set_union(difference.begin(), difference.end(), _use.begin(), _use.end(), std::inserter(_new_in, _new_in.begin()));
+        
+        bool is_equal_in = std::equal(_in.begin(), _in.end(), _new_in.begin());
+        bool is_equal_out = std::equal(_out.begin(), _out.end(), _new_out.begin());
+        bool is_equal = is_equal_in && is_equal_out;
+        if(!is_equal) change = 1;
+
+        in[block] = _new_in;
+        out[block] = _new_out;
+
+      }
+    }while(change);
+    
+}
+
 static bool isPrefix(const std::string& str, const std::string& prefix) {
     // 检查前缀长度是否大于字符串长度
     if (prefix.length() > str.length()) {
@@ -706,7 +792,12 @@ static bool isPrefix(const std::string& str, const std::string& prefix) {
     return strPrefix == prefix;
 }
 
-static void mappingRegisterLogicalToPhysical(std::vector<Inst>& instr_list){
+static void mappingRegisterLogicalToPhysical(
+      std::vector<Inst>& instr_list,
+      std::map<Block*, std::set<int> > &in,
+      std::map<Block*, std::set<int> > &out,
+      std::map<Block*, int> &block2line,
+      std::map<Block*, int> &block2line_end){
 
   // Step 1: get life cycle of each logical register
   unordered_map<int, int> logic_reg_life_begin;
@@ -723,6 +814,18 @@ static void mappingRegisterLogicalToPhysical(std::vector<Inst>& instr_list){
           logic_reg_life_end[reg_id] = inst_id;
         }
       }
+    }
+  }
+  for (const auto& [block, regs] : in) {
+    for(auto reg_id : regs){
+      logic_reg_life_begin[reg_id] = min(logic_reg_life_begin[reg_id], block2line[block]);
+      logic_reg_life_end[reg_id] = max(logic_reg_life_end[reg_id], block2line_end[block]);
+    }
+  }
+  for (const auto& [block, regs] : out) {
+    for(auto reg_id : regs){
+      logic_reg_life_begin[reg_id] = min(logic_reg_life_begin[reg_id], block2line[block]);
+      logic_reg_life_end[reg_id] = max(logic_reg_life_end[reg_id], block2line_end[block]);
     }
   }
   
@@ -776,14 +879,27 @@ struct CodeGenerationPass
     std::cout << "code generation pass!" << std::endl;
 
     std::unordered_map<llvm::hash_code, int > regmap = getRegisterMapping(f);
+    std::cout << "getRegisterMapping finish!" << std::endl;
+
     std::vector<Inst> instr_list;
     std::map<Block*, int> block2line;
+    std::map<Block*, int> block2line_end;
     std::map<Operation*, int> jump2line;
-    std::cout << "getRegisterMapping finish!" << std::endl;
-    codeGen(f, regmap, instr_list, block2line, jump2line);
+    std::map<Block*, std::set<int> > def;
+    std::map<Block*, std::set<int> > use;
+    std::vector<Block*> blocks = getBlockList(f);
+    codeGen(blocks, regmap, instr_list, block2line, block2line_end, jump2line, def, use);
     std::cout << "codegen finish!" << std::endl;
+
     fillJumpBranchOffset(f, instr_list, block2line, jump2line);
-    mappingRegisterLogicalToPhysical(instr_list);
+    std::cout << "fill jump offset finish!" << std::endl;
+
+    std::map<Block*, std::set<int> > in;
+    std::map<Block*, std::set<int> > out;
+    liveVariableAnalysis(blocks, def, use, in, out);
+    std::cout << "live variable analysis finish!" << std::endl;
+
+    mappingRegisterLogicalToPhysical(instr_list, in, out, block2line, block2line_end);
 
     // std::string filename = "result.json";
     std::ofstream file(outputFilePath);
