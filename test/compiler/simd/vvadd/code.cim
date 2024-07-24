@@ -1,0 +1,20 @@
+def main(null<int8>){
+    buf1 = Buffer(<4>, index, local);
+    Save(buf1, [0], 0);
+    Save(buf1, [1], 1);
+    Save(buf1, [2], 2);
+    Save(buf1, [3], 3);
+
+    buf2 = Buffer(<4>, index, local);
+    Save(buf2, [0], 4);
+    Save(buf2, [1], 5);
+    Save(buf2, [2], 6);
+    Save(buf2, [3], 7);
+
+    buf3 = Buffer(<4>, index, local);
+    VVAdd(buf1, buf2, buf3);
+    Print(Load(buf3, [0])); // 4
+    Print(Load(buf3, [1])); // 6
+    Print(Load(buf3, [2])); // 8
+    Print(Load(buf3, [3])); // 10
+}
