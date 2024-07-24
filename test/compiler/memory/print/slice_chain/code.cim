@@ -11,19 +11,19 @@ def main(null<int8>){
     Save(buf1, [2,2], 8);
 
     slice2 = Slice(buf1, [0,1], [3,2], [1,1]);
-    Print(slice2[0,0]); // 1
-    Print(slice2[0,1]); // 2
-    Print(slice2[1,0]); // 4
-    Print(slice2[1,1]); // 5
-    Print(slice2[2,0]); // 7
-    Print(slice2[2,1]); // 8
+    Print(Load(slice2, [0,0])); // 1
+    Print(Load(slice2, [0,1])); // 2
+    Print(Load(slice2, [1,0])); // 4
+    Print(Load(slice2, [1,1])); // 5
+    Print(Load(slice2, [2,0])); // 7
+    Print(Load(slice2, [2,1])); // 8
 
     slice3 = Slice(slice2, [1,0], [2,2], [1,1]);
-    Print(slice3[0,0]); // 4
-    Print(slice3[0,1]); // 5
-    Print(slice3[1,0]); // 7
-    Print(slice3[1,1]); // 8
+    Print(Load(slice3, [0,0])); // 4
+    Print(Load(slice3, [0,1])); // 5
+    Print(Load(slice3, [1,0])); // 7
+    Print(Load(slice3, [1,1])); // 8
 
     slice4 = Slice(slice3, [1,1], [1,1], [1,1]);
-    Print(slice4[0,0]); // 8
+    Print(Load(slice4, [0,0])); // 8
 }

@@ -15,32 +15,32 @@ def main(null<int8>){
     Save(offsets, [1], 0);
     
     slice1 = Slice(buf1, [Load(offsets, [0]),Load(offsets, [1])], [2,2], [1,1]);
-    Print(slice1[0,0]); // 0
-    Print(slice1[0,1]); // 1
-    Print(slice1[1,0]); // 3
-    Print(slice1[1,1]); // 4
+    Print(Load(slice1,[0,0])); // 0
+    Print(Load(slice1,[0,1])); // 1
+    Print(Load(slice1,[1,0])); // 3
+    Print(Load(slice1,[1,1])); // 4
 
     Save(offsets, [0], 0);
     Save(offsets, [1], 1);
     slice2 = Slice(buf1, [Load(offsets, [0]),Load(offsets, [1])], [2,2], [1,1]);
-    Print(slice2[0,0]); // 1
-    Print(slice2[0,1]); // 2
-    Print(slice2[1,0]); // 4
-    Print(slice2[1,1]); // 5
+    Print(Load(slice2,[0,0])); // 1
+    Print(Load(slice2,[0,1])); // 2
+    Print(Load(slice2,[1,0])); // 4
+    Print(Load(slice2,[1,1])); // 5
 
     Save(offsets, [0], 1);
     Save(offsets, [1], 0);
     slice3 = Slice(buf1, [Load(offsets, [0]),Load(offsets, [1])], [2,2], [1,1]);
-    Print(slice3[0,0]); // 3
-    Print(slice3[0,1]); // 4
-    Print(slice3[1,0]); // 6
-    Print(slice3[1,1]); // 7
+    Print(Load(slice3,[0,0])); // 3
+    Print(Load(slice3,[0,1])); // 4
+    Print(Load(slice3,[1,0])); // 6
+    Print(Load(slice3,[1,1])); // 7
 
     Save(offsets, [0], 1);
     Save(offsets, [1], 1);
     slice4 = Slice(buf1, [Load(offsets, [0]),Load(offsets, [1])], [2,2], [1,1]);
-    Print(slice4[0,0]); // 4
-    Print(slice4[0,1]); // 5
-    Print(slice4[1,0]); // 7
-    Print(slice4[1,1]); // 8
+    Print(Load(slice4,[0,0])); // 4
+    Print(Load(slice4,[0,1])); // 5
+    Print(Load(slice4,[1,0])); // 7
+    Print(Load(slice4,[1,1])); // 8
 }
