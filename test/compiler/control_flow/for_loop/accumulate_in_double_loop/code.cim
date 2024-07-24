@@ -1,0 +1,11 @@
+def main(null<int8>){
+    a = 0;
+    for i in range(0,3) carry (a){
+        for j in range(0,3) carry (a) {
+            k = i * 3;
+            l = k + j;
+            a = a + l;
+        };
+    };
+    Print(a);
+}

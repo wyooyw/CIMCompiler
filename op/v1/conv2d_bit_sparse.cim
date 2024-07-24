@@ -1,0 +1,155 @@
+def trans_weight_to_macros(
+    weight, 
+    macros,
+    ker_height,
+    ker_width,
+    in_channel,
+    oc_space_size,
+    oc_time_step
+){  
+    for hk in range(ker_height){
+        for wk in range(ker_width){
+            for ic in range(input_channel){
+
+                temp_a = hk * ker_width;
+                temp_b = temp_a + wk;
+                temp_c = temp_b * input_channel;
+                current_row =temp_c + ic;
+
+                row_idx = current_row // NUM_COMPARTMENT;
+                comp_idx = current_row % NUM_COMPARTMENT;
+
+                src_weight = Slice(weight, [[oc_time_step,oc_time_step],[current_row,current_row],[0,oc_space_size]] );
+                dst_macro = Slice(macros, [[0,NUM_MACRO], [comp_idx,comp_idx+1], [row_idx,row_idx+1], [0,NUM_COLUMN]] );
+                macros = trans(src_weight, dst_macro);
+            };
+        };
+    };
+    return macros;
+}
+    
+
+def compute(
+        input, 
+        weight,
+        ker_shape,
+        macros,
+        pim_in_buffer,
+        pim_out_buffer,
+        out_mask,
+        num_out_channel
+        ){
+    in_shape = Shape(input);
+    in_h = Get(in_shape, 0);
+    in_w = Get(in_shape, 1);
+    in_c = Get(in_shape, 2);
+
+    ker_h = Get(ker_shape, 0);
+    ker_w = Get(ker_shape, 1);
+    in_c = Get(ker_shape, 2);
+    out_c = Get(ker_shape, 3);
+
+    out_h = in_h - ker_h;
+    out_w = in_w - ker_w;
+
+    output_pim_buffer_size = NUM_BIT_COLUMN * NUM_MACRO;
+    for oh in range(out_h){
+        for ow in range(out_w){
+            pim_buffer_to_clear = Slice(out_pim_buffer,[0, output_pim_buffer_size]);
+            pim_buffer = Clear(pim_buffer_to_clear);
+            
+            // bit-level sparse mvm
+            input_block = Slice(input, [ [oh, oh+ker_h], [ow, ow+ker_w], [0, in_c]]);
+            input_block = Continuous(input_block);
+            for input_use_begin in range(0, input_block, NUM_COMPARTMENT){
+                input_use_end = min(input_use_begin+NUM_COMPARTMENT, input_block);
+                input_use_len = input_use_end - input_use_begin;
+                input_use = Slice(input_block, [input_use_begin,input_use_end]);
+                input_use = Trans(input_use, Slice(pim_in_buffer, [0, input_use_len]));
+                output = pim_compute(
+                    input_use,                          // input
+                    macros,                             // weight
+                    Slice(pim_out_buffer,[0, out_c]),   // output
+                    num_filter,
+                    info_offset
+                );
+            };
+            
+            // output sum
+            PimOutSum(
+                Slice(pim_out_buffer,[0, out_c]),       // output
+                out_mask                                // output mask
+            )
+
+            // write output to local memory
+            out_channel_delta_index = 0;
+            for i in range(Get(Shape(out_mask), 0)){
+                if(i==0 || out_mask[i-1]==0){
+                    co =  out_channel_idx + Get(col_to_filter,i);
+                    // TODO:check this logic, why size==1?
+                    Trans(
+                        Slice(output_pim_buffer, [i:i+1]),                      // src
+                        Slice(output_local_mem, [ho:ho+1, wo:wo+1, co:co+1])    // dst
+                    );
+                    out_channel_delta_index = out_channel_delta_index + 1;
+                };
+            };
+        };
+    };
+    out_channel_idx = out_channel_idx + num_out_channel;
+    return out_channel_idx,output_local_mem;
+}
+
+// TODO: device each index:
+//      1. compute at compile time, load at run time.
+//      2. compute at run time, no need to load.
+def conv_bs_nhwc_single_group(
+    input, 
+    weight,
+    fold,                       //  [oc_time, oc_space]
+    fold_len,                   //  [oc_time]
+    column_use_list,            //  [oc_time]
+    out_mask_all,               //  [oc_time, out_mask_max_len]
+    out_mask_valid_len_all,     //  [oc_time]
+    col_to_filter_all,          //  [oc_time, NUM_BIT_COLUMN * NUM_MACRO]
+    ker_height,
+    ker_width,
+    in_channel,
+    out_channel
+    ){
+
+    max_column = NUM_MACRO * NUM_BYTE_COLUMN;
+
+    fold_size = Get(Shape(fold), 0);
+    for oc_time_step in range(0, fold_size, 1){
+        valid_oc_len = Get(fold_len, oc_time_step);
+        oc = Slice(fold, [[oc_time_step,oc_time_step],[0,valid_oc_len]]);
+
+        column_use = Get(column_use_list, oc_time_stamp);
+        use_macro = Ceil(column_use, NUM_BIT_MACRO);
+
+        n_element_in_one_filter = in_channel * ker_height * ker_width;
+        weight_macro_use_size = n_element_in_one_filter * cim_cfg.n_macro * cim_cfg.bytes_column; 
+        
+        // output mask
+        out_mask_valid_len = Get(out_mask_valid_len_all, [oc_time_step]);
+        out_mask = Slice(out_mask_all, [[oc_time_step,oc_time_step],[0,out_mask_valid_len]]);
+
+        // column to filter
+        col_to_filter = Slice(col_to_filter_all, [[oc_time_step,oc_time_step],[0:-1]]);
+
+        use_macros = trans_weight_to_macro(
+            weight,         //
+            macros,
+            ker_height,
+            ker_width,
+            in_channel,
+            oc_space_size,
+            oc_time_step
+        );
+        
+        
+        
+        output = compute(input, macros);
+    };
+}

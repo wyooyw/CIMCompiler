@@ -1,0 +1,108 @@
+#define INPUT_ROW 32
+#define INPUT_COL 32
+#define INPUT_CHANNEL 32
+#define WEIGHT_ROW 3
+#define WEIGHT_COL 3
+#define OUTPUT_CHANNEL 64
+
+#define N_MACRO 64
+#define N_ROW 64
+#define N_COMP 16
+#define N_VCOL 2
+#define N_BCOL 16
+
+#define INPUT_BUFFER_SIZE 1024
+#define OUTPUT_BUFFER_SIZE 1024
+
+def trans_weight_to_macros(
+    null<int8>,
+    weight < <-1,-1,-1,-1>, int8, local>, 
+    macros < <-1,-1,-1,-1>, int8, macro>
+    ) {
+    ker_height = Shape(weight, 0);
+    ker_width = Shape(weight, 1);
+    in_channel = Shape(weight, 2);
+    out_channel = Shape(weight, 3);
+
+    n_comp = Shape(macros, 1);
+    n_macro = Shape(macros, 2);
+    n_vcol = Shape(macros, 3);
+    
+    for hk in range(ker_height) carry (null){
+        for wk in range(ker_width) carry (null){
+            for ic in range(in_channel) carry (null){
+
+                temp_a = hk * ker_width;
+                temp_b = temp_a + wk;
+                temp_c = temp_b * in_channel;
+                current_row = temp_c + ic;
+
+                row_idx = current_row / n_comp;
+                comp_idx = current_row % n_comp;
+
+                
+
+                src_weight = Slice(weight, 
+                    [hk,wk,ic,0],
+                    [1,1,1,out_channel],
+                    [1,1,1,1]
+                );
+                dst_macro = Slice(macros, 
+                    [row_idx, comp_idx, 0, 0],
+                    [1, 1, n_macro, n_vcol],
+                    [1, 1, 1, 1]
+                );
+                Trans(src_weight, dst_macro);
+            };
+        };
+    };
+}
+
+def conv2d_nhwc_single_group(
+    null <int8>,
+    input < <-1,-1,-1>, int8, local>, 
+    weight < <-1,-1,-1,-1>, int8, local>, 
+    output < <-1,-1,-1>, int32, local>, 
+    macros < <-1,-1,-1,-1>, int8, macro>,
+    input_buffer < <-1>, int8, rf>, 
+    output_buffer < <-1>, int8, rf>
+    ){
+
+    max_column = N_MACRO * N_VCOL;
+    ker_height = Shape(weight, 0);
+    ker_width = Shape(weight, 1);
+    in_channel = Shape(weight, 2);
+    out_channel = Shape(weight, 3);
+
+    n_row = Shape(macros, 0);
+    n_comp = Shape(macros, 1);
+    n_macro = Shape(macros, 2);
+    n_vcol = Shape(macros, 3);
+
+    for out_channel_begin in range(0, out_channel, max_column) carry (null) {
+        out_channel_end = out_channel_begin + max_column;
+        use_weight = Slice(weight, 
+                        [0,0,0,out_channel_begin],                          // offsets
+                        [ker_height, ker_width, in_channel, max_column],    // sizes
+                        [1,1,1,1]                                           // strides
+                        );
+        trans_weight_to_macros(
+            null, 
+            use_weight, // src
+            macros   // dst
+        );
+    };
+}
+
+def main(null<int8>){
+    // prepare: weight, input, output, macros, buffers
+    weight = Buffer(<WEIGHT_ROW, WEIGHT_COL, INPUT_CHANNEL, OUTPUT_CHANNEL>, int8, local);
+    input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, local);
+    output = Buffer(<INPUT_ROW, INPUT_COL, OUTPUT_CHANNEL>, int32, local);
+    macros = Buffer(<N_ROW, N_COMP, N_MACRO, N_VCOL>, int8, macro);
+    input_buffer = Buffer(<INPUT_BUFFER_SIZE>, int8, rf);
+    output_buffer = Buffer(<OUTPUT_BUFFER_SIZE>, int32, rf);
+    conv2d_nhwc_single_group(null, input, weight, output, macros,input_buffer, output_buffer);
+    a = Load(weight, [0,0,0,0]);
+    Print(a);
+}

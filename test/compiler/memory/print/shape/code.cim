@@ -1,0 +1,17 @@
+def main(null<int8>){
+    buf1 = Buffer(<3,3>, index, local);
+    Print(Shape(buf1, 0)); // 3
+    Print(Shape(buf1, 1)); // 3
+
+    slice2 = Slice(buf1, [0,1], [3,2], [1,1]);
+    Print(Shape(slice2, 0)); // 3
+    Print(Shape(slice2, 1)); // 2
+
+    slice3 = Slice(slice2, [1,0], [2,2], [1,1]);
+    Print(Shape(slice3, 0)); // 2
+    Print(Shape(slice3, 1)); // 2
+
+    slice4 = Slice(slice3, [1,1], [1,1], [1,1]);
+    Print(Shape(slice4, 0)); // 1
+    Print(Shape(slice4, 1)); // 1
+}

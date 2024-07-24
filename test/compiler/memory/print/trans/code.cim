@@ -1,0 +1,27 @@
+def main(null<int8>){
+    buf1 = Buffer(<4>, index, local);
+    Save(buf1, [0], 0);
+    Save(buf1, [1], 1);
+    Save(buf1, [2], 2);
+    Save(buf1, [3], 3);
+    Print(Load(buf1, [0])); // 0
+    Print(Load(buf1, [1])); // 1
+    Print(Load(buf1, [2])); // 2
+    Print(Load(buf1, [3])); // 3
+
+    buf2 = Buffer(<4>, index, local);
+    Save(buf2, [0], 4);
+    Save(buf2, [1], 5);
+    Save(buf2, [2], 6);
+    Save(buf2, [3], 7);
+    Print(Load(buf2, [0])); // 4
+    Print(Load(buf2, [1])); // 5
+    Print(Load(buf2, [2])); // 6
+    Print(Load(buf2, [3])); // 7
+
+    Trans(buf1, buf2);
+    Print(Load(buf2, [0])); // 0
+    Print(Load(buf2, [1])); // 1
+    Print(Load(buf2, [2])); // 2
+    Print(Load(buf2, [3])); // 3
+}

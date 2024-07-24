@@ -1,0 +1,7 @@
+def main(null<int8>){
+    a = 0;
+    for i in range(10) carry (a){
+        a = a + 1;
+    };
+    Print(a);
+}

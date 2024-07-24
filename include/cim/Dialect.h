@@ -20,14 +20,25 @@
 #include "mlir/Interfaces/CallInterfaces.h"
 #include "mlir/Interfaces/FunctionInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
-
+#include "mlir/Interfaces/CastInterfaces.h"
 /// Include the auto-generated header file containing the declaration of the toy
 /// dialect.
 #include "cim/Dialect.h.inc"
+#include "cim/ShapeInferenceInterface.h"
 
 /// Include the auto-generated header file containing the declarations of the
 /// toy operations.
 #define GET_OP_CLASSES
 #include "cim/Ops.h.inc"
+
+namespace mlir {
+class DialectRegistry;
+namespace cim {
+void registerBufferizableOpInterfaceExternalModels(DialectRegistry &registry);
+} // namespace cim
+
+void registerCIMInlinerInterface(mlir::DialectRegistry &registry);
+
+} // namespace mlir
 
 #endif // MLIR_TUTORIAL_CIM_DIALECT_H_

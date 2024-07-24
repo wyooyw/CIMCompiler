@@ -1,0 +1,8 @@
+def main(null<int8>){
+    for i in range(0,3) carry (null){
+        for j in range(0,3) carry (null) {
+            Print(i);
+            Print(j);
+        };
+    };
+}

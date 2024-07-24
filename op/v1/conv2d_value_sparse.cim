@@ -1,0 +1,117 @@
+def trans_weight_to_macros(weight, macros){
+    shape = Shape(weight);
+    ker_height = Get(shape, 0);
+    ker_width = Get(shape, 1);
+    in_channel = Get(shape, 2);
+    out_channel = Get(shape, 3);
+    
+    for hk in range(ker_height){
+        for wk in range(ker_width){
+            for ic in range(input_channel){
+
+                temp_a = hk * ker_width;
+                temp_b = temp_a + wk;
+                temp_c = temp_b * input_channel;
+                current_row =temp_c + ic;
+
+                row_idx = current_row // NUM_COMPARTMENT;
+                comp_idx = current_row % NUM_COMPARTMENT;
+
+                src_weight = Slice(weight, [[hk,hk],[wk,wk],[ic,ic],[0,out_channel]] );
+                dst_macro = Slice(macros, [[0,NUM_MACRO], [comp_idx,comp_idx+1], [row_idx,row_idx+1], [0,NUM_COLUMN]] );
+                macros = trans(src_weight, dst_macro);
+            };
+        };
+    };
+    return macros;
+}
+    
+
+def compute(
+        input: <>, 
+        macros, 
+        output, 
+        mask, 
+        step
+    ){
+    in_shape = Shape(input);
+    in_h = Get(in_shape, 0);
+    in_w = Get(in_shape, 1);
+    in_c = Get(in_shape, 2);
+
+    ker_shape = Shape(weight);
+    ker_h = Get(ker_shape, 0);
+    ker_w = Get(ker_shape, 1);
+    in_c = Get(ker_shape, 2);
+    out_c = Get(ker_shape, 3);
+
+    out_h = in_h - ker_h;
+    out_w = in_w - ker_w;
+    for oh in range(out_h){
+        for ow in range(out_w){
+            pim_buffer_to_clear = Slice(pim_buffer,[0, out_c]);
+            pim_buffer = Clear(pim_buffer_to_clear);
+            
+            input_block = Slice(input, [ [oh, oh+ker_h], [ow, ow+ker_w], [0, in_c]]);
+            input_block = Continuous(input_block);
+            for input_use_begin in range(0, input_block, NUM_COMPARTMENT){
+                input_use_end = min(input_use_begin+NUM_COMPARTMENT, input_block);
+                input_use_len = input_use_end - input_use_begin;
+                input_use = Slice(input_block, [input_use_begin,input_use_end]);
+                input_use = Trans(input_use, Slice(pim_in_buffer, [0, input_use_len]));
+                output = pim_compute(input_use, macros, Slice(pim_out_buffer,[0, out_c]) );
+            };
+        };
+    };  
+}
+
+#define INPUT_ROW 32
+#define INPUT_COL 32
+#define INPUT_CHANNEL 32
+#define WEIGHT_ROW 3
+#define WEIGHT_COL 3
+#define OUTPUT_CHANNEL 64
+
+#define N_MACRO 64
+#define N_ROW 64
+#define N_COMP 16
+#define N_VCOL 2
+#define N_BCOL 16
+#define MASK_CNT 128 // fill by precompile stage, or padding to max length
+#define STEP_CNT 32 // fill by precompile stage, or padding to max length
+
+def conv2d_value_sparse_nhwc_single_group(
+    // tensors
+    input: <[INPUT_ROW,INPUT_COL,3],int8,local>, 
+    weight: <[3,3,3,64],int8,local>,
+    output: <[32,32,64],int32,local>,
+
+    // macro
+    macros: <[64,16,64,2],int8,macro>, // [row, compartment, macro, column]
+
+    // meta data
+    mask: <[MASK_CNT,N_MACRO,N_COMPARTMENT],int1,local>, // [mask_cnt, macro, compartment] 'mask_cnt' is a sparse axis, contain 'step' x 'weight'
+    step: <[STEP_CNT,N_ROW],int8,local>, // [STEP_CNT] STEP_CNT = NUM_WEIGHT_ELEMENT / MACRO_CAPACITY
+    ){
+
+    max_filter = N_MACRO * N_VCOL;
+    
+    ker_height = Shape(weight,0);
+    ker_width = Shape(weight,1);
+    in_channel = Shape(weight,2);
+    out_channel = Shape(weight,3);
+
+    outer_out_channel_size = out_channel // max_column;
+
+    for out_channel_begin in range(0, out_channel, max_filter){
+        
+        out_channel_end = min(out_channel_begin+max_filter, out_channel);
+
+        use_weight = Slice(weight, [:, :, :, out_channel_begin:out_channel_end]);
+        trans_weight_to_macro(use_weight, macros);
+
+        use_output = Slice(output, [:,:,out_channel_begin:out_channel_end]);
+
+        compute(input, macros, use_output, mask, step);
+    };
+}
