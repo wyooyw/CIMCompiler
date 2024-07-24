@@ -1,0 +1,15 @@
+def main(null<int8>){
+    buf1 = Buffer(<4,4>, index, local);
+    for i in range(4){
+        for j in range(4){
+            t1 = i * 4;
+            t2 = t1 + j;
+            Save(buf1, [i,j], t2);
+        };
+    };
+    for i in range(4){
+        for j in range(4){
+            Print(Load(buf1, [i,j]));
+        };
+    };
+}
