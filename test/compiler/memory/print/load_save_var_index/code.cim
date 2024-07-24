@@ -1,0 +1,22 @@
+def main(null<int8>){
+    buf1 = Buffer(<4>, index, local);
+    Save(buf1, [0], 3);
+    Save(buf1, [1], 2);
+    Save(buf1, [2], 1);
+    Save(buf1, [3], 0);
+
+    a1 = Load(buf1, [0]);
+    a2 = Load(buf1, [1]);
+    a3 = Load(buf1, [2]);
+    a4 = Load(buf1, [3]);
+
+    b1 = Load(buf2, [a1]);
+    b2 = Load(buf2, [a2]);
+    b3 = Load(buf2, [a3]);
+    b4 = Load(buf2, [a4]);
+    
+    Print(b1);
+    Print(b2);
+    Print(b3);
+    Print(b4);
+}

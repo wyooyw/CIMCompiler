@@ -1,19 +1,27 @@
 def main(null<int8>){
-    buf1 = Buffer(<8>, index, local);
+    buf1 = Buffer(<4>, index, local);
     Save(buf1, [0], 0);
     Save(buf1, [1], 1);
     Save(buf1, [2], 2);
     Save(buf1, [3], 3);
-    subbuf1 = Slice(buf1, [0], [4], [1]);
-    buf2 = Buffer(<8>, index, local);
-    subbuf2 = Slice(buf2, [0], [4], [1]);
-    Trans(subbuf1, subbuf2);
-    e1 = Load(buf2, [0]);
-    e2 = Load(buf2, [1]);
-    e3 = Load(buf2, [2]);
-    e4 = Load(buf2, [3]);
-    Print(e1);
-    Print(e2);
-    Print(e3);
-    Print(e4);
+    Print(Load(buf1, [0])); // 0
+    Print(Load(buf1, [1])); // 1
+    Print(Load(buf1, [2])); // 2
+    Print(Load(buf1, [3])); // 3
+
+    buf2 = Buffer(<4>, index, local);
+    Save(buf2, [0], 4);
+    Save(buf2, [1], 5);
+    Save(buf2, [2], 6);
+    Save(buf2, [3], 7);
+    Print(Load(buf2, [0])); // 4
+    Print(Load(buf2, [1])); // 5
+    Print(Load(buf2, [2])); // 6
+    Print(Load(buf2, [3])); // 7
+
+    Trans(buf1, buf2);
+    Print(Load(buf2, [0])); // 0
+    Print(Load(buf2, [1])); // 1
+    Print(Load(buf2, [2])); // 2
+    Print(Load(buf2, [3])); // 3
 }
