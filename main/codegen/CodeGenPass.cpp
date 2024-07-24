@@ -285,10 +285,10 @@ static void codeGen(mlir::cimisa::TransOp op, std::unordered_map<llvm::hash_code
     {"type", 0b0},
     {"source_offset_mask", 0b0},
     {"destination_offset_mask", 0b0},
-    {"rs", rs},
+    {"rs1", rs},
     {"rd", rd},
     {"offset", 0b0},
-    {"size", size},
+    {"rs2", size},
   };
   instr_list.push_back(inst);
 }

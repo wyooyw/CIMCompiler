@@ -176,6 +176,12 @@ class MemorySpace:
             if memory.name=="mask":
                 return memory
         return None
+    
+    def get_memory_by_name(self, name):
+        for memory in self.memory_space:
+            if memory.name==name:
+                return memory
+        return None
 
     def get_base_of(self, name):
         for memory in self.memory_space:
@@ -525,18 +531,19 @@ class Simulator:
         - [27, 26]，1bit：offset mask，偏移值掩码，0表示该地址不使用偏移值，1表示使用偏移值
         - [27]，1bit：source offset mask，源地址偏移值掩码
         - [26]，1bit：destination offset mask，目的地址偏移值掩码
-        - [25, 21]，5bit：rs，通用寄存器1，表示传输源地址的基址
-        - [20, 16]，5bit：rd，通用寄存器2，表示传输目的地址的基址
-        - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
-            - 源地址计算公式：$rs + offset * [27]
-            - 目的地址计算公式：$rd + offset * [26]
+        - [25, 21]，5bit：rs1，通用寄存器1，表示传输源地址的基址
+        - [20, 16]，5bit：rs2，通用寄存器2，表示传输数据的字节大小
+        - [15, 11]，5bit：rd，通用寄存器3，表示传输目的地址的基址
+        - [10, 0]，11bit：offset，立即数，表示寻址的偏移值
+        - 源地址计算公式：$rs + offset * [27]
+        - 目的地址计算公式：$rd + offset * [26]
         """
-        src_base = self.read_general_reg(inst["rs"])
+        src_base = self.read_general_reg(inst["rs1"])
         dst_base = self.read_general_reg(inst["rd"])
         offset = self.read_general_reg(inst["offset"])
-        src_offset_mask = self.read_general_reg(inst["source_offset_mask"])
-        dst_offset_mask = self.read_general_reg(inst["destination_offset_mask"])
-        size = self.read_general_reg(inst["size"])
+        src_offset_mask = inst["source_offset_mask"]
+        dst_offset_mask = inst["destination_offset_mask"]
+        size = self.read_general_reg(inst["rs2"])
 
         src_addr = src_base + src_offset_mask * offset
         dst_addr = dst_base + dst_offset_mask * offset

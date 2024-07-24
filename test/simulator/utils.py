@@ -83,10 +83,10 @@ class InstUtil:
             "type": 0b0,
             "source_offset_mask": src_offset_mask,
             "destination_offset_mask": dst_offset_mask,
-            "rs": rs,
+            "rs1": rs,
             "rd": rd,
             "offset": offset,
-            "size": size
+            "rs2": size
         }
 
     def pimcompute_value_sparse(self, accumulate, rs1, rs2, rs3, rd):

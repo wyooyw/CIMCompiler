@@ -84,56 +84,58 @@ class TestMemory:
             golden = [int(x.strip()) for x in golden]
         assert print_record==golden, f"{print_record=}, {golden=}"
 
-    # def test_memory_with_image(self):
-    #     pass
+    @pytest.mark.parametrize('casename',[
+        'trans'
+        ])
+    def test_memory_with_image(self, casename):
+        case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "image", casename)
+        assert os.path.exists(case_dir), f"{case_dir} not exists"
+        assert os.path.isdir(case_dir), f"{case_dir} is not a directory"
 
-    # @pytest.mark.parametrize('casename',[
-    #     'print_in_loop','count_in_loop','accumulate_in_loop', 
-    #     'print_in_double_loop', 'count_in_double_loop', 'accumulate_in_double_loop',
-    #     'fibonacci'
-    #     ])
-    # def test_memory(self, casename):
-    #     case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
-    #     assert os.path.exists(case_dir), f"{case_dir} not exists"
-    #     assert os.path.isdir(case_dir), f"{case_dir} is not a directory"
-
-    #     # Prepare path
-    #     input_path = os.path.join(case_dir, "code.cim")
-    #     golden_path = os.path.join(case_dir, "golden.txt")
-    #     memory_image_path = os.path.join(case_dir, "memory_image.txt")
-    #     assert os.path.exists(input_path), f"{input_path} not exists"
-    #     assert os.path.exists(golden_path), f"{golden_path} not exists"
-    #     assert os.path.exists(memory_image_path), f"{golden_path} not exists"
+        # Prepare path
+        input_path = os.path.join(case_dir, "code.cim")
+        test_helper_path = os.path.join(case_dir, "helper.py")
+        assert os.path.exists(input_path), f"{input_path} not exists"
+        assert os.path.exists(test_helper_path), f"{test_helper_path} not exists"
         
-    #     output_folder = os.path.join(case_dir, ".result")
-    #     os.makedirs(output_folder, exist_ok=True)
+        output_folder = os.path.join(case_dir, ".result")
+        os.makedirs(output_folder, exist_ok=True)
 
-    #     # run compiler
-    #     cmd = f"bash compile.sh isa {input_path} {output_folder}"
-    #     result = subprocess.run(cmd.split(" "), capture_output=True, text=True)
-    #     print('输出:', result.stdout)
-    #     print('错误:', result.stderr)
-    #     assert result.returncode==0
+        # Get helper
+        with open(test_helper_path, 'r') as file:
+            code = file.read()
+        local_namespace = {}
+        exec(code, {}, local_namespace)
+        Helper = local_namespace["TestHelper"]
+        helper = Helper()
 
-    #     # get output code
-    #     output_path = os.path.join(output_folder, "final_code.json")
-    #     with open(output_path, "r") as f:
-    #         code = json.load(f)
+        # load image
+        image = helper.get_image()
+        global_memory = self.simulator.memory_space.get_memory_by_name("global_memory")
+        global_memory.write(image, 0, len(image))
 
-    #     # run code in simulator
-    #     self.simulator.load_memory_image(memory_image_path)
-    #     status = self.simulator.run_code(code)
-    #     assert status==self.simulator.FINISH
+        # run compiler
+        cmd = f"bash compile.sh isa {input_path} {output_folder}"
+        result = subprocess.run(cmd.split(" "), capture_output=True, text=True)
+        print('输出:', result.stdout)
+        print('错误:', result.stderr)
+        assert result.returncode==0
 
-    #     # check result
-    #     print_record = self.simulator.print_record
-    #     with open(golden_path, "r") as f:
-    #         golden = f.read().split()
-    #         golden = [int(x.strip()) for x in golden]
-    #     assert print_record==golden, f"{print_record=}, {golden=}"
+        # get output code
+        output_path = os.path.join(output_folder, "final_code.json")
+        with open(output_path, "r") as f:
+            code = json.load(f)
 
+        # run code in simulator
+        status = self.simulator.run_code(code)
+        assert status==self.simulator.FINISH
+
+        # check result
+        print_record = self.simulator.print_record
+        helper.check_image(global_memory.read_all())
+        
 if __name__=="__main__":
     TestMemory.setup_class()
     test_for_loop = TestMemory()
     test_for_loop.setup_method()
-    test_for_loop.test_memory_with_print("trans")
+    test_for_loop.test_memory_with_image("trans")
