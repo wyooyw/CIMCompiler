@@ -814,6 +814,15 @@ static bool isPrefix(const std::string& str, const std::string& prefix) {
     return strPrefix == prefix;
 }
 
+static bool isSpecialLi(Inst& inst){
+  if((inst.count("class") && inst["class"]==0b10) && 
+     (inst.count("type") && inst["type"]==0b11 ) && 
+     (inst.count("opcode") && inst["opcode"]==0b01)){
+    return true;
+  }
+  return false;
+}
+
 static void mappingRegisterLogicalToPhysical(
       std::vector<Inst>& instr_list,
       std::map<Block*, std::set<int> > &in,
@@ -826,6 +835,9 @@ static void mappingRegisterLogicalToPhysical(
   unordered_map<int, int> logic_reg_life_end;
   for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
     Inst inst = instr_list[inst_id];
+    // skip special register instruction
+    if(isSpecialLi(inst)) continue;
+
     for (const auto& [key, value] : inst) {
       if(isPrefix(key, "rs") || isPrefix(key, "rd")){
         int reg_id = value;
@@ -883,6 +895,9 @@ static void mappingRegisterLogicalToPhysical(
   // Step 3: replace logical register to physical register
   for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
     Inst &inst = instr_list[inst_id];
+     // skip special register instruction
+    if(isSpecialLi(inst)) continue;
+    
     std::unordered_map<string, int> replace;
     for (const auto& [key, value] : inst) {
       if(isPrefix(key, "rs") || isPrefix(key, "rd")){
