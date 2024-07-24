@@ -46,7 +46,7 @@ class TestSIMD:
         'vsadd' ,'vvadd'
         ])
     def test_simd(self, casename):
-        case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "print", casename)
+        case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
         assert os.path.exists(case_dir), f"{case_dir} not exists"
         assert os.path.isdir(case_dir), f"{case_dir} is not a directory"
 
