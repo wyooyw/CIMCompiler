@@ -797,12 +797,12 @@ class Simulator:
         input1_addr = self.read_general_reg(inst["rs1"])
         input1_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
         input1_byte_size = input1_bitwidth * input_size // 8
-        self.memory_space.check_memory_type(input1_addr, input1_byte_size, "sram")
+        # self.memory_space.check_memory_type(input1_addr, input1_byte_size, "sram")
 
         input2_addr = self.read_general_reg(inst["rs2"])
         input2_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_2_BIT_WIDTH)
         input2_byte_size = input2_bitwidth * input_size // 8
-        self.memory_space.check_memory_type(input2_addr, input2_byte_size, "sram")
+        # self.memory_space.check_memory_type(input2_addr, input2_byte_size, "sram")
 
         output_addr = self.read_general_reg(inst["rd"])
         output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
@@ -821,7 +821,7 @@ class Simulator:
 
         # Save output
         output_byte_size = output_data.size * output_bitwidth // 8
-        self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
+        # self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
 
         self.memory_space.write(output_data, output_addr, output_byte_size)
 
