@@ -96,8 +96,7 @@ int main(int argc, char **argv) {
   optPM.addPass(cim::createExtractAddressComputationPass());
   optPM.addPass(mlir::createLowerAffinePass());
   // optPM.addPass(mlir::cim::createTestDecomposeAffineOpPass());
-  // optPM.addPass(mlir::cim::createMemoryAddressAllocationPass());
-  // optPM.addPass(mlir::createConvertSCFToCFPass());
+  optPM.addPass(mlir::cim::createMemoryAddressAllocationPass());
   
   if (mlir::failed(pm.run(module))) {
     std::cout << "Pass fail." << std::endl;
