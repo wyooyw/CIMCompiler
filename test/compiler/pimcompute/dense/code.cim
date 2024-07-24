@@ -1,0 +1,21 @@
+def main(null<int8>){
+    // input and weight will be prepared in memory image
+    input = Buffer(<4>, int8, global);
+    weight = Buffer(<4,4>, int8, global);
+    output = Buffer(<4>, int32, global);
+
+    pim_in_buffer = Buffer(<4>, int8, rf);
+    pim_out_buffer = Buffer(<4>, int32, rf);
+    macros = Buffer(<4, 4, 1, 2, 2>, int8, macro);
+
+    // move input and weight
+    Trans(input, pim_in_buffer);
+    macro_row0 = Slice(macros, [0,0,0,0,0],[1,4,1,2,2],[1,1,1,1,1]);
+    Trans(weight, macro_row0);
+
+    // compute
+    CIMCompute(pim_in_buffer, macro_row0, pim_out_buffer);
+
+    //write output
+    Trans(pim_out_buffer, output);
+}
