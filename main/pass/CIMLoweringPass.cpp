@@ -59,10 +59,23 @@ static int getBitWidth(mlir::Type type){
   }
 }
 
+static int getBitWidthMemRefOperand(mlir::Value operand){
+  mlir::MemRefType type = llvm::cast<mlir::MemRefType>(operand.getType());
+  return getBitWidth(type.getElementType());
+}
+
+static Value getBufferBaseAddr(Value buffer, PatternRewriter &rewriter){
+  mlir::MemRefType type = llvm::cast<mlir::MemRefType>(buffer.getType());
+  mlir::DictionaryAttr memory_space = llvm::cast<mlir::DictionaryAttr>(type.getMemorySpace());
+  int address = llvm::cast<mlir::IntegerAttr>(memory_space.get("address")).getInt();
+  mlir::Value base_addr = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), address);
+  return base_addr;
+}
+
 static Value getAddrValue(Value operand, PatternRewriter &rewriter){
   if(auto alloc_op = operand.getDefiningOp<memref::AllocOp>()){
-    mlir::Value zero = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 0);
-    return zero;
+    mlir::Value addr = getBufferBaseAddr(alloc_op.getResult(), rewriter);
+    return addr;
   }else if(auto subViewOp = operand.getDefiningOp<memref::SubViewOp>()){
     auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
     if (!allocOp){
@@ -83,12 +96,14 @@ static Value getAddrValue(Value operand, PatternRewriter &rewriter){
         return nullptr;
       }
     }
-    MemRefType type = llvm::cast<mlir::MemRefType>(operand.getType());
-    int64_t bitwidth = getBitWidth(type.getElementType());
+    int64_t bitwidth = getBitWidthMemRefOperand(operand);
     int64_t bytewidth = bitwidth / 8;
     Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
     Value byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
-    return byte_addr_offset;
+    
+    mlir::Value addr_base = getBufferBaseAddr(allocOp.getResult(), rewriter);
+    mlir::Value real_address = rewriter.create<arith::AddIOp>(rewriter.getUnknownLoc(), addr_base, byte_addr_offset);
+    return real_address;
   }else{
     std::cout << "getAddrValue fail" << std::endl;
     std::exit(1);
@@ -99,10 +114,9 @@ static Value getAddrValue(Value operand, PatternRewriter &rewriter){
 
 
 
-static Value getSizeValue(cim::CopyOp op, PatternRewriter &rewriter){
-  if(auto allocOp = op.getOperand(0).getDefiningOp<memref::AllocOp>()){
-    MemRefType type = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
-    int bitwidth = getBitWidth(type.getElementType());
+static Value getSizeValue(Value operand, PatternRewriter &rewriter){
+  if(auto allocOp = operand.getDefiningOp<memref::AllocOp>()){
+    int bitwidth = getBitWidthMemRefOperand(operand);
     int bytewidth = bitwidth / 8;
 
     llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
@@ -112,17 +126,16 @@ static Value getSizeValue(cim::CopyOp op, PatternRewriter &rewriter){
     }
     mlir::Value zero = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), size);
     return zero;
-  }else if(auto subViewOp = op.getOperand(0).getDefiningOp<memref::SubViewOp>()){
+  }else if(auto subViewOp = operand.getDefiningOp<memref::SubViewOp>()){
     SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
     
-    MemRefType type = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
-    int bitwidth = getBitWidth(type.getElementType());
+    int bitwidth = getBitWidthMemRefOperand(operand);
     int bytewidth = bitwidth / 8;
     
-    Value size = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), bytewidth);
+    Value size = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
     for(int i = 0; i<shapes.size(); i++){
       if(Value shape_i = getValue(shapes[i],rewriter)){
-        size = rewriter.create<arith::MulIOp>(op.getLoc(), size, shape_i);
+        size = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), size, shape_i);
       }else{
         return nullptr;
       }
@@ -242,7 +255,7 @@ namespace {
 
         Value addr_src = getAddrValue(op.getOperand(0), rewriter);
         Value addr_dst = getAddrValue(op.getOperand(1), rewriter);
-        Value size = getSizeValue(op, rewriter);
+        Value size = getSizeValue(op.getOperand(0), rewriter);
         std::cout << "TransOpLowering::matchAndRewrite" << std::endl;
         if (!addr_src || !addr_dst || !size) {
           std::cout << "TransOpLowering::matchAndRewrite fail" << std::endl;
