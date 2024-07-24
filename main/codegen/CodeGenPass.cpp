@@ -42,6 +42,12 @@
 #define SPECIAL_REG_OUTPUT_BIT_WIDTH 1
 #define SPECIAL_REG_WEIGHT_BIT_WIDTH 2
 
+#define SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH 16
+#define SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH 17
+#define SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH 18
+#define SPECIAL_REG_SIMD_INPUT_4_BIT_WIDTH 19
+#define SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH 20
+
 using namespace mlir;
 using namespace cim;
 
@@ -149,6 +155,83 @@ static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regma
   instr_list.push_back(inst);
 }
 
+/*
+  SIMD
+  VVAdd, VVMul, VSAdd, Quantify, QuantifyResAdd, QuantifyMultiply
+*/
+
+static void codeGen(mlir::cimisa::VVAddOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
+  /*
+    SIMD计算：SIMD-compute
+    指令字段划分：
+    - [31, 30]，2bit：class，指令类别码，值为01
+    - [29, 28]，2bit：input num，input向量的个数，范围是1到4
+      - 00：1个输入向量，地址由rs1给出
+      - 01：2个输入向量，地址由rs1和rs2给出
+      - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
+      - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
+    - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
+      - 0x00：add，向量加法
+      - 0x01：add-scalar，向量和标量加法
+      - 0x02：multiply，向量逐元素乘法
+      - 0x03：quantify，量化
+      - 0x04：quantify-resadd，resadd量化
+      - 0x05：quantify-multiply，乘法量化
+    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
+    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
+    - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
+    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
+    使用的专用寄存器：
+    - input 1 bit width：输入向量1每个元素的bit长度
+    - input 2 bit width：输入向量2每个元素的bit长度
+    - input 3 bit width：输入向量3每个元素的bit长度
+    - input 4 bit width：输入向量4每个元素的bit长度
+    - output bit width：输出向量每个元素的bit长度
+  */
+  int lhs = getReg(regmap, op.getOperand(0));
+  int rhs = getReg(regmap, op.getOperand(1));
+  int rd = getReg(regmap, op.getOperand(2));
+  int size = getReg(regmap, op.getOperand(3));
+  use.insert(lhs);
+  use.insert(rhs);
+  use.insert(rd);
+  use.insert(size);
+  Inst inst_lhs_bw = {
+    {"class", 0b10},{"type", 0b11},{"opcode", 0b01},
+    {"rd", SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH},
+    {"imm", op.getLhsBw()},
+  };
+  Inst inst_rhs_bw = {
+    {"class", 0b10},{"type", 0b11},{"opcode", 0b01},
+    {"rd", SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH},
+    {"imm", op.getRhsBw()},
+  };
+  Inst inst_out_bw = {
+    {"class", 0b10},{"type", 0b11},{"opcode", 0b01},
+    {"rd", SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH},
+    {"imm", op.getOutBw()},
+  };
+  Inst inst = {
+    {"class", 0b01},
+    {"input_num", 0b01},
+    {"opcode", 0b00},
+    {"rs1", lhs},
+    {"rs2", rhs},
+    {"rs3", size},
+    {"rd", rd}
+  };
+  instr_list.push_back(inst_lhs_bw);
+  instr_list.push_back(inst_rhs_bw);
+  instr_list.push_back(inst_out_bw);
+  instr_list.push_back(inst);
+}
+
+
+/*
+  PrintOp
+*/
+
 static void codeGen(mlir::cim::PrintOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
   std::set<int> &def, std::set<int> &use){
   /*
@@ -171,6 +254,11 @@ static void codeGen(mlir::cim::PrintOp op, std::unordered_map<llvm::hash_code, i
   };
   instr_list.push_back(inst);
 }
+
+/*
+  Memory
+  TransOp, LoadOp, StoreOp
+*/
 
 static void codeGen(mlir::cimisa::TransOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
   std::set<int> &def, std::set<int> &use){
@@ -270,6 +358,10 @@ static void codeGen(mlir::cimisa::StoreOp op, std::unordered_map<llvm::hash_code
   instr_list.push_back(inst);
 }
 
+/*
+  CIMCompute
+*/
+
 static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
     std::set<int> &def, std::set<int> &use){
   // TODO: 这里没加上input_size寄存器
@@ -334,6 +426,11 @@ static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash
   instr_list.push_back(inst_weight_bw);
   instr_list.push_back(inst);
 }
+
+/*
+  ControlFlow
+  BranchOp, CondBranchOp
+*/
 
 static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
     std::set<int> &def, std::set<int> &use ){
@@ -427,6 +524,10 @@ static void codeGen(mlir::cf::CondBranchOp op, std::unordered_map<llvm::hash_cod
   use.insert(lhs_reg);
   use.insert(rhs_reg);
 }
+
+/*
+  CodeGen For Operator Finish!
+*/
 
 static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
   std::cout << "getBlockList begin" << std::endl;
@@ -541,6 +642,8 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
         codeGenArith<mlir::arith::MulIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::DivSIOp>(op)){
         codeGenArith<mlir::arith::DivSIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::VVAddOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::TransOp>(op)){

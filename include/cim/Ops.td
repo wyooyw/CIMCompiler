@@ -29,7 +29,7 @@ class CIM_Op<string mnemonic, list<Trait> traits = []> :
 // Vector Compute //
 /////////////////////////////////
 
-def VVAddOp : CIM_Op<"vv_add", [Pure]> {
+def VVAddOp : CIM_Op<"vv_add"> {
   let summary = "element-wise addition operation";
   let description = [{
     The "add" operation performs element-wise addition between two tensors.
@@ -44,6 +44,7 @@ def VVAddOp : CIM_Op<"vv_add", [Pure]> {
   // ];
 
   let hasCanonicalizer = 1;
+  let hasFolder = 1;
 }
 
 def VSMulOp : CIM_Op<"vs_mul", [Pure]> {

@@ -40,9 +40,9 @@ def VVAddOp : CIMISA_Op<"vvadd"> {
     AnyTypeOf<[AnyInteger, Index]>:$rhs_addr, 
     AnyTypeOf<[AnyInteger, Index]>:$out_addr,
     AnyTypeOf<[AnyInteger, Index]>:$size,
-    AnyTypeOf<[AnyInteger, Index]>:$lhs_bw, // bw: bit width
-    AnyTypeOf<[AnyInteger, Index]>:$rhs_bw, 
-    AnyTypeOf<[AnyInteger, Index]>:$out_bw
+    I8Attr:$lhs_bw, // bw: bit width
+    I8Attr:$rhs_bw, 
+    I8Attr:$out_bw
   );
 }
 /////////////////////////////////

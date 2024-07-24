@@ -112,6 +112,34 @@ static Value getAddrValue(Value operand, PatternRewriter &rewriter){
   
 }
 
+static Value getLengthValue(Value operand, PatternRewriter &rewriter){
+  if(auto allocOp = operand.getDefiningOp<memref::AllocOp>()){
+
+    llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
+    int64_t size = 1;
+    for(int i = 0; i<allocShapes.size(); i++){
+      size *= allocShapes[i];
+    }
+    mlir::Value zero = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), size);
+    return zero;
+  }else if(auto subViewOp = operand.getDefiningOp<memref::SubViewOp>()){
+    SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
+    
+    Value size = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
+    for(int i = 0; i<shapes.size(); i++){
+      if(Value shape_i = getValue(shapes[i],rewriter)){
+        size = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), size, shape_i);
+      }else{
+        return nullptr;
+      }
+    }
+    return size;
+  }else{
+    std::cout << "getSizeValue fail" << std::endl;
+    std::exit(1);
+    return nullptr;
+  }
+}
 
 
 static Value getSizeValue(Value operand, PatternRewriter &rewriter){
@@ -319,6 +347,39 @@ namespace {
         return success();
       }
     };
+
+    struct VVAddOpLowering : public OpRewritePattern<cim::VVAddOp> {
+      using OpRewritePattern<cim::VVAddOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::VVAddOp op, PatternRewriter &rewriter) const final {
+
+        Value lhs = getAddrValue(op.getOperand(0), rewriter);
+        Value rhs = getAddrValue(op.getOperand(1), rewriter);
+        Value result = getAddrValue(op.getOperand(2), rewriter);
+        Value size = getLengthValue(op.getOperand(0), rewriter);
+        
+        std::cout << "VVAddOpLowering::matchAndRewrite" << std::endl;
+        if (!lhs || !rhs || !result) {
+          std::cout << "VVAddOpLowering::matchAndRewrite fail" << std::endl;
+          return failure();
+        }
+        std::cout << "VVAddOpLowering::matchAndRewrite success" << std::endl;
+
+        int64_t _bitwidth_lhs = getBitWidthMemRefOperand(op.getOperand(0));
+        int64_t _bitwidth_rhs = getBitWidthMemRefOperand(op.getOperand(1));
+        int64_t _bitwidth_out = getBitWidthMemRefOperand(op.getOperand(2));
+
+        IntegerAttr bitwidth_lhs = rewriter.getI8IntegerAttr(_bitwidth_lhs);
+        IntegerAttr bitwidth_rhs = rewriter.getI8IntegerAttr(_bitwidth_rhs);
+        IntegerAttr bitwidth_out = rewriter.getI8IntegerAttr(_bitwidth_out);
+        
+        rewriter.replaceOpWithNewOp<cimisa::VVAddOp>(op, lhs, rhs, result, size, 
+                bitwidth_lhs, bitwidth_rhs, bitwidth_out);
+
+        return success();
+      }
+    };
 }
 
 
@@ -364,7 +425,8 @@ void CIMLoweringPass::runOnOperation() {
   // Now that the conversion target has been defined, we just need to provide
   // the set of patterns that will lower the Toy operations.
   RewritePatternSet patterns(&getContext());
-  patterns.add<TransOpLowering,CIMComputeOpLowering,LoadOpLowering,StoreOpLowering>(
+  patterns.add<TransOpLowering,CIMComputeOpLowering,LoadOpLowering,StoreOpLowering,
+              VVAddOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
