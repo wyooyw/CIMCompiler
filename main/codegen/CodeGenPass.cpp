@@ -368,7 +368,8 @@ static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, i
     };
     instr_list.push_back(add_zero_inst);
     use.insert(operand_reg);
-    def.insert(arg_reg);
+    // def.insert(arg_reg);
+    use.insert(arg_reg);
   }
 
   Inst inst = {
@@ -783,8 +784,19 @@ static void liveVariableAnalysis(
 
         in[block] = _new_in;
         out[block] = _new_out;
+        // std::cout << "def: ";
+        // for(int i : _def) std::cout << i << " ";
+        // std::cout << " | use: ";
+        // for(int i : _use) std::cout << i << " ";
+        // std::cout << " | _new_in: ";
+        // for(int i : _new_in) std::cout << i << " ";
+        // std::cout << " | _new_out: ";
+        // for(int i : _new_out) std::cout << i << " ";
+        // std::cout << std::endl;
+        
 
       }
+      // std::cout << "------" << change << std::endl;
     }while(change);
     
 }
