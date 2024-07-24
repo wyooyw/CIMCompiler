@@ -43,7 +43,7 @@ class TestMemory:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        'load_save', 'load_save_var_index',
+        'load_save', 'load_save_var_index', 'load_save_in_loop',
         'slice', 'slice_var_index', 'slice_chain',
         'trans'
         ])
