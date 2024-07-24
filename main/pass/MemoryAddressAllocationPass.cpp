@@ -53,6 +53,21 @@ namespace {
 ///   3) If the worklist is empty, the algorithm succeeded.
 ///
 
+
+static int getBitWidth(mlir::Type type){
+  if(type.isa<mlir::IntegerType>()){
+    return type.getIntOrFloatBitWidth();
+  }else if(type.isa<mlir::FloatType>()){
+    return type.getIntOrFloatBitWidth();
+  }else if(type.isa<mlir::IndexType>()){
+    return 32;
+  }else{
+    std::cout << "getBitWidth fail" << std::endl;
+    std::exit(1);
+    return 0;
+  }
+}
+
 struct MemoryAddressAllocationPass
     : public mlir::PassWrapper<MemoryAddressAllocationPass, OperationPass<mlir::func::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MemoryAddressAllocationPass)
@@ -83,7 +98,7 @@ struct MemoryAddressAllocationPass
       std::string memory = _memory.str();
 
       auto shape = type.getShape(); // TODO: how to get memref's size?
-      int size = type.getElementType().getIntOrFloatBitWidth() / 8;
+      int size = getBitWidth(type.getElementType()) / 8;
       for(auto s = shape.begin(); s!=shape.end(); s++){
         size *= (*s);
       }
