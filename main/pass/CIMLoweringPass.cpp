@@ -12,7 +12,8 @@
 #include "cim/Dialect.h"
 #include "cimisa/Dialect.h"
 #include "cim/Passes.h"
-
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -31,6 +32,64 @@
 #include <utility>
 #include <iostream>
 using namespace mlir;
+
+static const boost::property_tree::ptree&  get_item(const boost::property_tree::ptree& ast, int index){
+    auto it = ast.begin();
+    std::advance(it, index);
+    return it->second;
+}
+
+template <typename Ty>
+Ty safe_get_as(const boost::property_tree::ptree& ast, const std::string& key){
+    if (ast.count(key)){
+        return ast.get<Ty>(key);
+    }else{
+        // tell user
+        std::cerr << "[safe_get_] Key error: " << key << std::endl;
+        std::exit(1);
+        // return nullptr;
+    }
+}
+const boost::property_tree::ptree& safe_get_child(const boost::property_tree::ptree& ast, const std::string& key){
+    if (ast.count(key)){
+        return ast.get_child(key);
+    }else{
+        // tell user
+        std::cerr << "[safe_get_child] Key error: " << key << std::endl;
+        std::exit(1);
+        return ast;
+    }
+}
+static std::map<std::string, int> memory_addr_list;
+static void getMemoryAddrList(){
+  boost::property_tree::ptree ast;
+  boost::property_tree::read_json("/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json", ast);
+  
+  // std::map<string, int> memory_addr_list;
+  std::cout << "getMemoryAddrList" << std::endl;
+  auto json_memory_list = safe_get_child(ast, "memory_list");
+  for (const auto& pair : json_memory_list) {
+    auto json_memory = pair.second;
+    std::string name = safe_get_as<std::string>(json_memory, "name");
+    auto json_address = safe_get_child(json_memory, "addressing");
+    int offset = safe_get_as<int>(json_address,"offset_byte");
+    int size = safe_get_as<int>(json_address,"size_byte");
+
+    memory_addr_list[name] = offset;
+    std::cout << "name: " << name << " offset: " << offset << " size: " << size << std::endl;
+  }
+  
+  // return memory_addr_list;
+}
+
+static int getMemoryBaseAddr(Value buffer){
+  mlir::MemRefType type = llvm::cast<mlir::MemRefType>(buffer.getType());
+  mlir::DictionaryAttr memory_space = llvm::cast<mlir::DictionaryAttr>(type.getMemorySpace());
+  std::string memory = llvm::cast<mlir::StringAttr>(memory_space.get("memory")).getValue().str();
+  int memory_addr = memory_addr_list[memory];
+  return memory_addr;
+}
+
 
 static Value getValue(OpFoldResult offset, PatternRewriter &rewriter){
     if (Attribute attr = llvm::dyn_cast_if_present<Attribute>(offset)) {
@@ -67,9 +126,11 @@ static int getBitWidthMemRefOperand(mlir::Value operand){
 static Value getBufferBaseAddr(Value buffer, PatternRewriter &rewriter){
   mlir::MemRefType type = llvm::cast<mlir::MemRefType>(buffer.getType());
   mlir::DictionaryAttr memory_space = llvm::cast<mlir::DictionaryAttr>(type.getMemorySpace());
-  int address = llvm::cast<mlir::IntegerAttr>(memory_space.get("address")).getInt();
-  mlir::Value base_addr = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), address);
-  return base_addr;
+  int _buffer_offset = llvm::cast<mlir::IntegerAttr>(memory_space.get("address")).getInt();
+  int _memory_offset = getMemoryBaseAddr(buffer);
+  int _offset = _buffer_offset + _memory_offset;
+  mlir::Value offset = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), _offset);
+  return offset;
 }
 
 static Value getAddrValue(Value operand, PatternRewriter &rewriter){
@@ -435,6 +496,8 @@ void CIMLoweringPass::runOnOperation() {
   // if (failed(
   //         applyPartialConversion(getOperation(), target, std::move(patterns))))
   //   signalPassFailure();
+  getMemoryAddrList();
+  
   if (failed(
           applyPatternsAndFoldGreedily(getOperation(), std::move(patterns))))
     signalPassFailure();
