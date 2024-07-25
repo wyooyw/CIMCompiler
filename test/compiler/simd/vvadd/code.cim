@@ -1,4 +1,13 @@
+// simd special reg
+#define SIMD_INPUT_1_BIT_WIDTH 16
+#define SIMD_INPUT_2_BIT_WIDTH 17
+#define SIMD_OUTPUT_BIT_WIDTH 20
+
 def main(null<int8>){
+    SpecialRegSet(SIMD_INPUT_1_BIT_WIDTH, 32);
+    SpecialRegSet(SIMD_INPUT_2_BIT_WIDTH, 32);
+    SpecialRegSet(SIMD_OUTPUT_BIT_WIDTH, 32);
+
     buf1 = Buffer(<4>, index, local);
     Save(buf1, [0], 0);
     Save(buf1, [1], 1);
@@ -12,6 +21,8 @@ def main(null<int8>){
     Save(buf2, [3], 7);
 
     buf3 = Buffer(<4>, index, local);
+
+
     VVAdd(buf1, buf2, buf3);
     Print(Load(buf3, [0])); // 4
     Print(Load(buf3, [1])); // 6
