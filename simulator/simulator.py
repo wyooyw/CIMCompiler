@@ -4,7 +4,7 @@ from simulator.macro_utils import MacroUtil, MacroConfig
 from simulator.mask_utils import MaskUtil
 import copy
 from simulator.data_type import get_dtype_from_bitwidth, get_bitwidth_from_dtype
-
+import json
 class SpecialReg(Enum):
 
     # pim special reg
@@ -75,7 +75,7 @@ class Memory:
         return copy.copy(self._data)
 
     def write(self, data, offset, size):
-        assert self._check_range(offset, size)
+        assert self._check_range(offset, size), f"{offset=}, {size=}"
         assert type(data) in [np.array, np.ndarray, bytearray], f"{type(data)=}"
         if type(data) in [np.array, np.ndarray]:
             data = bytearray(data)
@@ -213,6 +213,20 @@ class MemorySpace:
             byte_array += memory.read_all()
         with open(memory_image_path, 'wb') as file:
             file.write(byte_array)
+
+    @classmethod
+    def from_memory_config(cls, memory_config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json"):
+        with open(memory_config_path, 'r') as f:
+            memory_config = json.load(f)
+        memory_space = cls()
+        for memory in memory_config["memory_list"]:
+            name = memory["name"]
+            memtype = memory["type"]
+            offset = memory["addressing"]["offset_byte"]
+            size = memory["addressing"]["size_byte"]
+            print(f"Add memory: {name=}, {memtype=}, {offset=}, {size=}")
+            memory_space.add_memory(Memory(name, memtype, offset, size))
+        return memory_space
 
 class Simulator:
     FINISH = 0
