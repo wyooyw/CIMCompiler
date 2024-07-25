@@ -61,9 +61,9 @@ const boost::property_tree::ptree& safe_get_child(const boost::property_tree::pt
     }
 }
 static std::map<std::string, int> memory_addr_list;
-static void getMemoryAddrList(){
+static void getMemoryAddrList(std::string config_path){
   boost::property_tree::ptree ast;
-  boost::property_tree::read_json("/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json", ast);
+  boost::property_tree::read_json(config_path, ast);
   
   // std::map<string, int> memory_addr_list;
   std::cout << "getMemoryAddrList" << std::endl;
@@ -449,7 +449,7 @@ namespace {
 struct CIMLoweringPass
     : public PassWrapper<CIMLoweringPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CIMLoweringPass)
-
+  std::string config_path;
   void getDependentDialects(DialectRegistry &registry) const override {
     // registry.insert<affine::AffineDialect, func::FuncDialect,
     //                 memref::MemRefDialect>();
@@ -496,14 +496,16 @@ void CIMLoweringPass::runOnOperation() {
   // if (failed(
   //         applyPartialConversion(getOperation(), target, std::move(patterns))))
   //   signalPassFailure();
-  getMemoryAddrList();
-  
+  getMemoryAddrList(config_path);
+
   if (failed(
           applyPatternsAndFoldGreedily(getOperation(), std::move(patterns))))
     signalPassFailure();
   std::cout << "CIMLoweringPass::runOnOperation finish!" << std::endl;
 }
 
-std::unique_ptr<Pass> mlir::cim::createCIMLoweringPass() {
-  return std::make_unique<CIMLoweringPass>();
+std::unique_ptr<Pass> mlir::cim::createCIMLoweringPass(std::string config_path) {
+  auto pass = std::make_unique<CIMLoweringPass>();
+  pass->config_path = config_path;
+  return pass;
 }

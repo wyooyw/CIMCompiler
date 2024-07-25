@@ -12,7 +12,7 @@ std::unique_ptr<Pass> createMemoryAddressAllocationPass();
 std::unique_ptr<Pass> createTestDecomposeAffineOpPass();
 std::unique_ptr<Pass> createFoldMemRefAliasOpsPass();
 std::unique_ptr<Pass> createExtractAddressComputationPass();
-std::unique_ptr<Pass> createCIMLoweringPass();
+std::unique_ptr<Pass> createCIMLoweringPass(std::string configPath);
 std::unique_ptr<Pass> createCIMBranchConvertPass();
 std::unique_ptr<Pass> createCodeGenerationPass(std::string outputFilePath);
 } // namespace cim

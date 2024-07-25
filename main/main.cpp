@@ -53,12 +53,13 @@ using namespace mlir;
 
 
 int main(int argc, char **argv) {
-  if (argc < 3) {
+  if (argc < 4) {
     std::cerr << "Error: Not enough arguments provided." << std::endl;
     return 1;
   }
   std::string inputFilePath(argv[1]);
   std::string outputFilePath(argv[2]);
+  std::string configPath(argv[3]);
 
   mlir::DialectRegistry registry;
   mlir::registerCIMInlinerInterface(registry);
@@ -108,7 +109,7 @@ int main(int argc, char **argv) {
 
   // step3: lower
   mlir::PassManager lower_passes(&context);
-  lower_passes.addPass(mlir::cim::createCIMLoweringPass());
+  lower_passes.addPass(mlir::cim::createCIMLoweringPass(configPath));
   lower_passes.addPass(mlir::createCanonicalizerPass());
   lower_passes.addPass(mlir::createLoopInvariantCodeMotionPass());
   lower_passes.addPass(mlir::createConvertSCFToCFPass());

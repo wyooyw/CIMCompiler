@@ -3,6 +3,7 @@ set -e
 # input_file="${PWD}/op/v1/conv2d_dense.cim"
 input_file=$2
 output_path=$3
+config_path=$4
 mkdir -p $output_path
 # copy source file
 cp $input_file $output_path/origin_code.cim
@@ -27,5 +28,5 @@ echo "ANTLR Down."
 
 # ast(json) -> mlir
 if [ "$1" == "isa" ]; then
-    ./build/bin/main $output_path/ast.json $output_path/final_code.json
+    ./build/bin/main $output_path/ast.json $output_path/final_code.json $config_path
 fi
