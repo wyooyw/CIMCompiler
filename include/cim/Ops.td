@@ -151,4 +151,12 @@ def CopyOp : CIM_Op<"copy"> {
   let hasFolder = 1;
 }
 
+def SpecialRegSetOp : CIM_Op<"special_reg_set"> {
+  let summary = "set a special reg";
+  let description = [{
+    set a special reg
+  }];
+  let arguments = (ins AnyTypeOf<[AnyInteger, Index]>:$special_reg, AnyTypeOf<[AnyInteger, Index]>:$set_value); // TODO: which type can represent any Tensor?
+}
+
 #endif // CIM_OPS

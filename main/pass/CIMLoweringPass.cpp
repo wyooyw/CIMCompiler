@@ -238,7 +238,7 @@ static Value getSizeValue(Value operand, PatternRewriter &rewriter){
 }
 
 static std::vector<Value> _getMacroActivatePositionBySubview(cim::CIMComputeOp op, PatternRewriter &rewriter, int operand_index){
-  // <N_ROW, N_COMP, N_MACRO, N_VCOL>
+  // <N_ROW, N_COMP, N_GROUP, N_MACRO * N_VCOL>
   auto subViewOp = op.getOperand(operand_index).getDefiningOp<memref::SubViewOp>();
   auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
   llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
@@ -253,6 +253,9 @@ static std::vector<Value> _getMacroActivatePositionBySubview(cim::CIMComputeOp o
   // Value activate_comp_begin = getValue(shapes[1], rewriter);
   // Value activate_comp_length = getValue(shapes[1], rewriter);
 
+  // activate_group_num
+  Value activate_group_num = getValue(shapes[2], rewriter);
+
   // get activate macro
   // Value activate_macro_begin = getValue(shapes[2], rewriter);
   Value activate_macro_length = getValue(shapes[2], rewriter);
@@ -261,12 +264,12 @@ static std::vector<Value> _getMacroActivatePositionBySubview(cim::CIMComputeOp o
   // Value activate_element_begin = getValue(shapes[3], rewriter);
   // Value activate_element_length = getValue(shapes[3], rewriter);
 
-  Value element_per_macro = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), allocShapes[3]);
-  Value activate_element_num = rewriter.create<arith::MulIOp>(op.getLoc(), activate_macro_length, element_per_macro);
+  Value activate_element_col_num = getValue(shapes[3], rewriter);
 
   return {
     activate_row_begin, 
-    activate_element_num
+    activate_element_col_num,
+    activate_group_num
   };
 }
 
@@ -375,10 +378,11 @@ namespace {
           return failure();
         }
         Value row_index = macro_activate[0];
-        Value activate_element_num = macro_activate[1];
-
+        Value num_group = macro_activate[2];
+        Value input_size_all = getLengthValue(op.getOperand(0), rewriter);
+        Value input_size = rewriter.create<arith::DivSIOp>(op.getLoc(), input_size_all, num_group);
         
-        if (!addr_input || !addr_output || !row_index || !activate_element_num) {
+        if (!addr_input || !addr_output || !row_index || !input_size) {
           std::cout << "CIMComputeOpLowering::matchAndRewrite fail 2" << std::endl;
           return failure();
         }
@@ -396,10 +400,7 @@ namespace {
               addr_input,           // AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
               addr_output,          // AnyTypeOf<[AnyInteger, Index]>:$output_addr, 
               row_index,            // AnyTypeOf<[AnyInteger, Index]>:$row_index,
-              activate_element_num, // AnyTypeOf<[AnyInteger, Index]>:$activate_element_num,
-              input_bw,             // I8:$input_bw,
-              output_bw,            // I8:$output_bw, 
-              weight_bw,            // I8:$weight_bw,
+              input_size,           // AnyTypeOf<[AnyInteger, Index]>:$input_size,
               acc_flag,             // I1:$acc_flag,
               value_sparse_flag,    // I1:$value_sparse_flag,
               bit_sparse_flag       // I1:$bit_sparse_flag
@@ -438,6 +439,40 @@ namespace {
         rewriter.replaceOpWithNewOp<cimisa::VVAddOp>(op, lhs, rhs, result, size, 
                 bitwidth_lhs, bitwidth_rhs, bitwidth_out);
 
+        return success();
+      }
+    };
+
+    struct SpecialRegSetOpLowering : public OpRewritePattern<cim::SpecialRegSetOp> {
+      using OpRewritePattern<cim::SpecialRegSetOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::SpecialRegSetOp op, PatternRewriter &rewriter) const final {
+        std::cout << "SpecialRegSetOpLowering begin" << std::endl;
+        Value special_reg = op.getOperand(0);
+        std::cout << "SpecialRegSetOpLowering 1" << std::endl;
+        Value set_value = op.getOperand(1);
+        std::cout << "SpecialRegSetOpLowering 2" << std::endl;
+        
+        
+        if (!special_reg || !set_value) {
+          std::cout << "SpecialRegSetOpLowering::matchAndRewrite fail" << std::endl;
+          return failure();
+        }
+
+        if(auto special_reg_const_op = special_reg.getDefiningOp<arith::ConstantIndexOp>()){
+          int64_t special_reg_const = special_reg_const_op.value();
+          if(auto set_value_const_op = set_value.getDefiningOp<arith::ConstantIndexOp>()){
+            int64_t set_value_const = set_value_const_op.value();
+            rewriter.replaceOpWithNewOp<cimisa::SpecialRegLiOp>(op, special_reg_const, set_value_const);
+          }else{
+            rewriter.replaceOpWithNewOp<cimisa::SpecialRegAssignOp>(op, special_reg_const, set_value);
+          }
+        }else{
+          std::cerr << "SpecialRegSetOpLowering special_reg is not constant" << std::endl;
+          std::exit(1);
+        }
+        std::cout << "SpecialRegSetOpLowering::matchAndRewrite success" << std::endl;
         return success();
       }
     };
@@ -487,7 +522,7 @@ void CIMLoweringPass::runOnOperation() {
   // the set of patterns that will lower the Toy operations.
   RewritePatternSet patterns(&getContext());
   patterns.add<TransOpLowering,CIMComputeOpLowering,LoadOpLowering,StoreOpLowering,
-              VVAddOpLowering>(
+              VVAddOpLowering, SpecialRegSetOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

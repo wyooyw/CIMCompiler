@@ -59,10 +59,7 @@ def CIMComputeOp : CIMISA_Op<"cim_compute"> {
     AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
     AnyTypeOf<[AnyInteger, Index]>:$output_addr, 
     AnyTypeOf<[AnyInteger, Index]>:$row_index,
-    AnyTypeOf<[AnyInteger, Index]>:$activate_element_num,
-    I8Attr:$input_bw, // bw: bit width
-    I8Attr:$output_bw, 
-    I8Attr:$weight_bw,
+    AnyTypeOf<[AnyInteger, Index]>:$input_size,
     I1Attr:$acc_flag,
     I1Attr:$value_sparse_flag,
     I1Attr:$bit_sparse_flag
@@ -137,4 +134,26 @@ def LoadOp : CIMISA_Op<"load"> {
   let results = (outs AnyTypeOf<[AnyInteger, Index]>);
 }
 
+def SpecialRegLiOp : CIMISA_Op<"special_reg_li"> {
+  let summary = "load immediate into special reg";
+  let description = [{
+    load immediate into special reg
+  }];
+
+  let arguments = (ins
+    I32Attr:$special_reg,
+    I32Attr:$set_value
+  );
+}
+def SpecialRegAssignOp : CIMISA_Op<"special_reg_assign"> {
+  let summary = "load immediate into special reg";
+  let description = [{
+    load immediate into special reg
+  }];
+
+  let arguments = (ins
+    I32Attr:$special_reg,
+    AnyTypeOf<[AnyInteger, Index]>:$set_value
+  );
+}
 #endif // CIMISA_OPS

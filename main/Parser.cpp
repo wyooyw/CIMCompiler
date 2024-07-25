@@ -456,6 +456,9 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     }else if(call_func_name=="Save") {
         parse_bulitin_save(ast);
         return;
+    }else if(call_func_name=="SpecialRegSet") {
+        parse_bulitin_special_reg_set(ast);
+        return;
     }
 
     // check sign table
@@ -649,6 +652,18 @@ void MLIRGenImpl::parse_bulitin_cimcompute(const boost::property_tree::ptree& as
     mlir::Value macro = parse_expr(safe_get_child(get_item(ast_macro, 0), "expr"));
     mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
     builder.create<mlir::cim::CIMComputeOp>(loc, input, macro, output);
+}
+
+void MLIRGenImpl::parse_bulitin_special_reg_set(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_special_reg_set" << std::endl;
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+    
+    auto ast_special_reg = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_set_value = safe_get_child(get_item(ast_param_list,2), "call_param");
+
+    mlir::Value special_reg = parse_expr(safe_get_child(get_item(ast_special_reg, 0), "expr"));
+    mlir::Value set_value = parse_expr(safe_get_child(get_item(ast_set_value, 0), "expr"));
+    builder.create<mlir::cim::SpecialRegSetOp>(loc, special_reg, set_value);
 }
 
 /*

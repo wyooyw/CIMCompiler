@@ -197,21 +197,7 @@ static void codeGen(mlir::cimisa::VVAddOp op, std::unordered_map<llvm::hash_code
   use.insert(rhs);
   use.insert(rd);
   use.insert(size);
-  Inst inst_lhs_bw = {
-    {"class", 0b10},{"type", 0b11},{"opcode", 0b01},
-    {"rd", SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH},
-    {"imm", op.getLhsBw()},
-  };
-  Inst inst_rhs_bw = {
-    {"class", 0b10},{"type", 0b11},{"opcode", 0b01},
-    {"rd", SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH},
-    {"imm", op.getRhsBw()},
-  };
-  Inst inst_out_bw = {
-    {"class", 0b10},{"type", 0b11},{"opcode", 0b01},
-    {"rd", SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH},
-    {"imm", op.getOutBw()},
-  };
+
   Inst inst = {
     {"class", 0b01},
     {"input_num", 0b01},
@@ -221,9 +207,6 @@ static void codeGen(mlir::cimisa::VVAddOp op, std::unordered_map<llvm::hash_code
     {"rs3", size},
     {"rd", rd}
   };
-  instr_list.push_back(inst_lhs_bw);
-  instr_list.push_back(inst_rhs_bw);
-  instr_list.push_back(inst_out_bw);
   instr_list.push_back(inst);
 }
 
@@ -390,40 +373,24 @@ static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash
   int input_addr_reg = getReg(regmap, op.getOperand(0));
   int output_addr_reg = getReg(regmap, op.getOperand(1));
   int activate_row_reg = getReg(regmap, op.getOperand(2));
+  int input_size_reg = getReg(regmap, op.getOperand(3));
   use.insert(input_addr_reg);
   use.insert(output_addr_reg);
   use.insert(activate_row_reg);
+  use.insert(input_size_reg);
   Inst inst = {
     {"class", 0b00},
     {"type", 0b0},
-    {"value sparse", static_cast<int>(op.getValueSparseFlag())},
-    {"bit sparse", static_cast<int>(op.getBitSparseFlag())},
-    {"group", 0b0},
-    {"group input mode", 0b0},
+    {"value_sparse", static_cast<int>(op.getValueSparseFlag())},
+    {"bit_sparse", static_cast<int>(op.getBitSparseFlag())},
+    {"group", 0b1},
+    {"group_input_mode", 0b0},
     {"accumulate", static_cast<int>(op.getAccFlag())},
     {"rs1", input_addr_reg},
-    {"rs2", 16},
+    {"rs2", input_size_reg},
     {"rs3", activate_row_reg},
     {"rd", output_addr_reg},
   };
-  Inst inst_input_bw = {
-    {"class", 0b10},{"type", 0b11},{"opcode", 0b01},
-    {"rd", SPECIAL_REG_INPUT_BIT_WIDTH},
-    {"imm", op.getInputBw()},
-  };
-  Inst inst_output_bw = {
-    {"class", 0b10},{"type", 0b11},{"opcode", 0b01},
-    {"rd", SPECIAL_REG_OUTPUT_BIT_WIDTH},
-    {"imm", op.getOutputBw()},
-  };
-  Inst inst_weight_bw = {
-    {"class", 0b10},{"type", 0b11},{"opcode", 0b01},
-    {"rd", SPECIAL_REG_WEIGHT_BIT_WIDTH},
-    {"imm", op.getWeightBw()},
-  };
-  instr_list.push_back(inst_input_bw);
-  instr_list.push_back(inst_output_bw);
-  instr_list.push_back(inst_weight_bw);
   instr_list.push_back(inst);
 }
 
@@ -525,6 +492,57 @@ static void codeGen(mlir::cf::CondBranchOp op, std::unordered_map<llvm::hash_cod
   use.insert(rhs_reg);
 }
 
+static void codeGen(mlir::cimisa::SpecialRegLiOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list, 
+    std::set<int> &def, std::set<int> &use ){
+  /*
+    专用寄存器立即数赋值指令：special-li
+    指令字段划分：
+    - [31, 30]，2bit：class，指令类别码，值为10
+    - [29, 28]，2bit：type，指令类型码，值为11
+    - [27, 26]，2bit：opcode，指令操作码，值为01
+    - [25, 21]，5bit：rd，专用寄存器编号，即要赋值的通用寄存器
+    - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
+  */
+
+  int special_reg = static_cast<int>(op.getSpecialReg());
+  int set_value = static_cast<int>(op.getSetValue());
+  Inst inst = {
+    {"class", 0b10},
+    {"type", 0b11},
+    {"opcode", 0b01},
+    {"rd", special_reg},
+    {"imm", set_value},
+  };
+  instr_list.push_back(inst);
+}
+
+static void codeGen(mlir::cimisa::SpecialRegAssignOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list, 
+    std::set<int> &def, std::set<int> &use ){
+  /*
+    专用/通用寄存器赋值指令：special-general-assign
+    指令字段划分：
+    - [31, 30]，2bit：class，指令类别码，值为10
+    - [29, 28]，2bit：type，指令类型码，值为11
+    - [27, 26]，2bit：opcode，指令操作码
+      - 10：表示将通用寄存器的值赋给专用寄存器
+      - 11：表示将专用寄存器的值赋给通用寄存器
+    - [25, 21]，5bit：rs1，通用寄存器编号，即涉及赋值的通用寄存器
+    - [20, 16]，5bit：rs2，专用寄存器编号，即涉及赋值的专用寄存器
+    - [15, 0]，16bit：reserve，保留字段
+  */
+
+  int special_reg = static_cast<int>(op.getSpecialReg());
+  int from_general_reg = getReg(regmap, op.getOperand());
+  use.insert(from_general_reg);
+  Inst inst = {
+    {"class", 0b10},
+    {"type", 0b11},
+    {"opcode", 0b10},
+    {"rs1", from_general_reg},
+    {"rs2", special_reg}
+  };
+  instr_list.push_back(inst);
+}
 /*
   CodeGen For Operator Finish!
 */
@@ -660,6 +678,10 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
       }else if(auto _op = dyn_cast<mlir::cf::BranchOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
         jump2line[op] = instr_list.size() - 1;
+      }else if(auto _op = dyn_cast<mlir::cimisa::SpecialRegLiOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::SpecialRegAssignOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read);
       }else{
         std::cerr << "error: unsupport operator: " << op->getName().getStringRef().str() << std::endl;
       }
@@ -926,6 +948,15 @@ static bool isSpecialLi(Inst& inst){
   return false;
 }
 
+static bool isSpecialAssign(Inst& inst){
+  if((inst.count("class") && inst["class"]==0b10) && 
+     (inst.count("type") && inst["type"]==0b11 ) && 
+     (inst.count("opcode") && inst["opcode"]==0b10)){
+    return true;
+  }
+  return false;
+}
+
 static void mappingRegisterLogicalToPhysical(
       std::vector<Inst>& instr_list,
       std::map<Block*, std::set<int> > &in,
@@ -942,7 +973,9 @@ static void mappingRegisterLogicalToPhysical(
     if(isSpecialLi(inst)) continue;
 
     for (const auto& [key, value] : inst) {
-      if(isPrefix(key, "rs") || isPrefix(key, "rd")){
+      bool is_special_assign = isSpecialAssign(inst);
+      bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
+      if(is_reg_general){
         int reg_id = value;
         if (!logic_reg_life_begin.count(reg_id)){
           logic_reg_life_begin[reg_id] = inst_id;
