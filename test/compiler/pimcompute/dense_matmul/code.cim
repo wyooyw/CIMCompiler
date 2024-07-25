@@ -17,28 +17,34 @@
 
 def main(null<int8>){
     // input and weight will be prepared in memory image
-    input = Buffer(<4>, int8, global);
-    weight = Buffer(<4,8>, int8, global);
-    output = Buffer(<8>, int32, global);
+    input = Buffer(<8,8>, int8, global);
+    weight = Buffer(<8,8>, int8, global);
+    output = Buffer(<8,8>, int32, global);
 
-    pim_in_buffer = Buffer(<4>, int8, input_buffer);
-    pim_out_buffer = Buffer(<8>, int32, output_buffer);
+    in_buffer = Buffer(<4>, int8, input_buffer);
+    out_buffer = Buffer(<8,8>, int32, output_buffer);
     macros = Buffer(<4, 4, 1, 8>, int8, macro);
 
-    // move input and weight
-    Trans(input, pim_in_buffer);
-    macro_row0 = Slice(macros, [0,0,0,0],[1,4,1,8],[1,1,1,1]);
-    Trans(weight, macro_row0);
+    macro_use = Slice(macros, [0,0,0,0],[2,4,1,8],[1,1,1,1]);
+    Trans(weight, macro_use);
 
-    // compute
     SpecialRegSet(INPUT_BIT_WIDTH, 8);
     SpecialRegSet(WEIGHT_BIT_WIDTH, 8);
     SpecialRegSet(OUTPUT_BIT_WIDTH, 32);
     SpecialRegSet(GROUP_SIZE, 4);
     SpecialRegSet(ACTIVATION_GROUP_NUM, 1);
     SpecialRegSet(ACTIVATION_ELEMENT_COL_NUM, 8);
-    CIMCompute(pim_in_buffer, macro_row0, pim_out_buffer);
+
+    for i in range(8) carry (null){
+        out_buffer_use = Slice(out_buffer, [i,0], [1,8], [1,1]);
+        for j in range(0, 2) carry (null){
+            input_use = Slice(input, [i, j * 4], [1,4], [1,1]);
+            Trans(input_use, in_buffer);
+            macro_use = Slice(macros, [j,0,0,0],[1,4,1,8],[1,1,1,1]);
+            CIMCompute(in_buffer, macro_use, out_buffer_use);
+        };
+    };
 
     //write output
-    Trans(pim_out_buffer, output);
+    Trans(out_buffer, output);
 }

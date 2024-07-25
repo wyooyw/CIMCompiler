@@ -9,7 +9,7 @@ import os
 import json
 
 def init_macro_config():
-    macro_config = MacroConfig(n_macro=2, n_row=4, n_comp=4, n_bcol=16)
+    macro_config = MacroConfig(n_macro=4, n_row=4, n_comp=4, n_bcol=16)
     return macro_config
 
 def init_mask_config():
@@ -31,7 +31,7 @@ class TestPIMCompute:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        #'dense'
+        'dense', 'dense_group'
         ])
     def test_pim_compute(self, casename):
         case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
@@ -132,4 +132,4 @@ if __name__=="__main__":
     TestPIMCompute.setup_class()
     test_simd = TestPIMCompute()
     test_simd.setup_method()
-    test_simd.test_pim_compute("dense")
+    test_simd.test_pim_compute("dense_matmul")
