@@ -7,19 +7,6 @@ import numpy as np
 import subprocess
 import os
 import json
-def init_memory_space():
-    memory_space = MemorySpace()
-    global_memory = Memory("global_memory", "dram", 0, 128)
-    local_memory = Memory("local_memory", "sram", 128, 128)
-    input_buffer = Memory("input_buffer", "rf", 256, 64)
-    output_buffer = Memory("output_buffer", "rf", 320, 64)
-    macro = Memory("macro", "macro", 384, 2*4*4*16//8)
-    memory_space.add_memory(global_memory)
-    memory_space.add_memory(local_memory)
-    memory_space.add_memory(input_buffer)
-    memory_space.add_memory(output_buffer)
-    memory_space.add_memory(macro)
-    return memory_space
 
 def init_macro_config():
     macro_config = MacroConfig(n_macro=2, n_row=4, n_comp=4, n_bcol=16)
@@ -34,7 +21,8 @@ class TestPIMCompute:
     @classmethod
     def setup_class(cls):
         cls.inst_util = InstUtil()
-        cls.memory_space = init_memory_space()
+        cls.config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+        cls.memory_space = MemorySpace.from_memory_config(cls.config_path)
         cls.macro_config = init_macro_config()
         cls.mask_config = init_mask_config()
         cls.simulator = Simulator(cls.memory_space , cls.macro_config, cls.mask_config)
@@ -46,7 +34,7 @@ class TestPIMCompute:
         #'dense'
         ])
     def test_pim_compute(self, casename):
-        case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "print", casename)
+        case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
         assert os.path.exists(case_dir), f"{case_dir} not exists"
         assert os.path.isdir(case_dir), f"{case_dir} is not a directory"
 
@@ -69,11 +57,11 @@ class TestPIMCompute:
 
         # load image
         image = helper.get_image()
-        global_memory = self.simulator.memory_space.get_base_of("global_memory")
+        global_memory = self.simulator.memory_space.get_memory_by_name("global")
         global_memory.write(image, 0, len(image))
 
         # run compiler
-        cmd = f"bash compile.sh isa {input_path} {output_folder}"
+        cmd = f"bash compile.sh isa {input_path} {output_folder} {self.config_path}"
         result = subprocess.run(cmd.split(" "), capture_output=True, text=True)
         print('输出:', result.stdout)
         print('错误:', result.stderr)

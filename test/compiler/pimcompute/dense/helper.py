@@ -1,6 +1,6 @@
-import numpy as np
 class TestHelper:
-    def set_image(self):
+    def get_image(self):
+        import numpy as np
         """
         input = Buffer(<4>, int8, global);
         weight = Buffer(<4,4>, int8, global);
@@ -11,6 +11,7 @@ class TestHelper:
         return image
     
     def check_image(self, image):
+        import numpy as np
         """
         image should have:
         input (4 byte)
@@ -19,4 +20,4 @@ class TestHelper:
         """
         output = np.frombuffer(image[20:36], dtype=np.int32)
         golden = np.dot(self.input.astype(np.int32), self.weight.astype(np.int32))
-        assert (output==golden).all(), f"{output=}, {golden=}"
+        assert np.array_equal(output,golden), f"{output=}, {golden=}"
