@@ -37,7 +37,7 @@ def main(null<int8>){
     SpecialRegSet(GROUP_SIZE, 4);
     SpecialRegSet(ACTIVATION_GROUP_NUM, 1);
     SpecialRegSet(ACTIVATION_ELEMENT_COL_NUM, 8);
-    CIMCompute(pim_in_buffer, macro_row0, pim_out_buffer);
+    CIMComputeValueSparse(pim_in_buffer, macro_row0, pim_out_buffer);
 
     //write output
     Trans(pim_out_buffer, output);

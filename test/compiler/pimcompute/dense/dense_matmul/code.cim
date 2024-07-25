@@ -41,7 +41,7 @@ def main(null<int8>){
             input_use = Slice(input, [i, j * 4], [1,4], [1,1]);
             Trans(input_use, in_buffer);
             macro_use = Slice(macros, [j,0,0,0],[1,4,1,8],[1,1,1,1]);
-            CIMCompute(in_buffer, macro_use, out_buffer_use);
+            CIMComputeDense(in_buffer, macro_use, out_buffer_use);
         };
     };
 

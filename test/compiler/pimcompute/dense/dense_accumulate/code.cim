@@ -18,27 +18,34 @@
 def main(null<int8>){
     // input and weight will be prepared in memory image
     input = Buffer(<2,4>, int8, global);
-    weight = Buffer(<4,2,4>, int8, global);
-    output = Buffer(<2,4>, int32, global);
+    weight = Buffer(<2,4,8>, int8, global);
+    output = Buffer(<8>, int32, global);
 
     pim_in_buffer = Buffer(<2,4>, int8, input_buffer);
-    pim_out_buffer = Buffer(<2,4>, int32, output_buffer);
-    macros = Buffer(<4, 4, 2, 4>, int8, macro); // row, comp, group, macro_per_group * vcol
+    pim_out_buffer = Buffer(<8>, int32, output_buffer);
+    macros = Buffer(<4, 4, 1, 8>, int8, macro);
 
     // move input and weight
     Trans(input, pim_in_buffer);
-    macro_row0 = Slice(macros, [0,0,0,0],[1,4,2,4],[1,1,1,1]);
-    Trans(weight, macro_row0);
+    pim_in_buffer0 = Slice(pim_in_buffer, [0,0], [1,4], [1,1]);
+    weight0 = Slice(weight, [0,0,0],[1,4,8],[1,1,1]);
+    macro_row0 = Slice(macros, [0,0,0,0],[1,4,1,8],[1,1,1,1]);
+    Trans(weight0, macro_row0);
+
+    pim_in_buffer1 = Slice(pim_in_buffer, [1,0], [1,4], [1,1]);
+    weight1 = Slice(weight, [1,0,0],[1,4,8],[1,1,1]);
+    macro_row1 = Slice(macros, [1,0,0,0],[1,4,1,8],[1,1,1,1]);
+    Trans(weight1, macro_row1);
 
     // compute
     SpecialRegSet(INPUT_BIT_WIDTH, 8);
     SpecialRegSet(WEIGHT_BIT_WIDTH, 8);
     SpecialRegSet(OUTPUT_BIT_WIDTH, 32);
-    SpecialRegSet(GROUP_SIZE, 2);
-    SpecialRegSet(ACTIVATION_GROUP_NUM, 2);
-    SpecialRegSet(ACTIVATION_ELEMENT_COL_NUM, 4);
-    SpecialRegSet(GROUP_INPUT_STEP, 4);
-    CIMCompute(pim_in_buffer, macro_row0, pim_out_buffer);
+    SpecialRegSet(GROUP_SIZE, 4);
+    SpecialRegSet(ACTIVATION_GROUP_NUM, 1);
+    SpecialRegSet(ACTIVATION_ELEMENT_COL_NUM, 8);
+    CIMComputeDense(pim_in_buffer0, macro_row0, pim_out_buffer);
+    CIMComputeDense(pim_in_buffer1, macro_row1, pim_out_buffer);
 
     //write output
     Trans(pim_out_buffer, output);

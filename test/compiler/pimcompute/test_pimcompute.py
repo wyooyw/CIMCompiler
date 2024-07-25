@@ -31,7 +31,7 @@ class TestPIMCompute:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        'dense', 'dense_group', "dense_matmul"
+        'dense/dense_simple', 'dense/dense_group', "dense/dense_matmul", "dense/dense_accumulate"
         ])
     def test_pim_compute(self, casename):
         case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
@@ -132,4 +132,4 @@ if __name__=="__main__":
     TestPIMCompute.setup_class()
     test_simd = TestPIMCompute()
     test_simd.setup_method()
-    test_simd.test_pim_compute("dense_matmul")
+    test_simd.test_pim_compute("dense/dense_matmul")

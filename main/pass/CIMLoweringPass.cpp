@@ -393,8 +393,8 @@ namespace {
         IntegerAttr weight_bw = rewriter.getI8IntegerAttr(8);
 
         IntegerAttr acc_flag = getI1IntegerAttr(1, rewriter);
-        IntegerAttr value_sparse_flag = getI1IntegerAttr(0, rewriter);
-        IntegerAttr bit_sparse_flag = getI1IntegerAttr(0, rewriter);
+        IntegerAttr value_sparse_flag = getI1IntegerAttr(op.getValueSparseFlag(), rewriter);
+        IntegerAttr bit_sparse_flag = getI1IntegerAttr(op.getBitSparseFlag(), rewriter);
         
         rewriter.replaceOpWithNewOp<cimisa::CIMComputeOp>(op, 
               addr_input,           // AnyTypeOf<[AnyInteger, Index]>:$input_addr, 

@@ -450,8 +450,17 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     }else if(call_func_name=="Free") {
         parse_bulitin_free(ast);
         return;
-    }else if(call_func_name=="CIMCompute"){
-        parse_bulitin_cimcompute(ast);
+    }else if(call_func_name=="CIMComputeDense"){
+        parse_bulitin_cimcompute_dense(ast);
+        return;
+    }else if(call_func_name=="CIMComputeValueSparse"){
+        parse_bulitin_cimcompute_value_sparse(ast);
+        return;
+    }else if(call_func_name=="CIMComputeBitSparse"){
+        parse_bulitin_cimcompute_bit_sparse(ast);
+        return;
+    }else if(call_func_name=="CIMComputeValueBitSparse"){
+        parse_bulitin_cimcompute_value_bit_sparse(ast);
         return;
     }else if(call_func_name=="Save") {
         parse_bulitin_save(ast);
@@ -640,7 +649,23 @@ void MLIRGenImpl::parse_bulitin_save(const boost::property_tree::ptree& ast){
     // return result;
 }
 
-void MLIRGenImpl::parse_bulitin_cimcompute(const boost::property_tree::ptree& ast){
+void MLIRGenImpl::parse_bulitin_cimcompute_dense(const boost::property_tree::ptree& ast){
+    parse_bulitin_cimcompute(ast, false, false);
+}
+
+void MLIRGenImpl::parse_bulitin_cimcompute_value_sparse(const boost::property_tree::ptree& ast){
+    parse_bulitin_cimcompute(ast, true, false);
+}
+
+void MLIRGenImpl::parse_bulitin_cimcompute_bit_sparse(const boost::property_tree::ptree& ast){
+    parse_bulitin_cimcompute(ast, false, true);
+}
+
+void MLIRGenImpl::parse_bulitin_cimcompute_value_bit_sparse(const boost::property_tree::ptree& ast){
+    parse_bulitin_cimcompute(ast, true, true);
+}
+
+void MLIRGenImpl::parse_bulitin_cimcompute(const boost::property_tree::ptree& ast, bool value_sparse, bool bit_sparse){
     std::cout << "parse_bulitin_cimcompute" << std::endl;
     auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
 
@@ -651,7 +676,10 @@ void MLIRGenImpl::parse_bulitin_cimcompute(const boost::property_tree::ptree& as
     mlir::Value input = parse_expr(safe_get_child(get_item(ast_input, 0), "expr"));
     mlir::Value macro = parse_expr(safe_get_child(get_item(ast_macro, 0), "expr"));
     mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
-    builder.create<mlir::cim::CIMComputeOp>(loc, input, macro, output);
+
+    mlir::IntegerAttr value_sparse_flag = mlir::IntegerAttr::get(builder.getIntegerType(1), llvm::APInt(1, value_sparse));
+    mlir::IntegerAttr bit_sparse_flag = mlir::IntegerAttr::get(builder.getIntegerType(1), llvm::APInt(1, bit_sparse));
+    builder.create<mlir::cim::CIMComputeOp>(loc, input, macro, output, value_sparse_flag, bit_sparse_flag);
 }
 
 void MLIRGenImpl::parse_bulitin_special_reg_set(const boost::property_tree::ptree& ast){
