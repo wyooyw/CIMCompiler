@@ -4,8 +4,8 @@ def main(null<int8>){
     weight = Buffer(<4,4>, int8, global);
     output = Buffer(<4>, int32, global);
 
-    pim_in_buffer = Buffer(<4>, int8, rf);
-    pim_out_buffer = Buffer(<4>, int32, rf);
+    pim_in_buffer = Buffer(<4>, int8, input_buffer);
+    pim_out_buffer = Buffer(<4>, int32, output_buffer);
     macros = Buffer(<4, 4, 1, 2, 2>, int8, macro);
 
     // move input and weight

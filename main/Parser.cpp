@@ -876,7 +876,8 @@ void MLIRGenImpl::parse_bulitin_cimcompute(const boost::property_tree::ptree& as
     mlir::Attribute MLIRGenImpl::parse_device(std::string device){
         std::cout << "parse_device" << std::endl;
 
-        if (device=="global" || device=="local" || device=="macro"|| device=="rf"){
+        if (device=="global" || device=="local" || device=="macro"|| device=="rf"
+            || device=="input_buffer"|| device=="output_buffer"){
             mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
             nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr(device)));
             nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
@@ -886,7 +887,7 @@ void MLIRGenImpl::parse_bulitin_cimcompute(const boost::property_tree::ptree& as
             // raise: not support yet
             mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
                 "Not support device: " + device);
-            return nullptr;
+            std::exit(1);
         }
     }
 
