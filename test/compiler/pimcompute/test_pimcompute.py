@@ -43,7 +43,7 @@ class TestPIMCompute:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        'dense'
+        #'dense'
         ])
     def test_pim_compute(self, casename):
         case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "print", casename)

@@ -34,7 +34,8 @@ class TestMemory:
     @classmethod
     def setup_class(cls):
         cls.inst_util = InstUtil()
-        cls.memory_space = init_memory_space()
+        cls.config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+        cls.memory_space = MemorySpace.from_memory_config(cls.config_path)
         cls.macro_config = init_macro_config()
         cls.mask_config = init_mask_config()
         cls.simulator = Simulator(cls.memory_space , cls.macro_config, cls.mask_config)
@@ -62,7 +63,8 @@ class TestMemory:
         os.makedirs(output_folder, exist_ok=True)
 
         # run compiler
-        cmd = f"bash compile.sh isa {input_path} {output_folder}"
+        cmd = f"bash compile.sh isa {input_path} {output_folder} {self.config_path}"
+        print("cmd:", cmd)
         result = subprocess.run(cmd.split(" "), capture_output=True, text=True)
         print('输出:', result.stdout)
         print('错误:', result.stderr)
@@ -85,7 +87,7 @@ class TestMemory:
         assert print_record==golden, f"{print_record=}, {golden=}"
 
     @pytest.mark.parametrize('casename',[
-        'trans'
+        'trans', 'trans_across_memory'
         ])
     def test_memory_with_image(self, casename):
         case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "image", casename)
@@ -111,11 +113,11 @@ class TestMemory:
 
         # load image
         image = helper.get_image()
-        global_memory = self.simulator.memory_space.get_memory_by_name("global_memory")
-        global_memory.write(image, 0, len(image))
+        global_memory = self.simulator.memory_space.get_memory_by_name("global")
+        global_memory.write(image, global_memory.offset, len(image))
 
         # run compiler
-        cmd = f"bash compile.sh isa {input_path} {output_folder}"
+        cmd = f"bash compile.sh isa {input_path} {output_folder} {self.config_path}"
         result = subprocess.run(cmd.split(" "), capture_output=True, text=True)
         print('输出:', result.stdout)
         print('错误:', result.stderr)
@@ -138,4 +140,4 @@ if __name__=="__main__":
     TestMemory.setup_class()
     test_for_loop = TestMemory()
     test_for_loop.setup_method()
-    test_for_loop.test_memory_with_image("trans")
+    test_for_loop.test_memory_with_image("trans_across_memory")
