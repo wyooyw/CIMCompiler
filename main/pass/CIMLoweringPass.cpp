@@ -86,6 +86,10 @@ static int getMemoryBaseAddr(Value buffer){
   mlir::MemRefType type = llvm::cast<mlir::MemRefType>(buffer.getType());
   mlir::DictionaryAttr memory_space = llvm::cast<mlir::DictionaryAttr>(type.getMemorySpace());
   std::string memory = llvm::cast<mlir::StringAttr>(memory_space.get("memory")).getValue().str();
+  if (!memory_addr_list.count(memory)){
+    std::cerr << "can't find memory: " << memory << std::endl;
+    std::exit(1);
+  }
   int memory_addr = memory_addr_list[memory];
   return memory_addr;
 }
@@ -141,6 +145,7 @@ static Value getAddrValue(Value operand, PatternRewriter &rewriter){
     auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
     if (!allocOp){
       std::cout << "getAddrValue allocOp==nullptr" << std::endl;
+      std::exit(1);
       return nullptr;
     }
     llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();

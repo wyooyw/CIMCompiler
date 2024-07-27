@@ -1,8 +1,8 @@
 def main(null<int8>){
-    a = Buffer(<4>, int8, global);
-    b = Buffer(<4>, int8, global);
-    c = Buffer(<4>, int8, local);
-    d = Buffer(<4>, int8, local);
+    a = Buffer(<4>, int8, __GLOBAL__);
+    b = Buffer(<4>, int8, __GLOBAL__);
+    c = Buffer(<4>, int8, __LOCAL__);
+    d = Buffer(<4>, int8, __LOCAL__);
     Trans(a, d);
     Trans(b, c);
     Trans(d, b);

@@ -1,5 +1,5 @@
 def main(null<int8>){
-    a = Buffer(<4>, int8, global);
-    b = Buffer(<4>, int8, global);
+    a = Buffer(<4>, int8, __GLOBAL__);
+    b = Buffer(<4>, int8, __GLOBAL__);
     Trans(a, b);
 }

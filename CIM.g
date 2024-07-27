@@ -63,7 +63,7 @@ var: ID;
 const_array1d: '<' constant (',' constant)* '>';
 array1d: '[' expr (',' expr)* ']';
 
-MEMORY: ('global' | 'local' | 'macro' | 'input_buffer' | 'output_buffer') ;
+MEMORY: '__'[a-zA-Z_0-9]+'__';
 DATATYPE: ('int8' | 'int32' | 'int64' | 'index' | 'float32') ;
 BINARY_OP: ADD | SUB | MUL | DIV | MOD;
 ADD : '+';
@@ -75,6 +75,6 @@ CONST: ( CONST_NEG | CONST_POS );
 CONST_NEG : '-' CONST_POS;
 CONST_POS : [0-9]+;
 EQ : '=';
-ID : [a-zA-Z_]+[a-zA-Z_0-9]* ;               // 标志符由大小写字母,下划线和数字组成。数字不能开头
+ID : [a-zA-Z]+[a-zA-Z_0-9]* ;               // 标志符由大小写字母,下划线和数字组成。数字不能开头
 WS : [ \t\r\n]+ -> skip ;    // 跳过空格、制表符、回车符和换行符
 

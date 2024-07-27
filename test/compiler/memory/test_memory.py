@@ -140,4 +140,5 @@ if __name__=="__main__":
     TestMemory.setup_class()
     test_for_loop = TestMemory()
     test_for_loop.setup_method()
-    test_for_loop.test_memory_with_image("trans_across_memory")
+    # test_for_loop.test_memory_with_image("trans_across_memory")
+    test_for_loop.test_memory_with_print("load_save")

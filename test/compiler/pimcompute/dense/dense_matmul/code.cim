@@ -17,13 +17,13 @@
 
 def main(null<int8>){
     // input and weight will be prepared in memory image
-    input = Buffer(<8,8>, int8, global);
-    weight = Buffer(<8,8>, int8, global);
-    output = Buffer(<8,8>, int32, global);
+    input = Buffer(<8,8>, int8, __GLOBAL__);
+    weight = Buffer(<8,8>, int8, __GLOBAL__);
+    output = Buffer(<8,8>, int32, __GLOBAL__);
 
-    in_buffer = Buffer(<4>, int8, input_buffer);
-    out_buffer = Buffer(<8,8>, int32, output_buffer);
-    macros = Buffer(<4, 4, 1, 8>, int8, macro);
+    in_buffer = Buffer(<4>, int8, __INPUT_BUFFER__);
+    out_buffer = Buffer(<8,8>, int32, __OUTPUT_BUFFER__);
+    macros = Buffer(<4, 4, 1, 8>, int8, __MACRO__);
 
     macro_use = Slice(macros, [0,0,0,0],[2,4,1,8],[1,1,1,1]);
     Trans(weight, macro_use);

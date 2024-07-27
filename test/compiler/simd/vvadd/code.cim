@@ -8,19 +8,19 @@ def main(null<int8>){
     SpecialRegSet(SIMD_INPUT_2_BIT_WIDTH, 32);
     SpecialRegSet(SIMD_OUTPUT_BIT_WIDTH, 32);
 
-    buf1 = Buffer(<4>, index, local);
+    buf1 = Buffer(<4>, index, __LOCAL__);
     Save(buf1, [0], 0);
     Save(buf1, [1], 1);
     Save(buf1, [2], 2);
     Save(buf1, [3], 3);
 
-    buf2 = Buffer(<4>, index, local);
+    buf2 = Buffer(<4>, index, __LOCAL__);
     Save(buf2, [0], 4);
     Save(buf2, [1], 5);
     Save(buf2, [2], 6);
     Save(buf2, [3], 7);
 
-    buf3 = Buffer(<4>, index, local);
+    buf3 = Buffer(<4>, index, __LOCAL__);
 
 
     VVAdd(buf1, buf2, buf3);

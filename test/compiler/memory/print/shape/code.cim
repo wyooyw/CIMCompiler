@@ -1,5 +1,5 @@
 def main(null<int8>){
-    buf1 = Buffer(<3,3>, index, local);
+    buf1 = Buffer(<3,3>, index, __LOCAL__);
     Print(Shape(buf1, 0)); // 3
     Print(Shape(buf1, 1)); // 3
 

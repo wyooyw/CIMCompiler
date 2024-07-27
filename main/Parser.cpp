@@ -919,19 +919,33 @@ void MLIRGenImpl::parse_bulitin_special_reg_set(const boost::property_tree::ptre
     mlir::Attribute MLIRGenImpl::parse_device(std::string device){
         std::cout << "parse_device" << std::endl;
 
-        if (device=="global" || device=="local" || device=="macro"|| device=="rf"
-            || device=="input_buffer"|| device=="output_buffer"){
-            mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
-            nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr(device)));
-            nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
-            mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
-            return attr;
-        }else{
-            // raise: not support yet
-            mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
-                "Not support device: " + device);
-            std::exit(1);
+        std::string result = device;
+
+        // 去掉前缀下划线
+        size_t start = result.find_first_not_of('_');
+        if (start != std::string::npos) {
+            result.erase(0, start);
         }
+
+        // 去掉后缀下划线
+        size_t end = result.find_last_not_of('_');
+        if (end != std::string::npos) {
+            result.erase(end + 1);
+        }
+
+        // 将所有字母转为小写
+        for (char& ch : result) {
+            ch = std::tolower(ch);
+        }
+
+        mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
+        nameAttrs.push_back(builder.getNamedAttr("memory", builder.getStringAttr(result)));
+        nameAttrs.push_back(builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
+        mlir::DictionaryAttr attr = mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
+        
+        std::cout << "Convert " << device << " to " << result << std::endl;
+
+        return attr;
     }
 
     mlir::MemRefType MLIRGenImpl::parse_param_type_tensor(const boost::property_tree::ptree& ast) {
