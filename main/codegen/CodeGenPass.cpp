@@ -1069,8 +1069,13 @@ struct CodeGenerationPass
 
   void runOnOperation() override {
     std::cout << "run on operation" << std::endl;
-    auto f = getOperation();
     std::cout << "code generation pass!" << std::endl;
+    auto f = getOperation();
+    if (f.getName()!="main"){
+      return;
+    }
+    std::cout << "code generation pass, run on main!" << std::endl;
+    
 
     std::unordered_map<llvm::hash_code, int > regmap = getRegisterMapping(f);
     std::cout << "getRegisterMapping finish!" << std::endl;
