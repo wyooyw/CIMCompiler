@@ -90,12 +90,13 @@ def extrace_mask_and_data(weight3d, n_from, n_to, concat=True, bit_to_byte=True)
         sorted_position_3d = np.repeat(np.expand_dims(sorted_position, axis=0), n_vcol, axis=0)
         extended_weight_3d = np.pad(weight3d, ((0,0),(0,1),(0,0)), mode='constant', constant_values=0)
         extracted_data_3d = np.take_along_axis(extended_weight_3d, sorted_position_3d, axis=1)
+        assert extracted_data_3d.dtype==np.int8
         data.append(extracted_data_3d)
 
     if concat:
         if len(mask)==0:
-            mask = np.zeros((0, n_from, n_macro_per_group))
-            data = np.zeros((0, n_vcol, n_to, n_macro_per_group))
+            mask = np.zeros((0, n_from, n_macro_per_group), dtype=np.int8)
+            data = np.zeros((0, n_vcol, n_to, n_macro_per_group), dtype=np.int8)
             return mask, data
         mask = np.concatenate([np.expand_dims(m,0) for m in mask])
         data = np.concatenate([np.expand_dims(d,0) for d in data])
@@ -126,6 +127,7 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
         spatial_size, reduce_size = weight.shape
     else:
         assert False
+    assert weight.dtype==np.int8
 
     n_vcol = macro_config["n_vcol"]
     n_group = macro_config["n_group"]
@@ -180,18 +182,20 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
 
     # filter zero in index_list
     index_list = [i for i in index_list if i>0]
-    index = np.array(index_list)
+    index = np.array(index_list, dtype=np.int32)
     assert mask.shape[0]==converted_weight.shape[0] and converted_weight.shape[0]==index.sum()
     assert len(subweight.shape)==4
-
+    
     # duplicate weight for groups
     converted_weight = np.repeat(converted_weight.reshape(-1, n_vcol, n_to, 1, n_macro_per_group), n_group, axis=3)
     assert converted_weight.shape[3]==n_group
     converted_weight = np.transpose(converted_weight, (0,2,3,4,1))
     # [time, n_to, n_group, n_macro_per_group, n_vcol]
-
-    out_spatial_tile_size_list = np.array(out_spatial_tile_size_list)
     
+    out_spatial_tile_size_list = np.array(out_spatial_tile_size_list, dtype=np.int32)
+
+    # mask.shape : [t, n_from, n_macro_per_group] -> [t, n_macro_per_group, n_from]
+    mask = np.transpose(mask, [0,2,1])
     return converted_weight, mask, index, out_spatial_tile_size_list
 
 def test_extrace_mask_and_data():
