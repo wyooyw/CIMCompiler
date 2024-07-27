@@ -67,7 +67,7 @@ class Memory:
         return (offset >= self.offset) and (offset + size <= self.offset + self.size)
 
     def read(self, offset, size):
-        assert self._check_range(offset, size)
+        assert self._check_range(offset, size), f"offset={offset}, size={size}"
         offset = offset - self.offset
         return copy.copy(self._data[offset: offset+size])
 
@@ -145,9 +145,12 @@ class MemorySpace:
         """
         check [offset, offset + size) is in one memory
         """
+        if type(memtype)==str:
+            memtype = [memtype]
+        assert type(memtype)==list
         for memory in self.memory_space:
             if offset >= memory.offset and (offset+size <= memory.offset+memory.size):
-                assert memory.memtype==memtype, f"require {memtype=}, but get {memory.memtype=}"
+                assert memory.memtype in memtype, f"require {memtype=}, but get {memory.memtype=}"
                 return
         assert False, f'can not find memory! {offset=}, {size=}, {memtype=}'
 
@@ -232,15 +235,15 @@ class Simulator:
     FINISH = 0
     TIMEOUT = 1
     ERROR = 2
-    def __init__(self, memory_space, macro_config, mask_config, safe_time=999999):
+    def __init__(self, memory_space, macro_config, mask_config, safe_time=999999, mask_memory_name="mask"):
         super().__init__()
-        self.general_rf = np.zeros([32], dtype=np.int32)
+        self.general_rf = np.zeros([64], dtype=np.int32)
         self.special_rf = np.zeros([32], dtype=np.int32)
         self.memory_space = memory_space
         self.macro_config = macro_config
         self.mask_config = mask_config
         self.macro_util = MacroUtil(self.memory_space.get_macro_memory(), macro_config)
-        self.mask_util = MaskUtil(self.memory_space.get_mask_memory(), macro_config, mask_config)
+        self.mask_util = MaskUtil(self.memory_space.get_memory_by_name(mask_memory_name), macro_config, mask_config)
 
         self.jump_offset = None
         self.safe_time = safe_time
@@ -262,11 +265,14 @@ class Simulator:
         memory_space = MemorySpace.from_memory_config(config_path)
         macro_config = MacroConfig.from_config(config_path)
         mask_config = MaskConfig.from_config(config_path)
-        return cls(memory_space, macro_config, mask_config)
+        if "mask_memory_name" in config:
+            return cls(memory_space, macro_config, mask_config, mask_memory_name=config["mask_memory_name"])
+        else:
+            return cls(memory_space, macro_config, mask_config)
     
     def clear(self):
         self.memory_space.clear()
-        self.general_rf = np.zeros([32], dtype=np.int32)
+        self.general_rf = np.zeros([64], dtype=np.int32)
         self.special_rf = np.zeros([32], dtype=np.int32)
         self.print_record = list()
         self.jump_offset = None
@@ -340,7 +346,7 @@ class Simulator:
 
     def write_reg(self, rf, regid, value):
         assert type(regid)==int, f"{regid=}"
-        assert 0 <= regid and regid < rf.shape[0]
+        assert 0 <= regid and regid < rf.shape[0], f"{regid=}, {rf.shape[0]=}"
         # TODO: check value is in range of int32
         rf[regid] = value
 
@@ -580,9 +586,6 @@ class Simulator:
         src_addr = src_base + src_offset_mask * offset
         dst_addr = dst_base + dst_offset_mask * offset
 
-        src_data = self.memory_space.read(src_addr, size)
-        self.memory_space.write(src_data, dst_addr, size)
-
         print("Trans: from {}({}) to {}({}), {} bytes".format(
             str(src_addr),
             self.memory_space.get_memory_by_address(src_addr).name,
@@ -590,6 +593,10 @@ class Simulator:
             self.memory_space.get_memory_by_address(dst_addr).name,
             str(size)
         ))
+        
+        src_data = self.memory_space.read(src_addr, size)
+        self.memory_space.write(src_data, dst_addr, size)
+
 
     def _run_control_class_br_type_inst(self, inst):
         """
@@ -704,14 +711,15 @@ class Simulator:
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
+        print(f"{group_size=}, {self.macro_config.n_macro=}")
         print(f"old {weight_data.shape=}")
         weight_data = np.pad(weight_data, ((0,0),(0, group_size * self.macro_config.n_vcol(width_bw) - weight_data.shape[1])), mode='constant', constant_values=0)
         print(f"new {weight_data.shape=}")
-        weight_data = weight_data.reshape(self.macro_config.n_comp, self.macro_config.n_macro, self.macro_config.n_vcol(width_bw))
+        weight_data = weight_data.reshape(self.macro_config.n_comp, group_size, self.macro_config.n_vcol(width_bw))
         
         assert weight_data.ndim==3
         assert weight_data.shape[0] == self.macro_config.n_comp
-        assert weight_data.shape[1] == self.macro_config.n_macro
+        assert weight_data.shape[1] == group_size
         assert weight_data.shape[2] == self.macro_config.n_vcol(width_bw)
 
         assert input_data.size==self.mask_config.n_from
@@ -720,8 +728,13 @@ class Simulator:
         assert mask_data.ndim==2, f"{mask_data.ndim=}"
         assert mask_data.shape[0]==group_size and mask_data.shape[1]==self.mask_config.n_from, f"{mask_data.shape=}, {group_size=}, {self.mask_config.n_from=}"
         assert mask_data.dtype==bool, f"{mask_data.dtype}"
-        assert (mask_data.sum(axis=1) <= self.mask_config.n_to).all(), f"{mask_data.sum(dim=1)=}, {self.mask_config.n_to=}"
-        
+        assert (mask_data.sum(axis=1) <= self.mask_config.n_to).all(), f"{mask_data.sum(axis=1)=}, {self.mask_config.n_to=}"
+        # np.set_printoptions(threshold=65536)
+        # print(f"{mask_data.shape=}")
+        # print(mask_data.astype(np.int8))
+        # print(f"{weight_data.shape=}")
+        # print(weight_data.reshape(self.macro_config.n_comp, -1))
+        # import pdb; pdb.set_trace()
         output_list = []
         out_dtype = get_dtype_from_bitwidth(output_bw)
         for macro_id in range(group_size):
@@ -768,7 +781,7 @@ class Simulator:
         value_sparsity = inst["value_sparse"]
         # Get input vector
         input_byte_size = input_size * input_bw // 8
-        self.memory_space.check_memory_type(input_offset, input_byte_size, "rf")
+        # self.memory_space.check_memory_type(input_offset, input_byte_size, "reg_buffer")
         group_input_data = []
         for group_id in range(activation_group_num):
             group_input_offset = input_offset + group_id * group_input_step
@@ -817,7 +830,7 @@ class Simulator:
             output_data = group_output_data[group_id]
             output_byte_size = output_data.size * output_bw // 8
             group_output_offset = output_offset + group_id * group_output_step
-            self.memory_space.check_memory_type(group_output_offset, output_byte_size, "rf")
+            self.memory_space.check_memory_type(group_output_offset, output_byte_size, ["rf","reg_buffer"])
 
             # Accumulate
             if inst["accumulate"] == 1:
@@ -833,7 +846,7 @@ class Simulator:
             print(f"[debug] general_reg[{rs}] = {val}")
         elif inst["type"]==1:
             if self.debug_hook is not None:
-                self.debug_hook(self)
+                self.debug_hook(simulator=self)
         else:
             assert False, "Not support yet."
 
