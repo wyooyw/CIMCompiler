@@ -245,6 +245,8 @@ class Simulator:
         self.jump_offset = None
         self.safe_time = safe_time
 
+        self.debug_hook = None
+
         self._int_data_type = {
             8: np.int8,
             16: np.int16,
@@ -292,6 +294,9 @@ class Simulator:
                 self._run_control_class_inst(inst)
             elif inst_class==InstClass.DEBUG_CLASS.value:
                 self._run_debug_class_inst(inst)
+            else:
+                assert False, f"Not support {inst_class=}"
+
             if self.jump_offset is not None:
                 pc += self.jump_offset
                 self.jump_offset = None
@@ -574,6 +579,14 @@ class Simulator:
         src_data = self.memory_space.read(src_addr, size)
         self.memory_space.write(src_data, dst_addr, size)
 
+        print("Trans: from {}({}) to {}({}), {} bytes".format(
+            str(src_addr),
+            self.memory_space.get_memory_by_address(src_addr).name,
+            str(dst_addr),
+            self.memory_space.get_memory_by_address(dst_addr).name,
+            str(size)
+        ))
+
     def _run_control_class_br_type_inst(self, inst):
         """
         指令字段划分：
@@ -809,10 +822,16 @@ class Simulator:
             self.memory_space.write(output_data, group_output_offset, output_byte_size)
 
     def _run_debug_class_inst(self, inst):
-        rs = inst['rs']
-        val = self.read_general_reg(rs)
-        self.print_record.append(val)
-        print(f"[debug] general_reg[{rs}] = {val}")
+        if inst["type"]==0: #print
+            rs = inst['rs']
+            val = self.read_general_reg(rs)
+            self.print_record.append(val)
+            print(f"[debug] general_reg[{rs}] = {val}")
+        elif inst["type"]==1:
+            if self.debug_hook is not None:
+                self.debug_hook(self)
+        else:
+            assert False, "Not support yet."
 
 
     def _run_simd_class_vector_vector_inst(self, inst):

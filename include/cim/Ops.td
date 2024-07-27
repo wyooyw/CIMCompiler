@@ -9,6 +9,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "cim/ShapeInferenceInterface.td"
 
+
 // Provide a definition of the 'toy' dialect in the ODS framework so that we
 // can define our operations.
 def CIM_Dialect : Dialect {
@@ -133,6 +134,20 @@ def PrintOp : CIM_Op<"print"> {
   }];
 
   let arguments = (ins AnyTypeOf<[AnyInteger, Index]>:$value); // TODO: which type can represent any Tensor?
+
+  //let builders = [
+  //  OpBuilder<(ins "Value":$value)>
+  //];
+
+}
+
+def DebugOp : CIM_Op<"debug"> {
+  let summary = "break for debug";
+  let description = [{
+    break for debug
+  }];
+
+  // let arguments = (ins AnyTypeOf<[AnyInteger, Index]>:$value); // TODO: which type can represent any Tensor?
 
   //let builders = [
   //  OpBuilder<(ins "Value":$value)>

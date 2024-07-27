@@ -447,6 +447,9 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     }else if (call_func_name=="Print") {
         parse_bulitin_print(ast);
         return;
+    }else if (call_func_name=="Debug") {
+        parse_bulitin_debug(ast);
+        return;
     }else if(call_func_name=="Free") {
         parse_bulitin_free(ast);
         return;
@@ -602,9 +605,16 @@ void MLIRGenImpl::parse_bulitin_print(const boost::property_tree::ptree& ast){
     auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
 
     auto ast_value = safe_get_child(get_item(ast_param_list,0), "call_param");
-
     mlir::Value value = parse_expr(safe_get_child(get_item(ast_value, 0), "expr"));
+
+    // auto ast_comment = safe_get_child(get_item(ast_param_list,2), "call_param");
+    // std::string comment = safe_get_str(safe_get_child(get_item(ast_comment, 0), "string"), "text");
     builder.create<mlir::cim::PrintOp>(loc, value);
+}
+
+void MLIRGenImpl::parse_bulitin_debug(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_debug" << std::endl;
+    builder.create<mlir::cim::DebugOp>(loc);
 }
 
 void MLIRGenImpl::parse_bulitin_free(const boost::property_tree::ptree& ast){
