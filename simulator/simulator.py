@@ -1,7 +1,7 @@
 from enum import Enum
 import numpy as np
 from simulator.macro_utils import MacroUtil, MacroConfig
-from simulator.mask_utils import MaskUtil
+from simulator.mask_utils import MaskUtil, MaskConfig
 import copy
 from simulator.data_type import get_dtype_from_bitwidth, get_bitwidth_from_dtype
 import json
@@ -252,6 +252,15 @@ class Simulator:
         }
 
         self.print_record = list()
+
+    @classmethod
+    def from_config(cls, config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json"):
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        memory_space = MemorySpace.from_memory_config(config_path)
+        macro_config = MacroConfig.from_config(config_path)
+        mask_config = MaskConfig.from_config(config_path)
+        return cls(memory_space, macro_config, mask_config)
     
     def clear(self):
         self.memory_space.clear()

@@ -1,11 +1,12 @@
 from simulator.data_type import *
-
+import json
 class MacroConfig:
     def __init__(self, n_macro, n_row, n_comp, n_bcol):
         self.n_macro = n_macro
         self.n_row = n_row
         self.n_comp = n_comp
         self.n_bcol = n_bcol
+        print(f"Macro config: {n_macro=}, {n_row=}, {n_comp=}, {n_bcol=}")
 
     def n_vcol(self, bitwidth):
         assert self.n_bcol % bitwidth == 0
@@ -13,6 +14,16 @@ class MacroConfig:
 
     def total_size(self):
         return self.n_macro * self.n_row * self.n_comp * self.n_bcol // 8
+
+    @classmethod
+    def from_config(cls, config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json"):
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        n_macro = config["macro"]["n_macro"]
+        n_row = config["macro"]["n_row"]
+        n_comp = config["macro"]["n_comp"]
+        n_bcol = config["macro"]["n_bcol"]
+        return cls(n_macro, n_row, n_comp, n_bcol)
 
 class MacroUtil:
     def __init__(self, macro_memory, macro_config):
