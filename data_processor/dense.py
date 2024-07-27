@@ -93,6 +93,10 @@ def extrace_mask_and_data(weight3d, n_from, n_to, concat=True, bit_to_byte=True)
         data.append(extracted_data_3d)
 
     if concat:
+        if len(mask)==0:
+            mask = np.zeros((0, n_from, n_macro_per_group))
+            data = np.zeros((0, n_vcol, n_to, n_macro_per_group))
+            return mask, data
         mask = np.concatenate([np.expand_dims(m,0) for m in mask])
         data = np.concatenate([np.expand_dims(d,0) for d in data])
 
@@ -147,26 +151,35 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
     weight = weight.reshape(out_spatial_tile, n_macro_per_group, n_vcol, out_reduce_tile, n_from)
     weight = np.transpose(weight, (0, 3, 2, 4, 1))
     assert weight.shape[-2]==n_from and weight.shape[-1]==n_macro_per_group
-    weight = weight.reshape(-1, n_vcol, n_from, n_macro_per_group)
+    weight = weight.reshape(out_spatial_tile, out_reduce_tile, n_vcol, n_from, n_macro_per_group)
     
     # extract n_to non-zero element from n_from
     index_list = []
     mask_list = []
     weight_list = []
-    for t in range(weight.shape[0]):
-        subweight = weight[t, :, :, :] # n_vcol, n_from, n_macro_per_group
-        submask, subweight = extrace_mask_and_data(subweight,  n_from, n_to, concat=True, bit_to_byte=True) 
-        # subweight: t, n_vcol, n_to, n_macro_per_group
-        # submask: t, n_to, n_macro_per_group
-        assert len(subweight.shape)==4 and subweight.shape[1]==n_vcol and subweight.shape[2]==n_to and subweight.shape[3]==n_macro_per_group
-        assert len(submask.shape)==3 and submask.shape[1]==n_from and submask.shape[2]==n_macro_per_group, f"{submask.shape=}"
-        assert subweight.shape[0]==submask.shape[0]
-        
-        index_list.append(submask.shape[0])
-        mask_list.append(submask)
-        weight_list.append(subweight)
+    out_spatial_tile_size_list = []
+    for ost in range(out_spatial_tile):
+        out_spatial_tile_size = 0
+        for ort in range(out_reduce_tile):
+            subweight = weight[ost, ort, :, :, :] # n_vcol, n_from, n_macro_per_group
+            submask, subweight = extrace_mask_and_data(subweight,  n_from, n_to, concat=True, bit_to_byte=True) 
+            # subweight: t, n_vcol, n_to, n_macro_per_group
+            # submask: t, n_to, n_macro_per_group
+            assert len(subweight.shape)==4 and subweight.shape[1]==n_vcol and subweight.shape[2]==n_to and subweight.shape[3]==n_macro_per_group
+            assert len(submask.shape)==3 and submask.shape[1]==n_from and submask.shape[2]==n_macro_per_group, f"{submask.shape=}"
+            assert subweight.shape[0]==submask.shape[0]
+            
+            index_list.append(submask.shape[0])
+            mask_list.append(submask)
+            weight_list.append(subweight)
+            out_spatial_tile_size += submask.shape[0]
+        out_spatial_tile_size_list.append(out_spatial_tile_size)
+
     converted_weight = np.concatenate(weight_list, axis=0)
     mask = np.concatenate(mask_list, axis=0)
+
+    # filter zero in index_list
+    index_list = [i for i in index_list if i>0]
     index = np.array(index_list)
     assert mask.shape[0]==converted_weight.shape[0] and converted_weight.shape[0]==index.sum()
     assert len(subweight.shape)==4
@@ -177,7 +190,9 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
     converted_weight = np.transpose(converted_weight, (0,2,3,4,1))
     # [time, n_to, n_group, n_macro_per_group, n_vcol]
 
-    return converted_weight, mask, index
+    out_spatial_tile_size_list = np.array(out_spatial_tile_size_list)
+    
+    return converted_weight, mask, index, out_spatial_tile_size_list
 
 def test_extrace_mask_and_data():
     weight = np.array([
@@ -196,6 +211,9 @@ def test_extrace_mask_and_data():
     mask,data = extrace_mask_and_data(weight, 8, 4, False, False)
     print(mask)
     print(data)
+    np.save("test/data_processor/golden/test_extrace_mask_and_data/mask.npy", mask)
+    np.save("test/data_processor/golden/test_extrace_mask_and_data/data.npy", data)
+
 
 def test_convert_value_sparse_conv2d_weight():
     # 2 * 2 * 8 * n
@@ -228,6 +246,10 @@ def test_convert_value_sparse_conv2d_weight():
     print(mask)
     print(f"{index.shape=}")
     print(index)
+    np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight/converted_weight.npy", converted_weight)
+    np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight/mask.npy", mask)
+    np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight/index.npy", index)
+
 
 def test_convert_value_sparse_conv2d_weight2():
     # 2 * 2 * 8 * n
@@ -260,6 +282,9 @@ def test_convert_value_sparse_conv2d_weight2():
     print(mask)
     print(f"{index.shape=}")
     print(index)
+    np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight2/converted_weight.npy", converted_weight)
+    np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight2/mask.npy", mask)
+    np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight2/index.npy", index)
 
 if __name__=="__main__":
-    test_convert_value_sparse_conv2d_weight2()
+    test_extrace_mask_and_data()
