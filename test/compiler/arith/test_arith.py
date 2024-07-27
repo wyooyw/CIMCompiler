@@ -47,11 +47,12 @@ class TestArith:
 
         # check result
         print_record = self.simulator.print_record
-        assert len(print_record)==4, f"{len(print_record)=}"
+        assert len(print_record)==5, f"{len(print_record)=}"
         assert print_record[0]==10, f"{print_record[0]=}"
         assert print_record[1]==6, f"{print_record[1]=}"
         assert print_record[2]==16, f"{print_record[2]=}"
         assert print_record[3]==4, f"{print_record[3]=}"
+        assert print_record[4]==2, f"{print_record[4]=}"
 
 if __name__=="__main__":
     TestArith.setup_class()

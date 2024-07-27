@@ -142,6 +142,11 @@ static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regma
       opcode = 0b010; // Ty2 的 opcode
   } else if constexpr (std::is_same<Ty, mlir::arith::DivSIOp>::value) {
       opcode = 0b011; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::arith::RemSIOp>::value) {
+      opcode = 0b111; // Ty2 的 opcode
+  } else {
+    std::cerr << "Unsupport arith op!" << std::endl;
+    std::exit(1);
   }
   
   Inst inst = {

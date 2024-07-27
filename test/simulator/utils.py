@@ -44,6 +44,7 @@ class InstUtil:
                 "sll": 0b100,
                 "srl": 0b101,
                 "sra": 0b110,
+                "mod": 0b111,
             }[opcode]
         return {
             "class": 0b10,

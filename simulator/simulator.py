@@ -461,6 +461,8 @@ class Simulator:
             assert False, "Not support srl yet"
         elif opcode==0b110: # sra
             assert False, "Not support sra yet"
+        elif opcode==0b111: # mod
+            result = value1 % value2
         else:
             assert False, f"Not support {opcode=}."
         self.write_general_reg(inst["rd"], result)

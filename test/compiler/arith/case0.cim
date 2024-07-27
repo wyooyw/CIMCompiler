@@ -5,4 +5,7 @@ def main(null<int8>){
     Print(a-b);
     Print(a*b);
     Print(a/b);
+
+    c = 3;
+    Print(a % c);
 }
