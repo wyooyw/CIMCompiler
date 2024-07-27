@@ -70,7 +70,7 @@ class TestSimulator:
         assert self.simulator.general_rf[4] == 16
         assert self.simulator.general_rf[5] == 4
         assert self.simulator.general_rf[6] == 2
-        assert self.simulator.general_rf[7] == 2
+        assert self.simulator.general_rf[7] == 3
 
     def test_general_to_special(self):
         inst_list_1 = [
