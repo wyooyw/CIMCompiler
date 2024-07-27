@@ -45,6 +45,7 @@ class InstUtil:
                 "srl": 0b101,
                 "sra": 0b110,
                 "mod": 0b111,
+                "min": 0b1000,
             }[opcode]
         return {
             "class": 0b10,

@@ -144,6 +144,8 @@ static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regma
       opcode = 0b011; // Ty2 的 opcode
   } else if constexpr (std::is_same<Ty, mlir::arith::RemSIOp>::value) {
       opcode = 0b111; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::arith::MinSIOp>::value) {
+      opcode = 0b1000; // Ty2 的 opcode
   } else {
     std::cerr << "Unsupport arith op!" << std::endl;
     std::exit(1);
@@ -667,6 +669,8 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
         codeGenArith<mlir::arith::DivSIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::RemSIOp>(op)){
         codeGenArith<mlir::arith::RemSIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::arith::MinSIOp>(op)){
+        codeGenArith<mlir::arith::MinSIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::VVAddOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)){
@@ -801,6 +805,8 @@ static void _getRegisterMappingGeneral(
       mapResultAsRegister<mlir::arith::DivSIOp>(_op, mapping, reg_cnt);
     }else if(auto _op = dyn_cast<mlir::arith::RemSIOp>(op)){
       mapResultAsRegister<mlir::arith::RemSIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::arith::MinSIOp>(op)){
+      mapResultAsRegister<mlir::arith::MinSIOp>(_op, mapping, reg_cnt);
     }else if(auto _op = dyn_cast<mlir::cimisa::LoadOp>(op)){
       mapResultAsRegister<mlir::cimisa::LoadOp>(_op, mapping, reg_cnt);
     }

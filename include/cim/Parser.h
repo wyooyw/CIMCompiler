@@ -116,6 +116,7 @@ private:
     void parse_bulitin_debug(const boost::property_tree::ptree& ast);
     void parse_bulitin_free(const boost::property_tree::ptree& ast);
     mlir::Value parse_bulitin_load(const boost::property_tree::ptree& ast);
+    mlir::Value parse_bulitin_min(const boost::property_tree::ptree& ast);
     void parse_bulitin_save(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimcompute_dense(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimcompute_value_sparse(const boost::property_tree::ptree& ast);
