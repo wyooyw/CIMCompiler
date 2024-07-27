@@ -665,6 +665,8 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
         codeGenArith<mlir::arith::MulIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::DivSIOp>(op)){
         codeGenArith<mlir::arith::DivSIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::arith::RemSIOp>(op)){
+        codeGenArith<mlir::arith::RemSIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::VVAddOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)){
