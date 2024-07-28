@@ -8,9 +8,16 @@ def convert_dense_conv2d_weight(weight, macro_config):
     if num_group > 1, weight should be replicated
     """
 
-    oc, ic, kh, kw = weight.shape
-    reduce_size = ic * kh * kw
-    weight = weight.reshape(oc, reduce_size)
+    if len(weight.shape)==4:
+        oc, ic, kh, kw = weight.shape
+        spatial_size = oc
+        reduce_size = ic * kh * kw
+        weight = weight.reshape(oc, reduce_size)
+    elif len(weight.shape)==2:
+        spatial_size, reduce_size = weight.shape
+    else:
+        assert False
+    assert weight.dtype==np.int8
 
     n_vcol = macro_config["n_vcol"]
     n_group = macro_config["n_group"]
@@ -19,7 +26,7 @@ def convert_dense_conv2d_weight(weight, macro_config):
     n_comp = macro_config["n_comp"] # * macro_config["n_row"]
 
     # padding weights
-    spatial_pad_size = int(math.ceil(oc / n_group_vcol)) * n_group_vcol - oc
+    spatial_pad_size = int(math.ceil(spatial_size / n_group_vcol)) * n_group_vcol - spatial_size
     reduce_pad_size = int(math.ceil(reduce_size / n_comp)) * n_comp - reduce_size
     weight = np.pad(weight, ((0,spatial_pad_size),(0, reduce_pad_size)), mode='constant', constant_values=0)
     total_spatial_size = weight.shape[0]
@@ -29,8 +36,8 @@ def convert_dense_conv2d_weight(weight, macro_config):
 
     # replicate weight
     weight = weight.reshape(total_spatial_size, total_reduce_size, 1)
-    weight = np.repeat(weight, group_num, axis=2)
-    assert weight.shape==[total_spatial_size, total_reduce_size, n_group]
+    weight = np.repeat(weight, n_group, axis=2)
+    assert weight.shape==(total_spatial_size, total_reduce_size, n_group)
 
     # tile the weight
     out_spatial_tile = total_spatial_size // n_group_vcol
