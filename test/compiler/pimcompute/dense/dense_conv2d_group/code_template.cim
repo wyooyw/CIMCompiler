@@ -205,7 +205,7 @@ def main(null<int8>){
 
         inner_reduce_tile_size = N_ROW;
         for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (null){
-            
+
             out_reduce_end = Min(out_reduce_begin + inner_reduce_tile_size, OUT_REDUCE_TILE);
             out_reduce_len = out_reduce_end - out_reduce_begin;
 
@@ -242,7 +242,13 @@ def main(null<int8>){
                     t_ = KERNEL_SIZE * KERNEL_SIZE;
                     sliding_window_size = t_ * INPUT_CHANNEL;
                     row_to_activate = 0;
-                    for i_tile_in_window in range(0, sliding_window_size, INPUT_BUFFER_SIZE_PER_GROUP) carry(row_to_activate){
+                    begin_tile_in_window = out_reduce_begin * N_COMP;
+                    tile_size_in_window = N_ROW * N_COMP;
+                    end_tile_in_window = Min(sliding_window_size, begin_tile_in_window + tile_size_in_window);
+                    //Print(begin_tile_in_window);
+                    //Print(end_tile_in_window);
+                    //Debug();
+                    for i_tile_in_window in range(begin_tile_in_window, end_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP) carry(row_to_activate){
                         copy_input_to_input_buffer_for_all_group(null,
                             local_input, 
                             use_input_buffer,
