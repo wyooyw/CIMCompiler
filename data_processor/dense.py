@@ -104,7 +104,6 @@ def extrace_mask_and_data(weight3d, n_from, n_to, concat=True, bit_to_byte=True)
         if bit_to_byte:
             # turn mask into bits, i.e. a int8 tensor mask_bits, where mask_bits.size=mask.size / 8
             pass
-
     return mask, data
 
 
@@ -181,7 +180,7 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
     mask = np.concatenate(mask_list, axis=0)
 
     # filter zero in index_list
-    index_list = [i for i in index_list if i>0]
+    # index_list = [i for i in index_list if i>0]
     index = np.array(index_list, dtype=np.int32)
     assert mask.shape[0]==converted_weight.shape[0] and converted_weight.shape[0]==index.sum()
     assert len(subweight.shape)==4
@@ -195,7 +194,7 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
     out_spatial_tile_size_list = np.array(out_spatial_tile_size_list, dtype=np.int32)
 
     # mask.shape : [t, n_from, n_macro_per_group] -> [t, n_macro_per_group, n_from]
-    mask = np.transpose(mask, [0,2,1])
+    mask = np.transpose(mask, [0,2,1]).astype(np.int8)
     return converted_weight, mask, index, out_spatial_tile_size_list
 
 def test_extrace_mask_and_data():
