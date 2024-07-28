@@ -1,5 +1,6 @@
 import numpy as np
 import json
+from utils.df_layout import tensor_int8_to_bits
 class MaskConfig:
     def __init__(self, n_from=128, n_to=16):
         self.n_from = n_from
@@ -21,9 +22,11 @@ class MaskUtil:
         self.mask_config = mask_config
 
     def get_mask(self, mask_addr, input_size, group_size):
-        mask_size = group_size * input_size # TODO: use 1bit as one mask, so the size should div 8.
+        assert (group_size * input_size) % 8 == 0, f"{group_size=}, {input_size=}"
+        mask_size = group_size * input_size // 8
         mask_bytes = self.mask_memory.read(mask_addr, mask_size)
         mask = np.frombuffer(mask_bytes, dtype=np.int8)
+        mask = tensor_int8_to_bits(mask)
         mask = mask.reshape(group_size, input_size)
         mask = mask.astype(bool)
         return mask

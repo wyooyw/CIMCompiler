@@ -163,9 +163,22 @@ static Value getAddrValue(Value operand, PatternRewriter &rewriter){
       }
     }
     int64_t bitwidth = getBitWidthMemRefOperand(operand);
-    int64_t bytewidth = bitwidth / 8;
-    Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
-    Value byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
+    Value byte_addr_offset;
+    if(bitwidth == 1){
+      Value bytewidth_reciprocal_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 8);
+      // we assume that addr_offset is multiple of 8 
+      byte_addr_offset = rewriter.create<arith::DivSIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_reciprocal_value);
+    }else if(bitwidth >= 8 && bitwidth%8==0){
+      int64_t bytewidth = bitwidth / 8;
+      Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+      byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
+    }else{
+      std::cerr << "Wrong bitwidth: " << bitwidth << std::endl;
+      std::exit(1);
+    }
+    // int64_t bytewidth = bitwidth / 8;
+    // Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+    // Value byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
     
     mlir::Value addr_base = getBufferBaseAddr(allocOp.getResult(), rewriter);
     mlir::Value real_address = rewriter.create<arith::AddIOp>(rewriter.getUnknownLoc(), addr_base, byte_addr_offset);
@@ -210,23 +223,31 @@ static Value getLengthValue(Value operand, PatternRewriter &rewriter){
 
 static Value getSizeValue(Value operand, PatternRewriter &rewriter){
   if(auto allocOp = operand.getDefiningOp<memref::AllocOp>()){
-    int bitwidth = getBitWidthMemRefOperand(operand);
-    int bytewidth = bitwidth / 8;
+    
 
     llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
-    int64_t size = bytewidth;
+    int64_t size = 1;
     for(int i = 0; i<allocShapes.size(); i++){
       size *= allocShapes[i];
     }
+
+    int bitwidth = getBitWidthMemRefOperand(operand);
+    int bytewidth = bitwidth / 8;
+    if(bitwidth == 1){
+      size = size / 8;
+    }else if(bitwidth >= 8 && bitwidth%8==0){
+      size = size * (bitwidth / 8);
+    }else{
+      std::cerr << "Wrong bitwidth: " << bitwidth << std::endl;
+      std::exit(1);
+    }
+
     mlir::Value zero = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), size);
     return zero;
   }else if(auto subViewOp = operand.getDefiningOp<memref::SubViewOp>()){
     SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
     
-    int bitwidth = getBitWidthMemRefOperand(operand);
-    int bytewidth = bitwidth / 8;
-    
-    Value size = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+    Value size = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
     for(int i = 0; i<shapes.size(); i++){
       if(Value shape_i = getValue(shapes[i],rewriter)){
         size = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), size, shape_i);
@@ -234,6 +255,22 @@ static Value getSizeValue(Value operand, PatternRewriter &rewriter){
         return nullptr;
       }
     }
+
+    int bitwidth = getBitWidthMemRefOperand(operand);
+    int bytewidth = bitwidth / 8;
+
+    if(bitwidth == 1){
+      Value bytewidth_reciprocal_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 8);
+      size = rewriter.create<arith::DivSIOp>(rewriter.getUnknownLoc(), size, bytewidth_reciprocal_value);
+    }else if(bitwidth >= 8 && bitwidth%8==0){
+      int64_t bytewidth = bitwidth / 8;
+      Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+      size = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), size, bytewidth_value);
+    }else{
+      std::cerr << "Wrong bitwidth: " << bitwidth << std::endl;
+      std::exit(1);
+    }
+
     return size;
   }else{
     std::cout << "getSizeValue fail" << std::endl;

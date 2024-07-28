@@ -4,6 +4,7 @@ from simulator.simulator import MemorySpace, Memory, Simulator, SpecialReg
 from simulator.macro_utils import MacroConfig
 from simulator.mask_utils import MaskConfig
 import numpy as np
+from utils.df_layout import tensor_bits_to_int8
 
 def init_macro_config():
     macro_config = MacroConfig(n_macro=4, n_row=4, n_comp=4, n_bcol=16)
@@ -74,6 +75,7 @@ class TestSimulatorPIMComputeValueSparse:
             [0,0,1,1,1,1,0,0],
             [0,0,0,1,1,1,1,0]
         ], dtype=bool)
+        mask_bits = tensor_bits_to_int8(mask)
 
         inst_list = [
             # set general register
@@ -117,7 +119,7 @@ class TestSimulatorPIMComputeValueSparse:
 
         self.simulator.memory_space.write(input, input_addr, input_size)
         self.simulator.memory_space.write(weight, macro_base, weight_size)
-        self.simulator.memory_space.write(mask, mask_base, mask.size)
+        self.simulator.memory_space.write(mask_bits, mask_base, mask_bits.size)
         status = self.simulator.run_code(inst_list)
 
         assert status==self.simulator.FINISH
@@ -169,6 +171,7 @@ class TestSimulatorPIMComputeValueSparse:
             [0,0,0,0,1,1,1,1],
             [0,0,0,0,1,1,1,1],
         ]], dtype=bool)
+        mask_bits = tensor_bits_to_int8(mask)
 
         inst_list = [
             # set general register
@@ -198,7 +201,7 @@ class TestSimulatorPIMComputeValueSparse:
             ),
 
             self.inst_util.general_li(2, 1), # activate row
-            self.inst_util.special_li(SpecialReg.VALUE_SPARSE_MASK_ADDR, mask_addr + 32),
+            self.inst_util.special_li(SpecialReg.VALUE_SPARSE_MASK_ADDR, mask_addr + 32 // 8),
             self.inst_util.pimcompute_value_sparse(
                 1, # accumulate
                 0, # rs1 input addr
@@ -228,7 +231,7 @@ class TestSimulatorPIMComputeValueSparse:
 
         self.simulator.memory_space.write(input, input_addr, input_size)
         self.simulator.memory_space.write(weight, macro_base, weight_size)
-        self.simulator.memory_space.write(mask, mask_base, mask.size)
+        self.simulator.memory_space.write(mask_bits, mask_base, mask_bits.size)
         status = self.simulator.run_code(inst_list)
 
         assert status==self.simulator.FINISH
@@ -268,6 +271,7 @@ class TestSimulatorPIMComputeValueSparse:
             [0,0,0,0,0,1,0,0], # 1 input
             [0,0,0,0,0,0,0,0], # 0 input
         ], dtype=bool)
+        mask_bits = tensor_bits_to_int8(mask)
 
         inst_list = [
             # set general register
@@ -312,7 +316,7 @@ class TestSimulatorPIMComputeValueSparse:
 
         self.simulator.memory_space.write(input, input_addr, input_size)
         self.simulator.memory_space.write(weight, macro_base, weight_size)
-        self.simulator.memory_space.write(mask, mask_base, mask.size)
+        self.simulator.memory_space.write(mask_bits, mask_base, mask_bits.size)
         status = self.simulator.run_code(inst_list)
 
         assert status==self.simulator.FINISH
@@ -364,6 +368,7 @@ class TestSimulatorPIMComputeValueSparse:
             [0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,1,0],
         ]], dtype=bool)
+        mask_bits = tensor_bits_to_int8(mask)
 
         inst_list = [
             # set general register
@@ -393,7 +398,7 @@ class TestSimulatorPIMComputeValueSparse:
             ),
 
             self.inst_util.general_li(2, 1), # activate row
-            self.inst_util.special_li(SpecialReg.VALUE_SPARSE_MASK_ADDR, mask_addr + 32),
+            self.inst_util.special_li(SpecialReg.VALUE_SPARSE_MASK_ADDR, mask_addr + 32 // 8),
             self.inst_util.pimcompute_value_sparse(
                 1, # accumulate
                 0, # rs1 input addr
@@ -425,7 +430,7 @@ class TestSimulatorPIMComputeValueSparse:
 
         self.simulator.memory_space.write(input, input_addr, input_size)
         self.simulator.memory_space.write(weight, macro_base, weight_size)
-        self.simulator.memory_space.write(mask, mask_base, mask.size)
+        self.simulator.memory_space.write(mask_bits, mask_base, mask_bits.size)
         status = self.simulator.run_code(inst_list)
 
         assert status==self.simulator.FINISH
@@ -437,7 +442,7 @@ if __name__=="__main__":
     TestSimulatorPIMComputeValueSparse.setup_class()
     test_simulator = TestSimulatorPIMComputeValueSparse()
     test_simulator.setup_method()
-    test_simulator.test_pimcompute_value_sparse_single_group_accumulate_notalign()
-    # test_simulator.test_pimcompute_dense_multi_group_accumulate_fix_step()
+    # test_simulator.test_pimcompute_value_sparse_single_group()
+    test_simulator.test_pimcompute_value_sparse_single_group_accumulate()
     # test_simulator.test_pimcompute_dense_single_group_accumulate()
     # test_simulator.test_pimcompute_dense_single_group_part()

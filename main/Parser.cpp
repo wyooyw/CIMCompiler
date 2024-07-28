@@ -938,7 +938,9 @@ void MLIRGenImpl::parse_bulitin_special_reg_set(const boost::property_tree::ptre
     mlir::Type MLIRGenImpl::parse_datatype(std::string datatype){
         std::cout << "parse_datatype" << std::endl;
 
-        if(datatype=="int8"){
+        if(datatype=="int1"){
+            return builder.getI1Type();
+        }else if(datatype=="int8"){
             return builder.getI8Type();
         }else if(datatype=="int32"){
             return builder.getI32Type();

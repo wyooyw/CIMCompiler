@@ -80,6 +80,7 @@ class TestHelper:
 
     def get_image(self, simulator):
         import numpy as np
+        from utils.df_layout import tensor_bits_to_int8
         """
         
         """
@@ -97,10 +98,13 @@ class TestHelper:
 
         assert (self.mask.sum(axis=2) <= simulator.mask_config.n_to).all(), f"{self.mask.sum(axis=2)=}, {simulator.mask_config.n_to=}"
 
+        assert self.mask.shape[-1] % 8 == 0, f"{self.mask.shape=}"
+        mask_bits = self.mask.reshape(*self.mask.shape[:2], self.mask.shape[-1]//8, 8)
+        mask_bits = tensor_bits_to_int8(mask_bits)
 
         input_data = bytearray(self.input_data)
         converted_weight_bytes = bytearray(self.converted_weight)
-        mask_bytes = bytearray(self.mask)
+        mask_bytes = bytearray(mask_bits)
         index_bytes = bytearray(self.index)
         tile_list_bytes = bytearray(self.tile_list)
 
