@@ -1073,7 +1073,10 @@ static void mappingRegisterLogicalToPhysical(
     
     std::unordered_map<string, int> replace;
     for (const auto& [key, value] : inst) {
-      if(isPrefix(key, "rs") || isPrefix(key, "rd")){
+      bool is_special_assign = isSpecialAssign(inst);
+      bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
+
+      if(is_reg_general){
         replace[key] = logical_to_physical_mapping[value];
       }
     }
