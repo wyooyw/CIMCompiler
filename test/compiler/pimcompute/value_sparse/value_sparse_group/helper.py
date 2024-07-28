@@ -1,4 +1,11 @@
 class TestHelper:
+    def __init__(self):
+        self.out_channel = 64
+        self.ker_size = 3
+        self.in_channel = 16
+        self.in_hw = 4
+        self.out_hw = 2
+
     def _prepare_weight_data(self):
         import numpy as np
         """
@@ -6,12 +13,16 @@ class TestHelper:
         input: 32 * 8 * 8
         """
         # make a weight
-        weight = np.zeros((32, 3 * 3 * 32), dtype=np.int8)
-        for i in range(0,32,2):
-            weight[i:i+2, i:i+64] = np.arange(1+i,1+i+64, dtype=np.int8)
+        # weight = np.zeros((self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        # for i in range(0,self.out_channel,2):
+        #     weight[i:i+2, i:i+99*2:2] = np.arange(1+i,1+i+99, dtype=np.int8)
+            # weight[i:i+2, 256:3*3*32] = np.arange(0,3*3*32-256, dtype=np.int8)
 
         # print(weight.shape)
         # print(weight)
+        weight = np.random.randint(-100, 100, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        mask = np.random.randint(-1, 2, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        weight = weight * mask
 
         return weight
 
@@ -39,27 +50,29 @@ class TestHelper:
         print(f"{converted_weight.shape=}, {converted_weight.dtype=}")
         # print(converted_weight)
         print(f"{index.shape=}, {index.dtype=}")
-        # print(index)
+        print(index)
         print(f"{tile_list.shape=}, {tile_list.dtype=}")
-        # print(tile_list)
-        # import pdb; pdb.set_trace()
+        print(tile_list)
+        print(f"mask: {mask.shape=}, {mask.dtype=}")
+        # print(mask)
+        import pdb; pdb.set_trace()
         return converted_weight, mask, index, tile_list
 
     def _prepare_input_data(self):
         import numpy as np
-        input_data = np.arange(0,64, dtype=np.int8).reshape(8,8,1).repeat(32, axis=2)
-        assert input_data.shape==(8,8,32), f"{input_data.shape=}"
+        input_data = np.arange(0,self.in_hw*self.in_hw, dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        assert input_data.shape==(self.in_hw,self.in_hw,self.in_channel), f"{input_data.shape=}"
         return input_data
 
     def _calculate_golden(self):
         import numpy as np
-        output_h = output_w = 6
-        output_c = 32
+        output_h = output_w = self.out_hw
+        output_c = self.out_channel
 
         output = np.zeros((output_h, output_w, output_c), dtype=np.int32)
         for row in range(output_h):
             for col in range(output_w):
-                input = self.input_data[row:row+3,col:col+3,:].reshape(-1,1)
+                input = self.input_data[row:row+self.ker_size,col:col+self.ker_size,:].reshape(-1,1)
                 weight = self.weight_data
                 golden = np.matmul(weight.astype(np.int32), input.astype(np.int32))
                 output[row,col,:] = golden.reshape(-1)
@@ -112,8 +125,9 @@ class TestHelper:
         """
         global_offset = memory_space.get_base_of("global")
         output_offset = global_offset + self.output_offset
-        output = memory_space.read_as(output_offset, 6*6*32*4, np.int32)
-        output = output.reshape(6,6,32)
+        output_byte_size = self.out_hw * self.out_hw * self.out_channel * 4
+        output = memory_space.read_as(output_offset, output_byte_size, np.int32)
+        output = output.reshape(self.out_hw, self.out_hw, self.out_channel)
         # output = np.frombuffer(image[self.output_offset: self.output_offset+6*6*32*4], dtype=np.int32)
         golden = self._calculate_golden()
         assert np.array_equal(output,golden), f"{output=}, {golden=}"
@@ -145,13 +159,13 @@ class TestHelper:
         n_macro_reduce = n_row * n_comp
         mask_base = simulator.memory_space.get_base_of("pim_mask_data_reg_buffer")
         context = {
-            'OUTPUT_CHANNEL': 32,
-            'INPUT_ROW': 8,
-            'INPUT_COL': 8,
-            'INPUT_CHANNEL': 32,
-            'OUTPUT_ROW': 6,
-            'OUTPUT_COL': 6,
-            'KERNEL_SIZE': 3,
+            'OUTPUT_CHANNEL': self.out_channel,
+            'INPUT_ROW': self.in_hw,
+            'INPUT_COL': self.in_hw,
+            'INPUT_CHANNEL': self.in_channel,
+            'OUTPUT_ROW': self.out_hw,
+            'OUTPUT_COL': self.out_hw,
+            'KERNEL_SIZE': self.ker_size,
             'PADDING': 0,
             'STRIDE': 1,
 
@@ -170,7 +184,8 @@ class TestHelper:
 
             'INDEX_LENGTH': self.index.shape[0],
             'FROM_OVER_TO': mask_config.n_from // mask_config.n_to,
-            'VALUE_SPARSE_MASK_BASE_ADDR': mask_base
+            'VALUE_SPARSE_MASK_BASE_ADDR': mask_base,
+            'OUT_SPATIAL_TILE_LENGTH' : self.tile_list.shape[0]
         }
 
         # 渲染模板
