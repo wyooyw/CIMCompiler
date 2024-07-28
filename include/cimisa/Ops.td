@@ -67,6 +67,17 @@ def CIMComputeOp : CIMISA_Op<"cim_compute"> {
 
 }
 
+def CIMOutputOp : CIMISA_Op<"cim_output"> {
+  let summary = "cim output and clear";
+  let description = [{
+    cim output and clear
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$output_addr
+  );
+
+}
 
 /////////////////////////////////
 // Other Operator //

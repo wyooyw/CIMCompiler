@@ -401,6 +401,26 @@ static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash
   instr_list.push_back(inst);
 }
 
+
+static void codeGen(mlir::cimisa::CIMOutputOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+    std::set<int> &def, std::set<int> &use){
+  /*
+
+  */
+  int output_addr_reg = getReg(regmap, op.getOperand());
+  use.insert(output_addr_reg);
+  Inst inst = {
+    {"class", 0b00},
+    {"type", 0b10},
+    {"outsum_move", 0},
+    {"outsum", 0},
+    // {"rs1", input_addr_reg},
+    // {"rs2", input_size_reg},
+    {"rd", output_addr_reg},
+  };
+  instr_list.push_back(inst);
+}
+
 /*
   ControlFlow
   BranchOp, CondBranchOp
@@ -674,6 +694,8 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
       }else if(auto _op = dyn_cast<mlir::cimisa::VVAddOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::CIMOutputOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::TransOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);

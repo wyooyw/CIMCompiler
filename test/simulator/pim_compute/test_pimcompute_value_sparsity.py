@@ -17,8 +17,8 @@ def init_memory_space(macro_config):
     memory_space = MemorySpace()
     global_memory = Memory("global_memory", "dram", 0, 128)
     local_memory = Memory("local_memory", "sram", 128, 128)
-    input_buffer = Memory("input_buffer", "rf", 256, 64)
-    output_buffer = Memory("output_buffer", "rf", 320, 64)
+    input_buffer = Memory("pim_input_reg_buffer", "rf", 256, 64)
+    output_buffer = Memory("pim_output_reg_buffer", "rf", 320, 64)
     macro = Memory("macro", "macro", output_buffer.end, macro_config.total_size())
     mask = Memory("mask", "rf", macro.end, 64)
     memory_space.add_memory(global_memory)
@@ -56,8 +56,8 @@ class TestSimulatorPIMComputeValueSparse:
         y: int32, shape=[8], memory=local, addr=OUTPUT_BUFFER_BASE, size=32
         """
 
-        input_buffer_base = self.simulator.memory_space.get_base_of("input_buffer")
-        output_buffer_base = self.simulator.memory_space.get_base_of("output_buffer")
+        input_buffer_base = self.simulator.memory_space.get_base_of("pim_input_reg_buffer")
+        output_buffer_base = self.simulator.memory_space.get_base_of("pim_output_reg_buffer")
         macro_base = self.simulator.memory_space.get_base_of("macro")
         mask_base = self.simulator.memory_space.get_base_of("mask")
 
@@ -100,7 +100,8 @@ class TestSimulatorPIMComputeValueSparse:
                 1, # rs2 input size
                 2, # rs3 activate row
                 3, # rd output addr
-            )
+            ),
+            self.inst_util.pim_output_dense(3)
         ]
         input = np.arange(input_size, dtype=np.int8)
         weight = np.arange(weight_size, dtype=np.int8).reshape(4,4,2)
@@ -145,8 +146,8 @@ class TestSimulatorPIMComputeValueSparse:
         y: int32, shape=[8], memory=local, addr=OUTPUT_BUFFER_BASE, size=32
         """
 
-        input_buffer_base = self.simulator.memory_space.get_base_of("input_buffer")
-        output_buffer_base = self.simulator.memory_space.get_base_of("output_buffer")
+        input_buffer_base = self.simulator.memory_space.get_base_of("pim_input_reg_buffer")
+        output_buffer_base = self.simulator.memory_space.get_base_of("pim_output_reg_buffer")
         macro_base = self.simulator.memory_space.get_base_of("macro")
         mask_base = self.simulator.memory_space.get_base_of("mask")
 
@@ -204,7 +205,8 @@ class TestSimulatorPIMComputeValueSparse:
                 1, # rs2 input size
                 2, # rs3 activate row
                 3, # rd output addr
-            )
+            ),
+            self.inst_util.pim_output_dense(3)
         ]
         input = np.arange(input_size, dtype=np.int8)
         weight = np.arange(weight_size, dtype=np.int8).reshape(2,4,4,2)
@@ -248,8 +250,8 @@ class TestSimulatorPIMComputeValueSparse:
         y: int32, shape=[8], memory=local, addr=OUTPUT_BUFFER_BASE, size=32
         """
 
-        input_buffer_base = self.simulator.memory_space.get_base_of("input_buffer")
-        output_buffer_base = self.simulator.memory_space.get_base_of("output_buffer")
+        input_buffer_base = self.simulator.memory_space.get_base_of("pim_input_reg_buffer")
+        output_buffer_base = self.simulator.memory_space.get_base_of("pim_output_reg_buffer")
         macro_base = self.simulator.memory_space.get_base_of("macro")
         mask_base = self.simulator.memory_space.get_base_of("mask")
 
@@ -292,7 +294,8 @@ class TestSimulatorPIMComputeValueSparse:
                 1, # rs2 input size
                 2, # rs3 activate row
                 3, # rd output addr
-            )
+            ),
+            self.inst_util.pim_output_dense(3)
         ]
         input = np.arange(input_size, dtype=np.int8)
         weight = np.arange(weight_size, dtype=np.int8).reshape(4,4,2)
@@ -338,8 +341,8 @@ class TestSimulatorPIMComputeValueSparse:
         y: int32, shape=[8], memory=local, addr=OUTPUT_BUFFER_BASE, size=32
         """
 
-        input_buffer_base = self.simulator.memory_space.get_base_of("input_buffer")
-        output_buffer_base = self.simulator.memory_space.get_base_of("output_buffer")
+        input_buffer_base = self.simulator.memory_space.get_base_of("pim_input_reg_buffer")
+        output_buffer_base = self.simulator.memory_space.get_base_of("pim_output_reg_buffer")
         macro_base = self.simulator.memory_space.get_base_of("macro")
         mask_base = self.simulator.memory_space.get_base_of("mask")
 
@@ -397,7 +400,8 @@ class TestSimulatorPIMComputeValueSparse:
                 1, # rs2 input size
                 2, # rs3 activate row
                 3, # rd output addr
-            )
+            ),
+            self.inst_util.pim_output_dense(3)
         ]
         input = np.arange(input_size, dtype=np.int8)
         weight = np.arange(weight_size, dtype=np.int8).reshape(2,4,4,2)

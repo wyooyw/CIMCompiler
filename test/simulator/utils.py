@@ -138,6 +138,20 @@ class InstUtil:
             "rd": rd
         }
 
+    def pim_output_dense(self, output_addr):
+        return self.pim_output(0, 0, 0, 0, output_addr)
+
+    def pim_output(self, outsum_move, outsum, out_n, output_mask_addr, output_addr):
+        return {
+            "class": 0b00,
+            "type": 0b10,
+            "outsum_move":outsum_move,
+            "outsum":outsum,
+            "rs1":out_n,
+            "rs2":output_mask_addr,
+            "rd": output_addr
+        }
+
     def simd_vvadd(self, rs1, rs2, rs3, rd):
         return self.simd(0x00, 0b01, rs1, rs2, rs3, rd)
 

@@ -35,8 +35,9 @@ class InstClass(Enum):
     DEBUG_CLASS = -1
 
 class PIMInstType(Enum):
-    PIM_COMPUTE = 0 # 0b0
-    PIM_BATCH = 1 # 0b1
+    PIM_COMPUTE = 0 # 0b00
+    PIM_BATCH = 1 # 0b01
+    PIM_OUTPUT = 2 # 0b10
 
 class ScalarInstType(Enum):
     RR = 0          # 0b00
@@ -258,6 +259,27 @@ class Simulator:
 
         self.print_record = list()
 
+        self._add_internel_macro_output_buffer()
+
+    def _add_internel_macro_output_buffer(self):
+        """
+        This is an internal memory for doing accumulate for macro's output
+        """
+        if self.memory_space.get_memory_by_name("pim_output_reg_buffer") is None:
+            print("[Warning] Can't find pim_output_reg_buffer. Make sure the code has no macro-related instruction.")
+            return
+        end_memory = self.memory_space.memory_space[-1]
+        end_offset = end_memory.offset + end_memory.size
+        output_buffer_size = self.memory_space.get_memory_by_name("pim_output_reg_buffer").size
+        internel_macro_output_buffer = Memory(
+            "internel_macro_output_reg_buffer",
+            "reg_buffer",
+            offset=end_offset,
+            size=output_buffer_size
+        )
+        print("end_offset=", end_offset)
+        self.memory_space.add_memory(internel_macro_output_buffer)
+
     @classmethod
     def from_config(cls, config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json"):
         with open(config_path, 'r') as f:
@@ -357,6 +379,8 @@ class Simulator:
         inst_type = inst["type"]
         if inst_type==PIMInstType.PIM_COMPUTE.value:
             self._run_pim_class_pim_compute_type_inst(inst)
+        elif inst_type==PIMInstType.PIM_OUTPUT.value:
+            self._run_pim_class_pim_output_type_inst(inst)
         else:
             assert False, f"Not support"
 
@@ -761,7 +785,7 @@ class Simulator:
         input_offset = self.read_general_reg(inst["rs1"])
         input_size = self.read_general_reg(inst["rs2"])
         activate_row = self.read_general_reg(inst["rs3"])
-        output_offset = self.read_general_reg(inst["rd"])
+        # output_offset = self.read_general_reg(inst["rd"])
         input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
@@ -826,6 +850,7 @@ class Simulator:
         # Save output
         n_macro_per_group = group_size
         group_output_step = self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
+        output_offset = self.memory_space.get_base_of("internel_macro_output_reg_buffer")
         for group_id in range(activation_group_num):
             output_data = group_output_data[group_id]
             output_byte_size = output_data.size * output_bw // 8
@@ -837,6 +862,26 @@ class Simulator:
                 output_data_ori = self.memory_space.read_as(group_output_offset, output_byte_size, out_dtype)
                 output_data = output_data + output_data_ori
             self.memory_space.write(output_data, group_output_offset, output_byte_size)
+
+    def _run_pim_class_pim_output_type_inst(self, inst):
+        outsum_move = inst["outsum_move"]
+        outsum = inst["outsum"]
+        if outsum_move or outsum:
+            assert False, "Not support yet!"
+        
+        # out_n = self.read_general_reg(inst["rs1"])
+        dst_offset = self.read_general_reg(inst["rd"])
+        
+        internel_buffer = self.memory_space.get_memory_by_name("internel_macro_output_reg_buffer")
+        src_offset, size = internel_buffer.offset, internel_buffer.size
+
+        self.memory_space.check_memory_type(src_offset, size, ["rf","reg_buffer","sram"])
+        self.memory_space.check_memory_type(dst_offset, size, ["rf","reg_buffer","sram"])
+
+        data = self.memory_space.read(src_offset, size)
+        self.memory_space.write(data, dst_offset, size)
+
+        internel_buffer.clear()
 
     def _run_debug_class_inst(self, inst):
         if inst["type"]==0: #print

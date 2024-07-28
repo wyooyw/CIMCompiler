@@ -180,4 +180,15 @@ def SpecialRegSetOp : CIM_Op<"special_reg_set"> {
   let arguments = (ins AnyTypeOf<[AnyInteger, Index]>:$special_reg, AnyTypeOf<[AnyInteger, Index]>:$set_value); // TODO: which type can represent any Tensor?
 }
 
+def CIMOutputOp : CIM_Op<"cim_output"> {
+  let summary = "cim output and clear";
+  let description = [{
+    cim output and clear
+  }];
+
+  let arguments = (ins AnyMemRef:$dst);
+
+  let hasFolder = 1;
+}
+
 #endif // CIM_OPS

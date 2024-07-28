@@ -123,6 +123,7 @@ private:
     void parse_bulitin_cimcompute_bit_sparse(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimcompute_value_bit_sparse(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimcompute(const boost::property_tree::ptree& ast, bool value_sparse, bool bit_sparse);
+    void parse_bulitin_cimoutput(const boost::property_tree::ptree& ast);
     void parse_bulitin_special_reg_set(const boost::property_tree::ptree& ast);
     // mlir::Value parse_bulitin_reshape(const boost::property_tree::ptree& ast);
 

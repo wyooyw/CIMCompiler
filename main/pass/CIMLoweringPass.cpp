@@ -481,6 +481,26 @@ namespace {
         return success();
       }
     };
+
+    struct CIMOutputOpLowering : public OpRewritePattern<cim::CIMOutputOp> {
+      using OpRewritePattern<cim::CIMOutputOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::CIMOutputOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "CIMOutputOpLowering::matchAndRewrite begin" << std::endl;
+        Value addr_dst = getAddrValue(op.getOperand(), rewriter);
+        if (!addr_dst) {
+          std::cerr << "CIMOutputOpLowering::matchAndRewrite fail" << std::endl;
+          std::exit(1);
+        }
+        rewriter.replaceOpWithNewOp<cimisa::CIMOutputOp>(op, addr_dst);
+        std::cout << "CIMOutputOpLowering::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
 }
 
 
@@ -527,7 +547,7 @@ void CIMLoweringPass::runOnOperation() {
   // the set of patterns that will lower the Toy operations.
   RewritePatternSet patterns(&getContext());
   patterns.add<TransOpLowering,CIMComputeOpLowering,LoadOpLowering,StoreOpLowering,
-              VVAddOpLowering, SpecialRegSetOpLowering>(
+              VVAddOpLowering, SpecialRegSetOpLowering, CIMOutputOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
