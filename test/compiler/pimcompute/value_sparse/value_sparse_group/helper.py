@@ -51,6 +51,20 @@ class TestHelper:
         assert input_data.shape==(8,8,32), f"{input_data.shape=}"
         return input_data
 
+    def _calculate_golden(self):
+        import numpy as np
+        output_h = output_w = 6
+        output_c = 32
+
+        output = np.zeros((output_h, output_w, output_c), dtype=np.int32)
+        for row in range(output_h):
+            for col in range(output_w):
+                input = self.input_data[row:row+3,col:col+3,:].reshape(-1,1)
+                weight = self.weight_data
+                golden = np.matmul(weight.astype(np.int32), input.astype(np.int32))
+                output[row,col,:] = golden.reshape(-1)
+        return output
+
     def get_image(self, simulator):
         import numpy as np
         """
@@ -84,10 +98,11 @@ class TestHelper:
         print(f"{self.tile_list.shape=}, {self.tile_list.dtype=}, byte_size={len(tile_list_bytes)}")
         # import pdb; pdb.set_trace()
         image = input_data + converted_weight_bytes + mask_bytes + index_bytes + tile_list_bytes
+        self.output_offset = len(image)
         # image = input_data + index_bytes + tile_list_bytes
         return image
     
-    def check_image(self, image):
+    def check_image(self, memory_space):
         import numpy as np
         """
         image should have:
@@ -95,10 +110,13 @@ class TestHelper:
         weight (32 * 1 byte)
         output (8 * 4 byte)
         """
-        return
-        # output = np.frombuffer(image[36:68], dtype=np.int32)
-        # golden = np.dot(self.input.astype(np.int32), self.weight.astype(np.int32))
-        # assert np.array_equal(output,golden), f"{output=}, {golden=}"
+        global_offset = memory_space.get_base_of("global")
+        output_offset = global_offset + self.output_offset
+        output = memory_space.read_as(output_offset, 6*6*32*4, np.int32)
+        output = output.reshape(6,6,32)
+        # output = np.frombuffer(image[self.output_offset: self.output_offset+6*6*32*4], dtype=np.int32)
+        golden = self._calculate_golden()
+        assert np.array_equal(output,golden), f"{output=}, {golden=}"
 
     def fill_template(self, src_path, dst_path, simulator):
         from jinja2 import Environment, FileSystemLoader, StrictUndefined

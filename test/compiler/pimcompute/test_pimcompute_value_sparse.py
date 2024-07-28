@@ -53,8 +53,24 @@ def debug_hook(simulator, helper):
         golden = np.matmul(weight.astype(np.int32), input.astype(np.int32))
         print(f"{row=}, {col=}, {golden.shape=}:")
         print(golden.reshape(-1))
-    # see_macro(0)
-    
+
+    def see_output_memory():
+        output_memory = simulator.memory_space.get_memory_by_name("output_memory")
+        output = simulator.memory_space.read_as(output_memory.offset, 6*6*32*4, np.int32)
+        output = output.reshape(6,6,32)
+        print(output)
+
+    def see_output_and_golden():
+        golden = helper._calculate_golden()
+
+        output_memory = simulator.memory_space.get_memory_by_name("output_memory")
+        output = simulator.memory_space.read_as(output_memory.offset, 6*6*32*4, np.int32)
+        output = output.reshape(6,6,32)
+
+        print("output:\n", output)
+        print("golden:\n", golden)
+        print(f"{np.array_equal(output, golden)=}")
+
     import pdb; pdb.set_trace()
     pass
 
@@ -73,7 +89,7 @@ class TestPIMComputeValueSparse:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        # ''
+        'value_sparse/value_sparse_group'
         ])
     def test_pim_compute(self, casename):
         case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
@@ -134,7 +150,7 @@ class TestPIMComputeValueSparse:
 
         # check result
         # print_record = self.simulator.print_record
-        # helper.check_image(global_memory.read_all())
+        helper.check_image(self.simulator.memory_space)
 
     # def test_memory_with_image(self):
     #     pass

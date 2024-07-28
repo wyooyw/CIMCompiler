@@ -263,10 +263,22 @@ def main(null<int8>){
                     
                 };
                 // check output of first 4 output pixels.
-                Debug(null);
+                // Debug(null);
+                CIMOutput(pim_output_reg_buffer);
+
+                // TODO: unroll this loop
+                for group_i in range(4) carry (null){
+                    output_buffer_group_i = Slice(pim_output_reg_buffer, [group_i * N_GROUP_VCOL], [N_GROUP_VCOL], [1]);
+                    delta_h = group_i / 2;
+                    delta_w = group_i % 2;
+                    local_output_group_i = Slice(local_output, [oh+delta_h, ow+delta_w, out_channel_begin], [1, 1, N_GROUP_VCOL], [1,1,1]);
+                    Trans(output_buffer_group_i, local_output_group_i);
+                };
             };
         };
     };
+    Trans(local_output, global_output);
+    //Debug(null);
     Trans(global_input,global_input);
     Trans(global_weight,global_weight);
     Trans(global_mask,global_mask);
