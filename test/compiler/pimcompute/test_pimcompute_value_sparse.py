@@ -89,9 +89,14 @@ class TestPIMComputeValueSparse:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        'value_sparse/value_sparse_group'
+        'value_sparse/value_sparse_group' , 'dense/dense_conv2d_group'
         ])
-    def test_pim_compute(self, casename):
+    @pytest.mark.parametrize('op_config',[
+        {"out_channel":32, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        {"out_channel":64, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        {"out_channel":16, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        ])
+    def test_pim_compute(self, casename, op_config):
         case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
         assert os.path.exists(case_dir), f"{case_dir} not exists"
         assert os.path.isdir(case_dir), f"{case_dir} is not a directory"
@@ -118,7 +123,7 @@ class TestPIMComputeValueSparse:
         local_namespace = {}
         exec(code, {}, local_namespace)
         Helper = local_namespace["TestHelper"]
-        helper = Helper()
+        helper = Helper(op_config)
 
         # load image
         image = helper.get_image(self.simulator)
@@ -204,4 +209,4 @@ if __name__=="__main__":
     TestPIMComputeValueSparse.setup_class()
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
-    tester.test_pim_compute("value_sparse/value_sparse_group")
+    tester.test_pim_compute("value_sparse/value_sparse_group", {"out_channel":16, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6})

@@ -1,10 +1,10 @@
 class TestHelper:
-    def __init__(self):
-        self.out_channel = 64
-        self.ker_size = 3
-        self.in_channel = 16
-        self.in_hw = 4
-        self.out_hw = 2
+    def __init__(self, op_config):
+        self.out_channel = op_config["out_channel"]
+        self.ker_size = op_config["ker_size"]
+        self.in_channel = op_config["in_channel"]
+        self.in_hw = op_config["in_hw"]
+        self.out_hw = op_config["out_hw"]
 
     def _prepare_weight_data(self):
         import numpy as np
@@ -55,7 +55,7 @@ class TestHelper:
         print(tile_list)
         print(f"mask: {mask.shape=}, {mask.dtype=}")
         # print(mask)
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         return converted_weight, mask, index, tile_list
 
     def _prepare_input_data(self):

@@ -1,10 +1,10 @@
 class TestHelper:
-    def __init__(self):
-        self.out_channel = 32
-        self.ker_size = 1
-        self.in_channel = 1024
-        self.in_hw = 2
-        self.out_hw = 2
+    def __init__(self, op_config):
+        self.out_channel = op_config["out_channel"]
+        self.ker_size = op_config["ker_size"]
+        self.in_channel = op_config["in_channel"]
+        self.in_hw = op_config["in_hw"]
+        self.out_hw = op_config["out_hw"]
 
     def _prepare_weight_data(self):
         import numpy as np
