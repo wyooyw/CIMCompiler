@@ -650,6 +650,25 @@ static void codeGen(mlir::cimisa::SpecialRegAssignOp op, std::unordered_map<llvm
   CodeGen For Operator Finish!
 */
 
+static void block_dfs(Block *block, std::vector<Block*> &blocks, std::unordered_map<Block*, bool> &blocks_completed){
+  blocks.push_back(block);
+  blocks_completed[block] = true;
+
+  auto terminator = block->getTerminator();
+  if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
+    if (blocks_completed[_op.getFalseDest()]){
+      std::cerr << "Error: false-dest block already completed" << std::endl;
+      std::exit(1);
+    }else{
+      block_dfs(_op.getFalseDest(), blocks, blocks_completed);
+    }
+
+    if (!blocks_completed[_op.getTrueDest()]){
+      block_dfs(_op.getTrueDest(), blocks, blocks_completed);
+    }
+  }
+}
+
 static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
   std::cout << "getBlockList begin" << std::endl;
   auto regions = func->getRegions();
@@ -666,7 +685,8 @@ static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
 
   int block_cnt = 0;
   int total_block_cnt = region.getBlocks().size();
-  while(block_cnt < total_block_cnt){
+  while(blocks.size() < total_block_cnt){
+    Block *selected_block;
     if (block_cnt==0){
 
       // find the block with no predeccessor
@@ -674,8 +694,7 @@ static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
         int num_predecessors = 0;
         for (auto *b : block.getPredecessors()) num_predecessors++;
         if (num_predecessors==0){
-          blocks.push_back(&block);
-          blocks_completed[&block] = true;
+          selected_block = &block;
           break;
         }
       }
@@ -699,8 +718,7 @@ static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
         }
         if (flag){
           find = 1;
-          blocks.push_back(&block);
-          blocks_completed[&block] = true;
+          selected_block = &block;
           break;
         }
       }
@@ -712,28 +730,113 @@ static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
 
     } // end if block_cnt==0
 
-    Block *selected_block = blocks.back();
+    block_dfs(selected_block, blocks, blocks_completed);
 
     // False-dest chain
-    while(true){
-      auto terminator = selected_block->getTerminator();
-      if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
-        if (blocks_completed[_op.getFalseDest()]){
-          std::cerr << "Error: false-dest block already completed" << std::endl;
-          std::exit(1);
-        }
-        blocks.push_back(_op.getFalseDest());
-        blocks_completed[_op.getFalseDest()] = true;
-        selected_block = _op.getFalseDest();
-        block_cnt++;
-      }else{
-        break;
-      }
-    }
+    // while(true){
+    //   auto terminator = selected_block->getTerminator();
+    //   if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
+    //     if (blocks_completed[_op.getFalseDest()]){
+    //       std::cerr << "Error: false-dest block already completed" << std::endl;
+    //       std::exit(1);
+    //     }
+    //     blocks.push_back(_op.getFalseDest());
+    //     blocks_completed[_op.getFalseDest()] = true;
+    //     selected_block = _op.getFalseDest();
+    //     block_cnt++;
+    //   }else{
+    //     break;
+    //   }
+    // }
   }
   std::cout << "getBlockList end" << std::endl;
   return blocks;
 }
+
+// static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
+//   std::cout << "getBlockList begin" << std::endl;
+//   auto regions = func->getRegions();
+//   if (regions.size()>1){
+//     std::cout << "regions.size()" << regions.size() << std::endl;
+//     std::exit(1);
+//   }
+//   Region &region = regions.front();
+//   std::vector<Block*> blocks;
+//   std::unordered_map<Block*, bool> blocks_completed;
+//   for (Block &block : region.getBlocks()){
+//     blocks_completed[&block] = false;
+//   }
+
+//   int block_cnt = 0;
+//   int total_block_cnt = region.getBlocks().size();
+//   while(block_cnt < total_block_cnt){
+//     if (block_cnt==0){
+
+//       // find the block with no predeccessor
+//       for (Block &block : region.getBlocks()){
+//         int num_predecessors = 0;
+//         for (auto *b : block.getPredecessors()) num_predecessors++;
+//         if (num_predecessors==0){
+//           blocks.push_back(&block);
+//           blocks_completed[&block] = true;
+//           break;
+//         }
+//       }
+//       block_cnt = 1;
+
+//     }else{
+
+//       // find the block with no false-dest predecessor
+//       int find = 0;
+//       for (Block &block : region.getBlocks()){
+//         if (blocks_completed[&block]) continue;
+//         int flag = 1;
+//         for (auto *b : block.getPredecessors()){
+//           auto terminator = b->getTerminator();
+//           if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
+//             if (_op.getFalseDest()==&block){
+//               flag = 0;
+//               break;
+//             }
+//           }
+//         }
+//         if (flag){
+//           find = 1;
+//           blocks.push_back(&block);
+//           blocks_completed[&block] = true;
+//           break;
+//         }
+//       }
+//       if (!find){
+//         std::cout << "can't find block with no false-dest predecessor" << std::endl;
+//         std::exit(1);
+//       }
+//       block_cnt++;
+
+//     } // end if block_cnt==0
+
+//     Block *selected_block = blocks.back();
+
+//     // False-dest chain
+//     while(true){
+//       auto terminator = selected_block->getTerminator();
+//       if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
+//         if (blocks_completed[_op.getFalseDest()]){
+//           std::cerr << "Error: false-dest block already completed" << std::endl;
+//           std::exit(1);
+//         }
+//         blocks.push_back(_op.getFalseDest());
+//         blocks_completed[_op.getFalseDest()] = true;
+//         selected_block = _op.getFalseDest();
+//         block_cnt++;
+//       }else{
+//         break;
+//       }
+//     }
+//   }
+//   std::cout << "getBlockList end" << std::endl;
+//   return blocks;
+// }
 
 static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_code, int > &regmap, 
           std::vector<Inst>& instr_list, 
@@ -961,6 +1064,7 @@ static std::unordered_map<llvm::hash_code, int > getRegisterMapping(mlir::func::
 
   // _getRegisterMappingAliasBetweenBasicBlock(func, mapping, reg_cnt);
   _getRegisterMappingForBlockArgs(func, mapping, reg_cnt);
+  std::cout << "_getRegisterMappingForBlockArgs:" << reg_cnt << std::endl;
   _getRegisterMappingGeneral(func, mapping, reg_cnt);
   std::cout << "getRegisterMapping finish" << std::endl;
   return mapping;

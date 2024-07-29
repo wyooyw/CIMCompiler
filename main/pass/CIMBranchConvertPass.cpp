@@ -57,14 +57,23 @@ namespace {
         }
         
         Block* false_block = op.getFalseDest();
-        int num_predecessors = 0;
-        int num_successors = 0;
-        for (auto *b : false_block->getPredecessors()) num_predecessors++;
-        for (auto *b : false_block->getSuccessors()) num_successors++;
-        std::cout << "num_predecessors=" << num_predecessors << "num_successors=" << num_successors << std::endl;
-        if (num_predecessors==1 && num_successors > 0){
-          return failure();
+        // if the false_block is a block with only one jump, then return
+        int i = 0;
+        for (Operation &op_obj : false_block->getOperations()){
+          Operation *op = &op_obj;
+          if (auto _op = dyn_cast<mlir::cf::BranchOp>(op)){
+            return failure();
+          }
+          break;
         }
+        // int num_predecessors = 0;
+        // int num_successors = 0;
+        // for (auto *b : false_block->getPredecessors()) num_predecessors++;
+        // for (auto *b : false_block->getSuccessors()) num_successors++;
+        // std::cout << "num_predecessors=" << num_predecessors << "num_successors=" << num_successors << std::endl;
+        // if (num_predecessors==1 && num_successors > 0){
+        //   return failure();
+        // }
         SmallVector<Type, 8> argTypes;
         SmallVector<Location, 8> argLocs;
         auto block_arguments = false_block->getArguments();
