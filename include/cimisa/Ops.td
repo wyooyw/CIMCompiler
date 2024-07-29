@@ -129,7 +129,21 @@ def StoreOp : CIMISA_Op<"store"> {
 
   let arguments = (ins
     AnyTypeOf<[AnyInteger, Index]>:$dst_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$value,
+    IndexAttr:$constant
+  );
+}
+def StoreBaseAndOffsetOp : CIMISA_Op<"store_base_and_offset"> {
+  let summary = "trans";
+  let description = [{
+    store
+  }];
+
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$base, 
+    AnyTypeOf<[AnyInteger, Index]>:$offset, 
     AnyTypeOf<[AnyInteger, Index]>:$value
+    //IndexAttr:$imm
   );
 }
 // TODO: mark source addr is global or local.
@@ -140,11 +154,34 @@ def LoadOp : CIMISA_Op<"load"> {
   }];
 
   let arguments = (ins
-    AnyTypeOf<[AnyInteger, Index]>:$src_addr
+    AnyTypeOf<[AnyInteger, Index]>:$src_addr,
+    IndexAttr:$constant
   );
   let results = (outs AnyTypeOf<[AnyInteger, Index]>);
 }
+def LoadBaseAndOffsetOp : CIMISA_Op<"load_base_and_offset"> {
+  let summary = "trans";
+  let description = [{
+    load
+  }];
 
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$base, 
+    AnyTypeOf<[AnyInteger, Index]>:$offset
+  );
+  let results = (outs AnyTypeOf<[AnyInteger, Index]>);
+}
+def GeneralRegLiOp : CIMISA_Op<"general_reg_li", [Pure]> {
+  let summary = "load immediate into general reg";
+  let description = [{
+    load immediate into general reg
+  }];
+
+  let arguments = (ins
+    IndexAttr:$value
+  );
+  let results = (outs AnyTypeOf<[AnyInteger, Index]>);
+}
 def SpecialRegLiOp : CIMISA_Op<"special_reg_li"> {
   let summary = "load immediate into special reg";
   let description = [{
@@ -167,4 +204,79 @@ def SpecialRegAssignOp : CIMISA_Op<"special_reg_assign"> {
     AnyTypeOf<[AnyInteger, Index]>:$set_value
   );
 }
+
+// RI Ops
+
+def RIAddIOp : CIMISA_Op<"ri_addi",[Pure]> {
+  let summary = "ri_addi";
+  let description = [{
+    ri_addi
+  }];
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$value,
+    IndexAttr:$constant
+  );
+  let results = (outs AnyTypeOf<[AnyInteger, Index]>);
+}
+
+def RISubIOp : CIMISA_Op<"ri_subi",[Pure]> {
+  let summary = "ri_subi";
+  let description = [{
+    ri_subi
+  }];
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$value,
+    IndexAttr:$constant
+  );
+  let results = (outs AnyTypeOf<[AnyInteger, Index]>);
+}
+
+def RIMulIOp : CIMISA_Op<"ri_muli",[Pure]> {
+  let summary = "ri_muli";
+  let description = [{
+    ri_muli
+  }];
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$value,
+    IndexAttr:$constant
+  );
+  let results = (outs AnyTypeOf<[AnyInteger, Index]>);
+}
+
+def RIDivSIOp : CIMISA_Op<"ri_divsi",[Pure]> {
+  let summary = "ri_divsi";
+  let description = [{
+    ri_divsi
+  }];
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$value,
+    IndexAttr:$constant
+  );
+  let results = (outs AnyTypeOf<[AnyInteger, Index]>);
+}
+
+def RIRemSIOp : CIMISA_Op<"ri_remsi",[Pure]> {
+  let summary = "ri_remsi";
+  let description = [{
+    ri_remsi
+  }];
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$value,
+    IndexAttr:$constant
+  );
+  let results = (outs AnyTypeOf<[AnyInteger, Index]>);
+}
+
+def RIMinSIOp : CIMISA_Op<"ri_minsi",[Pure]> {
+  let summary = "ri_minsi";
+  let description = [{
+    ri_minsi
+  }];
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$value,
+    IndexAttr:$constant
+  );
+  let results = (outs AnyTypeOf<[AnyInteger, Index]>);
+}
+
 #endif // CIMISA_OPS

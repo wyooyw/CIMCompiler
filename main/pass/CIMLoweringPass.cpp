@@ -191,6 +191,60 @@ static Value getAddrValue(Value operand, PatternRewriter &rewriter){
   
 }
 
+static std::pair<Value,Value> getAddrBaseAndOffsetValue(Value operand, PatternRewriter &rewriter){
+  if(auto alloc_op = operand.getDefiningOp<memref::AllocOp>()){
+    mlir::Value base = getBufferBaseAddr(alloc_op.getResult(), rewriter);
+    mlir::Value offset = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 0);
+    return std::make_pair(base, offset);
+  }else if(auto subViewOp = operand.getDefiningOp<memref::SubViewOp>()){
+    auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
+    if (!allocOp){
+      std::cout << "getAddrValue allocOp==nullptr" << std::endl;
+      std::exit(1);
+    }
+    llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
+    SmallVector<OpFoldResult> offsets = subViewOp.getMixedOffsets();
+    
+    Value addr_offset = getValue(offsets[0], rewriter);
+    for(int i = 1; i<offsets.size(); i++){
+      if(Value offset_i = getValue(offsets[i],rewriter)){
+        Value shape_i = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[i]);
+        Value mul = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, shape_i);
+        Value add = rewriter.create<arith::AddIOp>(rewriter.getUnknownLoc(), mul, offset_i);
+        addr_offset = add;
+      }else{
+        std::cout << "Can't get value!" << std::endl;
+        std::exit(1);
+      }
+    }
+    int64_t bitwidth = getBitWidthMemRefOperand(operand);
+    Value byte_addr_offset;
+    if(bitwidth == 1){
+      Value bytewidth_reciprocal_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 8);
+      // we assume that addr_offset is multiple of 8 
+      byte_addr_offset = rewriter.create<arith::DivSIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_reciprocal_value);
+    }else if(bitwidth >= 8 && bitwidth%8==0){
+      int64_t bytewidth = bitwidth / 8;
+      Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+      byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
+    }else{
+      std::cerr << "Wrong bitwidth: " << bitwidth << std::endl;
+      std::exit(1);
+    }
+    // int64_t bytewidth = bitwidth / 8;
+    // Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+    // Value byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
+    
+    mlir::Value addr_base = getBufferBaseAddr(allocOp.getResult(), rewriter);
+    // mlir::Value real_address = rewriter.create<arith::AddIOp>(rewriter.getUnknownLoc(), addr_base, byte_addr_offset);
+    return std::make_pair(addr_base, byte_addr_offset);
+  }else{
+    std::cout << "getAddrValue fail" << std::endl;
+    std::exit(1);
+  }
+  
+}
+
 static Value getLengthValue(Value operand, PatternRewriter &rewriter){
   if(auto allocOp = operand.getDefiningOp<memref::AllocOp>()){
 
@@ -329,6 +383,20 @@ static IntegerAttr getI1IntegerAttr(int32_t value, PatternRewriter &rewriter) {
   return IntegerAttr::get(rewriter.getIntegerType(1), APInt(1, value));
 }
 
+static bool isConstant(Value operand){
+    return operand.getDefiningOp<arith::ConstantOp>();
+}
+
+static IntegerAttr getConstantInt(Value operand){
+    if(auto constantOp = operand.getDefiningOp<arith::ConstantOp>()){
+        return constantOp.getValue().cast<IntegerAttr>();
+    }else{
+        std::cerr << "getConstantInt fail" << std::endl;
+        std::exit(1);
+        return 0;
+    }
+}
+
 // why need this namespace ?
 namespace {
 
@@ -341,9 +409,12 @@ namespace {
           Now, all index of load is 0.
         */
         std::cout << "LoadOpLowering::matchAndRewrite 1" << std::endl;
-        Value addr_src = getAddrValue(op.getOperand(0), rewriter);
+        // Value addr_src = getAddrValue(op.getOperand(0), rewriter);
+        std::pair<Value, Value> base_and_offset = getAddrBaseAndOffsetValue(op.getOperand(0), rewriter);
+        Value base = base_and_offset.first;
+        Value offset = base_and_offset.second;
         std::cout << "LoadOpLowering::matchAndRewrite 4" << std::endl;
-        if (!addr_src) {
+        if (!base | !offset) {
           std::cout << "LoadOpLowering::matchAndRewrite fail" << std::endl;
           return failure();
         }
@@ -351,7 +422,7 @@ namespace {
 
         MemRefType memtype = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
         Type type = memtype.getElementType();
-        mlir::cimisa::LoadOp new_op = rewriter.create<mlir::cimisa::LoadOp>(op.getLoc(), type, addr_src);
+        auto new_op = rewriter.create<mlir::cimisa::LoadBaseAndOffsetOp>(op.getLoc(), type, base, offset);
         rewriter.replaceOp(op, {new_op.getResult()});
         // rewriter.replaceOpWithNewOp<mlir::cimisa::LoadOp>(op, type, addr_src);
         return success();
@@ -368,15 +439,21 @@ namespace {
         */
         std::cout << "StoreOpLowering::matchAndRewrite 1" << std::endl;
         Value value = op.getOperand(0);
-        Value addr_dst = getAddrValue(op.getOperand(1), rewriter);
+        // Value addr_dst = getAddrValue(op.getOperand(1), rewriter);
+        std::pair<Value, Value> base_and_offset = getAddrBaseAndOffsetValue(op.getOperand(1), rewriter);
+        Value base = base_and_offset.first;
+        Value offset = base_and_offset.second;
+
+        // if (isConstant(offset))
+
         std::cout << "StoreOpLowering::matchAndRewrite 4" << std::endl;
-        if (!addr_dst || !value) {
+        if (!base || !offset) {
           std::cout << "StoreOpLowering::matchAndRewrite fail" << std::endl;
           return failure();
         }
         std::cout << "StoreOpLowering::matchAndRewrite success" << std::endl;
 
-        rewriter.replaceOpWithNewOp<cimisa::StoreOp>(op, addr_dst, value);
+        rewriter.replaceOpWithNewOp<cimisa::StoreBaseAndOffsetOp>(op, base, offset, value);
         return success();
       }
     };

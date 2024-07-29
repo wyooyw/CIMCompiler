@@ -106,6 +106,28 @@ static void codeGen(mlir::arith::ConstantOp op, std::unordered_map<llvm::hash_co
   instr_list.push_back(inst);
 }
 
+static void codeGen(mlir::cimisa::GeneralRegLiOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
+  /*
+    - [31, 30]，2bit：class，指令类别码，值为10
+    - [29, 28]，2bit：type，指令类型码，值为11
+    - [27, 26]，2bit：opcode，指令操作码，值为00
+    - [25, 21]，5bit：rd，通用寄存器编号，即要赋值的通用寄存器
+    - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
+  */
+  int64_t value = op.getValue().getSExtValue();
+  int reg = getReg(regmap, op.getResult());
+  def.insert(reg);
+  Inst inst = {
+    {"class", 0b10},
+    {"type", 0b11},
+    {"opcode", 0b00},
+    {"rd", reg},
+    {"imm", value}
+  };
+  instr_list.push_back(inst);
+}
+
 template <typename Ty>
 static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
   std::set<int> &def, std::set<int> &use){
@@ -158,6 +180,58 @@ static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regma
     {"rs1", rs1},
     {"rs2", rs2},
     {"rd", rd}
+  };
+  instr_list.push_back(inst);
+}
+
+template <typename Ty>
+static void codeGenRI(Ty op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
+  /*
+    R-I型整数运算指令：scalar-RI
+    指令字段划分：
+    - [31, 30]，2bit：class，指令类别码，值为10
+    - [29, 28]，2bit：type，指令类型码，值为01
+    - [27, 26]，2bit：opcode，操作类别码，表示具体计算的类型
+      - 00：addi，整型立即数加法
+      - 01：muli，整型立即数乘法，结果寄存器仅保留低32位
+      - 10：lui，高16位立即数赋值
+    - [25, 21]，5bit：rs，通用寄存器1，表示运算数1的值
+    - [20, 16]，5bit：rd，通用寄存器2，即运算结果写回的寄存器
+    - [15, 0]，16bit：imm，立即数，表示运算数2的值
+  */
+  int rs = getReg(regmap, op.getOperand());
+  int rd = getReg(regmap, op.getResult());
+  int64_t imm = op.getConstant().getSExtValue();
+  
+  def.insert(rd);
+  use.insert(rs);
+
+  int opcode = 0b000; // 默认值
+  if constexpr (std::is_same<Ty, mlir::cimisa::RIAddIOp>::value) {
+      opcode = 0b000; // Ty1 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::cimisa::RISubIOp>::value) {
+      opcode = 0b001; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::cimisa::RIMulIOp>::value) {
+      opcode = 0b010; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::cimisa::RIDivSIOp>::value) {
+      opcode = 0b011; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::cimisa::RIRemSIOp>::value) {
+      opcode = 0b111; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::cimisa::RIMinSIOp>::value) {
+      opcode = 0b1000; // Ty2 的 opcode
+  } else {
+    std::cerr << "Unsupport arith ri op!" << std::endl;
+    std::exit(1);
+  }
+  
+  Inst inst = {
+    {"class", 0b10},
+    {"type", 0b01},
+    {"opcode", opcode},
+    {"rs", rs},
+    {"rd", rd},
+    {"imm", imm}
   };
   instr_list.push_back(inst);
 }
@@ -302,6 +376,7 @@ static void codeGen(mlir::cimisa::LoadOp op, std::unordered_map<llvm::hash_code,
   */
   int rs1 = getReg(regmap, op.getOperand());
   int rs2 = getReg(regmap, op.getResult());
+  int64_t imm = op.getConstant().getSExtValue();
   use.insert(rs1);
   def.insert(rs2);
   Inst inst = {
@@ -310,7 +385,7 @@ static void codeGen(mlir::cimisa::LoadOp op, std::unordered_map<llvm::hash_code,
     {"opcode", 0b00},
     {"rs1", rs1},
     {"rs2", rs2},
-    {"offset", 0b0},
+    {"offset", imm},
   };
   instr_list.push_back(inst);
 }
@@ -335,6 +410,7 @@ static void codeGen(mlir::cimisa::StoreOp op, std::unordered_map<llvm::hash_code
   */
   int rs1 = getReg(regmap, op.getOperand(0));
   int rs2 = getReg(regmap, op.getOperand(1));
+  int64_t imm = op.getConstant().getSExtValue();
   use.insert(rs1);
   use.insert(rs2);
   Inst inst = {
@@ -343,7 +419,7 @@ static void codeGen(mlir::cimisa::StoreOp op, std::unordered_map<llvm::hash_code
     {"opcode", 0b01},
     {"rs1", rs1},
     {"rs2", rs2},
-    {"offset", 0b0},
+    {"offset", imm},
   };
   instr_list.push_back(inst);
 }
@@ -679,6 +755,10 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
       
       if(auto _op = dyn_cast<mlir::arith::ConstantOp>(op) ){
         codeGen(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::GeneralRegLiOp>(op) ){
+        codeGen(_op, regmap, instr_list, _write, _read);
+
+      // RR
       }else if(auto _op = dyn_cast<mlir::arith::AddIOp>(op)){
         codeGenArith<mlir::arith::AddIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::SubIOp>(op)){
@@ -691,6 +771,21 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
         codeGenArith<mlir::arith::RemSIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::MinSIOp>(op)){
         codeGenArith<mlir::arith::MinSIOp>(_op, regmap, instr_list, _write, _read);
+
+      // RI
+      }else if(auto _op = dyn_cast<mlir::cimisa::RIAddIOp>(op)){
+        codeGenRI<mlir::cimisa::RIAddIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::RISubIOp>(op)){
+        codeGenRI<mlir::cimisa::RISubIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::RIMulIOp>(op)){
+        codeGenRI<mlir::cimisa::RIMulIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::RIDivSIOp>(op)){
+        codeGenRI<mlir::cimisa::RIDivSIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::RIRemSIOp>(op)){
+        codeGenRI<mlir::cimisa::RIRemSIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::RIMinSIOp>(op)){
+        codeGenRI<mlir::cimisa::RIMinSIOp>(_op, regmap, instr_list, _write, _read);
+
       }else if(auto _op = dyn_cast<mlir::cimisa::VVAddOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)){
@@ -817,6 +912,10 @@ static void _getRegisterMappingGeneral(
   func.walk([&](mlir::Operation *op) {
     if(auto _op = dyn_cast<mlir::arith::ConstantOp>(op) ){
       mapResultAsRegister<mlir::arith::ConstantOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::GeneralRegLiOp>(op) ){
+      mapResultAsRegister<mlir::cimisa::GeneralRegLiOp>(_op, mapping, reg_cnt);
+    
+    // RR
     }else if(auto _op = dyn_cast<mlir::arith::AddIOp>(op)){
       mapResultAsRegister<mlir::arith::AddIOp>(_op, mapping, reg_cnt);
     }else if(auto _op = dyn_cast<mlir::arith::SubIOp>(op)){
@@ -829,6 +928,21 @@ static void _getRegisterMappingGeneral(
       mapResultAsRegister<mlir::arith::RemSIOp>(_op, mapping, reg_cnt);
     }else if(auto _op = dyn_cast<mlir::arith::MinSIOp>(op)){
       mapResultAsRegister<mlir::arith::MinSIOp>(_op, mapping, reg_cnt);
+    
+    // RI
+    }else if(auto _op = dyn_cast<mlir::cimisa::RIAddIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RIAddIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::RISubIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RISubIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::RIMulIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RIMulIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::RIDivSIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RIDivSIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::RIRemSIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RIRemSIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::RIMinSIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RIMinSIOp>(_op, mapping, reg_cnt);
+
     }else if(auto _op = dyn_cast<mlir::cimisa::LoadOp>(op)){
       mapResultAsRegister<mlir::cimisa::LoadOp>(_op, mapping, reg_cnt);
     }
@@ -1038,7 +1152,7 @@ static void mappingRegisterLogicalToPhysical(
   
   // Step 2: Construct a mapping from logical register to physical register
   int num_logical_regs = logic_reg_life_begin.size();
-  int num_physical_regs = 64;
+  int num_physical_regs = 32;
   std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
   std::unordered_map<int, int> logical_to_physical_mapping;
   for(int i = 0; i < num_physical_regs; i++) physical_regs.push(i);

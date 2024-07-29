@@ -15,6 +15,7 @@ std::unique_ptr<Pass> createExtractAddressComputationPass();
 std::unique_ptr<Pass> createCIMLoweringPass(std::string configPath);
 std::unique_ptr<Pass> createCIMBranchConvertPass();
 std::unique_ptr<Pass> createCodeGenerationPass(std::string outputFilePath);
+std::unique_ptr<Pass> createRR2RIPass();
 } // namespace cim
 } // namespace mlir
 

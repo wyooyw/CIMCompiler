@@ -516,10 +516,18 @@ class Simulator:
         value = self.read_general_reg(inst["rs"])
         imm = inst["imm"]
         opcode = inst["opcode"]
-        if opcode==0b00: # add
+        if opcode==0b000: # add
             result = value + imm
-        elif opcode==0b01: # sub
+        elif opcode==0b001: # sub
+            result = value - imm
+        elif opcode==0b010: # mul
             result = value * imm
+        elif opcode==0b011: # div
+            result = value / imm
+        elif opcode==0b111: # mod
+            result = value % imm
+        elif opcode==0b1000: # min
+            result = min(value, imm)
         else:
             assert False, f"Not support {opcode=}."
         self.write_general_reg(inst["rd"], result)
@@ -544,6 +552,8 @@ class Simulator:
         if opcode==0b00: # load
 
             addr = self.read_general_reg(inst["rs1"])
+            offset = inst["offset"]
+            addr += offset
             value = self.memory_space.read_as(addr, 4, np.int32).item()
             self.write_general_reg(inst["rs2"], value)
 
@@ -551,6 +561,8 @@ class Simulator:
 
             addr = self.read_general_reg(inst["rs1"])
             value = self.read_general_reg(inst["rs2"])
+            offset = inst["offset"]
+            addr += offset
             self.memory_space.write(np.array([value], dtype=np.int32), addr, 4)
 
         else:
@@ -748,6 +760,7 @@ class Simulator:
 
         assert input_data.size==self.mask_config.n_from
         mask_addr = self.read_special_reg(SpecialReg.VALUE_SPARSE_MASK_ADDR)
+        # print(f"{mask_addr=}")
         mask_data = self.mask_util.get_mask(mask_addr, input_data.size, group_size)
         assert mask_data.ndim==2, f"{mask_data.ndim=}"
         assert mask_data.shape[0]==group_size and mask_data.shape[1]==self.mask_config.n_from, f"{mask_data.shape=}, {group_size=}, {self.mask_config.n_from=}"
@@ -846,7 +859,7 @@ class Simulator:
                 output_data = np.dot(input_data.astype(out_dtype), weight_data.astype(out_dtype))
 
             group_output_data.append(output_data)
-        
+        # import pdb; pdb.set_trace()
         # Save output
         n_macro_per_group = group_size
         group_output_step = self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
@@ -858,9 +871,12 @@ class Simulator:
             self.memory_space.check_memory_type(group_output_offset, output_byte_size, ["rf","reg_buffer"])
 
             # Accumulate
+            # import pdb; pdb.set_trace()
             if inst["accumulate"] == 1:
                 output_data_ori = self.memory_space.read_as(group_output_offset, output_byte_size, out_dtype)
                 output_data = output_data + output_data_ori
+            # else:
+            #     assert False
             self.memory_space.write(output_data, group_output_offset, output_byte_size)
 
     def _run_pim_class_pim_output_type_inst(self, inst):

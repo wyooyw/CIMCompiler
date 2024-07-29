@@ -111,6 +111,8 @@ int main(int argc, char **argv) {
   mlir::PassManager lower_passes(&context);
   lower_passes.addPass(mlir::cim::createCIMLoweringPass(configPath));
   lower_passes.addPass(mlir::createCanonicalizerPass());
+  lower_passes.addPass(mlir::cim::createRR2RIPass());
+  lower_passes.addPass(mlir::createCanonicalizerPass());
   lower_passes.addPass(mlir::createLoopInvariantCodeMotionPass());
   lower_passes.addPass(mlir::createConvertSCFToCFPass());
   if (mlir::failed(lower_passes.run(module))) {
@@ -121,6 +123,7 @@ int main(int argc, char **argv) {
     std::cout << "Lower Passes success." << std::endl;
     module.dump();
   }
+  // return 0;
 
   // step4: convert control flow
   std::cout << "\n\n\n\n" << std::endl;
