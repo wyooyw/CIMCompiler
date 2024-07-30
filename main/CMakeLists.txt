@@ -22,6 +22,8 @@ add_llvm_executable(main
         pass/CIMBranchConvertPass.cpp
         pass/ExtractAddressComputationPass.cpp
         pass/RR2RIPass.cpp
+        pass/LoopUnrollPass.cpp
+        pass/CastEliminationPass.cpp
         codegen/CodeGenPass.cpp
 
         DEPENDS

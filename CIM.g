@@ -26,8 +26,8 @@ stmt: (
     ) ';' ;
 stmt_assign: ID EQ expr;
 stmt_call: call;
-stmt_for: 'for' ID 'in' for_range carry '{' stmt_list '}';
-
+stmt_for: (unroll?) 'for' ID 'in' for_range carry '{' stmt_list '}';
+unroll: '@unroll';
 for_range : for_range_1 | for_range_2 | for_range_3;
 for_range_1: 'range(' const_or_var ')';
 for_range_2: 'range(' const_or_var ',' const_or_var')';

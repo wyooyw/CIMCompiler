@@ -23,6 +23,7 @@ public:
 
     mlir::ModuleOp parseJson(std::string json_path);
     mlir::ModuleOp parseModule(const boost::property_tree::ptree &ast);
+    std::vector<mlir::scf::ForOp> getUnrollForOps();
 
 private:
     mlir::OpBuilder builder;
@@ -34,6 +35,9 @@ private:
     std::unordered_map<std::string, mlir::func::FuncOp > signature_table_func;
     std::string current_func_name;
     std::stack<mlir::Block*> block_stack;
+    std::vector<mlir::scf::ForOp> unrollForOps;
+
+    
 
     const boost::property_tree::ptree& safe_get_child(const boost::property_tree::ptree& ast, const std::string& key);
     std::string safe_get_str(const boost::property_tree::ptree& ast, const std::string& key);

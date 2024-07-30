@@ -261,17 +261,31 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
 
     void MLIRGenImpl::parse_for_stmt(const boost::property_tree::ptree& ast){
         std::cout << "parse_for_stmt" << std::endl;
-        std::string iter_var_name = safe_get_str(get_item(ast, 1), "text");
-        std::vector<mlir::Value> range = parse_for_range(safe_get_child(get_item(ast, 3), "for_range"));
+
+        int tag = 0;
+        // check unroll tag
+        if (get_item(ast, 0).count("unroll")){
+            // unroll
+            std::cout << "unroll" << std::endl;
+            tag = 1;
+        }
+
+        std::string iter_var_name = safe_get_str(get_item(ast, tag+1), "text");
+        std::vector<mlir::Value> range = parse_for_range(safe_get_child(get_item(ast, tag+3), "for_range"));
         mlir::Value range_begin = range[0];
         mlir::Value range_end = range[1];
         mlir::Value range_step = range[2];
 
         // loop-carried variables
-        auto loop_carried_names_and_variables = parse_carry(safe_get_child(get_item(ast, 4), "carry"));
+        auto loop_carried_names_and_variables = parse_carry(safe_get_child(get_item(ast, tag+4), "carry"));
         auto loop_carried_names = loop_carried_names_and_variables.first;
         auto loop_carried_variables = loop_carried_names_and_variables.second;
         mlir::scf::ForOp for_op = builder.create<mlir::scf::ForOp>(loc,range_begin, range_end, range_step, loop_carried_variables);
+
+        // mark for_op tag
+        if (tag == 1){
+            unrollForOps.push_back(for_op);
+        }
 
         // Add to sign table
         llvm::SmallVector<mlir::Value> for_args;
@@ -288,9 +302,9 @@ const boost::property_tree::ptree& MLIRGenImpl::safe_get_child(const boost::prop
         block_stack.push(for_body);
         builder.setInsertionPointToStart(for_op.getBody());
 
-        parse_stmt_list(safe_get_child(get_item(ast, 6), "stmt_list"));
+        parse_stmt_list(safe_get_child(get_item(ast, tag+6), "stmt_list"));
         // yield
-        auto yield_variables = parse_carry(safe_get_child(get_item(ast, 4), "carry")).second;
+        auto yield_variables = parse_carry(safe_get_child(get_item(ast, tag+4), "carry")).second;
         builder.create<mlir::scf::YieldOp>(loc, yield_variables);
 
         block_stack.pop();
@@ -1091,4 +1105,8 @@ void MLIRGenImpl::parse_bulitin_special_reg_set(const boost::property_tree::ptre
         //     index.push_back(index_i);
         // }
         return _index;
+    }
+
+    std::vector<mlir::scf::ForOp> MLIRGenImpl::getUnrollForOps(){
+        return unrollForOps;
     }

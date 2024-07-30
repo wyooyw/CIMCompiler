@@ -83,16 +83,34 @@ int main(int argc, char **argv) {
 
   MLIRGenImpl gen_impl(context);
   mlir::ModuleOp module = gen_impl.parseJson(inputFilePath);
+  std::vector<mlir::scf::ForOp> unrollForOps = gen_impl.getUnrollForOps();
   
   module.dump();
   std::cout << "\n\n\n\n" << std::endl;
+
+    // unroll
+  mlir::PassManager unroll_pm(&context);
+  unroll_pm.addPass(cim::createLoopUnrollPass(unrollForOps));
+  if (mlir::failed(unroll_pm.run(module))) {
+    std::cout << "Unroll Passes fail." << std::endl;
+    module.dump();
+    return 1;
+  }else{
+    std::cout << "Unroll Passes success." << std::endl;
+    module.dump();
+  }
+  
+  std::cout << "\n\n\n\n" << std::endl;
+
+  // return 0;
   // return 0;
   mlir::PassManager pm(&context);
   pm.addPass(mlir::createInlinerPass());
+  pm.addPass(mlir::cim::createCastEliminationPass());
   pm.addPass(mlir::createCanonicalizerPass());
   // pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
   mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
-  // optPM.addPass(mlir::createCSEPass());
+  optPM.addPass(mlir::createCSEPass());
   optPM.addPass(cim::createFoldMemRefAliasOpsPass());
   optPM.addPass(cim::createExtractAddressComputationPass());
   optPM.addPass(mlir::createLowerAffinePass());
@@ -113,7 +131,7 @@ int main(int argc, char **argv) {
   lower_passes.addPass(mlir::createCanonicalizerPass());
   lower_passes.addPass(mlir::cim::createRR2RIPass());
   lower_passes.addPass(mlir::createCanonicalizerPass());
-  lower_passes.addPass(mlir::createLoopInvariantCodeMotionPass());
+  // lower_passes.addPass(mlir::createLoopInvariantCodeMotionPass());
   lower_passes.addPass(mlir::createConvertSCFToCFPass());
   if (mlir::failed(lower_passes.run(module))) {
     std::cout << "Lower Passes fail." << std::endl;

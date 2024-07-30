@@ -463,7 +463,7 @@ namespace {
 
       LogicalResult
       matchAndRewrite(cim::CopyOp op, PatternRewriter &rewriter) const final {
-
+        std::cout << "TransOpLowering::matchAndRewrite begin" << std::endl;
         Value addr_src = getAddrValue(op.getOperand(0), rewriter);
         Value addr_dst = getAddrValue(op.getOperand(1), rewriter);
         Value size = getSizeValue(op.getOperand(0), rewriter);
@@ -534,7 +534,7 @@ namespace {
 
       LogicalResult
       matchAndRewrite(cim::VVAddOp op, PatternRewriter &rewriter) const final {
-
+        std::cout << "VVAddOpLowering::matchAndRewrite begin" << std::endl;
         Value lhs = getAddrValue(op.getOperand(0), rewriter);
         Value rhs = getAddrValue(op.getOperand(1), rewriter);
         Value result = getAddrValue(op.getOperand(2), rewriter);
