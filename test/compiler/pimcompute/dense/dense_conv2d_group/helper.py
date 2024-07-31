@@ -6,6 +6,13 @@ class TestHelper:
         self.in_hw = op_config["in_hw"]
         self.out_hw = op_config["out_hw"]
 
+        if "input_buffer_size_per_group" in op_config:
+            self.input_buffer_size_per_group = op_config["input_buffer_size_per_group"]
+            assert self.input_buffer_size_per_group % 16 == 0
+            assert self.input_buffer_size_per_group <= 128
+        else:
+            self.input_buffer_size_per_group = 128
+
     def _prepare_weight_data(self):
         import numpy as np
         """
@@ -58,7 +65,8 @@ class TestHelper:
 
     def _prepare_input_data(self):
         import numpy as np
-        input_data = np.arange(0,self.in_hw*self.in_hw, dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        # input_data = np.arange(0,self.in_hw*self.in_hw, dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        input_data = np.random.randint(-32,32,size=(self.in_hw,self.in_hw), dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
         assert input_data.shape==(self.in_hw,self.in_hw,self.in_channel), f"{input_data.shape=}"
         return input_data
 
@@ -145,6 +153,7 @@ class TestHelper:
         n_comp = macro_config.n_comp
         n_macro_reduce = n_row * n_comp
         mask_base = simulator.memory_space.get_base_of("pim_mask_data_reg_buffer")
+        
         context = {
             'OUTPUT_CHANNEL': self.out_channel,
             'INPUT_ROW': self.in_hw,
@@ -164,7 +173,7 @@ class TestHelper:
             'N_ROW': n_row,
             'N_COMP': n_comp,
             'N_MACRO_REDUCE': n_macro_reduce,
-            'INPUT_BUFFER_SIZE_PER_GROUP': 128,
+            'INPUT_BUFFER_SIZE_PER_GROUP': self.input_buffer_size_per_group,
             'OUT_SPATIAL_TILE': self.converted_weight.shape[0],
             'OUT_REDUCE_TILE': self.converted_weight.shape[1],
 

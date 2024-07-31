@@ -9,7 +9,7 @@ import os
 import json
 from functools import partial
 import numpy as np
-
+from utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
 def debug_hook(simulator, helper):
     input_rf_base = simulator.memory_space.get_base_of("pim_input_reg_buffer")
     output_rf_base = simulator.memory_space.get_base_of("pim_output_reg_buffer")
@@ -150,7 +150,9 @@ class TestPIMComputeValueSparse:
             code = json.load(f)
 
         # run code in simulator
-        status = self.simulator.run_code(code)
+
+        pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config)
+        status = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH
 
         # check result
@@ -209,4 +211,4 @@ if __name__=="__main__":
     TestPIMComputeValueSparse.setup_class()
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
-    tester.test_pim_compute("value_sparse/value_sparse_group", {"out_channel":16, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6})
+    tester.test_pim_compute('dense/dense_conv2d_group', {"out_channel":256, "in_channel": 96, "ker_size": 3, "in_hw": 16, "out_hw": 14, "input_buffer_size_per_group": 96})
