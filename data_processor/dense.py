@@ -114,7 +114,7 @@ def extrace_mask_and_data(weight3d, n_from, n_to, concat=True, bit_to_byte=True)
     return mask, data
 
 
-
+# LEGACY
 def convert_value_sparse_conv2d_weight(weight, macro_config):
     """
     weight: [oc,ic,kh,kw]
@@ -203,6 +203,134 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
     # mask.shape : [t, n_from, n_macro_per_group] -> [t, n_macro_per_group, n_from]
     mask = np.transpose(mask, [0,2,1]).astype(np.int8)
     return converted_weight, mask, index, out_spatial_tile_size_list
+
+
+
+def convert_value_sparse_conv2d_weight(weight, macro_config):
+    """
+    weight: [oc,ic,kh,kw]
+
+    converted_weight: [out_spatial_tile, out_reduce_tile, n_comp, n_group, n_group_vcol] 1byte
+    mask: [n_sparse_time, n_comp, n_macro] 1bit   "n_sparse_time" is the combination of "out_spatial_tile" and "out_reduce_tile", it is a sparse axis.
+
+    return: converted_weight, mask, index
+    """
+    if len(weight.shape)==4:
+        oc, ic, kh, kw = weight.shape
+        spatial_size = oc
+        reduce_size = ic * kh * kw
+        weight = weight.reshape(oc, reduce_size)
+    elif len(weight.shape)==2:
+        spatial_size, reduce_size = weight.shape
+    else:
+        assert False
+    assert weight.dtype==np.int8
+
+    n_row = macro_config["n_row"]
+    n_vcol = macro_config["n_vcol"]
+    n_group = macro_config["n_group"]
+    n_macro_per_group = macro_config["n_macro"] // n_group
+    n_group_vcol = n_macro_per_group * n_vcol
+    n_comp = macro_config["n_comp"] # * macro_config["n_row"]
+    n_from = macro_config["n_value_sparse_from"] # 128
+    n_to = macro_config["n_value_sparse_to"] # 16
+    assert n_from > n_to and n_to==n_comp
+
+    # padding weights
+    spatial_pad_size = int(math.ceil(spatial_size / n_group_vcol)) * n_group_vcol - spatial_size
+    reduce_pad_size = int(math.ceil(reduce_size / n_from)) * n_from - reduce_size
+    weight = np.pad(weight, ((0,spatial_pad_size),(0, reduce_pad_size)), mode='constant', constant_values=0)
+    total_spatial_size = weight.shape[0]
+    total_reduce_size = weight.shape[1]
+    assert total_spatial_size % n_group_vcol == 0
+    assert total_reduce_size % n_from == 0
+
+    # tile the weight
+    out_spatial_tile = total_spatial_size // n_group_vcol
+    out_reduce_tile = total_reduce_size // n_from
+    weight = weight.reshape(out_spatial_tile, n_macro_per_group, n_vcol, out_reduce_tile, n_from)
+    weight = np.transpose(weight, (0, 3, 2, 4, 1))
+    assert weight.shape[-2]==n_from and weight.shape[-1]==n_macro_per_group
+    weight = weight.reshape(out_spatial_tile, out_reduce_tile, n_vcol, n_from, n_macro_per_group)
+    
+    # extract n_to non-zero element from n_from
+    mapping_reduce_to_macro = []
+    mapping_macro_to_from = []
+    mapping_from_to_row = []
+    mapping_macro_to_row = []
+    
+    weight_list = []
+    mask_list = []
+    for ost in range(out_spatial_tile):
+        macro_in_reduce = 0
+        total_row = 0
+        i_outer_reduce = 0
+        reduce_element = 0
+        macro_fill = False
+        while reduce_element < total_reduce_size:
+
+            from_in_macro = 0
+            row_in_macro = 0
+            while row_in_macro < n_row and i_outer_reduce < out_reduce_tile:
+                ort = i_outer_reduce
+
+                subweight = weight[ost, ort, :, :, :] # n_vcol, n_from, n_macro_per_group
+                submask, subweight = extrace_mask_and_data(subweight,  n_from, n_to, concat=True, bit_to_byte=True) 
+                # subweight: t, n_vcol, n_to, n_macro_per_group
+                # submask: t, n_to, n_macro_per_group
+                assert len(subweight.shape)==4 and subweight.shape[1]==n_vcol and subweight.shape[2]==n_to and subweight.shape[3]==n_macro_per_group
+                assert len(submask.shape)==3 and submask.shape[1]==n_from and submask.shape[2]==n_macro_per_group, f"{submask.shape=}"
+                assert subweight.shape[0]==submask.shape[0]
+                
+                delta_row = submask.shape[0]
+                if row_in_macro + delta_row > n_row:
+                    macro_fill = True
+                    break
+
+                mapping_from_to_row.append(delta_row)
+                total_row += delta_row
+                row_in_macro += delta_row
+                from_in_macro += 1
+                i_outer_reduce += 1
+
+                mask_list.append(submask)
+                weight_list.append(subweight)
+            if from_in_macro > 0:
+                mapping_macro_to_from.append(from_in_macro)
+                mapping_macro_to_row.append(row_in_macro)
+                macro_in_reduce += 1
+                reduce_element += row_in_macro * n_to
+            print(f"{reduce_element=},  {i_outer_reduce=}")
+            if macro_fill:
+                break
+
+        mapping_reduce_to_macro.append(macro_in_reduce)
+
+    converted_weight = np.concatenate(weight_list, axis=0)
+    mask = np.concatenate(mask_list, axis=0)
+
+    mapping_reduce_to_macro = np.array(mapping_reduce_to_macro, np.int8)
+    mapping_macro_to_from = np.array(mapping_macro_to_from, np.int8)
+    mapping_from_to_row = np.array(mapping_from_to_row, np.int8)
+    mapping_macro_to_row = np.array(mapping_macro_to_row, np.int8)
+
+    # duplicate weight for groups
+    converted_weight = np.repeat(converted_weight.reshape(-1, n_vcol, n_to, 1, n_macro_per_group), n_group, axis=3)
+    assert converted_weight.shape[3]==n_group
+    converted_weight = np.transpose(converted_weight, (0,2,3,4,1))
+    # [time, n_to, n_group, n_macro_per_group, n_vcol]
+    
+
+    # mask.shape : [t, n_from, n_macro_per_group] -> [t, n_macro_per_group, n_from]
+    mask = np.transpose(mask, [0,2,1]).astype(np.int8)
+    return {
+        "converted_weight":converted_weight, 
+        "mask": mask, 
+        "mapping_reduce_to_macro": mapping_reduce_to_macro,
+        "mapping_macro_to_from": mapping_macro_to_from,
+        "mapping_from_to_row": mapping_from_to_row,
+        "mapping_macro_to_row": mapping_macro_to_row
+    }
 
 def test_extrace_mask_and_data():
     weight = np.array([
@@ -297,4 +425,42 @@ def test_convert_value_sparse_conv2d_weight2():
     np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight2/index.npy", index)
 
 if __name__=="__main__":
-    test_extrace_mask_and_data()
+        # 2 * 2 * 8 * n
+    # out_channel = 4
+    # reduce_size = 8
+    weight = np.arange(4*24).astype(np.int8).reshape(4,-1)
+
+    macro_config = {
+        "n_row": 4,
+        "n_vcol": 2,
+        "n_group": 1,
+        "n_macro": 2,
+        "n_comp": 4,
+        "n_value_sparse_from": 8,
+        "n_value_sparse_to": 4
+    }
+
+    result = convert_value_sparse_conv2d_weight(weight, macro_config)
+    converted_weight = result[0]
+    mask = result[1]
+    mapping_reduce_to_macro = result[2]
+    mapping_macro_to_from = result[3]
+    mapping_from_to_row = result[4]
+    mapping_macro_to_row = result[5]
+
+    print(f"{converted_weight.shape=} ([time, n_to, n_group, n_macro_per_group, n_vcol])")
+    print(converted_weight)
+    time, n_to, n_group, n_macro_per_group, n_vcol = converted_weight.shape
+    converted_weight = converted_weight.reshape(time, n_to, n_group, -1)
+    print(f"{converted_weight.shape=} ([time, n_to, n_group, n_macro_per_group * n_vcol])")
+    print(converted_weight)
+    print(f"{mask.shape=}")
+    print(mask)
+    print(f"{mapping_reduce_to_macro.shape=}")
+    print(mapping_reduce_to_macro)
+    print(f"{mapping_macro_to_from.shape=}")
+    print(mapping_macro_to_from)
+    print(f"{mapping_from_to_row.shape=}")
+    print(mapping_from_to_row)
+    print(f"{mapping_macro_to_row.shape=}")
+    print(mapping_macro_to_row)
