@@ -134,7 +134,7 @@ def weight_transform(weight, cim_cfg, op_cfg, weight_dtype="OIHW"):
         bit_idx = 0
         for filter_threshold in one_time_filters:
             if filter_threshold>0:
-                assert filter_threshold in [1,2]
+                assert filter_threshold in [1,2], f"{filter_threshold=}"
                 filter_tensor = weight[:,:,:,filter_idx].reshape(-1)
                 
                 # value : [threshold, elem_in_filter,1], each value is 0 or 1
@@ -170,6 +170,9 @@ def weight_transform_group(weight, cim_cfg, op_cfg, weight_dtype="OIHW"):
     return new_weight, info, fold
 
 def generate_valid_weight(shape, threshold=None):
+    np.random.seed(4)
+    random.seed(4)
+
     assert len(shape)==4
     out_channel,in_channel,ker_height,ker_width = shape
     num_in_filter = in_channel*ker_height*ker_width
@@ -313,6 +316,20 @@ def parse_col_to_filter(fold_weight_info):
         for col in range(cols):
             col_to_filter.append(i)
     return col_to_filter
+
+def outsum_mask_to_transfer_mask(outsum_mask):
+    transfer_mask = []
+    for i in range(len(outsum_mask)):
+        if i==0:
+            transfer_mask.append(1)
+        elif outsum_mask[i]==1:
+            transfer_mask.append(1)
+        elif outsum_mask[i-1]==0:
+            transfer_mask.append(1)
+        else:
+            transfer_mask.append(0)
+    assert len(transfer_mask)==len(outsum_mask)
+    return transfer_mask
 
 if __name__=="__main__":
     # for i in range(-128,129):

@@ -152,6 +152,29 @@ class InstUtil:
             "rd": output_addr
         }
 
+    def pim_transfer(self, src_addr, src_size, transfer_mask, dst_addr):
+        """
+        pim数据传输：pim-transfer
+        该指令针对【使用”基于CSD编码的bit-level sparsity“算法的pim运算结果】，在阈值有1和2的情况下，在output reg buffer中不规则、不连续的问题，专门用于搬运pim运算结果，且该指令需要使用缓冲区
+        指令字段划分：
+        - [31, 30]，2bit：class，指令类别码，值为00
+        - [29, 28]，2bit：type，指令类型码，值为11
+        - [19, 15]，5bit：rs1，通用寄存器1，src addr，表示源本地存储器的地址
+        - [14, 10]，5bit：rs2，通用寄存器2，output num，表示output的数量，包含有效值和无效值，也即掩码的长度
+        - [9, 5]，5bit：rs3，通用寄存器3，output mask，表示掩码的存储地址，掩码的每一bit表示对应的output是否有效，掩码长度由rs2指定
+        - [4, 0]，5bit：rd，通用寄存器4，dst addr，表示目的本地存储器的地址
+        使用的专用寄存器：
+        - output bit width：输出的bit长度
+        """
+        return {
+            "class": 0b00,
+            "type": 0b11,
+            "rs1": src_addr,
+            "rs2": src_size,
+            "rs3": transfer_mask,
+            "rd": dst_addr
+        }
+
     def simd_vvadd(self, rs1, rs2, rs3, rd):
         return self.simd(0x00, 0b01, rs1, rs2, rs3, rd)
 

@@ -2,9 +2,11 @@ from enum import Enum
 import numpy as np
 from simulator.macro_utils import MacroUtil, MacroConfig
 from simulator.mask_utils import MaskUtil, MaskConfig
+from simulator.meta_utils import MetaUtil
 import copy
 from simulator.data_type import get_dtype_from_bitwidth, get_bitwidth_from_dtype
 import json
+from utils.df_layout import tensor_int8_to_bits
 class SpecialReg(Enum):
 
     # pim special reg
@@ -38,6 +40,7 @@ class PIMInstType(Enum):
     PIM_COMPUTE = 0 # 0b00
     PIM_BATCH = 1 # 0b01
     PIM_OUTPUT = 2 # 0b10
+    PIM_TRANSFER = 3 # 0b11
 
 class ScalarInstType(Enum):
     RR = 0          # 0b00
@@ -140,7 +143,7 @@ class MemorySpace:
         for memory in self.memory_space:
             if offset >= memory.offset and (offset+size <= memory.offset+memory.size):
                 return memory
-        assert False, 'can not find memory!'
+        assert False, f"can not find memory! {offset=}, {size=}"
 
     def check_memory_type(self, offset, size, memtype):
         """
@@ -245,7 +248,7 @@ class Simulator:
         self.mask_config = mask_config
         self.macro_util = MacroUtil(self.memory_space.get_macro_memory(), macro_config)
         self.mask_util = MaskUtil(self.memory_space.get_memory_by_name(mask_memory_name), macro_config, mask_config)
-
+        self.meta_util = MetaUtil(self.memory_space.get_memory_by_name("pim_meta_data_reg_buffer"), macro_config)
         self.jump_offset = None
         self.safe_time = safe_time
 
@@ -381,6 +384,8 @@ class Simulator:
             self._run_pim_class_pim_compute_type_inst(inst)
         elif inst_type==PIMInstType.PIM_OUTPUT.value:
             self._run_pim_class_pim_output_type_inst(inst)
+        elif inst_type==PIMInstType.PIM_TRANSFER.value:
+            self._run_pim_class_pim_transfer_type_inst(inst)
         else:
             assert False, f"Not support"
 
@@ -738,9 +743,6 @@ class Simulator:
     def _run_pim_class_pim_compute_type_inst_value_sparse(self, inst):
         assert False, "Executor not support value sparse yet."
 
-    def _run_pim_class_pim_compute_type_inst_bit_sparse(self, inst):
-        assert False, "Executor not support bit sparse yet."
-
     def _value_sparsity_compute(self, inst, input_data, weight_data):
         if inst["value_sparse"]==0:
             return input_data
@@ -879,11 +881,111 @@ class Simulator:
             #     assert False
             self.memory_space.write(output_data, group_output_offset, output_byte_size)
 
+    def _run_pim_class_pim_compute_type_inst_bit_sparse(self, inst):
+        input_offset = self.read_general_reg(inst["rs1"])
+        input_size = self.read_general_reg(inst["rs2"])
+        activate_row = self.read_general_reg(inst["rs3"])
+        # output_offset = self.read_general_reg(inst["rd"])
+        input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
+        output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
+        width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
+        assert input_bw==8, f"{input_bw=}"
+        assert output_bw==32, f"{output_bw=}"
+        assert width_bw==1, f"{width_bw=}"
+        activation_element_col_num = self.read_special_reg(SpecialReg.ACTIVATION_ELEMENT_COL_NUM)
+
+        activation_group_num = self.read_special_reg(SpecialReg.ACTIVATION_GROUP_NUM)
+        group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
+        assert self.macro_config.n_macro % group_size == 0
+        group_num =  self.macro_config.n_macro // group_size
+        group_input_step = self.read_special_reg(SpecialReg.GROUP_INPUT_STEP)
+        assert inst.get("group", -1)==1
+        assert inst.get("group_input_mode", -1)==0
+        print(f"{group_num=}")
+        # print(f"{self.macro_config.n_macro=}")
+        # print(f"{self.macro_config.n_macro=}")
+        value_sparsity = inst["value_sparse"]
+        assert "bit_sparse" in inst and inst["bit_sparse"]==1, str(inst)
+        meta_addr = self.read_special_reg(SpecialReg.BIT_SPARSE_META_ADDR)
+
+        # Get input vector
+        input_byte_size = input_size * input_bw // 8
+        # self.memory_space.check_memory_type(input_offset, input_byte_size, "reg_buffer")
+        group_input_data = []
+        for group_id in range(activation_group_num):
+            group_input_offset = input_offset + group_id * group_input_step
+            input_data = self.memory_space.read_as(group_input_offset, input_byte_size, self.get_dtype(input_bw))
+            group_input_data.append(input_data)
+
+        # Get weight matrix
+        activate_element_row_num = input_size
+        weight_data = self.macro_util.get_macro_data(
+            activate_row, 
+            8,#width_bw, 
+            group_num,
+            activate_element_row_num, 
+            self.macro_config.n_vcol(8) * group_size,#activation_element_col_num,
+            activation_group_num
+        ) # shape: [compartment, group, vcolumn]
+        print(f"{weight_data.shape=}")
+        group_weight_data = []
+        for group_id in range(activation_group_num):
+            _weight = weight_data[:,group_id,:]
+            _weight = self.meta_util.recover_weight(meta_addr, _weight, group_num)
+            group_weight_data.append(_weight)
+
+        # compute
+        group_output_data = []
+        for group_id in range(activation_group_num):
+            input_data = group_input_data[group_id]
+            weight_data = group_weight_data[group_id]
+            print(f"{input_data=}, {weight_data=}")
+
+            assert input_data.ndim==1
+            assert weight_data.ndim==2, f"{weight_data.shape=}"
+            out_dtype = get_dtype_from_bitwidth(output_bw)
+            if value_sparsity:
+                output_data = self._value_sparsity_compute(inst, input_data, weight_data)
+            else:
+                assert 0 < input_data.size and input_data.size <= self.macro_config.n_comp, f"{input_data.size=}, {self.macro_config.n_comp=}"
+                input_data = np.pad(input_data, (0, self.macro_config.n_comp - input_data.size), mode='constant', constant_values=0)
+                assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
+                output_data = np.dot(input_data.astype(out_dtype), weight_data.astype(out_dtype))
+
+            group_output_data.append(output_data)
+        # import pdb; pdb.set_trace()
+        # Save output
+        n_macro_per_group = group_size
+        group_output_step = self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
+        output_offset = self.memory_space.get_base_of("internel_macro_output_reg_buffer")
+        for group_id in range(activation_group_num):
+            output_data = group_output_data[group_id]
+            output_byte_size = output_data.size * output_bw // 8
+            group_output_offset = output_offset + group_id * group_output_step
+            self.memory_space.check_memory_type(group_output_offset, output_byte_size, ["rf","reg_buffer"])
+
+            # Accumulate
+            if inst["accumulate"] == 1:
+                output_data_ori = self.memory_space.read_as(group_output_offset, output_byte_size, out_dtype)
+                output_data = output_data + output_data_ori
+            # else:
+            #     assert False
+            self.memory_space.write(output_data, group_output_offset, output_byte_size)
+
+
     def _run_pim_class_pim_output_type_inst(self, inst):
         outsum_move = inst["outsum_move"]
         outsum = inst["outsum"]
+        if outsum:
+            self._outsum(inst)
+            return
+            
+        # elif outsum_move:
+        #     _outsum_move(inst)
+        #     return
+
         if outsum_move or outsum:
-            assert False, "Not support yet!"
+            assert False, "This should not happend!"
         
         # out_n = self.read_general_reg(inst["rs1"])
         dst_offset = self.read_general_reg(inst["rd"])
@@ -898,6 +1000,79 @@ class Simulator:
         self.memory_space.write(data, dst_offset, size)
 
         internel_buffer.clear()
+
+    def _outsum(self, inst):
+        out_n = self.read_general_reg(inst["rs1"])
+        assert out_n % 8 == 0
+        out_mask_addr = self.read_general_reg(inst["rs2"])
+        out_mask = self.memory_space.read_as(out_mask_addr, out_n // 8, np.int8)
+        out_mask = tensor_int8_to_bits(out_mask)
+        out_mask = out_mask.reshape(-1)
+        
+        width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
+        output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
+        output_byte = output_bw // 8
+        group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
+        n_group = self.macro_config.n_macro // group_size
+        n_macro_per_group = group_size
+
+        src_offset = self.memory_space.get_base_of("internel_macro_output_reg_buffer")
+        src_group_step = self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
+        
+        dst_offset = self.read_general_reg(inst["rd"])
+        dst_group_step = src_group_step
+        for g in range(n_group):
+            src_group_offset = src_offset + g * src_group_step
+            dst_group_offset = dst_offset + g * dst_group_step
+            group_data_size = out_n * output_byte
+
+            data = self.memory_space.read_as(src_group_offset, group_data_size, np.int32)
+            assert data.size == out_n
+            for i in range(out_n):
+                if out_mask[i]==1:
+                    assert i+1 < len(out_mask)
+                    assert out_mask[i+1]==0
+                    data[i] = data[i] + data[i+1]
+            
+            self.memory_space.write(data, dst_group_offset, group_data_size)
+
+    def _run_pim_class_pim_transfer_type_inst(self, inst):
+        """
+        pim数据传输：pim-transfer
+        该指令针对【使用”基于CSD编码的bit-level sparsity“算法的pim运算结果】，在阈值有1和2的情况下，在output reg buffer中不规则、不连续的问题，专门用于搬运pim运算结果，且该指令需要使用缓冲区
+        指令字段划分：
+        - [31, 30]，2bit：class，指令类别码，值为00
+        - [29, 28]，2bit：type，指令类型码，值为11
+        - [19, 15]，5bit：rs1，通用寄存器1，src addr，表示源本地存储器的地址
+        - [14, 10]，5bit：rs2，通用寄存器2，output num，表示output的数量，包含有效值和无效值，也即掩码的长度
+        - [9, 5]，5bit：rs3，通用寄存器3，output mask，表示掩码的存储地址，掩码的每一bit表示对应的output是否有效，掩码长度由rs2指定
+        - [4, 0]，5bit：rd，通用寄存器4，dst addr，表示目的本地存储器的地址
+        使用的专用寄存器：
+        - output bit width：输出的bit长度
+        """
+        src_addr = self.read_general_reg(inst["rs1"])
+        output_num = self.read_general_reg(inst["rs2"])
+        output_mask_addr = self.read_general_reg(inst["rs3"])
+        dst_addr = self.read_general_reg(inst["rd"])
+        output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
+        output_byte = output_bw // 8
+
+        output_mask = self.memory_space.read_as(output_mask_addr, output_num // 8, np.int8)
+        output_mask = tensor_int8_to_bits(output_mask)
+        output_mask = output_mask.reshape(-1)
+
+        group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
+        n_group = self.macro_config.n_macro // group_size
+
+        data = self.memory_space.read_as(src_addr, output_num * output_byte, np.int32)
+        assert data.size==output_mask.size
+        print(f"{data=}")
+        print(f"{output_mask=}")
+        filtered_data = data[output_mask==1]
+        print(f"{filtered_data=}")
+        # import pdb; pdb.set_trace()
+        assert filtered_data.size == output_mask.sum(), f"{filtered_data.size=}, {data.sum()=}"
+        self.memory_space.write(filtered_data, dst_addr, filtered_data.size * output_byte)
 
     def _run_debug_class_inst(self, inst):
         if inst["type"]==0: #print
