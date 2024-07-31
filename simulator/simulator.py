@@ -244,7 +244,7 @@ class Simulator:
     FINISH = 0
     TIMEOUT = 1
     ERROR = 2
-    def __init__(self, memory_space, macro_config, mask_config, safe_time=999999, mask_memory_name="mask"):
+    def __init__(self, memory_space, macro_config, mask_config, safe_time=9999999, mask_memory_name="mask"):
         super().__init__()
         self.general_rf = np.zeros([64], dtype=np.int32)
         self.special_rf = np.zeros([32], dtype=np.int32)
@@ -342,7 +342,7 @@ class Simulator:
             
             cnt += 1
 
-        print(f"{self.pimcompute_cnt}")
+        print(f"{self.pimcompute_cnt=}, {total_pim_compute_count=}")
         self.pbar.close()
 
         if pc == len(code):
@@ -431,6 +431,8 @@ class Simulator:
             self._run_simd_class_vector_vector_inst(inst)
         elif opcode==0b01: # scalar add
             self._run_simd_class_scalar_vector_inst(inst)
+        elif opcode==3:
+            self._run_simd_class_quantify_inst(inst)
         else:
             assert False, f"Not support {opcode=} yet."
 
@@ -771,7 +773,7 @@ class Simulator:
         assert weight_data.shape[1] == group_size
         assert weight_data.shape[2] == self.macro_config.n_vcol(width_bw)
 
-        assert input_data.size==self.mask_config.n_from
+        assert input_data.size==self.mask_config.n_from, f"{input_data.size=}, {self.mask_config.n_from=}"
         mask_addr = self.read_special_reg(SpecialReg.VALUE_SPARSE_MASK_ADDR)
         # logging.debug(f"{mask_addr=}")
         mask_data = self.mask_util.get_mask(mask_addr, input_data.size, group_size)
@@ -798,6 +800,7 @@ class Simulator:
             assert macro_input_data.size == self.mask_config.n_to
 
             macro_weight = weight_data[:,macro_id,:]
+            # import pdb; pdb.set_trace();
             macro_output = np.dot(macro_input_data.astype(out_dtype), macro_weight.astype(out_dtype))
             # logging.debug(f"{macro_input_data=}, {macro_weight=}, {macro_output=}")
             output_list.append(macro_output)
@@ -1090,7 +1093,7 @@ class Simulator:
             rs = inst['rs']
             val = self.read_general_reg(rs)
             self.print_record.append(val)
-            logging.debug(f"[debug] general_reg[{rs}] = {val}")
+            logging.info(f" general_reg[{rs}] = {val}")
         elif inst["type"]==1:
             if self.debug_hook is not None:
                 self.debug_hook(simulator=self)
@@ -1171,3 +1174,6 @@ class Simulator:
         self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
 
         self.memory_space.write(output_data, output_addr, output_byte_size)
+
+    def _run_simd_class_quantify_inst(self, inst):
+        assert False, "Not support yet."

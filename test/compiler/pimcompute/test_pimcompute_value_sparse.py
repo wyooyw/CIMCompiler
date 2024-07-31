@@ -89,12 +89,13 @@ class TestPIMComputeValueSparse:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        'value_sparse/value_sparse_group' , 'dense/dense_conv2d_group'
+        'value_sparse/value_sparse_group_longer' , 'dense/dense_conv2d_group'
         ])
     @pytest.mark.parametrize('op_config',[
         {"out_channel":32, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
         {"out_channel":64, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
         {"out_channel":16, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        {"out_channel":384, "in_channel": 384, "ker_size": 3, "in_hw": 8, "out_hw": 6},
         ])
     def test_pim_compute(self, casename, op_config):
         case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
@@ -151,7 +152,7 @@ class TestPIMComputeValueSparse:
 
         # run code in simulator
 
-        pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config)
+        pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config, group_size=4)
         status = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH
 
@@ -211,4 +212,12 @@ if __name__=="__main__":
     TestPIMComputeValueSparse.setup_class()
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
-    tester.test_pim_compute('dense/dense_conv2d_group', {"out_channel":256, "in_channel": 96, "ker_size": 3, "in_hw": 16, "out_hw": 14, "input_buffer_size_per_group": 96})
+    tester.test_pim_compute('value_sparse/value_sparse_group_longer', 
+        {"out_channel":256,
+        "in_channel": 384, 
+        "ker_size": 3, 
+        "in_hw": 10, 
+        "out_hw": 8, 
+        "input_buffer_size_per_group": 128
+        }
+    )

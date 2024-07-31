@@ -1,19 +1,19 @@
-#define INPUT_BIT_WIDTH 0
-#define OUTPUT_BIT_WIDTH 1
-#define WEIGHT_BIT_WIDTH 2
-#define GROUP_SIZE 3
-#define ACTIVATION_GROUP_NUM 4
-#define ACTIVATION_ELEMENT_COL_NUM 5
-#define GROUP_INPUT_STEP 6
-#define GROUP_INPUT_OFFSET_ADDR 6
-#define VALUE_SPARSE_MASK_ADDR 7
-#define BIT_SPARSE_META_ADDR 8
+#define SPECIAL_REG_INPUT_BIT_WIDTH 0
+#define SPECIAL_REG_OUTPUT_BIT_WIDTH 1
+#define SPECIAL_REG_WEIGHT_BIT_WIDTH 2
+#define SPECIAL_REG_GROUP_SIZE 3
+#define SPECIAL_REG_ACTIVATION_GROUP_NUM 4
+#define SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM 5
+#define SPECIAL_REG_GROUP_INPUT_STEP 6
+#define SPECIAL_REG_GROUP_INPUT_OFFSET_ADDR 6
+#define SPECIAL_REG_VALUE_SPARSE_MASK_ADDR 7
+#define SPECIAL_REG_BIT_SPARSE_META_ADDR 8
 
-#define SIMD_INPUT_1_BIT_WIDTH 16
-#define SIMD_INPUT_2_BIT_WIDTH 17
-#define SIMD_INPUT_3_BIT_WIDTH 18
-#define SIMD_INPUT_4_BIT_WIDTH 19
-#define SIMD_OUTPUT_BIT_WIDTH 20
+#define SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH 16
+#define SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH 17
+#define SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH 18
+#define SPECIAL_REG_SIMD_INPUT_4_BIT_WIDTH 19
+#define SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH 20
 
 // TODO: replace these macro accroding to operator config
 
@@ -214,19 +214,23 @@ def main(null<int8>){
     local_spill = Buffer(<4>, index, __INPUT_MEMORY__);
 
     // TODO: Add 'SPECIAL_REG_' prefix for these macro.
-    SpecialRegSet(INPUT_BIT_WIDTH, 8);
-    SpecialRegSet(WEIGHT_BIT_WIDTH, 8);
-    SpecialRegSet(OUTPUT_BIT_WIDTH, 32);
-    SpecialRegSet(GROUP_SIZE, N_MACRO_PER_GROUP);
-    SpecialRegSet(ACTIVATION_GROUP_NUM, N_GROUP);
-    SpecialRegSet(ACTIVATION_ELEMENT_COL_NUM, N_GROUP_VCOL);
-    SpecialRegSet(GROUP_INPUT_STEP, N_FROM);
+    SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_GROUP_SIZE, N_MACRO_PER_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, N_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, N_GROUP_VCOL);
+    SpecialRegSet(SPECIAL_REG_GROUP_INPUT_STEP, N_FROM);
+
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
 
     macro_to_from_begin = 0;
     row_abs_begin = 0;
     from_to_row_begin = 0;
     for i_reduce_to_macro in range(0, MAPPING_REDUCE_TO_MACRO_LENGTH) 
-        carry (macro_to_from_begin, from_to_row_begin){
+        carry (macro_to_from_begin, from_to_row_begin, row_abs_begin){
         // for out_channel_begin in range(0, WEIGHT_OUT_CHANNEL, N_GROUP_VCOL) 
         // carry (macro_to_from_begin, from_to_row_begin) 
 
@@ -237,7 +241,8 @@ def main(null<int8>){
         macro_to_from_size = Load(mapping_reduce_to_macro, [i_reduce_to_macro]);
         macro_to_from_end = macro_to_from_begin + macro_to_from_size;
         begin_tile_in_window = 0;
-        for i_macro_to_from in range(macro_to_from_begin, macro_to_from_end) carry (begin_tile_in_window, from_to_row_begin, row_abs_begin){
+        for i_macro_to_from in range(macro_to_from_begin, macro_to_from_end) 
+            carry (begin_tile_in_window, from_to_row_begin, row_abs_begin){
             
             row_size = Load(mapping_macro_to_row, [i_macro_to_from]); // how many 16 in a macro(i.e. how many row to use)
             from_to_row_size = Load(mapping_macro_to_from, [i_macro_to_from]); // how many 128 in a macro
@@ -327,8 +332,7 @@ def main(null<int8>){
                         // row_to_activate = Load(local_spill, [3]);
                         for i_compute in range(compute_time) carry (row_to_activate, sparse_mask_addr){
                             // give mask addr to special register
-                            SpecialRegSet(VALUE_SPARSE_MASK_ADDR, sparse_mask_addr);
-                            //Debug();
+                            SpecialRegSet(SPECIAL_REG_VALUE_SPARSE_MASK_ADDR, sparse_mask_addr);
                             // activate macro
                             activate_macro = Slice(use_macros,
                                 [row_to_activate, 0, 0, 0],

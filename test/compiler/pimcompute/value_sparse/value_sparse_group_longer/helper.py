@@ -5,7 +5,13 @@ class TestHelper:
         self.in_channel = op_config["in_channel"]
         self.in_hw = op_config["in_hw"]
         self.out_hw = op_config["out_hw"]
-
+        if "input_buffer_size_per_group" in op_config:
+            self.input_buffer_size_per_group = op_config["input_buffer_size_per_group"]
+            assert self.input_buffer_size_per_group % 16 == 0
+            assert self.input_buffer_size_per_group <= 128
+        else:
+            self.input_buffer_size_per_group = 128
+            
     def _prepare_weight_data(self):
         import numpy as np
         """
@@ -13,17 +19,31 @@ class TestHelper:
         input: 32 * 8 * 8
         """
         # make a weight
-        weight = np.ones((self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        # weight = np.arange(self.ker_size * self.ker_size, dtype=np.int8).reshape(1, -1).repeat(self.out_channel * self.in_channel, axis=0)
+        # weight = np.ones((self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        # weight[:,:16] = 0
+        # weight[0,:16] = 0
+        # weight[1,1:17] = 0
+        # weight[2,2:18] = 0
+        # weight[3,3:19] = 0
+        # weight = weight.reshape(self.out_channel, self.ker_size * self.ker_size * self.in_channel)
+        # weight[:,::2] = 0
         # for i in range(0,self.out_channel,2):
         #     weight[i:i+2, i:i+99*2:2] = np.arange(1+i,1+i+99, dtype=np.int8)
             # weight[i:i+2, 256:3*3*32] = np.arange(0,3*3*32-256, dtype=np.int8)
 
         # print(weight.shape)
         # print(weight)
-        # weight = np.random.randint(-100, 100, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
-        # mask = np.random.randint(-1, 2, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
-        # weight = weight * mask
-
+        weight = np.random.randint(-8, 8, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        import random
+        np.random.seed(4)
+        random.seed(4)
+        mask = np.random.randint(-1, 2, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        weight = weight * mask
+        mask = np.random.randint(-1, 2, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        weight = weight * mask
+        mask = np.random.randint(-1, 2, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        weight = weight * mask
         return weight
 
     def _make_value_sparse_data(self, weight, simulator):
@@ -63,7 +83,7 @@ class TestHelper:
 
     def _prepare_input_data(self):
         import numpy as np
-        input_data = np.arange(0,self.in_hw*self.in_hw, dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        input_data = np.arange(1,self.in_hw*self.in_hw+1, dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
         assert input_data.shape==(self.in_hw,self.in_hw,self.in_channel), f"{input_data.shape=}"
         return input_data
 
@@ -139,8 +159,8 @@ class TestHelper:
             + mask_bytes 
             + mapping_reduce_to_macro_bytes 
             + mapping_macro_to_from_bytes
-            + mapping_from_to_row_bytes
             + mapping_macro_to_row_bytes
+            + mapping_from_to_row_bytes
         )
         self.output_offset = len(image)
         # image = input_data + index_bytes + tile_list_bytes
@@ -208,7 +228,7 @@ class TestHelper:
             'N_ROW': n_row,
             'N_COMP': n_comp,
             'N_MACRO_REDUCE': n_macro_reduce,
-            'INPUT_BUFFER_SIZE_PER_GROUP': 128,
+            'INPUT_BUFFER_SIZE_PER_GROUP': self.input_buffer_size_per_group,
             'TIME': self.converted_weight.shape[0],
             'N_FROM':  mask_config.n_from,
             'N_TO':  mask_config.n_to,

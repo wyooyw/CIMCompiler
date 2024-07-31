@@ -266,9 +266,9 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
         total_row = 0
         i_outer_reduce = 0
         reduce_element = 0
-        macro_fill = False
+        
         while reduce_element < total_reduce_size:
-
+            macro_fill = False
             from_in_macro = 0
             row_in_macro = 0
             while row_in_macro < n_row and i_outer_reduce < out_reduce_tile:
@@ -299,20 +299,20 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
                 mapping_macro_to_from.append(from_in_macro)
                 mapping_macro_to_row.append(row_in_macro)
                 macro_in_reduce += 1
-                reduce_element += row_in_macro * n_to
+                reduce_element += from_in_macro * n_from
             print(f"{reduce_element=},  {i_outer_reduce=}")
-            if macro_fill:
-                break
+            # if macro_fill:
+            #     break
 
         mapping_reduce_to_macro.append(macro_in_reduce)
 
     converted_weight = np.concatenate(weight_list, axis=0)
     mask = np.concatenate(mask_list, axis=0)
 
-    mapping_reduce_to_macro = np.array(mapping_reduce_to_macro, np.int8)
-    mapping_macro_to_from = np.array(mapping_macro_to_from, np.int8)
-    mapping_from_to_row = np.array(mapping_from_to_row, np.int8)
-    mapping_macro_to_row = np.array(mapping_macro_to_row, np.int8)
+    mapping_reduce_to_macro = np.array(mapping_reduce_to_macro, np.int32)
+    mapping_macro_to_from = np.array(mapping_macro_to_from, np.int32)
+    mapping_from_to_row = np.array(mapping_from_to_row, np.int32)
+    mapping_macro_to_row = np.array(mapping_macro_to_row, np.int32)
 
     # duplicate weight for groups
     converted_weight = np.repeat(converted_weight.reshape(-1, n_vcol, n_to, 1, n_macro_per_group), n_group, axis=3)
