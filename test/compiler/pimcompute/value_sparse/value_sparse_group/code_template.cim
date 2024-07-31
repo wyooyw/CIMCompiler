@@ -56,7 +56,34 @@
 
 #define OUT_SPATIAL_TILE_LENGTH {{OUT_SPATIAL_TILE_LENGTH}}
 
-def copy_input_to_input_buffer(
+def copy_input_to_input_buffer_icgt128( // input channel greater than 128
+                        null<int8>,
+                        local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
+                        group_use_input_buffer< <1, 1, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
+                        oh<index>,
+                        ow<index>,
+                        i<index> 
+){
+    
+    // copy one pixel one time
+    //num_pixel_per_buffer = INPUT_BUFFER_SIZE_PER_GROUP / INPUT_CHANNEL;
+    //num_pixel_per_window = KERNEL_SIZE * KERNEL_SIZE;
+
+    ker_pixel_id = i / INPUT_CHANNEL;
+    ker_row_id = ker_pixel_id / KERNEL_SIZE;
+    ker_col_id = ker_pixel_id % KERNEL_SIZE;
+    row_id = oh + ker_row_id;
+    col_id = ow + ker_col_id;
+    channel_id = i % INPUT_CHANNEL;
+    use_local_input = Slice(local_input,
+        [row_id, col_id, channel_id],
+        [1, 1, INPUT_BUFFER_SIZE_PER_GROUP],
+        [1, 1, 1]
+    );
+    Trans(use_local_input, group_use_input_buffer);
+}
+
+def copy_input_to_input_buffer_iclt128( // input channel less than 128
                         null<int8>,
                         local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
                         group_use_input_buffer< <1, 1, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
@@ -100,6 +127,23 @@ def copy_input_to_input_buffer(
         Trans(use_local_input, use_input_buffer);
         
     };
+}
+
+def copy_input_to_input_buffer(
+    null<int8>,
+    local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
+    group_use_input_buffer< <1, 1, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
+    oh<index>,
+    ow<index>,
+    i<index> 
+){
+    {% if INPUT_BUFFER_SIZE_PER_GROUP % INPUT_CHANNEL == 0 %}
+        copy_input_to_input_buffer_iclt128(null, local_input, group_use_input_buffer, oh, ow, i);
+    {% elif INPUT_CHANNEL % INPUT_BUFFER_SIZE_PER_GROUP == 0 %}
+        copy_input_to_input_buffer_icgt128(null, local_input, group_use_input_buffer, oh, ow, i);
+    {% else %}
+        Exit(null);
+    {% endif %}
 }
 
 def copy_input_to_input_buffer_for_all_group(
