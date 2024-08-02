@@ -535,8 +535,8 @@ static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, i
     };
     instr_list.push_back(add_zero_inst);
     use.insert(operand_reg);
-    // def.insert(arg_reg);
-    use.insert(arg_reg);
+    def.insert(arg_reg);
+    // use.insert(arg_reg);
   }
 
   Inst inst = {
@@ -1259,6 +1259,7 @@ static void mappingRegisterLogicalToPhysical(
   int num_physical_regs = 64;
   std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
   std::unordered_map<int, int> logical_to_physical_mapping;
+  int max_physical_reg_used = 0;
   for(int i = 0; i < num_physical_regs; i++) physical_regs.push(i);
   for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
     for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
@@ -1268,6 +1269,7 @@ static void mappingRegisterLogicalToPhysical(
           std::exit(1);
         }
         int physical_reg = physical_regs.top();
+        max_physical_reg_used = max(max_physical_reg_used, physical_reg);
         physical_regs.pop();
         logical_to_physical_mapping[logical_reg_id] = physical_reg;
       }else if(logic_reg_life_end[logical_reg_id]==inst_id){
@@ -1276,6 +1278,7 @@ static void mappingRegisterLogicalToPhysical(
       }
     }
   }
+  std::cout << "max_physical_reg_used: " << max_physical_reg_used << std::endl;
   for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
     std::cout << "logical_reg: " << logical_reg_id << " -> physical_reg: " << logical_to_physical_mapping[logical_reg_id] << std::endl;
   }
