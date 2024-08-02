@@ -211,7 +211,7 @@ def main(null<int8>){
     buffer_mask = Buffer(<N_MACRO_REDUCE, N_FROM, N_MACRO_PER_GROUP>, int1, __PIM_MASK_DATA_REG_BUFFER__);
 
     // Spill
-    local_spill = Buffer(<4>, index, __INPUT_MEMORY__);
+    local_spill = Buffer(<8>, index, __INPUT_MEMORY__);
 
     // TODO: Add 'SPECIAL_REG_' prefix for these macro.
     SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
@@ -229,26 +229,31 @@ def main(null<int8>){
     macro_to_from_begin = 0;
     row_abs_begin = 0;
     from_to_row_begin = 0;
+    // Spill
+    Save(local_spill, [0], macro_to_from_begin);
+    Save(local_spill, [1], row_abs_begin);
+    //Save(local_spill, [2], from_to_row_begin);
+    // @unroll
     for i_reduce_to_macro in range(0, MAPPING_REDUCE_TO_MACRO_LENGTH) 
-        carry (macro_to_from_begin, from_to_row_begin, row_abs_begin){
-        // for out_channel_begin in range(0, WEIGHT_OUT_CHANNEL, N_GROUP_VCOL) 
-        // carry (macro_to_from_begin, from_to_row_begin) 
+        carry (from_to_row_begin){
 
         out_channel_begin = i_reduce_to_macro * N_GROUP_VCOL;
         out_channel_end = Min(WEIGHT_OUT_CHANNEL, out_channel_begin + N_GROUP_VCOL);
         use_vcol = out_channel_end - out_channel_begin;
 
+        macro_to_from_begin = Load(local_spill, [0]);
         macro_to_from_size = Load(mapping_reduce_to_macro, [i_reduce_to_macro]);
         macro_to_from_end = macro_to_from_begin + macro_to_from_size;
         begin_tile_in_window = 0;
         for i_macro_to_from in range(macro_to_from_begin, macro_to_from_end) 
-            carry (begin_tile_in_window, from_to_row_begin, row_abs_begin){
+            carry (begin_tile_in_window, from_to_row_begin){
             
             row_size = Load(mapping_macro_to_row, [i_macro_to_from]); // how many 16 in a macro(i.e. how many row to use)
             from_to_row_size = Load(mapping_macro_to_from, [i_macro_to_from]); // how many 128 in a macro
 
             // Step 1: Prepare weight
             // notice that weight.shape = <TIME, N_TO, N_GROUP, N_MACRO_PER_GROUP, N_VCOL>
+            row_abs_begin = Load(local_spill, [1]);
             use_weight = Slice(global_weight, 
                         [row_abs_begin, 0, 0, 0, 0],                                // offsets
                         [row_size, N_TO, N_GROUP, N_MACRO_PER_GROUP, N_VCOL],   // sizes
@@ -307,11 +312,11 @@ def main(null<int8>){
                     
                     row_to_activate = 0;
                     sparse_mask_addr = VALUE_SPARSE_MASK_BASE_ADDR;
-                    // Save(local_spill, [2], sparse_mask_addr);
-                    // Save(local_spill, [3], row_to_activate);
+                    Save(local_spill, [2], sparse_mask_addr);
+                    Save(local_spill, [3], row_to_activate);
 
                     from_to_row_end = from_to_row_begin + from_to_row_size;
-                    for i_from_to_row in range(from_to_row_begin, from_to_row_end) carry (row_to_activate, sparse_mask_addr){
+                    for i_from_to_row in range(from_to_row_begin, from_to_row_end) carry (null){
                         i_rel_from_to_row = i_from_to_row - from_to_row_begin;
                         tt_ = i_rel_from_to_row * N_FROM;
                         i_tile_in_window = begin_tile_in_window + tt_;
@@ -328,8 +333,8 @@ def main(null<int8>){
                         sparse_mask_step_element = N_FROM * N_MACRO_PER_GROUP;
                         sparse_mask_step = sparse_mask_step_element / 8; // mask is stored by 1bit
                         compute_time = Load(mapping_from_to_row, [i_from_to_row]);
-                        // sparse_mask_addr = Load(local_spill, [2]);
-                        // row_to_activate = Load(local_spill, [3]);
+                        sparse_mask_addr = Load(local_spill, [2]);
+                        row_to_activate = Load(local_spill, [3]);
                         for i_compute in range(compute_time) carry (row_to_activate, sparse_mask_addr){
                             // give mask addr to special register
                             SpecialRegSet(SPECIAL_REG_VALUE_SPARSE_MASK_ADDR, sparse_mask_addr);
@@ -346,8 +351,8 @@ def main(null<int8>){
                             row_to_activate = row_to_activate + 1;
                             sparse_mask_addr = sparse_mask_addr + sparse_mask_step;
                         };
-                        // Save(local_spill, [2], sparse_mask_addr);
-                        // Save(local_spill, [3], row_to_activate);
+                        Save(local_spill, [2], sparse_mask_addr);
+                        Save(local_spill, [3], row_to_activate);
                         
                     };
                     // check output of first 4 output pixels.
@@ -368,11 +373,16 @@ def main(null<int8>){
             };
 
             begin_tile_in_window = end_tile_in_window;
+
+            row_abs_begin = Load(local_spill, [1]);
             row_abs_begin = row_abs_begin + row_size;
+            Save(local_spill, [1], row_abs_begin);
+
             from_to_row_begin = from_to_row_begin + from_to_row_size;
 
         }; // end of out_reduce_i
         macro_to_from_begin = macro_to_from_end;
+        Save(local_spill, [0], macro_to_from_begin);
         
     }; // end of out_channel_begin
     Trans(local_output, global_output);
