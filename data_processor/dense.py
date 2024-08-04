@@ -48,7 +48,7 @@ def convert_dense_conv2d_weight(weight, macro_config):
 
     return weight
 
-def extract_non_zero_mask_2d(weight3d):
+def extract_non_zero_mask_2d(weight3d, strict_align=False):
     """
     weight3d: batch * n_from * n_macro_per_group
 
@@ -58,12 +58,20 @@ def extract_non_zero_mask_2d(weight3d):
     assert len(weight3d.shape)==3
     non_zero_mask_3d = weight3d != 0
     non_zero_mask_2d = non_zero_mask_3d.sum(axis=0) != 0
+
+    if strict_align:
+        align = (non_zero_mask_3d==non_zero_mask_2d.reshape(1, *non_zero_mask_2d.shape)).all(), "Non-zero pattern is not aligned between filters in same macro!"
+        assert align
+        if not align:
+            print("Non-zero pattern is not aligned between filters in same macro!")
+            exit(1)
     return non_zero_mask_2d
 
-def extrace_mask_and_data(weight3d, n_from, n_to, concat=True, bit_to_byte=True):
+def extrace_mask_and_data(weight3d, n_from, n_to, concat=True, bit_to_byte=True, strict_align=False):
     """
     weight2d: n_vcol * n_from * n_macro_per_group
-    all 
+    
+    strict_align is used in value & bit sparse
 
     return :
     weight2d: t * n_to * n_macro_per_group
@@ -77,7 +85,7 @@ def extrace_mask_and_data(weight3d, n_from, n_to, concat=True, bit_to_byte=True)
 
     n_vcol, n_from, n_macro_per_group = weight3d.shape
 
-    non_zero_mask = extract_non_zero_mask_2d(weight3d)
+    non_zero_mask = extract_non_zero_mask_2d(weight3d, strict_align)
     prefix_sum = np.cumsum(non_zero_mask, axis=0) - 1
     position = np.repeat(np.arange(n_from).reshape(-1,1), n_macro_per_group, axis=1)
     begin_idx = 0
@@ -208,7 +216,7 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
 
 def convert_value_sparse_conv2d_weight(weight, macro_config):
     """
-    weight: [oc,ic,kh,kw]
+    weight: [oc,kh,kw,ic]
 
     converted_weight: [out_spatial_tile, out_reduce_tile, n_comp, n_group, n_group_vcol] 1byte
     mask: [n_sparse_time, n_comp, n_macro] 1bit   "n_sparse_time" is the combination of "out_spatial_tile" and "out_reduce_tile", it is a sparse axis.
@@ -216,7 +224,7 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
     return: converted_weight, mask, index
     """
     if len(weight.shape)==4:
-        oc, ic, kh, kw = weight.shape
+        oc, kh, kw, ic = weight.shape
         spatial_size = oc
         reduce_size = ic * kh * kw
         weight = weight.reshape(oc, reduce_size)
