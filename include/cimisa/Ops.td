@@ -79,6 +79,38 @@ def CIMOutputOp : CIMISA_Op<"cim_output"> {
 
 }
 
+def CIMOutputSumOp : CIMISA_Op<"cim_output_sum"> {
+  let summary = "cim output and clear";
+  let description = [{
+    cim output and clear
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$out_n,
+    AnyTypeOf<[AnyInteger, Index]>:$out_mask_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$output_addr
+  );
+
+}
+
+          
+
+def CIMTransferOp : CIMISA_Op<"cim_transfer"> {
+  let summary = "cim output and clear";
+  let description = [{
+    cim output and clear
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$src_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$output_number, 
+    AnyTypeOf<[AnyInteger, Index]>:$output_mask_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$buffer_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$dst_addr
+  );
+
+}
+
 /////////////////////////////////
 // Other Operator //
 /////////////////////////////////

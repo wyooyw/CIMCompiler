@@ -191,4 +191,36 @@ def CIMOutputOp : CIM_Op<"cim_output"> {
   let hasFolder = 1;
 }
 
+def CIMOutputSumOp : CIM_Op<"cim_output_sum"> {
+  let summary = "cim output and clear";
+  let description = [{
+    cim output and clear
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$out_n, 
+    AnyMemRef:$out_mask, 
+    AnyMemRef:$dst
+  );
+
+  let hasFolder = 1;
+}
+
+def CIMTransferOp : CIM_Op<"cim_transfer"> {
+  let summary = "cim output and clear";
+  let description = [{
+    cim output and clear
+  }];
+
+  let arguments = (ins 
+    AnyMemRef:$src,
+    AnyTypeOf<[AnyInteger, Index]>:$output_num, 
+    AnyMemRef:$output_mask,
+    AnyMemRef:$buffer,
+    AnyMemRef:$dst
+  );
+
+  let hasFolder = 1;
+}
+
 #endif // CIM_OPS

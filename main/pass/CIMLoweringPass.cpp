@@ -615,6 +615,59 @@ namespace {
         return success();
       }
     };
+
+    struct CIMOutputSumOpLowering : public OpRewritePattern<cim::CIMOutputSumOp> {
+      using OpRewritePattern<cim::CIMOutputSumOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::CIMOutputSumOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "CIMOutputSumOpLowering::matchAndRewrite begin" << std::endl;
+        Value out_n = op.getOperand(0);
+        Value out_mask_addr = getAddrValue(op.getOperand(1), rewriter);
+        Value output_addr = getAddrValue(op.getOperand(2), rewriter);
+        if (!out_mask_addr || !output_addr) {
+          std::cerr << "CIMOutputSumOpLowering::matchAndRewrite fail" << std::endl;
+          std::exit(1);
+        }
+        rewriter.replaceOpWithNewOp<cimisa::CIMOutputSumOp>(op, out_n, out_mask_addr, output_addr);
+        std::cout << "CIMOutputSumOpLowering::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
+
+  
+    struct CIMTransferOpLowering : public OpRewritePattern<cim::CIMTransferOp> {
+      using OpRewritePattern<cim::CIMTransferOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::CIMTransferOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "CIMTransferOpLowering::matchAndRewrite begin" << std::endl;
+        Value src_addr = getAddrValue(op.getOperand(0), rewriter);
+        Value output_number = op.getOperand(1);
+        Value output_mask_addr = getAddrValue(op.getOperand(2), rewriter);
+        Value buffer_addr = getAddrValue(op.getOperand(3), rewriter);
+        Value dst_addr = getAddrValue(op.getOperand(4), rewriter);
+        if (!src_addr || !output_number || !output_mask_addr || !buffer_addr || !dst_addr) {
+          std::cerr << "CIMTransferOpLowering::matchAndRewrite fail" << std::endl;
+          std::exit(1);
+        }
+        rewriter.replaceOpWithNewOp<cimisa::CIMTransferOp>(op, 
+          src_addr,
+          output_number, 
+          output_mask_addr, 
+          buffer_addr, 
+          dst_addr
+        );
+        std::cout << "CIMTransferOpLowering::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
 }
 
 
@@ -661,7 +714,8 @@ void CIMLoweringPass::runOnOperation() {
   // the set of patterns that will lower the Toy operations.
   RewritePatternSet patterns(&getContext());
   patterns.add<TransOpLowering,CIMComputeOpLowering,LoadOpLowering,StoreOpLowering,
-              VVAddOpLowering, SpecialRegSetOpLowering, CIMOutputOpLowering>(
+              VVAddOpLowering, SpecialRegSetOpLowering, CIMOutputOpLowering,
+              CIMOutputSumOpLowering, CIMTransferOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

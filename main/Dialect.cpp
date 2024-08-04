@@ -277,6 +277,15 @@ LogicalResult CIMOutputOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mli
   return memref::foldMemRefCast(*this);
 }
 
+LogicalResult CIMOutputSumOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+
+LogicalResult CIMTransferOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
 
 // Bufferize
 

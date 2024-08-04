@@ -484,6 +484,12 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     }else if(call_func_name=="CIMOutput"){
         parse_bulitin_cimoutput(ast);
         return;
+    }else if(call_func_name=="CIMOutputSum"){
+        parse_bulitin_cimoutput_sum(ast);
+        return;
+    }else if(call_func_name=="CIMTransfer"){
+        parse_bulitin_cimtransfer(ast);
+        return;
     }else if(call_func_name=="Save") {
         parse_bulitin_save(ast);
         return;
@@ -734,6 +740,44 @@ void MLIRGenImpl::parse_bulitin_cimoutput(const boost::property_tree::ptree& ast
     mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
 
     builder.create<mlir::cim::CIMOutputOp>(loc, output);
+
+}
+
+void MLIRGenImpl::parse_bulitin_cimoutput_sum(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_cimoutput_sum" << std::endl;
+
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_out_n = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_out_mask = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_output_addr = safe_get_child(get_item(ast_param_list,4), "call_param");
+
+    mlir::Value out_n = parse_expr(safe_get_child(get_item(ast_out_n, 0), "expr"));
+    mlir::Value out_mask = parse_expr(safe_get_child(get_item(ast_out_mask, 0), "expr"));
+    mlir::Value output_addr = parse_expr(safe_get_child(get_item(ast_output_addr, 0), "expr"));
+
+    builder.create<mlir::cim::CIMOutputSumOp>(loc, out_n, out_mask, output_addr);
+
+}
+
+void MLIRGenImpl::parse_bulitin_cimtransfer(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_cimtransfer" << std::endl;
+
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_output = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_output_num = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_output_mask = safe_get_child(get_item(ast_param_list,4), "call_param");
+    auto ast_buffer = safe_get_child(get_item(ast_param_list,6), "call_param");
+    auto ast_dst = safe_get_child(get_item(ast_param_list,8), "call_param");
+
+    mlir::Value src = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
+    mlir::Value output_num = parse_expr(safe_get_child(get_item(ast_output_num, 0), "expr"));
+    mlir::Value output_mask = parse_expr(safe_get_child(get_item(ast_output_mask, 0), "expr"));
+    mlir::Value buffer = parse_expr(safe_get_child(get_item(ast_buffer, 0), "expr"));
+    mlir::Value dst = parse_expr(safe_get_child(get_item(ast_dst, 0), "expr"));
+
+    builder.create<mlir::cim::CIMTransferOp>(loc, src, output_num, output_mask, buffer, dst);
 
 }
 
