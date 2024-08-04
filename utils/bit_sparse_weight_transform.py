@@ -390,6 +390,44 @@ def outsum_mask_to_transfer_mask(outsum_mask):
     assert len(transfer_mask)==len(outsum_mask)
     return transfer_mask
 
+def parse_out_mask_and_transfer_mask(fold, padding_to):
+    out_mask_list = []
+    transfer_mask_list = []
+    for i in range(len(fold)):
+        out_mask = parse_out_mask(fold[i])
+        transfer_mask = outsum_mask_to_transfer_mask(out_mask)
+
+        out_mask = np.array(out_mask, dtype=np.int8)
+        transfer_mask = np.array(transfer_mask, dtype=np.int8)
+        
+        assert len(out_mask.shape)==1 and len(transfer_mask.shape)==1
+        assert out_mask.shape[0] == transfer_mask.shape[0]
+        assert out_mask.shape[0] <= padding_to
+        out_mask = np.pad(out_mask, ((0, padding_to - out_mask.shape[0])), mode='constant', constant_values=0)
+        transfer_mask = np.pad(transfer_mask, ((0, padding_to - transfer_mask.shape[0])), mode='constant', constant_values=0)
+        out_mask_list.append(out_mask)
+        transfer_mask_list.append(transfer_mask)
+    
+    np_out_mask = np.stack(out_mask_list, axis=0)
+    np_transfer_mask = np.stack(transfer_mask_list, axis=0)
+
+    assert len(np_out_mask.shape)==2
+    assert np_out_mask.shape[1] % 8 == 0
+
+    np_out_mask = np_out_mask.reshape(-1, np_out_mask.shape[1]//8, 8)
+    np_out_mask = tensor_bits_to_int8(np_out_mask)
+
+    np_transfer_mask = np_transfer_mask.reshape(-1, np_transfer_mask.shape[1]//8, 8)
+    np_transfer_mask = tensor_bits_to_int8(np_transfer_mask)
+
+    return np_out_mask, np_transfer_mask
+
+def parse_out_begin_channel(fold):
+    out_channel_begin = [0]
+    for i in range(len(fold)):
+        out_channel_begin.append(out_channel_begin[-1] + len(fold[i]))
+    return np.array(out_channel_begin, dtype=np.int32)
+
 if __name__=="__main__":
     # for i in range(-128,129):
     #     csd_8 = int_to_csd(i)
