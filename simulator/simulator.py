@@ -1059,6 +1059,9 @@ class Simulator:
                     data[i] = data[i] + data[i+1]
             
             self.memory_space.write(data, dst_group_offset, group_data_size)
+        
+        internel_buffer = self.memory_space.get_memory_by_name("internel_macro_output_reg_buffer")
+        internel_buffer.clear()
 
     def _run_pim_class_pim_transfer_type_inst(self, inst):
         """
