@@ -746,11 +746,11 @@ class Simulator:
         - bit sparse meta addr：Bit级稀疏Meta数据的起始地址
         """
         # assert inst["group"] == 0, "Not support group yet."
-        if inst["value_sparse"] == 1 and inst["bit_sparse"] == 1:
-            self._run_pim_class_pim_compute_type_inst_value_bit_sparse(inst)
+        # if inst["value_sparse"] == 1 and inst["bit_sparse"] == 1:
+        #     self._run_pim_class_pim_compute_type_inst_value_bit_sparse(inst)
         # elif inst["value_sparse"] == 1:
         #     self._run_pim_class_pim_compute_type_inst_value_sparse(inst)
-        elif inst["bit_sparse"] == 1:
+        if inst["bit_sparse"] == 1:
             self._run_pim_class_pim_compute_type_inst_bit_sparse(inst)
         else:
             self._run_pim_class_pim_compute_type_inst_dense(inst)
