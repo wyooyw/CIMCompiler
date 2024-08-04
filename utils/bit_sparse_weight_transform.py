@@ -104,7 +104,7 @@ def parse_fold_weight(cim_cfg, op_cfg, weight_bit_num):
         return whole
 
 def weight_transform(weight, cim_cfg, op_cfg, weight_dtype="OIHW"):
-    assert len(weight.shape)==4
+    assert len(weight.shape)==4, f"{weight.shape=}"
     assert type(weight)==np.ndarray
     if weight_dtype=="OIHW":
         out_channel,in_channel,ker_height,ker_width = weight.shape
@@ -113,6 +113,10 @@ def weight_transform(weight, cim_cfg, op_cfg, weight_dtype="OIHW"):
     elif weight_dtype=="HWIO":
         ker_height,ker_width,in_channel,out_channel = weight.shape
         ele_in_filter = in_channel*ker_height*ker_width
+    elif weight_dtype=="OHWI":
+        out_channel,ker_height,ker_width,in_channel = weight.shape
+        ele_in_filter = in_channel*ker_height*ker_width
+        weight = np.transpose(weight, (1,2,3,0))
     else:
         assert False
 
@@ -257,18 +261,43 @@ def parse_tensor(tensor, threshold):
     
     return value, sign, location
 
-def recover_csd(value, sign, location):
-    assert type(value)==np.uint8
+
+# def recover_csd(value, sign, location):
+#     assert type(value)==np.uint8
+#     assert value==1 or value==0
+#     assert type(sign)==np.uint8
+#     assert sign==1 or sign==0
+#     assert type(location)==np.ndarray
+#     assert len(location.shape)==1
+#     assert location.shape[0]==2
+#     assert location.dtype=="uint8",location.dtype
+#     assert location[0] == 0 or location[0] == 1
+#     assert location[1] == 0 or location[1] == 1
+    
+#     lookup_table = {"00":"01","01":"0-","10":"10","11":"-0"}
+#     key = str(value) + str(sign)
+#     csd_value = lookup_table[key]
+
+#     location_lookup_table = {"00":3,"01":2,"10":1,"11":0}
+#     key = str(location[0]) + str(location[1])
+#     real_location = location_lookup_table[key]
+
+#     csd = ["00","00","00","00"]
+#     csd[real_location] = csd_value
+#     csd = "".join(csd)
+
+#     return csd
+
+def _recover_csd(value, sign, location):
+    assert type(value)==int
     assert value==1 or value==0
-    assert type(sign)==np.uint8
+    assert type(sign)==int
     assert sign==1 or sign==0
-    assert type(location)==np.ndarray
-    assert len(location.shape)==1
-    assert location.shape[0]==2
-    assert location.dtype=="uint8",location.dtype
+    assert type(location)==tuple
+    assert len(location)==2
     assert location[0] == 0 or location[0] == 1
     assert location[1] == 0 or location[1] == 1
-    
+
     lookup_table = {"00":"01","01":"0-","10":"10","11":"-0"}
     key = str(value) + str(sign)
     csd_value = lookup_table[key]
@@ -280,6 +309,36 @@ def recover_csd(value, sign, location):
     csd = ["00","00","00","00"]
     csd[real_location] = csd_value
     csd = "".join(csd)
+
+    return csd
+
+value_sign_location_to_csd_lookup_table = None
+def recover_csd(value, sign, location):
+    global value_sign_location_to_csd_lookup_table
+    assert type(value)==np.uint8
+    assert value==1 or value==0
+    assert type(sign)==np.uint8
+    assert sign==1 or sign==0
+    assert type(location)==np.ndarray
+    assert len(location.shape)==1
+    assert location.shape[0]==2
+    assert location.dtype=="uint8",location.dtype
+    assert location[0] == 0 or location[0] == 1
+    assert location[1] == 0 or location[1] == 1
+
+    if value_sign_location_to_csd_lookup_table is None:
+        value_sign_location_to_csd_lookup_table = dict()
+        for v in range(2):
+            for s in range(2):
+                for l0 in range(2):
+                    for l1 in range(2):
+                        key = (v,s,(l0,l1))
+                        csd = _recover_csd(*key)
+                        value_sign_location_to_csd_lookup_table[key] = csd
+    
+    key = (value.item(),sign.item(),tuple(location.tolist()))
+
+    csd = value_sign_location_to_csd_lookup_table[key]
 
     return csd
 
