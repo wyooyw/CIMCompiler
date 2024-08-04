@@ -5,6 +5,12 @@ class TestHelper:
         self.in_channel = op_config["in_channel"]
         self.in_hw = op_config["in_hw"]
         self.out_hw = op_config["out_hw"]
+        
+        if "padding" in op_config:
+            self.padding = op_config["padding"]
+        else:
+            self.padding = 0
+
         if "input_buffer_size_per_group" in op_config:
             self.input_buffer_size_per_group = op_config["input_buffer_size_per_group"]
             assert self.input_buffer_size_per_group % 16 == 0
@@ -12,39 +18,29 @@ class TestHelper:
         else:
             self.input_buffer_size_per_group = 128
             
-    def _prepare_weight_data(self):
+    def _get_mock_weight(self):
         import numpy as np
         """
         weight: 32 * 32 * 3 * 3
         input: 32 * 8 * 8
         """
-        # make a weight
-        # weight = np.arange(self.ker_size * self.ker_size, dtype=np.int8).reshape(1, -1).repeat(self.out_channel * self.in_channel, axis=0)
-        # weight = np.ones((self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
-        # weight[:,:16] = 0
-        # weight[0,:16] = 0
-        # weight[1,1:17] = 0
-        # weight[2,2:18] = 0
-        # weight[3,3:19] = 0
-        # weight = weight.reshape(self.out_channel, self.ker_size * self.ker_size * self.in_channel)
-        # weight[:,::2] = 0
-        # for i in range(0,self.out_channel,2):
-        #     weight[i:i+2, i:i+99*2:2] = np.arange(1+i,1+i+99, dtype=np.int8)
-            # weight[i:i+2, 256:3*3*32] = np.arange(0,3*3*32-256, dtype=np.int8)
-
-        # print(weight.shape)
-        # print(weight)
-        weight = np.random.randint(-8, 8, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        weight = np.random.randint(-8, 8, size=(self.out_channel, self.ker_size, self.ker_size, self.in_channel), dtype=np.int8)
         import random
         np.random.seed(4)
         random.seed(4)
-        mask = np.random.randint(-1, 2, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        mask = np.random.randint(-1, 2, size=weight.shape, dtype=np.int8)
         weight = weight * mask
-        mask = np.random.randint(-1, 2, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        mask = np.random.randint(-1, 2, size=weight.shape, dtype=np.int8)
         weight = weight * mask
-        mask = np.random.randint(-1, 2, size=(self.out_channel, self.ker_size * self.ker_size * self.in_channel), dtype=np.int8)
+        mask = np.random.randint(-1, 2, size=weight.shape, dtype=np.int8)
         weight = weight * mask
         return weight
+
+    def _get_mock_input(self):
+        import numpy as np
+        input_data = np.arange(1,self.in_hw*self.in_hw+1, dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        assert input_data.shape==(self.in_hw,self.in_hw,self.in_channel), f"{input_data.shape=}"
+        return input_data
 
     def _make_value_sparse_data(self, weight, simulator):
         from data_processor.dense import convert_value_sparse_conv2d_weight
@@ -81,34 +77,61 @@ class TestHelper:
         # import pdb; pdb.set_trace()
         return result
 
-    def _prepare_input_data(self):
-        import numpy as np
-        input_data = np.arange(1,self.in_hw*self.in_hw+1, dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
-        assert input_data.shape==(self.in_hw,self.in_hw,self.in_channel), f"{input_data.shape=}"
-        return input_data
-
     def _calculate_golden(self):
         import numpy as np
         output_h = output_w = self.out_hw
         output_c = self.out_channel
-
+        weight = self.weight_data.reshape(self.weight_data.shape[0], -1)
         output = np.zeros((output_h, output_w, output_c), dtype=np.int32)
         for row in range(output_h):
             for col in range(output_w):
                 input = self.input_data[row:row+self.ker_size,col:col+self.ker_size,:].reshape(-1,1)
-                weight = self.weight_data
+                
                 golden = np.matmul(weight.astype(np.int32), input.astype(np.int32))
                 output[row,col,:] = golden.reshape(-1)
         return output
 
-    def get_image(self, simulator):
+    def _assert_check_input_and_weight_shape(self, input, weight):
+        """
+        assert input.shape is [in_hw, in_hw, in_channel]
+        assert weight.shape is [out_channel, in_channel, ker_size, ker_size]
+        """
+        assert len(input.shape)==3, f"{input.shape=}"
+        assert input.shape[0]==input.shape[1] and input.shape[0]==self.in_hw, f"{input.shape=}"
+        assert input.shape[2]==self.in_channel, f"{input.shape=}"
+
+        assert len(weight.shape)==4, f"{weight.shape=}"
+        assert weight.shape[0]==self.out_channel, f"{weight.shape=}"
+        assert weight.shape[3]==self.in_channel, f"{weight.shape=}"
+        assert weight.shape[1]==weight.shape[2] and weight.shape[2]==self.ker_size, f"{weight.shape=}"
+        
+    def _apply_padding(self, input_data):
+        """
+        input.shape: H,W,C
+        """
+        import numpy as np
+        print("apply_padding")
+        input_data = np.pad(input_data, ((self.padding,self.padding),(self.padding,self.padding),(0,0)), mode='constant', constant_values=0)
+        return input_data
+
+    def get_image(self, simulator, input=None, weight=None):
         import numpy as np
         from utils.df_layout import tensor_bits_to_int8
         """
         
         """
-        self.input_data = self._prepare_input_data()
-        self.weight_data = self._prepare_weight_data()
+        if input is None:
+            self.input_data = self._get_mock_input()
+        else:
+            self.input_data = input
+
+        if weight is None:
+            self.weight_data = self._get_mock_weight()
+        else:
+            self.weight_data = weight
+
+        self._assert_check_input_and_weight_shape(self.input_data, self.weight_data)
+        self.input_data = self._apply_padding(self.input_data)
 
 
         result = self._make_value_sparse_data(self.weight_data, simulator)
@@ -165,6 +188,16 @@ class TestHelper:
         self.output_offset = len(image)
         # image = input_data + index_bytes + tile_list_bytes
         return image
+
+    def get_output(self, memory_space):
+        import numpy as np
+
+        global_offset = memory_space.get_base_of("global")
+        output_offset = global_offset + self.output_offset
+        output_byte_size = self.out_hw * self.out_hw * self.out_channel * 4
+        output = memory_space.read_as(output_offset, output_byte_size, np.int32)
+        output = output.reshape(self.out_hw, self.out_hw, self.out_channel)
+        return output
     
     def check_image(self, memory_space):
         import numpy as np
@@ -209,10 +242,12 @@ class TestHelper:
         n_comp = macro_config.n_comp
         n_macro_reduce = n_row * n_comp
         mask_base = simulator.memory_space.get_base_of("pim_mask_data_reg_buffer")
+
+        in_hw_padding = self.in_hw + 2 * self.padding
         context = {
             'OUTPUT_CHANNEL': self.out_channel,
-            'INPUT_ROW': self.in_hw,
-            'INPUT_COL': self.in_hw,
+            'INPUT_ROW': in_hw_padding,
+            'INPUT_COL': in_hw_padding,
             'INPUT_CHANNEL': self.in_channel,
             'OUTPUT_ROW': self.out_hw,
             'OUTPUT_COL': self.out_hw,
