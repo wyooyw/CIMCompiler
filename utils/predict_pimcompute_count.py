@@ -6,6 +6,7 @@ def predict_pimcompute_count_for_conv2d_dense(macro_config, op_config, group_siz
     
     n_group = macro_config.n_macro // group_size
     sliding_window_count = op_config.out_hw * op_config.out_hw // n_group
+    print(f"{op_config.out_hw=}, {n_group=}, {sliding_window_count=}")
 
     reduce_len = op_config.ker_size * op_config.ker_size * op_config.in_channel
     weight_reduce_count = math.ceil(reduce_len/ macro_config.n_comp)
@@ -14,4 +15,5 @@ def predict_pimcompute_count_for_conv2d_dense(macro_config, op_config, group_siz
     weight_spatial_count = math.ceil(op_config.out_channel/ n_vcol_per_group)
 
     total = sliding_window_count * weight_reduce_count * weight_spatial_count
+    print(f"{sliding_window_count=}, {weight_reduce_count=}, {weight_spatial_count=}, {total=}")
     return total
