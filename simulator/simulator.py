@@ -9,6 +9,8 @@ import json
 from utils.df_layout import tensor_int8_to_bits
 from tqdm import tqdm
 import logging
+import cProfile
+
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -310,6 +312,14 @@ class Simulator:
     def get_dtype(self, bitwidth):
         assert bitwidth in self._int_data_type
         return self._int_data_type[bitwidth]
+
+    def run_code_with_profile(self, code: list[dict], total_pim_compute_count=0):
+        profiler = cProfile.Profile()
+        profiler.enable()
+        status = self.run_code(code, total_pim_compute_count)
+        profiler.disable()
+        profiler.print_stats(sort='cumtime')
+        return status
 
     def run_code(self, code: list[dict], total_pim_compute_count=0):
         pc = 0
