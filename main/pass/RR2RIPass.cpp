@@ -469,7 +469,7 @@ struct RR2RIPass
   }
   void runOnOperation() final;
 };
-} // namespace
+} // namespace 
 
 void RR2RIPass::runOnOperation() {
   // The first thing to define is the conversion target. This will define the
