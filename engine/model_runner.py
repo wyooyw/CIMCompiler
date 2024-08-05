@@ -106,23 +106,25 @@ if __name__=="__main__":
     # model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vgg19/VGG19_ori_data_0513"
     # model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_csd_th2_data_0619"
     # model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vgg19/VGGNet_0.6_data_0731"
-    model_path_value_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vgg19/VGGNet_0.6_csd_th2_data_0717"
-    model_runner = ModelRunner(
-        model_name="VGG19", 
-        model_path=model_path_value_bit_sparse,
-        code_dir="/home/wangyiou/project/cim_compiler_frontend/playground/.result",
-        is_value_sparse=True,
-        is_bit_sparse=True
-    )
-    model_runner.run_layers_cim()
+    # model_path_value_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vgg19/VGGNet_0.6_csd_th2_data_0717"
+    # model_runner = ModelRunner(
+    #     model_name="VGG19", 
+    #     model_path=model_path_value_bit_sparse,
+    #     code_dir="/home/wangyiou/project/cim_compiler_frontend/playground/.result",
+    #     is_value_sparse=True,
+    #     is_bit_sparse=True
+    # )
+    # model_runner.run_layers_cim()
 
     # model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/efficientnet/EfficientNet_ori_data_0730"
     # model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/efficientnet/EfficientNet_csd_th2_data_0705"
     # model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/efficientnet/EfficientNet_0.6_data_0726"
-    # model_runner = ModelRunner(
-    #     model_name="EfficientNet", 
-    #     model_path=model_path_bit_sparse,
-    #     code_dir="/home/wangyiou/project/cim_compiler_frontend/playground/.result",
-    #     is_bit_sparse=True
-    # )
-    # model_runner.run_layers_cim()
+    model_path_value_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/efficientnet/EfficientNet_0.6_csd_th2_0616"
+    model_runner = ModelRunner(
+        model_name="EfficientNet", 
+        model_path=model_path_value_bit_sparse,
+        code_dir="/home/wangyiou/project/cim_compiler_frontend/playground/.result",
+        is_bit_sparse=True,
+        is_value_sparse=True
+    )
+    model_runner.run_layers_cim()
