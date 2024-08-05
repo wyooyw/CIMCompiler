@@ -63,6 +63,27 @@ def VSMulOp : CIM_Op<"vs_mul", [Pure]> {
   ];
 }
 
+def QuantifyOp : CIM_Op<"quantify"> {
+  let summary = "element-wise addition operation";
+  let description = [{
+    The "add" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins 
+    AnyMemRef:$input, 
+    AnyMemRef:$bias, 
+    AnyMemRef:$scale,
+    AnyMemRef:$output
+  );
+
+  // Allow building an AddOp with from the two input operands.
+  // let builders = [
+  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
+  // ];
+
+  let hasFolder = 1;
+}
 
 /////////////////////////////////
 // CIM Compute //

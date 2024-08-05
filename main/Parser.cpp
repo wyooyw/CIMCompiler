@@ -460,6 +460,9 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     }else if (call_func_name=="VVAdd") {
         parse_bulitin_vvadd(ast);
         return ;
+    }else if (call_func_name=="Quantify") {
+        parse_bulitin_quantify(ast);
+        return ;
     }else if (call_func_name=="Print") {
         parse_bulitin_print(ast);
         return;
@@ -592,6 +595,23 @@ void MLIRGenImpl::parse_bulitin_vvadd(const boost::property_tree::ptree& ast){
     mlir::Value rhs = parse_expr(safe_get_child(get_item(ast_rhs, 0), "expr"));
     mlir::Value out = parse_expr(safe_get_child(get_item(ast_out, 0), "expr"));
     builder.create<mlir::cim::VVAddOp>(loc, lhs, rhs, out);
+}
+
+void MLIRGenImpl::parse_bulitin_quantify(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_quantify"  << std::endl;
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_input = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_bias = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_scale = safe_get_child(get_item(ast_param_list,4), "call_param");
+    auto ast_output = safe_get_child(get_item(ast_param_list,6), "call_param");
+
+    mlir::Value input = parse_expr(safe_get_child(get_item(ast_input, 0), "expr"));
+    mlir::Value bias = parse_expr(safe_get_child(get_item(ast_bias, 0), "expr"));
+    mlir::Value scale = parse_expr(safe_get_child(get_item(ast_scale, 0), "expr"));
+    mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
+
+    builder.create<mlir::cim::Quantify>(loc, input, bias, scale, output);
 }
 
 mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree& ast){

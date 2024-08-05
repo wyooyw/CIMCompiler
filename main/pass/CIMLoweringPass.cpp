@@ -562,6 +562,31 @@ namespace {
       }
     };
 
+    struct QuantifyOpLowering : public OpRewritePattern<cim::QuantifyOp> {
+      using OpRewritePattern<cim::QuantifyOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::QuantifyOp op, PatternRewriter &rewriter) const final {
+        std::cout << "QuantifyOpLowering::matchAndRewrite begin" << std::endl;
+        Value input = getAddrValue(op.getOperand(0), rewriter);
+        Value bias = getAddrValue(op.getOperand(1), rewriter);
+        Value scale = getAddrValue(op.getOperand(2), rewriter);
+        Value output = getAddrValue(op.getOperand(3), rewriter);
+        Value size = getLengthValue(op.getOperand(0), rewriter);
+        
+        std::cout << "QuantifyOpLowering::matchAndRewrite" << std::endl;
+        if (!input || !bias || !scale || !size) {
+          std::cout << "QuantifyOpLowering::matchAndRewrite fail" << std::endl;
+          return failure();
+        }
+        std::cout << "QuantifyOpLowering::matchAndRewrite success" << std::endl;
+        
+        rewriter.replaceOpWithNewOp<cimisa::QuantifyOp>(op, input, bias, scale, output, size);
+
+        return success();
+      }
+    };
+
     struct SpecialRegSetOpLowering : public OpRewritePattern<cim::SpecialRegSetOp> {
       using OpRewritePattern<cim::SpecialRegSetOp>::OpRewritePattern;
 
@@ -715,7 +740,7 @@ void CIMLoweringPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   patterns.add<TransOpLowering,CIMComputeOpLowering,LoadOpLowering,StoreOpLowering,
               VVAddOpLowering, SpecialRegSetOpLowering, CIMOutputOpLowering,
-              CIMOutputSumOpLowering, CIMTransferOpLowering>(
+              CIMOutputSumOpLowering, CIMTransferOpLowering,QuantifyOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the
