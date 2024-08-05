@@ -556,8 +556,13 @@ src_addr,
   BranchOp, CondBranchOp
 */
 
-static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
-    std::set<int> &def, std::set<int> &use ){
+static void codeGen(
+  mlir::cf::BranchOp op, 
+  std::unordered_map<llvm::hash_code, int > &regmap, 
+  std::unordered_map<llvm::hash_code, int > &block_args_special_reg_map, 
+  std::vector<Inst>& instr_list,
+  std::set<int> &def, 
+  std::set<int> &use ){
   /*
 - [31, 29]，3bit：class，指令类别码，值为111
 - [28, 26]，3bit：type，指令类型码，值为100
@@ -576,20 +581,37 @@ static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, i
   for (int i = 0; i < args_size; i++){
     mlir::Value arg = llvm::cast<mlir::Value>(dest_args[i]);
     mlir::Value operand = dest_operands[i];
-    int arg_reg = getReg(regmap, arg);
+    
     int operand_reg = getReg(regmap, operand);
-    // we don't have a move instruct between general register, so we use addi zero instead
-    Inst add_zero_inst = {
-      {"class", 0b10},
-      {"type", 0b01},
-      {"opcode", 0b00},
-      {"rs", operand_reg},
-      {"rd", arg_reg},
-      {"imm", 0}
-    };
-    instr_list.push_back(add_zero_inst);
-    use.insert(operand_reg);
-    def.insert(arg_reg);
+    if (block_args_special_reg_map.count(mlir::hash_value(arg))){
+      int arg_special_reg = getReg(block_args_special_reg_map, arg);
+      // assign into special register
+      Inst to_special_inst = {
+        {"class", 0b10},
+        {"type", 0b11},
+        {"opcode", 0b10},
+        {"rs1", operand_reg},
+        {"rs2", arg_special_reg}
+      };
+      instr_list.push_back(to_special_inst);
+      use.insert(operand_reg);
+    }else{
+      int arg_reg = getReg(regmap, arg);
+      // we don't have a move instruct between general register, so we use addi zero instead
+      Inst add_zero_inst = {
+        {"class", 0b10},
+        {"type", 0b01},
+        {"opcode", 0b00},
+        {"rs", operand_reg},
+        {"rd", arg_reg},
+        {"imm", 0}
+      };
+      // assign args into special register
+      instr_list.push_back(add_zero_inst);
+      use.insert(operand_reg);
+      def.insert(arg_reg);
+    }
+
     // use.insert(arg_reg);
   }
 
@@ -892,7 +914,37 @@ static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
 //   return blocks;
 // }
 
-static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_code, int > &regmap, 
+static void codeGenForBlockArgs(
+  Block *block, 
+  std::unordered_map<llvm::hash_code, int > &general_reg_map, 
+  std::unordered_map<llvm::hash_code, int > &block_args_special_reg_map, 
+  std::vector<Inst>& instr_list,
+  std::set<int>& write,
+  std::set<int>& read
+  ){
+
+  auto args = block->getArguments();
+  for (int i = 0; i < args.size(); i++){
+    mlir::Value arg = llvm::cast<mlir::Value>(args[i]);
+    if (block_args_special_reg_map.count(mlir::hash_value(arg))){
+      int special_reg = getReg(block_args_special_reg_map, arg);
+      int general_reg = getReg(general_reg_map, arg);
+      Inst inst = {
+        {"class", 0b10},
+        {"type", 0b11},
+        {"opcode", 0b11},
+        {"rs1", general_reg},
+        {"rs2", special_reg}
+      };
+      instr_list.push_back(inst);
+      write.insert(general_reg);
+    }
+  }
+}
+
+static void codeGen(std::vector<Block*> &blocks, 
+          std::unordered_map<llvm::hash_code, int > &regmap, 
+          std::unordered_map<llvm::hash_code, int > &block_args_special_reg_map,
           std::vector<Inst>& instr_list, 
           std::map<Block*, int>& block2line,
           std::map<Block*, int>& block2line_end,
@@ -907,6 +959,8 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
 
     std::set<int> _write;
     std::set<int> _read;
+
+    codeGenForBlockArgs(block, regmap, block_args_special_reg_map, instr_list, _write, _read);
     for (Operation &op_obj : block->getOperations()){
       Operation *op = &op_obj;
       
@@ -967,7 +1021,7 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
         codeGen(_op, regmap, instr_list, _write, _read);
         jump2line[op] = instr_list.size() - 1;
       }else if(auto _op = dyn_cast<mlir::cf::BranchOp>(op)){
-        codeGen(_op, regmap, instr_list, _write, _read);
+        codeGen(_op, regmap, block_args_special_reg_map, instr_list, _write, _read);
         jump2line[op] = instr_list.size() - 1;
       }else if(auto _op = dyn_cast<mlir::cimisa::SpecialRegLiOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
@@ -1045,24 +1099,112 @@ static void _getRegisterMappingAliasBetweenBasicBlock(
   }
 }
 
+// static void _getRegisterMappingForBlockArgs(
+//   mlir::func::FuncOp func,
+//   std::unordered_map<llvm::hash_code, int >& mapping,
+//   int& reg_cnt){
+    
+
+//   auto regions = func->getRegions();
+//   for (Region &region : regions){
+//     // for each block
+//     for (Block &block : region.getBlocks()){
+//       auto block_arguments = block.getArguments();
+//       for (int arg_i = 0; arg_i < block_arguments.size(); arg_i++){
+//         BlockArgument block_arg = block_arguments[arg_i];
+//         mlir::Value block_arg_val = llvm::cast<mlir::Value>(block_arg);
+//         mapValueAsRegister(block_arg_val, mapping, reg_cnt);
+//       }
+//     }
+//   }
+// }
+struct BlockWithLifeTime{
+  Block* block;
+  int lifetime;
+};
 static void _getRegisterMappingForBlockArgs(
   mlir::func::FuncOp func,
   std::unordered_map<llvm::hash_code, int >& mapping,
+  std::unordered_map<llvm::hash_code, int >& special_reg_mapping,
   int& reg_cnt){
-    
+  std::vector<Block*> blocks = getBlockList(func);
+  std::map<Block*, int> block2index;
+  // get block2index
+  for (int i = 0; i < blocks.size(); i++){
+    block2index[blocks[i]] = i;
+  }
 
-  auto regions = func->getRegions();
-  for (Region &region : regions){
-    // for each block
-    for (Block &block : region.getBlocks()){
-      auto block_arguments = block.getArguments();
-      for (int arg_i = 0; arg_i < block_arguments.size(); arg_i++){
-        BlockArgument block_arg = block_arguments[arg_i];
-        mlir::Value block_arg_val = llvm::cast<mlir::Value>(block_arg);
-        mapValueAsRegister(block_arg_val, mapping, reg_cnt);
+  std::vector<BlockWithLifeTime> block_with_lifetime;
+
+  for (Block *block : blocks){
+    auto block_arguments = block->getArguments();
+    if (block_arguments.size()==0){
+      BlockWithLifeTime block_with_lifetime_obj = {block, -1};
+      block_with_lifetime.push_back(block_with_lifetime_obj);
+      continue;
+    }
+
+    std::vector<Block*> predecessors;
+    for (auto *b : block->getPredecessors()) predecessors.push_back(b);
+    if (predecessors.size()==0){
+      BlockWithLifeTime block_with_lifetime_obj = {block, -1};
+      block_with_lifetime.push_back(block_with_lifetime_obj);
+      continue;
+    }
+
+    int lifetime_begin = block2index[block];
+    int lifetime_end = block2index[block];
+    for (Block *pred : predecessors){
+      lifetime_begin = std::min(lifetime_begin, block2index[pred]);
+      lifetime_end = std::max(lifetime_end, block2index[pred]);
+    }
+    int lifetime = lifetime_end - lifetime_begin;
+    BlockWithLifeTime block_with_lifetime_obj = {block, lifetime};
+    block_with_lifetime.push_back(block_with_lifetime_obj);
+  }
+
+  // sort block_with_lifetime by lifetime
+  std::sort(block_with_lifetime.begin(), block_with_lifetime.end(), 
+    [](const BlockWithLifeTime &a, const BlockWithLifeTime &b){
+      return a.lifetime > b.lifetime;
+    });
+
+  std::vector<int> vec = {9,10,11,12,13,14,15, 21,22,23,24,25,26,27,28,29,30,31};
+  std::queue<int> usable_special_regs;
+  // for (int &i : vec) usable_special_regs.push(i);
+  // std::queue<int> usable_special_regs = 
+  // std::queue<int> usable_special_regs = {};
+
+  for (BlockWithLifeTime &block_with_lifetime_obj : block_with_lifetime){
+    Block *block = block_with_lifetime_obj.block;
+    auto block_arguments = block->getArguments();
+    std::cout << "block->lifetime = " << block_with_lifetime_obj.lifetime << "num args: " << block_arguments.size() << std::endl;
+    for (int arg_i = 0; arg_i < block_arguments.size(); arg_i++){
+      BlockArgument block_arg = block_arguments[arg_i];
+      mlir::Value block_arg_val = llvm::cast<mlir::Value>(block_arg);
+      int special_reg = -1;
+      if(!usable_special_regs.empty()){
+        special_reg = usable_special_regs.front();
+        usable_special_regs.pop();
+        mapValueAsRegister(block_arg_val, special_reg_mapping, special_reg);
       }
+      mapValueAsRegister(block_arg_val, mapping, reg_cnt);
+      std::cout << "    block arg: logical reg: " << reg_cnt-1 << ", special reg: " << special_reg << std::endl;
     }
   }
+
+  // auto regions = func->getRegions();
+  // for (Region &region : regions){
+  //   // for each block
+  //   for (Block &block : region.getBlocks()){
+  //     auto block_arguments = block.getArguments();
+  //     for (int arg_i = 0; arg_i < block_arguments.size(); arg_i++){
+  //       BlockArgument block_arg = block_arguments[arg_i];
+  //       mlir::Value block_arg_val = llvm::cast<mlir::Value>(block_arg);
+  //       mapValueAsRegister(block_arg_val, mapping, reg_cnt);
+  //     }
+  //   }
+  // }
 }
 
 static void _getRegisterMappingGeneral(
@@ -1110,22 +1252,23 @@ static void _getRegisterMappingGeneral(
   });
   std::cout << "_getRegisterMappingGeneral finish" << std::endl;
 }
-static std::unordered_map<llvm::hash_code, int > getRegisterMapping(mlir::func::FuncOp func){
+static std::pair<std::unordered_map<llvm::hash_code, int >, std::unordered_map<llvm::hash_code, int > > getRegisterMapping(mlir::func::FuncOp func){
   /*
     Step 1: get special register mapping
     Step 2: get alias rf between basic block
     Step 3: get other rf
   */
   std::unordered_map<llvm::hash_code, int > mapping;
+  std::unordered_map<llvm::hash_code, int > block_args_special_reg_map;
   int reg_cnt = 0;
 
 
   // _getRegisterMappingAliasBetweenBasicBlock(func, mapping, reg_cnt);
-  _getRegisterMappingForBlockArgs(func, mapping, reg_cnt);
+  _getRegisterMappingForBlockArgs(func, mapping, block_args_special_reg_map, reg_cnt);
   std::cout << "_getRegisterMappingForBlockArgs:" << reg_cnt << std::endl;
   _getRegisterMappingGeneral(func, mapping, reg_cnt);
   std::cout << "getRegisterMapping finish" << std::endl;
-  return mapping;
+  return std::make_pair(mapping, block_args_special_reg_map);
 }
 
 static string instToStr(Inst& inst){
@@ -1236,7 +1379,6 @@ static void liveVariableAnalysis(
       }
       // std::cout << "------" << change << std::endl;
     }while(change);
-    
 }
 
 static bool isPrefix(const std::string& str, const std::string& prefix) {
@@ -1261,10 +1403,19 @@ static bool isSpecialLi(Inst& inst){
   return false;
 }
 
-static bool isSpecialAssign(Inst& inst){
+static bool isGeneralToSpecialAssign(Inst& inst){
   if((inst.count("class") && inst["class"]==0b10) && 
      (inst.count("type") && inst["type"]==0b11 ) && 
      (inst.count("opcode") && inst["opcode"]==0b10)){
+    return true;
+  }
+  return false;
+}
+
+static bool isSpecialToGeneralAssign(Inst& inst){
+  if((inst.count("class") && inst["class"]==0b10) && 
+     (inst.count("type") && inst["type"]==0b11 ) && 
+     (inst.count("opcode") && inst["opcode"]==0b11)){
     return true;
   }
   return false;
@@ -1286,7 +1437,9 @@ static void mappingRegisterLogicalToPhysical(
     if(isSpecialLi(inst)) continue;
 
     for (const auto& [key, value] : inst) {
-      bool is_special_assign = isSpecialAssign(inst);
+      bool is_gen_to_spec_assign = isGeneralToSpecialAssign(inst);
+      bool is_spec_to_gen_assign = isSpecialToGeneralAssign(inst);
+      bool is_special_assign = is_gen_to_spec_assign || is_spec_to_gen_assign;
       bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
       if(is_reg_general){
         int reg_id = value;
@@ -1352,7 +1505,9 @@ static void mappingRegisterLogicalToPhysical(
     
     std::unordered_map<string, int> replace;
     for (const auto& [key, value] : inst) {
-      bool is_special_assign = isSpecialAssign(inst);
+      bool is_gen_to_spec_assign = isGeneralToSpecialAssign(inst);
+      bool is_spec_to_gen_assign = isSpecialToGeneralAssign(inst);
+      bool is_special_assign = is_gen_to_spec_assign || is_spec_to_gen_assign;
       bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
 
       if(is_reg_general){
@@ -1381,7 +1536,9 @@ struct CodeGenerationPass
     std::cout << "code generation pass, run on main!" << std::endl;
     
 
-    std::unordered_map<llvm::hash_code, int > regmap = getRegisterMapping(f);
+    std::pair<std::unordered_map<llvm::hash_code, int >, std::unordered_map<llvm::hash_code, int > > regmaps = getRegisterMapping(f);
+    std::unordered_map<llvm::hash_code, int > regmap = regmaps.first;
+    std::unordered_map<llvm::hash_code, int > block_args_special_reg_map = regmaps.second;
     std::cout << "getRegisterMapping finish!" << std::endl;
 
     std::vector<Inst> instr_list;
@@ -1391,7 +1548,7 @@ struct CodeGenerationPass
     std::map<Block*, std::set<int> > def;
     std::map<Block*, std::set<int> > use;
     std::vector<Block*> blocks = getBlockList(f);
-    codeGen(blocks, regmap, instr_list, block2line, block2line_end, jump2line, def, use);
+    codeGen(blocks, regmap, block_args_special_reg_map, instr_list, block2line, block2line_end, jump2line, def, use);
     std::cout << "codegen finish!" << std::endl;
 
     fillJumpBranchOffset(f, instr_list, block2line, jump2line);
