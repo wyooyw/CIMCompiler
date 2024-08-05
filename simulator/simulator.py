@@ -596,6 +596,16 @@ class Simulator:
         
 
     def _run_scalar_class_other_type_inst(self, inst):
+        assert inst["class"]==0b10
+        assert inst["type"]==0b11
+        if inst["opcode"] in [0b00, 0b01]:
+            self._run_scalar_class_other_type_li_inst(inst)
+        elif inst["opcode"] in [0b10, 0b11]:
+            self._run_scalar_class_other_type_special_general_assign_inst(inst)
+        else:
+            assert False, f"Not support {inst['opcode']=}"
+
+    def _run_scalar_class_other_type_li_inst(self, inst):
         """
         通用寄存器立即数赋值指令：general-li
         指令字段划分：
@@ -621,6 +631,28 @@ class Simulator:
         elif opcode==0b01: # 专用寄存器
             rf = self.special_rf
         self.write_reg(rf, rd, imm)
+
+    def _run_scalar_class_other_type_special_general_assign_inst(self, inst):
+        """
+        专用/通用寄存器赋值指令：special-general-assign
+        指令字段划分：
+        - [31, 30]，2bit：class，指令类别码，值为10
+        - [29, 28]，2bit：type，指令类型码，值为11
+        - [27, 26]，2bit：opcode，指令操作码
+        - 10：表示将通用寄存器的值赋给专用寄存器
+        - 11：表示将专用寄存器的值赋给通用寄存器
+        - [25, 21]，5bit：rs1，通用寄存器编号，即涉及赋值的通用寄存器
+        - [20, 16]，5bit：rs2，专用寄存器编号，即涉及赋值的专用寄存器
+        - [15, 0]，16bit：reserve，保留字段
+        """
+        if opcode==0b10:
+            value = self.read_general_reg(inst["rs1"])
+            self.write_special_reg(inst["rs2"], value)
+        elif opcode==0b11:
+            value = self.read_special_reg(inst["rs2"])
+            self.write_general_reg(inst["rs1"], value)
+        else:
+            assert False, f"Not support {opcode=}"
 
     def _run_trans_class_trans_type_inst(self, inst):
         """
