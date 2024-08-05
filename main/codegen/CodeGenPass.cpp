@@ -1429,8 +1429,10 @@ static void mappingRegisterLogicalToPhysical(
       std::map<Block*, int> &block2line_end){
 
   // Step 1: get life cycle of each logical register
-  unordered_map<int, int> logic_reg_life_begin;
-  unordered_map<int, int> logic_reg_life_end;
+  std::map<int, int> logic_reg_life_begin;
+  std::map<int, int> logic_reg_life_end;
+  std::set<int> set_logical_regs;
+  std::vector<int> logical_regs;
   for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
     Inst inst = instr_list[inst_id];
     // skip special register instruction
@@ -1449,31 +1451,50 @@ static void mappingRegisterLogicalToPhysical(
         }else{
           logic_reg_life_end[reg_id] = inst_id;
         }
+        set_logical_regs.insert(reg_id);
       }
     }
+    std::cout << std::endl;
   }
   for (const auto& [block, regs] : in) {
     for(auto reg_id : regs){
-      logic_reg_life_begin[reg_id] = min(logic_reg_life_begin[reg_id], block2line[block]);
-      logic_reg_life_end[reg_id] = max(logic_reg_life_end[reg_id], block2line_end[block]);
+      if(!(logic_reg_life_begin.count(reg_id) && logic_reg_life_end.count(reg_id))){
+        std::cerr << "error: reg_id not in logic_reg_life_begin" << std::endl;
+        std::exit(1);
+      }
+      int old_begin = logic_reg_life_begin[reg_id];
+      int old_end = logic_reg_life_end[reg_id];
+      logic_reg_life_begin[reg_id] = min(old_begin, block2line[block]);
+      logic_reg_life_end[reg_id] = max(old_end, block2line_end[block]);
     }
   }
   for (const auto& [block, regs] : out) {
     for(auto reg_id : regs){
-      logic_reg_life_begin[reg_id] = min(logic_reg_life_begin[reg_id], block2line[block]);
-      logic_reg_life_end[reg_id] = max(logic_reg_life_end[reg_id], block2line_end[block]);
+      if(!(logic_reg_life_begin.count(reg_id) && logic_reg_life_end.count(reg_id))){
+        std::cerr << "error: reg_id not in logic_reg_life_begin" << std::endl;
+        std::exit(1);
+      }
+      int old_begin = logic_reg_life_begin[reg_id];
+      int old_end = logic_reg_life_end[reg_id];
+      logic_reg_life_begin[reg_id] = min(old_begin, block2line[block]);
+      logic_reg_life_end[reg_id] = max(old_end, block2line_end[block]);
     }
   }
+  logical_regs.assign(set_logical_regs.begin(), set_logical_regs.end());
+  std::sort(logical_regs.begin(), logical_regs.end(), 
+    [&](int a, int b){
+      return a < b;
+    });
   
   // Step 2: Construct a mapping from logical register to physical register
   int num_logical_regs = logic_reg_life_begin.size();
   int num_physical_regs = 64;
   std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
-  std::unordered_map<int, int> logical_to_physical_mapping;
+  std::map<int, int> logical_to_physical_mapping;
   int max_physical_reg_used = 0;
   for(int i = 0; i < num_physical_regs; i++) physical_regs.push(i);
   for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
-    for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
+    for(int logical_reg_id : logical_regs){
       if(logic_reg_life_begin[logical_reg_id]==inst_id){
         if (physical_regs.empty()){
           std::cerr << "No more physical_regs can use!" << std::endl;
@@ -1490,10 +1511,10 @@ static void mappingRegisterLogicalToPhysical(
     }
   }
   std::cout << "max_physical_reg_used: " << max_physical_reg_used << std::endl;
-  for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
+  for(int logical_reg_id : logical_regs){
     std::cout << "logical_reg: " << logical_reg_id << " -> physical_reg: " << logical_to_physical_mapping[logical_reg_id] << std::endl;
   }
-  for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
+  for(int logical_reg_id : logical_regs){
     std::cout << "logical_reg:" << logical_reg_id << " begin: " << logic_reg_life_begin[logical_reg_id] << " end: " << logic_reg_life_end[logical_reg_id] << std::endl;
   }
   // return;
