@@ -66,7 +66,7 @@ class MacroUtil:
         assert 0 <= activate_group_num and activate_group_num <= group_num, f"{activate_group_num=}, {group_num=}"
 
         macro = self.extract_macro_structure_from_memory(data_type, group_num)
-        print(f"{macro.shape=}")
+        # print(f"{macro.shape=}")
         macro = macro.reshape(*macro.shape[:3], -1)
         data = macro[activate_row, :, :activate_group_num, :activate_element_col_num]
         return data

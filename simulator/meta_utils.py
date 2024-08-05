@@ -25,13 +25,14 @@ class MetaUtil:
         n_comp = self.macro_config.n_comp
         n_macro_per_group = self.macro_config.n_macro // n_group
         n_bcol_per_group = self.macro_config.n_bcol * n_macro_per_group
-        print(wtensor.shape)
+
         wtensor = tensor_int8_to_bits(wtensor)
-        print(wtensor.shape)
+        # print(wtensor.shape)
         wtensor = wtensor.reshape(self.macro_config.n_comp, n_bcol_per_group)
 
         info_tensor = self.get_meta(meta_addr,n_group)
-        print(f"{info_tensor.shape=}")
+        # print(f"{info_tensor.shape=}")
+        # import pdb; pdb.set_trace()
 
         recovered_wtensor = np.zeros((self.macro_config.n_comp, n_bcol_per_group), dtype=np.int32)
         for i_comp in range(self.macro_config.n_comp):
