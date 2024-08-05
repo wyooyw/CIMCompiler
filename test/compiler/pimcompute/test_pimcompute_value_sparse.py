@@ -152,7 +152,7 @@ class TestPIMComputeValueSparse:
 
         # run code in simulator
 
-        pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config, group_size=4)
+        pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config, group_size=16)
         status = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH
 
@@ -214,10 +214,10 @@ if __name__=="__main__":
     tester.setup_method()
     tester.test_pim_compute('value_sparse/value_sparse_group_longer', 
         {"out_channel":256,
-        "in_channel": 384, 
+        "in_channel": 64, 
         "ker_size": 3, 
-        "in_hw": 10, 
-        "out_hw": 8, 
+        "in_hw": 4, 
+        "out_hw": 2, 
         "input_buffer_size_per_group": 128
         }
     )
