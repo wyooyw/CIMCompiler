@@ -218,7 +218,7 @@ class TestSimulatorPIMComputeValueBitSparse:
         output_golden = output_golden.reshape(-1)
         
         status = self.simulator.run_code(inst_list)
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         assert status==self.simulator.FINISH
         
         output = self.simulator.memory_space.read_as(transfer_output_addr, output_size//2, np.int32)
