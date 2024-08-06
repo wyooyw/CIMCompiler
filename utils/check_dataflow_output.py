@@ -1,5 +1,5 @@
 import numpy as np
-
+from utils.round import banker_round
 def conv2d(input, weight, padding, bias=None):
     input_pad = np.pad(input, ((0,0),(padding,padding),(padding,padding)), mode='constant', constant_values=0)
     input_hw = input.shape[1]
@@ -70,5 +70,31 @@ def main():
     print(f"{np.array_equal(output2, golden)=}")
     # print(f"{output-golden=}")
 
+def check_zeropoint():
+    out_wh = 16
+    out_channel = 256
+    output_feature_path = "models/alexnet/AlexNet_ori_data_0525/2_conv/output_feature.txt"
+    output_feature = np.loadtxt(output_feature_path, dtype=np.int32).reshape(out_channel, out_wh, out_wh)
+    output_path = "models/alexnet/AlexNet_ori_data_0525/2_conv/output.txt"
+    output_golden = np.loadtxt(output_path, dtype=np.int8).reshape(out_channel, out_wh, out_wh)
+    output = np.zeros((out_channel, out_wh, out_wh), dtype=np.int8)
+    bias = np.loadtxt("models/alexnet/AlexNet_ori_data_0525/2_conv/bias.txt", dtype=np.int32)
+    scale = np.loadtxt("models/alexnet/AlexNet_ori_data_0525/2_conv/scale.txt", dtype=np.float32)
+    out_zp_data = 0
+    for r in range(out_wh):
+        for c in range(out_wh):
+            input_data = output_feature[:,r,c]
+            output_data = input_data #+ bias
+            print("1:",output_data)
+            output_data = banker_round(output_data * scale) + out_zp_data
+            print("2:",output_data)
+            output_data = banker_round(np.clip(output_data, 0, 127))
+            print("3:",output_data)
+            exit()
+            output_data = output_data.astype("int8")
+            output[:,r,c] = output_data
+    print(f"{np.array_equal(output, output_golden)=}")
+    print(f"output[:,0,0]:\n{output[:,0,0]}")
+    print(f"output_golden[:,0,0]:\n{output_golden[:,0,0]}")
 if __name__=="__main__":
-    main()
+    check_zeropoint()
