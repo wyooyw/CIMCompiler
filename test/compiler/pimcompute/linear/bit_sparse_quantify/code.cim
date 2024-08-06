@@ -18,11 +18,11 @@
 // input
 #define INPUT_ROW 1
 #define INPUT_COL 1
-#define INPUT_CHANNEL 16
+#define INPUT_CHANNEL 512
 
 #define OUTPUT_ROW 1
 #define OUTPUT_COL 1
-#define OUTPUT_CHANNEL 512
+#define OUTPUT_CHANNEL 16
 
 #define KERNEL_SIZE 1
 #define PADDING 0
@@ -40,12 +40,12 @@
 
 #define INPUT_BUFFER_SIZE_PER_GROUP 128
 
-#define OUT_SPATIAL_TILE 4
-#define OUT_REDUCE_TILE 1
+#define OUT_SPATIAL_TILE 1
+#define OUT_REDUCE_TILE 32
 
 #define BIT_SPARSE_META_BASE_ADDR 1167264
 
-#define OUT_CHANNEL_BEGIN_LEN 5
+#define OUT_CHANNEL_BEGIN_LEN 2
 
 def copy_input_to_input_buffer_icgt128( // input channel greater than 128
                         null<int8>,
@@ -129,10 +129,38 @@ def copy_input_to_input_buffer(
     i<index> 
 ){
     
-        copy_input_to_input_buffer_iclt128(null, local_input, group_use_input_buffer, oh, ow, i);
+        copy_input_to_input_buffer_icgt128(null, local_input, group_use_input_buffer, oh, ow, i);
     
 }
 
+def quantify(
+    null<int8>,
+    out_channel_begin<index>,
+    out_channel_len<index>,
+    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__>,
+    local_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
+    local_output_i8< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__>,
+    local_out_zp< <1>, int32, __INPUT_MEMORY__>
+    ){
+    // Do quantify here
+    use_i32_output = Slice(local_output_i32,
+        [0,0,out_channel_begin],
+        [1,1,out_channel_len],
+        [1,1,1]
+    );
+    use_bias_scale = Slice(local_bias_scale,
+        [out_channel_begin, 0],
+        [out_channel_len, 2],
+        [1, 1]
+    );
+    use_i8_output = Slice(local_output_i8,
+        [0,0,out_channel_begin],
+        [1,1,out_channel_len],
+        [1,1,1]
+    );
+    Quantify(use_i32_output, use_bias_scale, local_out_zp, use_i8_output, 0);
+
+}
 
 def main(null<int8>){
     // input, weight, mask and index will be prepared in memory image
@@ -143,15 +171,26 @@ def main(null<int8>){
     global_transfer_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
     global_out_channel_begin = Buffer(<OUT_CHANNEL_BEGIN_LEN>, index, __GLOBAL__);
 
-    global_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
+    global_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __GLOBAL__);
+    global_out_zp = Buffer(<1>, int32, __GLOBAL__);
+
+    //global_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
+    global_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __GLOBAL__);
 
     // Copy input and index into local memory
     local_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
     Trans(global_input, local_input);
 
+    // buffer to save bias,scale and out_zp
+    local_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__);
+    local_out_zp = Buffer(<1>, int32, __INPUT_MEMORY__);
+    Trans(global_bias_scale, local_bias_scale);
+    Trans(global_out_zp, local_out_zp);
+
     // Prepare memory's that will be used
     
     // Create a buffer to store output
+    local_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
     local_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__);
     local_output_for_temp_sum = Buffer(<N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__);
 
@@ -338,8 +377,18 @@ def main(null<int8>){
             );
             VVAdd(use_local_output_for_temp_sum, use_local_output, use_local_output);
         };
+        // Do quantify here
+        quantify(null,
+            out_channel_begin,
+            out_channel_len,
+            local_output,
+            local_bias_scale,
+            local_output_i8,
+            local_out_zp
+        );
     };
-    Trans(local_output, global_output);
+    //Trans(local_output, global_output);
+    Trans(local_output_i8, global_output_i8);
     //Debug(null);
     Trans(global_meta, global_meta);
     Trans(global_outsum_mask, global_outsum_mask);

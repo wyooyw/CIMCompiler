@@ -18,11 +18,11 @@
 // input
 #define INPUT_ROW 1
 #define INPUT_COL 1
-#define INPUT_CHANNEL 2048
+#define INPUT_CHANNEL 512
 
 #define OUTPUT_ROW 1
 #define OUTPUT_COL 1
-#define OUTPUT_CHANNEL 100
+#define OUTPUT_CHANNEL 16
 
 #define KERNEL_SIZE 1
 #define PADDING 0
@@ -40,7 +40,7 @@
 #define INPUT_BUFFER_SIZE_PER_GROUP 128
 
 #define OUT_SPATIAL_TILE 1
-#define OUT_REDUCE_TILE 128
+#define OUT_REDUCE_TILE 32
 
 def copy_input_to_input_buffer_icgt128( // input channel greater than 128
                         null<int8>,
@@ -126,6 +126,36 @@ def copy_input_to_input_buffer(
     
         copy_input_to_input_buffer_icgt128(null, local_input, group_use_input_buffer, oh, ow, i);
     
+}
+
+
+def quantify(
+    null<int8>,
+    out_channel_begin<index>,
+    out_channel_len<index>,
+    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__>,
+    local_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
+    local_output_i8< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__>,
+    local_out_zp< <1>, int32, __INPUT_MEMORY__>
+    ){
+    // Do quantify here
+    use_i32_output = Slice(local_output_i32,
+        [0,0,out_channel_begin],
+        [1,1,out_channel_len],
+        [1,1,1]
+    );
+    use_bias_scale = Slice(local_bias_scale,
+        [out_channel_begin, 0],
+        [out_channel_len, 2],
+        [1, 1]
+    );
+    use_i8_output = Slice(local_output_i8,
+        [0,0,out_channel_begin],
+        [1,1,out_channel_len],
+        [1,1,1]
+    );
+    Quantify(use_i32_output, use_bias_scale, local_out_zp, use_i8_output, 0);
+
 }
 
 def main(null<int8>){
@@ -263,7 +293,7 @@ def main(null<int8>){
                 };
                 Save(local_spill, [1], row_to_activate);
             };
-            CIMOutput(pim_output_reg_buffer);
+            CIMOutput(N_GROUP_VCOL, 0, pim_output_reg_buffer);
 
             // TODO: unroll this loop
             for group_i in range(4) carry (null){
@@ -274,23 +304,15 @@ def main(null<int8>){
                 VVAdd(local_output_for_temp_sum, local_output_group_i, local_output_group_i);
             };
         };
-        // Do quantify here:
-        use_i32_output = Slice(local_output,
-            [0,0,out_channel_begin],
-            [1,1,out_channel_len],
-            [1,1,1]
+        // Do quantify here
+        quantify(null,
+            out_channel_begin,
+            out_channel_len,
+            local_output,
+            local_bias_scale,
+            local_output_i8,
+            local_out_zp
         );
-        use_bias_scale = Slice(local_bias_scale,
-            [out_channel_begin, 0],
-            [out_channel_len, 2],
-            [1, 1]
-        );
-        use_i8_output = Slice(local_output_i8,
-            [0,0,out_channel_begin],
-            [1,1,out_channel_len],
-            [1,1,1]
-        );
-        Quantify(use_i32_output, use_bias_scale, local_out_zp, use_i8_output, 0);
     };
     Trans(local_output_i8, global_output);
     //Trans(local_output, global_output);

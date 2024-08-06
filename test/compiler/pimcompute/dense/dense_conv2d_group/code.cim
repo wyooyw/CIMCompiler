@@ -16,15 +16,15 @@
 #define SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH 20
 
 // input
-#define INPUT_ROW 1
-#define INPUT_COL 1
-#define INPUT_CHANNEL 16
+#define INPUT_ROW 4
+#define INPUT_COL 4
+#define INPUT_CHANNEL 384
 
-#define OUTPUT_ROW 1
-#define OUTPUT_COL 1
-#define OUTPUT_CHANNEL 512
+#define OUTPUT_ROW 2
+#define OUTPUT_COL 2
+#define OUTPUT_CHANNEL 16
 
-#define KERNEL_SIZE 1
+#define KERNEL_SIZE 3
 #define PADDING 0
 #define STRIDE 1
 
@@ -32,7 +32,6 @@
 #define N_MACRO 64
 #define N_VCOL 2
 #define N_GROUP_VCOL 32
-#define N_GROUP_BCOL 256
 #define N_GROUP 4
 #define N_ROW 64
 #define N_COMP 16
@@ -40,12 +39,8 @@
 
 #define INPUT_BUFFER_SIZE_PER_GROUP 128
 
-#define OUT_SPATIAL_TILE 4
-#define OUT_REDUCE_TILE 1
-
-#define BIT_SPARSE_META_BASE_ADDR 1167264
-
-#define OUT_CHANNEL_BEGIN_LEN 5
+#define OUT_SPATIAL_TILE 1
+#define OUT_REDUCE_TILE 216
 
 def copy_input_to_input_buffer_icgt128( // input channel greater than 128
                         null<int8>,
@@ -129,22 +124,44 @@ def copy_input_to_input_buffer(
     i<index> 
 ){
     
-        copy_input_to_input_buffer_iclt128(null, local_input, group_use_input_buffer, oh, ow, i);
+        copy_input_to_input_buffer_icgt128(null, local_input, group_use_input_buffer, oh, ow, i);
     
 }
 
+def copy_input_to_input_buffer_for_all_group(
+                        null<int8>,
+                        local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
+                        use_input_buffer< <1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
+                        oh<index>,
+                        ow<index>,
+                        i<index> 
+){
+        // TODO: unroll this loop
+    for g in range(N_GROUP) carry(null){
+        group_use_input_buffer = Slice(use_input_buffer,
+            [0, g, 0],
+            [1, 1, INPUT_BUFFER_SIZE_PER_GROUP],
+            [1, 1, 1]
+        );
+        delta_h = g / 2;
+        delta_w = g % 2;
+        copy_input_to_input_buffer(null,
+            local_input, 
+            group_use_input_buffer,
+            oh + delta_h,
+            ow + delta_w,
+            i
+        );
+    };
+}
 
 def main(null<int8>){
     // input, weight, mask and index will be prepared in memory image
     global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
     global_weight = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __GLOBAL__);
-    global_meta = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP_BCOL, 3>, int1, __GLOBAL__);
-    global_outsum_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
-    global_transfer_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
-    global_out_channel_begin = Buffer(<OUT_CHANNEL_BEGIN_LEN>, index, __GLOBAL__);
-
+    
     global_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
-
+    
     // Copy input and index into local memory
     local_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
     Trans(global_input, local_input);
@@ -153,7 +170,7 @@ def main(null<int8>){
     
     // Create a buffer to store output
     local_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__);
-    local_output_for_temp_sum = Buffer(<N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__);
+    local_output_for_temp_sum = Buffer(<N_GROUP_VCOL>, int32, __OUTPUT_MEMORY__);
 
     // PIM input reg buffer, it is a double-buffer. Each group use 128 byte, total 4 groups.
     pim_input_reg_buffer = Buffer(<2,N_GROUP,INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__);
@@ -164,39 +181,30 @@ def main(null<int8>){
     // Macros
     macros = Buffer(<N_ROW, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __MACRO__);
 
-    // Meta
-    pim_meta_data_reg_buffer = Buffer(<N_ROW, N_COMP, N_GROUP_BCOL>, int1, __PIM_META_DATA_REG_BUFFER__);
-
-    // pim_output_reg_to_output_memory_buffer
-    pim_output_reg_to_output_memory_buffer = Buffer(<1>, int32, __PIM_OUTPUT_REG_TO_OUTPUT_MEMORY_BUFFER__);
-
     // Spill
     local_spill = Buffer(<4>, index, __INPUT_MEMORY__);
 
     // TODO: Add 'SPECIAL_REG_' prefix for these macro.
     SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
-    SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 1);
+    SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 8);
     SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 32);
     SpecialRegSet(SPECIAL_REG_GROUP_SIZE, N_MACRO_PER_GROUP);
-    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, 1);
-    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, N_GROUP_BCOL);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, N_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, N_GROUP_VCOL);
     SpecialRegSet(SPECIAL_REG_GROUP_INPUT_STEP, INPUT_BUFFER_SIZE_PER_GROUP);
 
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
     SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
-    
-    for out_tile_i in range(0, OUT_SPATIAL_TILE) carry (null) {
-        out_channel_begin = Load(global_out_channel_begin, [out_tile_i]);
-        out_channel_end = Load(global_out_channel_begin, [out_tile_i + 1]);
-        out_channel_len = out_channel_end - out_channel_begin;
-        //Print(out_channel_begin);
-        // Print(out_channel_end);
-        // Debug(null);
+
+    // out_channel_outer_tile_size = OUTPUT_CHANNEL/N_GROUP_VCOL;
+    for out_channel_begin in range(0, OUTPUT_CHANNEL, N_GROUP_VCOL) carry (null) {
+        out_channel_end = Min(out_channel_begin + N_GROUP_VCOL, OUTPUT_CHANNEL);
+        out_tile_i = out_channel_begin / N_GROUP_VCOL;
 
         inner_reduce_tile_size = N_ROW;
-
         for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (null){
+
             out_reduce_end = Min(out_reduce_begin + inner_reduce_tile_size, OUT_REDUCE_TILE);
             out_reduce_len = out_reduce_end - out_reduce_begin;
 
@@ -214,137 +222,89 @@ def main(null<int8>){
             );
             Trans(use_weight, use_macros);
 
-            // save meta
-            use_meta = Slice(global_meta,
-                [out_tile_i, out_reduce_begin, 0, 0, 0],
-                [1, out_reduce_len, N_COMP, N_GROUP_BCOL, 3],
-                [1, 1, 1, 1, 1]
-            );
- 
-            Trans(use_meta, pim_meta_data_reg_buffer);
-
             // Iter over output's height and width
             // Notice that we have 4 group, so each time we deal with 4 pixel in a square.
             // So, the 'step' of oh and ow is 2.
             double_buffer_id = 1;
-            // Save(local_spill, [0], double_buffer_id);
+            Save(local_spill, [0], double_buffer_id);
+            for oh in range(0,OUTPUT_ROW,2) carry(null) {
+                for ow in range(0,OUTPUT_COL,2) carry(null) {
+                    // Double buffer index
+                    double_buffer_id = Load(local_spill, [0]);
+                    double_buffer_id = 1 - double_buffer_id;
+                    Save(local_spill, [0], double_buffer_id);
 
-            // Double buffer index
-            // double_buffer_id = Load(local_spill, [0]);
-            double_buffer_id = 1 - double_buffer_id;
-            // Save(local_spill, [0], double_buffer_id);
-
-            // Step 3: Prepare input
-            use_input_buffer = Slice(pim_input_reg_buffer, 
-                [double_buffer_id, 0, 0], 
-                [1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP], 
-                [1,1,1]
-            );
-
-            meta_addr = BIT_SPARSE_META_BASE_ADDR;
-            t_ = N_COMP * N_GROUP_BCOL;
-            t__ = t_ * 3;
-            meta_addr_step = t__ / 8;
-            
-            // iter over a sliding window : KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL
-            t_ = KERNEL_SIZE * KERNEL_SIZE;
-            sliding_window_size = t_ * INPUT_CHANNEL;
-            row_to_activate = 0;
-            // Save(local_spill, [1], row_to_activate);
-
-            begin_tile_in_window = out_reduce_begin * N_COMP;
-            tile_size_in_window = N_ROW * N_COMP;
-            end_tile_in_window = Min(sliding_window_size, begin_tile_in_window + tile_size_in_window);
-            //Print(begin_tile_in_window);
-            //Print(end_tile_in_window);
-            //Debug();
-            for i_tile_in_window in range(begin_tile_in_window, end_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP) 
-                carry(row_to_activate, meta_addr){
-                copy_input_to_input_buffer(null,
-                    local_input, 
-                    use_input_buffer,
-                    0,
-                    0,
-                    i_tile_in_window
-                );
-
-                // Step 4: comsume all 128(or less) input data
-                useful_input_len = Min(sliding_window_size - i_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP);
-                // row_to_activate = Load(local_spill, [1]);
-
-                for input_begin_in_buffer in range(0, useful_input_len, N_COMP) 
-                    carry (row_to_activate, meta_addr){
-                    input_end_in_buffer = Min(input_begin_in_buffer + N_COMP, useful_input_len);
-                    input_len = input_end_in_buffer - input_begin_in_buffer;
-                    // Print(input_len);
-                    // Debug();
-                    //Print(useful_input_len);
-                    //Print(row_to_activate);
-                    // activate macro
-                    activate_macro = Slice(use_macros,
-                        [row_to_activate, 0, 0, 0],
-                        [1,  N_COMP, N_GROUP, N_GROUP_VCOL],
-                        [1,1,1,1]
+                    // Step 3: Prepare input
+                    use_input_buffer = Slice(pim_input_reg_buffer, 
+                        [double_buffer_id, 0, 0], 
+                        [1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP], 
+                        [1,1,1]
                     );
-                    // this is an uncontinous subview!!!
-                    compute_use_input_buffer = Slice(use_input_buffer,
-                        [0, 0, input_begin_in_buffer],
-                        [1, N_GROUP, input_len],
-                        [1, 1, 1]
-                    );
-                    // Print(meta_addr);
-                    SpecialRegSet(SPECIAL_REG_BIT_SPARSE_META_ADDR, meta_addr);
+                    // iter over a sliding window : KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL
+                    t_ = KERNEL_SIZE * KERNEL_SIZE;
+                    sliding_window_size = t_ * INPUT_CHANNEL;
+                    row_to_activate = 0;
+                    Save(local_spill, [1], row_to_activate);
 
-                    CIMComputeBitSparse(compute_use_input_buffer, activate_macro, pim_output_reg_buffer);
-                    
-                    row_to_activate = row_to_activate + 1;
-                    meta_addr = meta_addr + meta_addr_step;
+                    begin_tile_in_window = out_reduce_begin * N_COMP;
+                    tile_size_in_window = N_ROW * N_COMP;
+                    end_tile_in_window = Min(sliding_window_size, begin_tile_in_window + tile_size_in_window);
+                    //Print(begin_tile_in_window);
+                    //Print(end_tile_in_window);
+                    //Debug();
+                    for i_tile_in_window in range(begin_tile_in_window, end_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP) carry(null){
+                        copy_input_to_input_buffer_for_all_group(null,
+                            local_input, 
+                            use_input_buffer,
+                            oh,
+                            ow,
+                            i_tile_in_window
+                        );
+
+                        // Step 4: comsume all 128(or less) input data
+                        useful_input_len = Min(sliding_window_size - i_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP);
+                        row_to_activate = Load(local_spill, [1]);
+                        for input_begin_in_buffer in range(0, useful_input_len, N_COMP) carry (row_to_activate){
+                            input_end_in_buffer = Min(input_begin_in_buffer + N_COMP, useful_input_len);
+                            input_len = input_end_in_buffer - input_begin_in_buffer;
+                            //Print(useful_input_len);
+                            //Print(row_to_activate);
+                            // activate macro
+                            activate_macro = Slice(use_macros,
+                                [row_to_activate, 0, 0, 0],
+                                [1,  N_COMP, N_GROUP, N_GROUP_VCOL],
+                                [1,1,1,1]
+                            );
+                            // this is an uncontinous subview!!!
+                            compute_use_input_buffer = Slice(use_input_buffer,
+                                [0, 0, input_begin_in_buffer],
+                                [1, N_GROUP, input_len],
+                                [1, 1, 1]
+                            );
+                            CIMComputeDense(compute_use_input_buffer, activate_macro, pim_output_reg_buffer);
+                            
+                            row_to_activate = row_to_activate + 1;
+                        };
+                        Save(local_spill, [1], row_to_activate);
+                    };
+                    CIMOutput(pim_output_reg_buffer);
+
+                    // TODO: unroll this loop
+                    for group_i in range(4) carry (null){
+                        output_buffer_group_i = Slice(pim_output_reg_buffer, [group_i * N_GROUP_VCOL], [N_GROUP_VCOL], [1]);
+                        delta_h = group_i / 2;
+                        delta_w = group_i % 2;
+                        Trans(output_buffer_group_i, local_output_for_temp_sum);
+
+                        local_output_group_i = Slice(local_output, [oh+delta_h, ow+delta_w, out_channel_begin], [1, 1, N_GROUP_VCOL], [1,1,1]);
+                        VVAdd(local_output_for_temp_sum, local_output_group_i, local_output_group_i);
+                    };
                 };
-                // Save(local_spill, [1], row_to_activate);
             };
-            use_outsum_mask = Slice(global_outsum_mask,
-                [out_tile_i, 0],
-                [1, N_GROUP_BCOL],
-                [1, 1]
-            );
-            use_transfer_mask = Slice(global_transfer_mask,
-                [out_tile_i, 0],
-                [1, N_GROUP_BCOL],
-                [1, 1]
-            );
-            use_local_output_for_temp_sum = Slice(local_output_for_temp_sum,
-                [0], [out_channel_len], [1]
-            );
-
-            CIMOutputSum(N_GROUP_BCOL, use_outsum_mask, pim_output_reg_buffer);
-
-            group_i = 0;
-            output_buffer_group_i = Slice(pim_output_reg_buffer, 
-                [group_i * N_GROUP_BCOL], [N_GROUP_BCOL], [1]
-            );
-
-            CIMTransfer(
-                output_buffer_group_i,      // src addr
-                N_GROUP_BCOL,
-                use_transfer_mask,
-                pim_output_reg_to_output_memory_buffer,
-                use_local_output_for_temp_sum   // dst addr
-            );
-            
-            use_local_output = Slice(local_output, 
-                [0, 0, out_channel_begin], 
-                [1, 1, out_channel_len], 
-                [1, 1, 1]
-            );
-            VVAdd(use_local_output_for_temp_sum, use_local_output, use_local_output);
         };
     };
     Trans(local_output, global_output);
     //Debug(null);
-    Trans(global_meta, global_meta);
-    Trans(global_outsum_mask, global_outsum_mask);
-    Trans(global_transfer_mask, global_transfer_mask);
-    Trans(global_out_channel_begin, global_out_channel_begin);
     Trans(global_input,global_input);
     Trans(global_weight,global_weight);
 }

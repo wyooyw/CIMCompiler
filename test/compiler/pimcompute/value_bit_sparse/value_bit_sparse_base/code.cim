@@ -18,16 +18,16 @@
 // TODO: replace these macro accroding to operator config
 
 // weight
-#define WEIGHT_OUT_CHANNEL 512
+#define WEIGHT_OUT_CHANNEL 16
 
 // input
 #define INPUT_ROW 4
 #define INPUT_COL 4
-#define INPUT_CHANNEL 512
+#define INPUT_CHANNEL 384
 
 #define OUTPUT_ROW 2
 #define OUTPUT_COL 2
-#define OUTPUT_CHANNEL 512
+#define OUTPUT_CHANNEL 16
 
 #define KERNEL_SIZE 3
 #define PADDING 0
@@ -48,17 +48,17 @@
 #define N_FROM 128
 #define N_TO 16
 
-#define TIME 601 // this value is filled by jinja.
+#define TIME 44 // this value is filled by jinja.
 
 #define VALUE_SPARSE_MASK_BASE_ADDR 693248
 #define BIT_SPARSE_META_BASE_ADDR 594944
 
-#define MAPPING_REDUCE_TO_MACRO_LENGTH 4
-#define MAPPING_MACRO_TO_FROM_LENGTH 12
-#define MAPPING_MACRO_TO_ROW_LENGTH 12
-#define MAPPING_FROM_TO_ROW_LENGTH 144
+#define MAPPING_REDUCE_TO_MACRO_LENGTH 1
+#define MAPPING_MACRO_TO_FROM_LENGTH 1
+#define MAPPING_MACRO_TO_ROW_LENGTH 1
+#define MAPPING_FROM_TO_ROW_LENGTH 27
 
-#define OUT_SPATIAL_TILE 4
+#define OUT_SPATIAL_TILE 1
 #define N_FILTER_PER_GROUP 128
 
 def copy_input_to_input_buffer_icgt128( // input channel greater than 128
@@ -245,10 +245,10 @@ def main(null<int8>){
     // Spill
     Save(local_spill, [0], macro_to_from_begin);
     Save(local_spill, [1], row_abs_begin);
-    //Save(local_spill, [2], from_to_row_begin);
+    Save(local_spill, [5], from_to_row_begin);
     // @unroll
     for i_reduce_to_macro in range(0, MAPPING_REDUCE_TO_MACRO_LENGTH) 
-        carry (from_to_row_begin){
+        carry (null){
 
         out_channel_begin = i_reduce_to_macro * N_FILTER_PER_GROUP;
         out_channel_end = Min(WEIGHT_OUT_CHANNEL, out_channel_begin + N_FILTER_PER_GROUP);
@@ -259,7 +259,7 @@ def main(null<int8>){
         macro_to_from_end = macro_to_from_begin + macro_to_from_size;
         begin_tile_in_window = 0;
         for i_macro_to_from in range(macro_to_from_begin, macro_to_from_end) 
-            carry (begin_tile_in_window, from_to_row_begin){
+            carry (begin_tile_in_window){
             
             row_size = Load(mapping_macro_to_row, [i_macro_to_from]); // how many 16 in a macro(i.e. how many row to use)
             from_to_row_size = Load(mapping_macro_to_from, [i_macro_to_from]); // how many 128 in a macro
@@ -307,6 +307,7 @@ def main(null<int8>){
             // begin_tile_in_window
             t_ = KERNEL_SIZE * KERNEL_SIZE;
             sliding_window_size = t_ * INPUT_CHANNEL;
+            from_to_row_size = Load(mapping_macro_to_from, [i_macro_to_from]);
             tile_size_in_window = from_to_row_size * N_FROM;
             end_tile_in_window = Min(sliding_window_size, begin_tile_in_window + tile_size_in_window);
 
@@ -340,9 +341,12 @@ def main(null<int8>){
                     sparse_mask_addr = VALUE_SPARSE_MASK_BASE_ADDR;
                     Save(local_spill, [2], sparse_mask_addr);
                     Save(local_spill, [3], row_to_activate);
+                    Save(local_spill, [4], meta_addr);
 
+                    from_to_row_begin = Load(local_spill, [5]);
+                    from_to_row_size = Load(mapping_macro_to_from, [i_macro_to_from]);
                     from_to_row_end = from_to_row_begin + from_to_row_size;
-                    for i_from_to_row in range(from_to_row_begin, from_to_row_end) carry (meta_addr){
+                    for i_from_to_row in range(from_to_row_begin, from_to_row_end) carry (null){
                         i_rel_from_to_row = i_from_to_row - from_to_row_begin;
                         tt_ = i_rel_from_to_row * N_FROM;
                         i_tile_in_window = begin_tile_in_window + tt_;
@@ -361,6 +365,7 @@ def main(null<int8>){
                         compute_time = Load(mapping_from_to_row, [i_from_to_row]);
                         sparse_mask_addr = Load(local_spill, [2]);
                         row_to_activate = Load(local_spill, [3]);
+                        meta_addr = Load(local_spill, [4]);
                         for i_compute in range(compute_time) carry (row_to_activate, sparse_mask_addr, meta_addr){
                             // give mask addr to special register
                             SpecialRegSet(SPECIAL_REG_VALUE_SPARSE_MASK_ADDR, sparse_mask_addr);
@@ -381,6 +386,7 @@ def main(null<int8>){
                         };
                         Save(local_spill, [2], sparse_mask_addr);
                         Save(local_spill, [3], row_to_activate);
+                        Save(local_spill, [4], meta_addr);
                         
                     };
                     // check output of first 4 output pixels.
@@ -433,7 +439,10 @@ def main(null<int8>){
             row_abs_begin = row_abs_begin + row_size;
             Save(local_spill, [1], row_abs_begin);
 
+            from_to_row_begin = Load(local_spill, [5]);
+            from_to_row_size = Load(mapping_macro_to_from, [i_macro_to_from]);
             from_to_row_begin = from_to_row_begin + from_to_row_size;
+            Save(local_spill, [5], from_to_row_begin);
 
         }; // end of out_reduce_i
         macro_to_from_begin = macro_to_from_end;

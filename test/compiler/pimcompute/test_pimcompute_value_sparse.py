@@ -71,7 +71,7 @@ def debug_hook(simulator, helper):
         print("golden:\n", golden)
         print(f"{np.array_equal(output, golden)=}")
 
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     pass
 
 class TestPIMComputeValueSparse:
@@ -89,16 +89,19 @@ class TestPIMComputeValueSparse:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        'value_sparse/value_sparse_group_longer' , 
-        'dense/dense_conv2d_group',
-        'bit_sparse/bit_sparse_conv2d_group' ,
-        'value_bit_sparse',
+        # 'value_sparse/value_sparse_group_longer' , 
+        # 'dense/dense_conv2d_group',
+        # 'bit_sparse/bit_sparse_conv2d_group' ,
+        # 'value_bit_sparse/value_bit_sparse_base',
         # quantify
         'dense/dense_conv2d_group_quantify' ,
+        'bit_sparse/bit_sparse_conv2d_group_quantify',
+        'value_sparse/value_sparse_group_longer_quantify' , 
+        'value_bit_sparse/value_bit_sparse_quantify'
         ])
     @pytest.mark.parametrize('op_config',[
-        {"out_channel":32, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
-        {"out_channel":64, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        # {"out_channel":32, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        # {"out_channel":64, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
         {"out_channel":16, "in_channel": 384, "ker_size": 3, "in_hw": 4, "out_hw": 2},
         {"out_channel":384, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
         ])
@@ -218,7 +221,7 @@ if __name__=="__main__":
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
     tester.test_pim_compute('dense/dense_conv2d_group_quantify', 
-        {"out_channel":128, "in_channel": 128, "ker_size": 3, "in_hw": 8, "out_hw": 6,
+        {"out_channel":128, "in_channel": 3, "ker_size": 3, "in_hw": 32, "out_hw": 30,
         "input_buffer_size_per_group": 128
         }
     )

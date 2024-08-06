@@ -16,13 +16,13 @@
 #define SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH 20
 
 // input
-#define INPUT_ROW 8
-#define INPUT_COL 8
-#define INPUT_CHANNEL 16
+#define INPUT_ROW 10
+#define INPUT_COL 10
+#define INPUT_CHANNEL 384
 
-#define OUTPUT_ROW 6
-#define OUTPUT_COL 6
-#define OUTPUT_CHANNEL 384
+#define OUTPUT_ROW 8
+#define OUTPUT_COL 8
+#define OUTPUT_CHANNEL 256
 
 #define KERNEL_SIZE 3
 #define PADDING 0
@@ -39,8 +39,8 @@
 
 #define INPUT_BUFFER_SIZE_PER_GROUP 128
 
-#define OUT_SPATIAL_TILE 12
-#define OUT_REDUCE_TILE 9
+#define OUT_SPATIAL_TILE 8
+#define OUT_REDUCE_TILE 216
 
 def copy_input_to_input_buffer_icgt128( // input channel greater than 128
                         null<int8>,
@@ -115,6 +115,56 @@ def copy_input_to_input_buffer_iclt128( // input channel less than 128
     };
 }
 
+def copy_input_to_input_buffer_general(
+    null<int8>,
+    local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
+    group_use_input_buffer< <1, 1, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
+    oh<index>,
+    ow<index>,
+    i<index> 
+){
+    pos = i;
+    pos_begin = i;
+    pos_end = i + INPUT_BUFFER_SIZE_PER_GROUP;
+    pixel_size = INPUT_CHANNEL;
+
+    pixel_begin = pos_begin / pixel_size;
+
+    // plane_end = ceil(pos_end, plane_size)
+    t1 = pos_end + pixel_size;
+    t2 = t1 - 1;
+    pixel_end = t2 / pixel_size;
+    buf_begin = 0;
+    for i_pixel in range(pixel_begin, pixel_end) carry(buf_begin){
+        n_before_pixel = i_pixel * INPUT_CHANNEL;
+        in_pixel_begin = 0 - Min(0, n_before_pixel - pos_begin);
+        in_pixel_end = Min(INPUT_CHANNEL, pos_end - n_before_pixel);
+        in_pixel_len = in_pixel_end - in_pixel_begin;
+        ker_h = i_pixel / KERNEL_SIZE;
+        ker_w = i_pixel % KERNEL_SIZE;
+        
+        //Print(i_pixel);
+        //Print(in_pixel_begin);
+        //Print(in_pixel_end);
+        //Print(in_pixel_len);
+        //Debug(null);
+        use_local_input = Slice(local_input,
+            [oh + ker_h, ow + ker_w, in_pixel_begin],
+            [1, 1, in_pixel_len], 
+            [1, 1, 1]
+        );
+
+        use_input_buffer = Slice(group_use_input_buffer,
+            [0, 0, buf_begin],
+            [1, 1, in_pixel_len],
+            [1, 1, 1]
+        );
+        Trans(use_local_input, use_input_buffer);
+
+        buf_begin = buf_begin + in_pixel_len;
+    };
+}
+
 def copy_input_to_input_buffer(
     null<int8>,
     local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
@@ -124,7 +174,7 @@ def copy_input_to_input_buffer(
     i<index> 
 ){
     
-        copy_input_to_input_buffer_iclt128(null, local_input, group_use_input_buffer, oh, ow, i);
+        copy_input_to_input_buffer_general(null, local_input, group_use_input_buffer, oh, ow, i);
     
 }
 
@@ -155,12 +205,51 @@ def copy_input_to_input_buffer_for_all_group(
     };
 }
 
+def quantify(
+    null<int8>,
+    out_channel_begin<index>,
+    out_channel_len<index>,
+    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__>,
+    local_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
+    local_output_i8< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__>,
+    local_out_zp< <1>, int32, __INPUT_MEMORY__>
+    ){
+    // Do quantify here
+    for oh in range(0,OUTPUT_ROW) carry(null){
+        for ow in range(0,OUTPUT_COL) carry(null){
+            use_i32_output = Slice(local_output_i32,
+                [oh,ow,out_channel_begin],
+                [1,1,out_channel_len],
+                [1,1,1]
+            );
+            use_bias_scale = Slice(local_bias_scale,
+                [out_channel_begin, 0],
+                [out_channel_len, 2],
+                [1, 1]
+            );
+            use_i8_output = Slice(local_output_i8,
+                [oh,ow,out_channel_begin],
+                [1,1,out_channel_len],
+                [1,1,1]
+            );
+            Quantify(use_i32_output, use_bias_scale, local_out_zp, use_i8_output, 1);
+        };
+    };
+}
+
 def main(null<int8>){
     // input, weight, mask and index will be prepared in memory image
     global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
     global_weight = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __GLOBAL__);
+    
+    // prepare quantify buffers
     global_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __GLOBAL__);
     global_out_zp = Buffer(<1>, int32, __GLOBAL__);
+    local_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__);
+    local_out_zp = Buffer(<1>, int32, __INPUT_MEMORY__);
+    local_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
+    Trans(global_bias_scale, local_bias_scale);
+    Trans(global_out_zp, local_out_zp);
 
     //global_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
     global_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __GLOBAL__);
@@ -172,15 +261,8 @@ def main(null<int8>){
     // Prepare memory's that will be used
     
     // Create a buffer to store output
-    local_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
     local_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__);
     local_output_for_temp_sum = Buffer(<N_GROUP_VCOL>, int32, __OUTPUT_MEMORY__);
-
-    // buffer to save bias,scale and out_zp
-    local_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__);
-    local_out_zp = Buffer(<1>, int32, __INPUT_MEMORY__);
-    Trans(global_bias_scale, local_bias_scale);
-    Trans(global_out_zp, local_out_zp);
     
     // PIM input reg buffer, it is a double-buffer. Each group use 128 byte, total 4 groups.
     pim_input_reg_buffer = Buffer(<2,N_GROUP,INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__);
@@ -298,7 +380,7 @@ def main(null<int8>){
                         };
                         Save(local_spill, [1], row_to_activate);
                     };
-                    CIMOutput(pim_output_reg_buffer);
+                    CIMOutput(N_GROUP_VCOL, 0, pim_output_reg_buffer);
 
                     // TODO: unroll this loop
                     for group_i in range(4) carry (null){
@@ -315,32 +397,18 @@ def main(null<int8>){
         };
 
         // Do quantify here
-        for oh in range(0,OUTPUT_ROW) carry(null){
-            for ow in range(0,OUTPUT_COL) carry(null){
-                use_i32_output = Slice(local_output,
-                    [oh,ow,out_channel_begin],
-                    [1,1,out_channel_len],
-                    [1,1,1]
-                );
-                use_bias_scale = Slice(local_bias_scale,
-                    [out_channel_begin, 0],
-                    [out_channel_len, 2],
-                    [1, 1]
-                );
-                use_i8_output = Slice(local_output_i8,
-                    [oh,ow,out_channel_begin],
-                    [1,1,out_channel_len],
-                    [1,1,1]
-                );
-                Quantify(use_i32_output, use_bias_scale, local_out_zp, use_i8_output, 0);
-            };
-        };
+        quantify(null,
+            out_channel_begin,
+            out_channel_len,
+            local_output,
+            local_bias_scale,
+            local_output_i8,
+            local_out_zp
+        );
     };
     Trans(local_output_i8, global_output_i8);
     //Trans(local_output, global_output_i32);
     //Debug(null);
     Trans(global_input,global_input);
     Trans(global_weight,global_weight);
-    Trans(global_bias_scale,global_bias_scale);
-    Trans(global_out_zp,global_out_zp);
 }

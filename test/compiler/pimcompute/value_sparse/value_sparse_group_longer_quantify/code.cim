@@ -18,43 +18,43 @@
 // TODO: replace these macro accroding to operator config
 
 // weight
-#define WEIGHT_OUT_CHANNEL {{ OUTPUT_CHANNEL }}
+#define WEIGHT_OUT_CHANNEL 384
 
 // input
-#define INPUT_ROW {{ INPUT_ROW }}
-#define INPUT_COL {{ INPUT_COL }}
-#define INPUT_CHANNEL {{ INPUT_CHANNEL }}
+#define INPUT_ROW 8
+#define INPUT_COL 8
+#define INPUT_CHANNEL 16
 
-#define OUTPUT_ROW {{ OUTPUT_ROW }}
-#define OUTPUT_COL {{ OUTPUT_COL }}
-#define OUTPUT_CHANNEL {{ OUTPUT_CHANNEL }}
+#define OUTPUT_ROW 6
+#define OUTPUT_COL 6
+#define OUTPUT_CHANNEL 384
 
-#define KERNEL_SIZE {{ KERNEL_SIZE }}
-#define PADDING {{ PADDING }}
-#define STRIDE {{ STRIDE }}
+#define KERNEL_SIZE 3
+#define PADDING 0
+#define STRIDE 1
 
-#define N_MACRO_PER_GROUP {{ N_MACRO_PER_GROUP }}
-#define N_MACRO_REDUCE {{ N_MACRO_REDUCE }} // N_ROW * N_COMP = 64 * 16 = 1024;
-#define N_MACRO {{ N_MACRO }}
-#define N_VCOL {{ N_VCOL }}
-#define N_GROUP_VCOL {{ N_GROUP_VCOL }}
-#define N_GROUP {{ N_GROUP }}
-#define N_ROW {{ N_ROW }}
-#define N_COMP {{ N_COMP }}
+#define N_MACRO_PER_GROUP 16
+#define N_MACRO_REDUCE 1024 // N_ROW * N_COMP = 64 * 16 = 1024;
+#define N_MACRO 64
+#define N_VCOL 2
+#define N_GROUP_VCOL 32
+#define N_GROUP 4
+#define N_ROW 64
+#define N_COMP 16
 
 
-#define INPUT_BUFFER_SIZE_PER_GROUP {{ INPUT_BUFFER_SIZE_PER_GROUP }}
-#define N_FROM {{ N_FROM }}
-#define N_TO {{ N_TO }}
+#define INPUT_BUFFER_SIZE_PER_GROUP 128
+#define N_FROM 128
+#define N_TO 16
 
-#define TIME {{ TIME }} // this value is filled by jinja.
+#define TIME 48 // this value is filled by jinja.
 
-#define VALUE_SPARSE_MASK_BASE_ADDR {{ VALUE_SPARSE_MASK_BASE_ADDR }}
+#define VALUE_SPARSE_MASK_BASE_ADDR 1265568
 
-#define MAPPING_REDUCE_TO_MACRO_LENGTH {{ MAPPING_REDUCE_TO_MACRO_LENGTH }}
-#define MAPPING_MACRO_TO_FROM_LENGTH {{ MAPPING_MACRO_TO_FROM_LENGTH }}
-#define MAPPING_MACRO_TO_ROW_LENGTH {{ MAPPING_MACRO_TO_ROW_LENGTH }}
-#define MAPPING_FROM_TO_ROW_LENGTH {{ MAPPING_FROM_TO_ROW_LENGTH }}
+#define MAPPING_REDUCE_TO_MACRO_LENGTH 12
+#define MAPPING_MACRO_TO_FROM_LENGTH 12
+#define MAPPING_MACRO_TO_ROW_LENGTH 12
+#define MAPPING_FROM_TO_ROW_LENGTH 24
 
 def copy_input_to_input_buffer_icgt128( // input channel greater than 128
                         null<int8>,
@@ -129,6 +129,56 @@ def copy_input_to_input_buffer_iclt128( // input channel less than 128
     };
 }
 
+def copy_input_to_input_buffer_general(
+    null<int8>,
+    local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
+    group_use_input_buffer< <1, 1, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
+    oh<index>,
+    ow<index>,
+    i<index> 
+){
+    pos = i;
+    pos_begin = i;
+    pos_end = i + INPUT_BUFFER_SIZE_PER_GROUP;
+    pixel_size = INPUT_CHANNEL;
+
+    pixel_begin = pos_begin / pixel_size;
+
+    // plane_end = ceil(pos_end, plane_size)
+    t1 = pos_end + pixel_size;
+    t2 = t1 - 1;
+    pixel_end = t2 / pixel_size;
+    buf_begin = 0;
+    for i_pixel in range(pixel_begin, pixel_end) carry(buf_begin){
+        n_before_pixel = i_pixel * INPUT_CHANNEL;
+        in_pixel_begin = 0 - Min(0, n_before_pixel - pos_begin);
+        in_pixel_end = Min(INPUT_CHANNEL, pos_end - n_before_pixel);
+        in_pixel_len = in_pixel_end - in_pixel_begin;
+        ker_h = i_pixel / KERNEL_SIZE;
+        ker_w = i_pixel % KERNEL_SIZE;
+        
+        //Print(i_pixel);
+        //Print(in_pixel_begin);
+        //Print(in_pixel_end);
+        //Print(in_pixel_len);
+        //Debug(null);
+        use_local_input = Slice(local_input,
+            [oh + ker_h, ow + ker_w, in_pixel_begin],
+            [1, 1, in_pixel_len], 
+            [1, 1, 1]
+        );
+
+        use_input_buffer = Slice(group_use_input_buffer,
+            [0, 0, buf_begin],
+            [1, 1, in_pixel_len],
+            [1, 1, 1]
+        );
+        Trans(use_local_input, use_input_buffer);
+
+        buf_begin = buf_begin + in_pixel_len;
+    };
+}
+
 def copy_input_to_input_buffer(
     null<int8>,
     local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
@@ -137,13 +187,7 @@ def copy_input_to_input_buffer(
     ow<index>,
     i<index> 
 ){
-    {% if INPUT_BUFFER_SIZE_PER_GROUP % INPUT_CHANNEL == 0 %}
-        copy_input_to_input_buffer_iclt128(null, local_input, group_use_input_buffer, oh, ow, i);
-    {% elif INPUT_CHANNEL % INPUT_BUFFER_SIZE_PER_GROUP == 0 %}
-        copy_input_to_input_buffer_icgt128(null, local_input, group_use_input_buffer, oh, ow, i);
-    {% else %}
-        Exit(null);
-    {% endif %}
+    copy_input_to_input_buffer_general(null, local_input, group_use_input_buffer, oh, ow, i);
 }
 
 def copy_input_to_input_buffer_for_all_group(
@@ -173,6 +217,39 @@ def copy_input_to_input_buffer_for_all_group(
     };
 }
 
+
+def quantify(
+    null<int8>,
+    out_channel_begin<index>,
+    out_channel_len<index>,
+    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__>,
+    local_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
+    local_output_i8< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__>,
+    local_out_zp< <1>, int32, __INPUT_MEMORY__>
+    ){
+    // Do quantify here
+    for oh in range(0,OUTPUT_ROW) carry(null){
+        for ow in range(0,OUTPUT_COL) carry(null){
+            use_i32_output = Slice(local_output_i32,
+                [oh,ow,out_channel_begin],
+                [1,1,out_channel_len],
+                [1,1,1]
+            );
+            use_bias_scale = Slice(local_bias_scale,
+                [out_channel_begin, 0],
+                [out_channel_len, 2],
+                [1, 1]
+            );
+            use_i8_output = Slice(local_output_i8,
+                [oh,ow,out_channel_begin],
+                [1,1,out_channel_len],
+                [1,1,1]
+            );
+            Quantify(use_i32_output, use_bias_scale, local_out_zp, use_i8_output, 0);
+        };
+    };
+}
+
 def main(null<int8>){
     // input, weight, mask and index will be prepared in memory image
     global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
@@ -184,9 +261,18 @@ def main(null<int8>){
     mapping_macro_to_row = Buffer(<MAPPING_MACRO_TO_ROW_LENGTH>, index, __GLOBAL__);
     mapping_from_to_row = Buffer(<MAPPING_FROM_TO_ROW_LENGTH>, index, __GLOBAL__);
 
+    // prepare quantify buffers
+    global_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __GLOBAL__);
+    global_out_zp = Buffer(<1>, int32, __GLOBAL__);
+    local_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__);
+    local_out_zp = Buffer(<1>, int32, __INPUT_MEMORY__);
+    local_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
+    Trans(global_bias_scale, local_bias_scale);
+    Trans(global_out_zp, local_out_zp);
 
-    global_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
-    
+    //global_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
+    global_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __GLOBAL__);
+
     // Copy input and index into local memory
     local_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
     Trans(global_input, local_input);
@@ -239,6 +325,7 @@ def main(null<int8>){
 
         out_channel_begin = i_reduce_to_macro * N_GROUP_VCOL;
         out_channel_end = Min(WEIGHT_OUT_CHANNEL, out_channel_begin + N_GROUP_VCOL);
+        out_channel_len = out_channel_end - out_channel_begin;
         use_vcol = out_channel_end - out_channel_begin;
 
         macro_to_from_begin = Load(local_spill, [0]);
@@ -383,9 +470,20 @@ def main(null<int8>){
         }; // end of out_reduce_i
         macro_to_from_begin = macro_to_from_end;
         Save(local_spill, [0], macro_to_from_begin);
+
+        // Do quantify here
+        quantify(null,
+            out_channel_begin,
+            out_channel_len,
+            local_output,
+            local_bias_scale,
+            local_output_i8,
+            local_out_zp
+        );
         
     }; // end of out_channel_begin
-    Trans(local_output, global_output);
+    Trans(local_output_i8, global_output_i8);
+    // Trans(local_output, global_output);
     //Debug(null);
     Trans(global_input,global_input);
     Trans(global_weight,global_weight);

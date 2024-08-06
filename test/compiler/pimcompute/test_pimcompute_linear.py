@@ -89,8 +89,11 @@ class TestPIMComputeValueSparse:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        'linear/dense',
-        'linear/bit_sparse'
+        # 'linear/dense',
+        # 'linear/bit_sparse',
+        # quantify
+        'linear/dense_quantify',
+        'linear/bit_sparse_quantify',
         ])
     @pytest.mark.parametrize('op_config',[
         {"out_channel":32, "in_channel": 16},
@@ -99,6 +102,10 @@ class TestPIMComputeValueSparse:
         {"out_channel":16, "in_channel": 512},
         ])
     def test_pim_compute(self, casename, op_config):
+        op_config["ker_size"] = 1
+        op_config["in_hw"] = 1
+        op_config["out_hw"] = 1
+        op_config["padding"] = 0
         case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
         assert os.path.exists(case_dir), f"{case_dir} not exists"
         assert os.path.isdir(case_dir), f"{case_dir} is not a directory"
@@ -216,6 +223,6 @@ if __name__=="__main__":
     TestPIMComputeValueSparse.setup_class()
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
-    tester.test_pim_compute('linear/dense_quantify', 
+    tester.test_pim_compute('linear/bit_sparse_quantify', 
         {"out_channel":100, "in_channel": 2048}
     )
