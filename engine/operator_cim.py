@@ -271,6 +271,112 @@ class ValueBitSparseConv2dOperator(Operator):
 
         return output, None
 
+class DenseConv2dQuantifyOperator(Operator):
+    def __init__(self, config_path, template_path, op_config):
+        super().__init__(config_path, template_path, op_config)
+
+    def compile_and_run_from_dataflow_dir(self, df_dir, code_dir, check_result=False):
+        # read data
+        input = np.loadtxt(os.path.join(df_dir, "conv_input_feature.txt"), dtype=np.int8)
+        weight = np.loadtxt(os.path.join(df_dir, "weight.txt"), dtype=np.int8)
+        bias = np.loadtxt(os.path.join(df_dir, "bias.txt"), dtype=np.int32)
+        scale = np.loadtxt(os.path.join(df_dir, "scale.txt"), dtype=np.float32)
+        out_zp = np.loadtxt(os.path.join(df_dir, "qo.zero_point.txt"), dtype=np.int32).reshape(1)
+        golden_i32 = np.loadtxt(os.path.join(df_dir, "output_feature.txt"), dtype=np.int32)
+        golden_i8 = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8)
+
+        # transform data
+        #   input & golden: C,H,W -> H,W,C
+        #   weight: O,I,H,W -> O,H,W,I
+        #   golden output: 
+        #       C,H,W -> H,W,C
+        #       - bias (currently not support bias)
+        input = input.reshape(self.op_config["in_channel"], self.op_config["in_hw"], self.op_config["in_hw"])
+        input = np.transpose(input, (1,2,0))
+        weight = weight.reshape(self.op_config["out_channel"], self.op_config["in_channel"], self.op_config["ker_size"], self.op_config["ker_size"])
+        weight = np.transpose(weight, (0,2,3,1))
+        golden_i8 = golden_i8.reshape(self.op_config["out_channel"], self.op_config["out_hw"], self.op_config["out_hw"])
+        golden_i8 = np.transpose(golden_i8, (1,2,0))
+        relu = (golden_i8 >= 0).all()
+
+        golden_i32 = golden_i32.reshape(self.op_config["out_channel"], self.op_config["out_hw"], self.op_config["out_hw"])
+        golden_i32 = golden_i32 - bias.reshape(-1,1,1)
+        golden_i32 = np.transpose(golden_i32, (1,2,0))
+
+        
+        # compile and run, get output
+        output_i8 = self.compile_and_run(code_dir, image_kwargs={
+            "input": input, 
+            "weight": weight, 
+            "bias":bias, 
+            "scale": scale, 
+            "out_zp": out_zp,
+            "relu": relu
+        })
+        # output_i32 = self.compile_and_run(code_dir, image_kwargs={"input": input, "weight": weight})
+        # output_i32 = self.compile_and_run(code_dir, image_kwargs={"input": input, "weight": weight, "bias":bias, "scale": scale, "out_zp": out_zp})
+        # import pdb; pdb.set_trace()
+        # check result
+        if check_result:
+
+            helper_golden = self.helper._calculate_golden()
+            correct = np.array_equal(golden_i8, output_i8)
+            
+            assert correct
+            return output_i8, correct
+
+        return output_i8, None
+
+class DenseLinearQuantifyOperator(Operator):
+    def __init__(self, config_path, template_path, op_config):
+        super().__init__(config_path, template_path, op_config)
+
+    def compile_and_run_from_dataflow_dir(self, df_dir, code_dir, check_result=False):
+        # read data
+        input = np.loadtxt(os.path.join(df_dir, "input.txt"), dtype=np.int8)
+        weight = np.loadtxt(os.path.join(df_dir, "weight.txt"), dtype=np.int8)
+        bias = np.loadtxt(os.path.join(df_dir, "bias.txt"), dtype=np.int32)
+        scale = np.loadtxt(os.path.join(df_dir, "scale.txt"), dtype=np.float32).reshape(-1)
+        out_zp = np.loadtxt(os.path.join(df_dir, "qo.zero_point.txt"), dtype=np.int32).reshape(1)
+        # golden_i32 = np.loadtxt(os.path.join(df_dir, "output_feature.txt"), dtype=np.int32)
+        golden_i8 = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8)
+        relu = (golden_i8 >= 0).all()
+
+        # transform data
+        #   input & golden: C,H,W -> H,W,C
+        #   weight: O,I,H,W -> O,H,W,I
+        #   golden output: 
+        #       C,H,W -> H,W,C
+        #       - bias (currently not support bias)
+        input = input.reshape(self.op_config["in_channel"], self.op_config["in_hw"], self.op_config["in_hw"])
+        input = np.transpose(input, (1,2,0))
+        weight = weight.reshape(self.op_config["out_channel"], self.op_config["in_channel"], self.op_config["ker_size"], self.op_config["ker_size"])
+        weight = np.transpose(weight, (0,2,3,1))
+        golden_i8 = golden_i8.reshape(self.op_config["out_channel"], self.op_config["out_hw"], self.op_config["out_hw"])
+        golden_i8 = np.transpose(golden_i8, (1,2,0))
+        assert scale.size==1
+        scale = scale.repeat(self.op_config["out_channel"], axis=0)
+
+        # compile and run, get output
+        output_i8 = self.compile_and_run(code_dir, image_kwargs={
+            "input": input, 
+            "weight": weight, 
+            "bias":bias, 
+            "scale": scale, 
+            "out_zp": out_zp,
+            "relu": relu
+        })
+        if check_result:
+
+            helper_golden = self.helper._calculate_golden()
+            correct = np.array_equal(golden_i8, output_i8)
+            correct_percent = (golden_i8==output_i8).sum() / golden_i8.size
+            # if correct_percent < 0.9:
+            #     import pdb; pdb.set_trace()
+            # assert correct
+            return output_i8, correct_percent
+
+        return output_i8, None
 if __name__=="__main__":
     pass
     # code_dir = "/home/wangyiou/project/cim_compiler_frontend/playground/.result"

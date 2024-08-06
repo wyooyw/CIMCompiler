@@ -15,7 +15,10 @@ from engine.operator_cim import (
     DenseConv2dOperator,
     BitSparseConv2dOperator,
     ValueSparseConv2dOperator,
-    ValueBitSparseConv2dOperator
+    ValueBitSparseConv2dOperator,
+
+    DenseConv2dQuantifyOperator,
+    DenseLinearQuantifyOperator
 )
 
 
@@ -80,7 +83,7 @@ class Conv2dTemplate(OperatorTemplate):
             "padding": padding
         }
 
-    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse):
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
         """
         Conditions:
             1.input_row==input_col, and input_row and input_col should be multiple of 2
@@ -127,66 +130,162 @@ class Conv2dTemplate(OperatorTemplate):
 
         return True
 
-class DenseConv2dTemplate(Conv2dTemplate):
+class Conv2dBaseTemplate(Conv2dTemplate):
+    def __init__(self, template_path):
+        super().__init__(
+            template_path,
+        )
+    
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        if not (quantify==False):
+            return False
+        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse, quantify)
+
+class Conv2dQuantifyTemplate(Conv2dTemplate):
+    def __init__(self, template_path):
+        super().__init__(
+            template_path,
+        )
+    
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        if not (quantify==True):
+            return False
+        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse, quantify)
+
+class DenseConv2dTemplate(Conv2dBaseTemplate):
     def __init__(self):
         super().__init__(
             "/home/wangyiou/project/cim_compiler_frontend/playground/test/compiler/pimcompute/dense/dense_conv2d_group",
         )
 
-    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse):
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
         if not (value_sparse==False and bit_sparse==False):
             return False
-        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse)
+        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse, quantify)
     
     def get_operator(self, raw_layer):
         op_config = self.raw_layer_to_op_config(raw_layer)
         return DenseConv2dOperator(self.config_path, self.template_path, op_config)
 
-class BitSparseConv2dTemplate(Conv2dTemplate):
+class BitSparseConv2dTemplate(Conv2dBaseTemplate):
     def __init__(self):
         super().__init__(
             "/home/wangyiou/project/cim_compiler_frontend/playground/test/compiler/pimcompute/bit_sparse/bit_sparse_conv2d_group",
         )
 
-    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse):
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
         if not (value_sparse==False and bit_sparse==True):
             return False
-        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse)
+        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse, quantify)
     
     def get_operator(self, raw_layer):
         op_config = self.raw_layer_to_op_config(raw_layer)
         return BitSparseConv2dOperator(self.config_path, self.template_path, op_config)
 
-class ValueSparseConv2dTemplate(Conv2dTemplate):
+class ValueSparseConv2dTemplate(Conv2dBaseTemplate):
     def __init__(self):
         super().__init__(
             "/home/wangyiou/project/cim_compiler_frontend/playground/test/compiler/pimcompute/value_sparse/value_sparse_group_longer",
         )
 
-    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse):
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
         if not (value_sparse==True and bit_sparse==False):
             return False
         if not ((raw_layer["input_channel"] % 128 == 0) or (128 % raw_layer["input_channel"] == 0)):
             return False
-        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse)
+        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse, quantify)
     
     def get_operator(self, raw_layer):
         op_config = self.raw_layer_to_op_config(raw_layer)
         return ValueSparseConv2dOperator(self.config_path, self.template_path, op_config)
 
-class ValueBitSparseConv2dTemplate(Conv2dTemplate):
+class ValueBitSparseConv2dTemplate(Conv2dBaseTemplate):
     def __init__(self):
         super().__init__(
             "/home/wangyiou/project/cim_compiler_frontend/playground/test/compiler/pimcompute/value_bit_sparse",
         )
 
-    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse):
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
         if not (value_sparse==True and bit_sparse==True):
             return False
         if not ((raw_layer["input_channel"] % 128 == 0) or (128 % raw_layer["input_channel"] == 0)):
             return False
-        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse)
+        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse, quantify)
     
     def get_operator(self, raw_layer):
         op_config = self.raw_layer_to_op_config(raw_layer)
         return ValueBitSparseConv2dOperator(self.config_path, self.template_path, op_config)
+
+class DenseConv2dQuantifyTemplate(Conv2dQuantifyTemplate):
+    def __init__(self):
+        super().__init__(
+            "/home/wangyiou/project/cim_compiler_frontend/playground/test/compiler/pimcompute/dense/dense_conv2d_group_quantify",
+        )
+
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        if not (value_sparse==False and bit_sparse==False):
+            return False
+        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse, quantify)
+    
+    def get_operator(self, raw_layer):
+        op_config = self.raw_layer_to_op_config(raw_layer)
+        return DenseConv2dQuantifyOperator(self.config_path, self.template_path, op_config)
+
+
+class LinearTemplate(Conv2dTemplate):
+    def __init__(self, template_path):
+        super().__init__(
+            template_path,
+        )
+
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        """
+        Conditions:
+            1.input_row==input_col, and input_row and input_col should be multiple of 2
+            2.either 
+                input_channel % 128 == 0 
+            or 
+                input_channel < 128 and input_channel % 16 == 0
+            3.
+                weight_row == weight_col
+            4.
+                depthwise==False
+            5.
+                padding_mode==SAME or VALID
+            6.
+                stride==1    
+        """
+
+        if not raw_layer.get("type", None)=="FCN":
+            return False
+
+        if not (raw_layer["input_row"]==raw_layer["input_col"] and raw_layer["input_col"]==1):
+            return False
+
+        if not (
+            (raw_layer["input_channel"] % 128 == 0) or
+            (raw_layer["input_channel"] < 128 and raw_layer["input_channel"] % 16 == 0)
+        ):
+            return False
+        
+        if not (raw_layer["weight_row"]==raw_layer["weight_col"] and raw_layer["weight_col"]==1):
+            return False
+
+        return True
+
+class DenseLinearQuantifyTemplate(LinearTemplate):
+    def __init__(self):
+        super().__init__(
+            "/home/wangyiou/project/cim_compiler_frontend/playground/test/compiler/pimcompute/linear/dense_quantify",
+        )
+
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        if not (value_sparse==False and bit_sparse==False):
+            return False
+        if not (quantify==True):
+            return
+        return super().check_raw_layer(raw_layer, value_sparse, bit_sparse, quantify)
+    
+    def get_operator(self, raw_layer):
+        op_config = self.raw_layer_to_op_config(raw_layer)
+        return DenseLinearQuantifyOperator(self.config_path, self.template_path, op_config)
