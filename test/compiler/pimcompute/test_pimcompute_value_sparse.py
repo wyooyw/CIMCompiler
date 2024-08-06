@@ -93,6 +93,8 @@ class TestPIMComputeValueSparse:
         'dense/dense_conv2d_group',
         'bit_sparse/bit_sparse_conv2d_group' ,
         'value_bit_sparse'
+        # quantify
+        'dense/dense_conv2d_group_quantify' ,
         ])
     @pytest.mark.parametrize('op_config',[
         {"out_channel":32, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
@@ -215,8 +217,8 @@ if __name__=="__main__":
     TestPIMComputeValueSparse.setup_class()
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
-    tester.test_pim_compute('bit_sparse/bit_sparse_conv2d_group', 
-        {"out_channel":16, "in_channel": 384, "ker_size": 3, "in_hw": 4, "out_hw": 2,
+    tester.test_pim_compute('dense/dense_conv2d_group_quantify', 
+        {"out_channel":128, "in_channel": 128, "ker_size": 3, "in_hw": 8, "out_hw": 6,
         "input_buffer_size_per_group": 128
         }
     )

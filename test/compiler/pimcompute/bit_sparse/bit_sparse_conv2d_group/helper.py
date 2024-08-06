@@ -27,8 +27,8 @@ class TestHelper:
     def _get_mock_input(self):
         import numpy as np
         # input_data = np.arange(0,self.in_hw*self.in_hw, dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
-        # input_data = np.random.randint(-32,32,size=(self.in_hw,self.in_hw), dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
-        input_data = np.ones((self.in_hw,self.in_hw), dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        input_data = np.random.randint(-32,32,size=(self.in_hw,self.in_hw), dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        # input_data = np.ones((self.in_hw,self.in_hw), dtype=np.int8).reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
         assert input_data.shape==(self.in_hw,self.in_hw,self.in_channel), f"{input_data.shape=}"
         return input_data
 
