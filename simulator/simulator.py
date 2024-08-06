@@ -10,6 +10,7 @@ from utils.df_layout import tensor_int8_to_bits
 from tqdm import tqdm
 import logging
 import cProfile
+from utils.round import banker_round
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -1140,6 +1141,7 @@ class Simulator:
             self.print_record.append(val)
             logging.info(f" general_reg[{rs}] = {val}")
         elif inst["type"]==1:
+            import pdb; pdb.set_trace()
             if self.debug_hook is not None:
                 self.debug_hook(simulator=self)
         else:
@@ -1221,4 +1223,40 @@ class Simulator:
         self.memory_space.write(output_data, output_addr, output_byte_size)
 
     def _run_simd_class_quantify_inst(self, inst):
-        assert False, "Not support yet."
+        input_addr = self.read_general_reg(inst["rs1"])
+        bias_scale_addr = self.read_general_reg(inst["rs1"] + 1)
+        out_zp_addr = self.read_general_reg(inst["rs2"])
+        input_size = self.read_general_reg(inst["rs3"])
+        output_addr = self.read_general_reg(inst["rd"])
+        clip_min = 0 if inst["relu"] else -128
+        clip_max = 127
+        # print(f"{clip_min=}")
+        # print(f"{inst['relu']=}")
+        # import pdb; pdb.set_trace()
+
+        input_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
+        input_byte_size = input_bitwidth * input_size // 8
+        self.memory_space.check_memory_type(input_addr, input_byte_size, "sram")
+        input_data = self.memory_space.read_as(input_addr, input_byte_size , get_dtype_from_bitwidth(input_bitwidth))
+
+        # read bias and scale
+        bias_scale_byte_size = input_size * 2 * 4
+        bias_data = self.memory_space.read_as(bias_scale_addr, bias_scale_byte_size, np.int32)[0::2]
+        scale_data = self.memory_space.read_as(bias_scale_addr, bias_scale_byte_size, np.float32)[1::2]
+
+        # read out_zp
+        out_zp_byte_size = 4
+        out_zp_data = self.memory_space.read_as(out_zp_addr, out_zp_byte_size, np.int32)
+
+        # calculate
+        output_data = input_data + bias_data
+        output_data = banker_round(output_data * scale_data) + out_zp_data
+        output_data = banker_round(np.clip(output_data, clip_min, clip_max))
+        # output_data = banker_round(np.clip(output_data, 0, 127))
+        output_data = output_data.astype("int8")
+
+        # save back
+        output_byte_size = output_data.size
+        # import pdb; pdb.set_trace()
+        self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
+        self.memory_space.write(output_data, output_addr, output_byte_size)
