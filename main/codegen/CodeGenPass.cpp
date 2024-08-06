@@ -82,7 +82,7 @@ static int getReg(std::unordered_map<llvm::hash_code, int > &regmap, mlir::Value
   
 }
 
-typedef map<string, int> Inst;
+typedef map<std::string, int> Inst;
 
 static void codeGen(mlir::arith::ConstantOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
   std::set<int> &def, std::set<int> &use){
@@ -291,6 +291,69 @@ static void codeGen(mlir::cimisa::VVAddOp op, std::unordered_map<llvm::hash_code
   instr_list.push_back(inst);
 }
 
+
+static void codeGen(mlir::cimisa::QuantifyOp op, 
+  std::unordered_map<llvm::hash_code, int > &regmap, 
+  std::vector<Inst>& instr_list,
+  std::set<int> &def, 
+  std::set<int> &use,
+  std::map<int,int>& twin_reg){
+  /*
+    SIMD计算：SIMD-compute
+    指令字段划分：
+    - [31, 30]，2bit：class，指令类别码，值为01
+    - [29, 28]，2bit：input num，input向量的个数，范围是1到4
+      - 00：1个输入向量，地址由rs1给出
+      - 01：2个输入向量，地址由rs1和rs2给出
+      - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
+      - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
+    - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
+      - 0x00：add，向量加法
+      - 0x01：add-scalar，向量和标量加法
+      - 0x02：multiply，向量逐元素乘法
+      - 0x03：quantify，量化
+      - 0x04：quantify-resadd，resadd量化
+      - 0x05：quantify-multiply，乘法量化
+    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
+    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
+    - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
+    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
+    使用的专用寄存器：
+    - input 1 bit width：输入向量1每个元素的bit长度
+    - input 2 bit width：输入向量2每个元素的bit长度
+    - input 3 bit width：输入向量3每个元素的bit长度
+    - input 4 bit width：输入向量4每个元素的bit长度
+    - output bit width：输出向量每个元素的bit长度
+  */
+  int input_addr = getReg(regmap, op.getOperand(0));
+  int bias_scale_addr = getReg(regmap, op.getOperand(1));
+  int out_zp_addr = getReg(regmap, op.getOperand(2));
+  int output_addr = getReg(regmap, op.getOperand(3));
+  int size = getReg(regmap, op.getOperand(4));
+  bool relu = op.getRelu();
+  
+  use.insert(input_addr);
+  use.insert(bias_scale_addr);
+  use.insert(out_zp_addr);
+  use.insert(output_addr);
+  use.insert(size);
+
+  Inst inst = {
+    {"class", 0b01},
+    {"input_num", 0b10},
+    {"opcode", 3},
+    {"rs1", input_addr},
+    {"rs1_1", bias_scale_addr},
+    {"rs2", out_zp_addr},
+    {"rs3", size},
+    {"rd", output_addr},
+    {"relu", relu}
+  };
+  instr_list.push_back(inst);
+
+  twin_reg[input_addr] = bias_scale_addr;
+  // twin_reg[bias_scale_addr] = input_addr;
+}
 
 /*
   PrintOp
@@ -950,7 +1013,8 @@ static void codeGen(std::vector<Block*> &blocks,
           std::map<Block*, int>& block2line_end,
           std::map<Operation*, int>& jump2line,
           std::map<Block*, std::set<int> >& def,
-          std::map<Block*, std::set<int> >& use
+          std::map<Block*, std::set<int> >& use,
+          std::map<int,int>& twin_reg
           ){
   
   for (Block *block : blocks){
@@ -1027,6 +1091,9 @@ static void codeGen(std::vector<Block*> &blocks,
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::SpecialRegAssignOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
+      
+      }else if(auto _op = dyn_cast<mlir::cimisa::QuantifyOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
       }else{
         std::cerr << "error: unsupport operator: " << op->getName().getStringRef().str() << std::endl;
       }
@@ -1421,12 +1488,60 @@ static bool isSpecialToGeneralAssign(Inst& inst){
   return false;
 }
 
+static bool is_general_reg(Inst &inst, std::string key){
+  bool is_gen_to_spec_assign = isGeneralToSpecialAssign(inst);
+  bool is_spec_to_gen_assign = isSpecialToGeneralAssign(inst);
+  bool is_special_assign = is_gen_to_spec_assign || is_spec_to_gen_assign;
+  bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
+  return is_reg_general;
+}
+
+static std::pair<int,int> get_twin_physical_reg(std::priority_queue<int, std::vector<int>, std::greater<int>> &physical_regs){
+  std::vector<int> temp_save;
+  std::pair<int,int> twin;
+  bool find = false;
+  while(!physical_regs.empty()){
+    int top = physical_regs.top();
+    if(temp_save.size()>=1 && top==temp_save.back()+1){
+      twin.first = temp_save.back();
+      twin.second = top;
+      find = true;
+      temp_save.pop_back();
+      physical_regs.pop();
+      break;
+    }
+    temp_save.push_back(top);
+    physical_regs.pop();
+  }
+  if(!find){
+    std::cerr << "error: can't find twin physical register" << std::endl;
+    std::exit(1);
+  }
+  // move temp_save back to physical_regs
+  for(int i = 0; i < temp_save.size(); i++){
+    physical_regs.push(temp_save[i]);
+  }
+  std::cout << "get_twin_physical_reg: " << twin.first << " " << twin.second << std::endl;
+  return twin;
+}
+
 static void mappingRegisterLogicalToPhysical(
       std::vector<Inst>& instr_list,
       std::map<Block*, std::set<int> > &in,
       std::map<Block*, std::set<int> > &out,
       std::map<Block*, int> &block2line,
-      std::map<Block*, int> &block2line_end){
+      std::map<Block*, int> &block2line_end,
+      std::map<int,int> &twin_reg){
+  
+  // show twin_reg
+  for (const auto& [key, value] : twin_reg) {
+    std::cout << "twin_reg: " << key << " -> " << value << std::endl;
+  }
+  std::map<int,int> two_way_twin_reg;
+  for (const auto& [key, value] : twin_reg) {
+    two_way_twin_reg[key] = value;
+    two_way_twin_reg[value] = key;
+  }
 
   // Step 1: get life cycle of each logical register
   std::map<int, int> logic_reg_life_begin;
@@ -1439,11 +1554,11 @@ static void mappingRegisterLogicalToPhysical(
     if(isSpecialLi(inst)) continue;
 
     for (const auto& [key, value] : inst) {
-      bool is_gen_to_spec_assign = isGeneralToSpecialAssign(inst);
-      bool is_spec_to_gen_assign = isSpecialToGeneralAssign(inst);
-      bool is_special_assign = is_gen_to_spec_assign || is_spec_to_gen_assign;
-      bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
-      if(is_reg_general){
+      // bool is_gen_to_spec_assign = isGeneralToSpecialAssign(inst);
+      // bool is_spec_to_gen_assign = isSpecialToGeneralAssign(inst);
+      // bool is_special_assign = is_gen_to_spec_assign || is_spec_to_gen_assign;
+      // bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
+      if(is_general_reg(inst, key)){
         int reg_id = value;
         if (!logic_reg_life_begin.count(reg_id)){
           logic_reg_life_begin[reg_id] = inst_id;
@@ -1492,6 +1607,7 @@ static void mappingRegisterLogicalToPhysical(
   std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
   std::map<int, int> logical_to_physical_mapping;
   int max_physical_reg_used = 0;
+  std::set<int> twin_have_allocated;
   for(int i = 0; i < num_physical_regs; i++) physical_regs.push(i);
   for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
     for(int logical_reg_id : logical_regs){
@@ -1499,6 +1615,29 @@ static void mappingRegisterLogicalToPhysical(
         if (physical_regs.empty()){
           std::cerr << "No more physical_regs can use!" << std::endl;
           std::exit(1);
+        }
+        if (two_way_twin_reg.count(logical_reg_id)){
+          int twin_logical_reg_id = two_way_twin_reg[logical_reg_id];
+          int master_reg, salve_reg;
+          if (twin_reg.count(logical_reg_id)){
+            master_reg = logical_reg_id;
+            salve_reg = twin_logical_reg_id;
+          }else if (twin_reg.count(twin_logical_reg_id)){
+            master_reg = twin_logical_reg_id;
+            salve_reg = logical_reg_id;
+          }else{
+            std::cerr << "error: can't find master reg" << std::endl;
+            std::exit(1);
+          }
+          if(!twin_have_allocated.count(master_reg)){
+            std::pair<int,int> twin_physical_reg = get_twin_physical_reg(physical_regs);
+            logical_to_physical_mapping[master_reg] = twin_physical_reg.first;
+            logical_to_physical_mapping[salve_reg] = twin_physical_reg.second;
+            twin_have_allocated.insert(master_reg);
+            max_physical_reg_used = max(max_physical_reg_used, twin_physical_reg.first);
+            max_physical_reg_used = max(max_physical_reg_used, twin_physical_reg.second);
+          }
+          continue;
         }
         int physical_reg = physical_regs.top();
         max_physical_reg_used = max(max_physical_reg_used, physical_reg);
@@ -1526,12 +1665,12 @@ static void mappingRegisterLogicalToPhysical(
     
     std::unordered_map<string, int> replace;
     for (const auto& [key, value] : inst) {
-      bool is_gen_to_spec_assign = isGeneralToSpecialAssign(inst);
-      bool is_spec_to_gen_assign = isSpecialToGeneralAssign(inst);
-      bool is_special_assign = is_gen_to_spec_assign || is_spec_to_gen_assign;
-      bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
+      // bool is_gen_to_spec_assign = isGeneralToSpecialAssign(inst);
+      // bool is_spec_to_gen_assign = isSpecialToGeneralAssign(inst);
+      // bool is_special_assign = is_gen_to_spec_assign || is_spec_to_gen_assign;
+      // bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
 
-      if(is_reg_general){
+      if(is_general_reg(inst, key)){
         replace[key] = logical_to_physical_mapping[value];
       }
     }
@@ -1568,8 +1707,9 @@ struct CodeGenerationPass
     std::map<Operation*, int> jump2line;
     std::map<Block*, std::set<int> > def;
     std::map<Block*, std::set<int> > use;
+    std::map<int,int> twin_reg;
     std::vector<Block*> blocks = getBlockList(f);
-    codeGen(blocks, regmap, block_args_special_reg_map, instr_list, block2line, block2line_end, jump2line, def, use);
+    codeGen(blocks, regmap, block_args_special_reg_map, instr_list, block2line, block2line_end, jump2line, def, use, twin_reg);
     std::cout << "codegen finish!" << std::endl;
 
     fillJumpBranchOffset(f, instr_list, block2line, jump2line);
@@ -1580,7 +1720,7 @@ struct CodeGenerationPass
     liveVariableAnalysis(blocks, def, use, in, out);
     std::cout << "live variable analysis finish!" << std::endl;
 
-    mappingRegisterLogicalToPhysical(instr_list, in, out, block2line, block2line_end);
+    mappingRegisterLogicalToPhysical(instr_list, in, out, block2line, block2line_end, twin_reg);
 
     // std::string filename = "result.json";
     std::ofstream file(outputFilePath);

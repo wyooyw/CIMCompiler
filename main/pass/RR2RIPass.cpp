@@ -454,6 +454,59 @@ namespace {
         return success();
       }
     };
+
+    struct QuantifyOpConvert : public OpRewritePattern<cimisa::QuantifyOp> {
+      using OpRewritePattern<cimisa::QuantifyOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cimisa::QuantifyOp op, PatternRewriter &rewriter) const final {
+        std::cout << "QuantifyOpConvert::matchAndRewrite begin" << std::endl;
+
+        Value input_addr = op.getOperand(0);
+        Value bias_scale_addr = op.getOperand(1);
+        Value out_zp_addr = op.getOperand(2);
+        Value output_addr = op.getOperand(3);
+        Value size = op.getOperand(4);
+        std::cout << "QuantifyOpConvert::matchAndRewrite 1" << std::endl;
+
+        bool change = false;
+        if (isConstant(input_addr)) {
+            IntegerAttr constant = getConstantInt(input_addr);
+            input_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), input_addr.getType(), constant);
+            change = true;
+        }
+        if (isConstant(bias_scale_addr)) {
+            IntegerAttr constant = getConstantInt(bias_scale_addr);
+            bias_scale_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), bias_scale_addr.getType(), constant);
+            change = true;
+        }
+        if (isConstant(out_zp_addr)) {
+            IntegerAttr constant = getConstantInt(out_zp_addr);
+            out_zp_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), out_zp_addr.getType(), constant);
+            change = true;
+        }
+        if (isConstant(output_addr)) {
+            IntegerAttr constant = getConstantInt(output_addr);
+            output_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), output_addr.getType(), constant);
+            change = true;
+        }
+        if (isConstant(size)) {
+            IntegerAttr constant = getConstantInt(size);
+            size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), size.getType(), constant);
+            change = true;
+        }
+        if (!change){
+            return failure();
+        }
+
+        std::cout << "QuantifyOpConvert::matchAndRewrite 2" << std::endl;
+        // MemRefType memtype = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
+        // Type type = memtype.getElementType();
+        rewriter.replaceOpWithNewOp<cimisa::QuantifyOp>(op, input_addr, bias_scale_addr, out_zp_addr, output_addr, size, op.getRelu());
+        std::cout << "QuantifyOpConvert::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
 }
 
 
@@ -480,7 +533,7 @@ void RR2RIPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   patterns.add<AddIOpConvert, SubIOpConvert, MulIOpConvert, DivSIOpConvert, RemSIOpConvert, MinSIOpConvert, 
       TransOpConvert, StoreBaseAndOffsetOpConvert, LoadBaseAndOffsetOpConvert, CIMTransferOpConvert,
-      CIMComputeOpConvert, VVAddOpConvert, CIMOutputSumOpConvert>(
+      CIMComputeOpConvert, VVAddOpConvert, CIMOutputSumOpConvert, QuantifyOpConvert>(
       &getContext());
 
   if (failed(

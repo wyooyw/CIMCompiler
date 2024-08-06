@@ -568,20 +568,20 @@ namespace {
       LogicalResult
       matchAndRewrite(cim::QuantifyOp op, PatternRewriter &rewriter) const final {
         std::cout << "QuantifyOpLowering::matchAndRewrite begin" << std::endl;
-        Value input = getAddrValue(op.getOperand(0), rewriter);
-        Value bias = getAddrValue(op.getOperand(1), rewriter);
-        Value scale = getAddrValue(op.getOperand(2), rewriter);
-        Value output = getAddrValue(op.getOperand(3), rewriter);
+        Value input_addr = getAddrValue(op.getOperand(0), rewriter);
+        Value bias_scale_addr = getAddrValue(op.getOperand(1), rewriter);
+        Value out_zp_addr = getAddrValue(op.getOperand(2), rewriter);
+        Value output_addr = getAddrValue(op.getOperand(3), rewriter);
         Value size = getLengthValue(op.getOperand(0), rewriter);
         
         std::cout << "QuantifyOpLowering::matchAndRewrite" << std::endl;
-        if (!input || !bias || !scale || !size) {
+        if (!input_addr || !bias_scale_addr || !out_zp_addr || !output_addr || !size) {
           std::cout << "QuantifyOpLowering::matchAndRewrite fail" << std::endl;
           return failure();
         }
         std::cout << "QuantifyOpLowering::matchAndRewrite success" << std::endl;
         
-        rewriter.replaceOpWithNewOp<cimisa::QuantifyOp>(op, input, bias, scale, output, size);
+        rewriter.replaceOpWithNewOp<cimisa::QuantifyOp>(op, input_addr, bias_scale_addr, out_zp_addr, output_addr, size, op.getRelu());
 
         return success();
       }

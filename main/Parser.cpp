@@ -602,16 +602,29 @@ void MLIRGenImpl::parse_bulitin_quantify(const boost::property_tree::ptree& ast)
     auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
 
     auto ast_input = safe_get_child(get_item(ast_param_list,0), "call_param");
-    auto ast_bias = safe_get_child(get_item(ast_param_list,2), "call_param");
-    auto ast_scale = safe_get_child(get_item(ast_param_list,4), "call_param");
+    auto ast_bias_scale = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_out_zp = safe_get_child(get_item(ast_param_list,4), "call_param");
     auto ast_output = safe_get_child(get_item(ast_param_list,6), "call_param");
+    auto ast_relu = safe_get_child(get_item(ast_param_list,8), "call_param");
 
     mlir::Value input = parse_expr(safe_get_child(get_item(ast_input, 0), "expr"));
-    mlir::Value bias = parse_expr(safe_get_child(get_item(ast_bias, 0), "expr"));
-    mlir::Value scale = parse_expr(safe_get_child(get_item(ast_scale, 0), "expr"));
+    mlir::Value bias_scale = parse_expr(safe_get_child(get_item(ast_bias_scale, 0), "expr"));
+    mlir::Value out_zp = parse_expr(safe_get_child(get_item(ast_out_zp, 0), "expr"));
     mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
+    mlir::Value relu = parse_expr(safe_get_child(get_item(ast_relu, 0), "expr"));
 
-    builder.create<mlir::cim::Quantify>(loc, input, bias, scale, output);
+
+    // extract relu's value
+    mlir::arith::ConstantOp relu_const_op = relu.getDefiningOp<mlir::arith::ConstantOp>();
+    if (!relu_const_op){
+        // raise: not support yet
+        std::cerr << "relu should be constant" << std::endl;
+        std::exit(1);
+    }
+    int relu_const = relu_const_op.getValue().cast<mlir::IntegerAttr>().getInt();
+    mlir::IntegerAttr relu_flag = mlir::IntegerAttr::get(builder.getIntegerType(1), relu_const>0);
+
+    builder.create<mlir::cim::QuantifyOp>(loc, input, bias_scale, out_zp, output, relu_const);
 }
 
 mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree& ast){

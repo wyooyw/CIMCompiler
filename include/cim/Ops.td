@@ -72,9 +72,10 @@ def QuantifyOp : CIM_Op<"quantify"> {
 
   let arguments = (ins 
     AnyMemRef:$input, 
-    AnyMemRef:$bias, 
-    AnyMemRef:$scale,
-    AnyMemRef:$output
+    AnyMemRef:$bias_scale, 
+    AnyMemRef:$output_zp,
+    AnyMemRef:$output,
+    I1Attr:$relu
   );
 
   // Allow building an AddOp with from the two input operands.
