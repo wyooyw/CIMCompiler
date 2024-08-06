@@ -92,7 +92,7 @@ class TestPIMComputeValueSparse:
         'value_sparse/value_sparse_group_longer' , 
         'dense/dense_conv2d_group',
         'bit_sparse/bit_sparse_conv2d_group' ,
-        'value_bit_sparse'
+        'value_bit_sparse',
         # quantify
         'dense/dense_conv2d_group_quantify' ,
         ])
