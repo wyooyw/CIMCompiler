@@ -334,7 +334,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         )
         bit_sparse_weight, meta, fold = weight_transform_group(weight, cim_cfg, op_cfg, "OHWI")
         ele_in_filter = bit_sparse_weight.shape[1]
-        assert ele_in_filter % n_comp == 0
+        assert ele_in_filter % n_comp == 0, f"{ele_in_filter=}"
         bit_sparse_weight = bit_sparse_weight.reshape(
             bit_sparse_weight.shape[0], 
             ele_in_filter // n_comp,
