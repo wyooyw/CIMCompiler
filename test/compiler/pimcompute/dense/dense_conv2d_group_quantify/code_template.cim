@@ -396,28 +396,49 @@ def main(null<int8>){
                         delta_w = group_i % 2;
                         Trans(output_buffer_group_i, local_output_for_temp_sum);
 
-                        local_output_group_i = Slice(
-                            local_output_i32, 
-                            [oh+delta_h, ow+delta_w, 0], 
-                            [1, 1, N_GROUP_VCOL], 
-                            [1, 1, 1]
-                        );
-                        VVAdd(local_output_for_temp_sum, local_output_group_i, local_output_group_i);
+                        use_local_output_i32 = Slice(local_output_i32, 
+                                [oh+delta_h, ow+delta_w, 0], 
+                                [1, 1, N_GROUP_VCOL], 
+                                [1, 1, 1]
+                            );
+                        // if SINGLE_OUTER_REDUCE==1, we do quantify inside oh and ow loop, to turn i32 to i8 immediately for saving memory.
+                        // else, we add result to i32 output, and do quantize when the partial sum finish compute.
+                        {% if SINGLE_OUTER_REDUCE == 1 %}
+                            use_bias_scale = Slice(local_bias_scale,
+                                [out_channel_begin, 0],
+                                [out_channel_len, 2],
+                                [1, 1]
+                            );
+                            use_i8_output = Slice(local_output_i8,
+                                [oh+delta_h, ow+delta_w, out_channel_begin],
+                                [1,1,out_channel_len],
+                                [1,1,1]
+                            );
+                            Quantify(use_local_output_i32, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
+
+                            // Clear origin buffer
+                            use_blank = Slice(local_blank, [0], [out_channel_len], [1]);
+                            Trans(use_blank, use_local_output_i32);
+                        {% else %}
+                            VVAdd(local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
+                        {% endif %}
                     };
                 };
             };
         };
 
-        // Do quantify here
-        quantify(null,
-            out_channel_begin,
-            out_channel_len,
-            local_output_i32,
-            local_bias_scale,
-            local_output_i8,
-            local_out_zp,
-            local_blank
-        );
+        {% if SINGLE_OUTER_REDUCE == 0 %}
+            // Do quantify here
+            quantify(null,
+                out_channel_begin,
+                out_channel_len,
+                local_output_i32,
+                local_bias_scale,
+                local_output_i8,
+                local_out_zp,
+                local_blank
+            );
+        {% endif %}
     };
     Trans(local_output_i8, global_output_i8);
 }
