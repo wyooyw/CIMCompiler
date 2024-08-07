@@ -209,7 +209,7 @@ def quantify(
     null<int8>,
     out_channel_begin<index>,
     out_channel_len<index>,
-    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__>,
+    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, N_GROUP_VCOL>, int32, __OUTPUT_MEMORY__>,
     local_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
     local_output_i8< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__>,
     local_out_zp< <1>, int32, __INPUT_MEMORY__>,
@@ -398,7 +398,7 @@ def main(null<int8>){
 
                         use_local_output_i32 = Slice(local_output_i32, 
                                 [oh+delta_h, ow+delta_w, 0], 
-                                [1, 1, N_GROUP_VCOL], 
+                                [1, 1, out_channel_len], 
                                 [1, 1, 1]
                             );
                         // if SINGLE_OUTER_REDUCE==1, we do quantify inside oh and ow loop, to turn i32 to i8 immediately for saving memory.
@@ -414,7 +414,7 @@ def main(null<int8>){
                                 [1,1,out_channel_len],
                                 [1,1,1]
                             );
-                            Quantify(use_local_output_i32, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
+                            Quantify(local_output_for_temp_sum, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
 
                             // Clear origin buffer
                             use_blank = Slice(local_blank, [0], [out_channel_len], [1]);

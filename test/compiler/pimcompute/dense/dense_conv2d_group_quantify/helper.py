@@ -22,4 +22,5 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
     def _make_template_config(self, simulator):
         context = super()._make_template_config(simulator)
         context["RELU"] = int(self.relu)
+        context["SINGLE_OUTER_REDUCE"] = int(context["OUT_REDUCE_TILE"] <= simulator.macro_config.n_row)
         return context
