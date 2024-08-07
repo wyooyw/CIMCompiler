@@ -170,10 +170,17 @@ def main(null<int8>){
     // input, weight, mask and index will be prepared in memory image
     global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
     global_weight = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __GLOBAL__);
+    
     global_meta = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP_BCOL, 3>, int1, __GLOBAL__);
     global_outsum_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
     global_transfer_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
     global_out_channel_begin = Buffer(<OUT_CHANNEL_BEGIN_LEN>, index, __GLOBAL__);
+    local_outsum_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __INPUT_MEMORY__);
+    local_transfer_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __INPUT_MEMORY__);
+    local_out_channel_begin = Buffer(<OUT_CHANNEL_BEGIN_LEN>, index, __INPUT_MEMORY__);
+    Trans(global_outsum_mask, local_outsum_mask);
+    Trans(global_transfer_mask, local_transfer_mask);
+    Trans(global_out_channel_begin, local_out_channel_begin);
 
     global_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __GLOBAL__);
     global_out_zp = Buffer(<1>, int32, __GLOBAL__);
@@ -230,8 +237,8 @@ def main(null<int8>){
     SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
     
     for out_tile_i in range(0, OUT_SPATIAL_TILE) carry (null) {
-        out_channel_begin = Load(global_out_channel_begin, [out_tile_i]);
-        out_channel_end = Load(global_out_channel_begin, [out_tile_i + 1]);
+        out_channel_begin = Load(local_out_channel_begin, [out_tile_i]);
+        out_channel_end = Load(local_out_channel_begin, [out_tile_i + 1]);
         out_channel_len = out_channel_end - out_channel_begin;
         //Print(out_channel_begin);
         // Print(out_channel_end);
@@ -345,12 +352,12 @@ def main(null<int8>){
                 };
                 // Save(local_spill, [1], row_to_activate);
             };
-            use_outsum_mask = Slice(global_outsum_mask,
+            use_outsum_mask = Slice(local_outsum_mask,
                 [out_tile_i, 0],
                 [1, N_GROUP_BCOL],
                 [1, 1]
             );
-            use_transfer_mask = Slice(global_transfer_mask,
+            use_transfer_mask = Slice(local_transfer_mask,
                 [out_tile_i, 0],
                 [1, N_GROUP_BCOL],
                 [1, 1]
