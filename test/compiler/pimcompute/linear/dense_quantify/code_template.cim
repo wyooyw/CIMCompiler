@@ -319,8 +319,4 @@ def main(null<int8>){
         );
     };
     Trans(local_output_i8, global_output);
-    //Trans(local_output, global_output);
-    //Debug(null);
-    Trans(global_input,global_input);
-    Trans(global_weight,global_weight);
 }

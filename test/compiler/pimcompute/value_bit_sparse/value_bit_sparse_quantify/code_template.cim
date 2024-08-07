@@ -550,19 +550,4 @@ def main(null<int8>){
         
     }; // end of out_channel_begin
     Trans(local_output_i8, global_output_i8);
-    // Trans(local_output, global_output);
-    //Debug(null);
-    Trans(global_input,global_input);
-    Trans(global_weight,global_weight);
-    Trans(global_mask,global_mask);
-    Trans(global_outsum_mask,global_outsum_mask);
-    Trans(global_transfer_mask,global_transfer_mask);
-    Trans(global_meta,global_meta);
-
-    Trans(mapping_reduce_to_macro);
-    Trans(mapping_macro_to_from);
-    Trans(mapping_macro_to_row);
-    Trans(mapping_from_to_row);
-    // Trans(global_index,global_index);
-    // Trans(global_out_spatial_tile_size_list,global_out_spatial_tile_size_list);
 }
