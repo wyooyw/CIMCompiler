@@ -224,7 +224,7 @@ def quantify(
     for oh in range(0,OUTPUT_ROW) carry(null){
         for ow in range(0,OUTPUT_COL) carry(null){
             use_i32_output = Slice(local_output_i32,
-                [oh,ow,out_channel_begin],
+                [oh,ow,0],
                 [1,1,out_channel_len],
                 [1,1,1]
             );
@@ -478,7 +478,7 @@ def main(null<int8>){
                             Quantify(use_local_output_for_temp_sum, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
                         {% else %}
                             use_local_output_i32 = Slice(local_output_i32, 
-                                [oh+delta_h, ow+delta_w, out_channel_begin], 
+                                [oh+delta_h, ow+delta_w, 0], 
                                 [1, 1, out_channel_len], 
                                 [1, 1, 1]
                             );
