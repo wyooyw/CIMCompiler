@@ -630,12 +630,14 @@ namespace {
           Now, all index of load is 0.
         */
         std::cout << "CIMOutputOpLowering::matchAndRewrite begin" << std::endl;
-        Value addr_dst = getAddrValue(op.getOperand(), rewriter);
-        if (!addr_dst) {
+        Value out_n = op.getOperand(0);
+        Value mask_addr = op.getOperand(1); // this is true, no need to call getAddrValue
+        Value addr_dst = getAddrValue(op.getOperand(2), rewriter);
+        if (!out_n || !mask_addr || !addr_dst) {
           std::cerr << "CIMOutputOpLowering::matchAndRewrite fail" << std::endl;
           std::exit(1);
         }
-        rewriter.replaceOpWithNewOp<cimisa::CIMOutputOp>(op, addr_dst);
+        rewriter.replaceOpWithNewOp<cimisa::CIMOutputOp>(op, out_n, mask_addr, addr_dst);
         std::cout << "CIMOutputOpLowering::matchAndRewrite finish" << std::endl;
         return success();
       }

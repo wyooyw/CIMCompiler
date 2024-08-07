@@ -769,10 +769,15 @@ void MLIRGenImpl::parse_bulitin_cimoutput(const boost::property_tree::ptree& ast
 
     auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
 
-    auto ast_output = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_out_n = safe_get_child(get_item(ast_param_list,0), "call_param");
+    auto ast_out_mask = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_output = safe_get_child(get_item(ast_param_list,4), "call_param");
+
+    mlir::Value out_n = parse_expr(safe_get_child(get_item(ast_out_n, 0), "expr"));
+    mlir::Value out_mask = parse_expr(safe_get_child(get_item(ast_out_mask, 0), "expr"));
     mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
 
-    builder.create<mlir::cim::CIMOutputOp>(loc, output);
+    builder.create<mlir::cim::CIMOutputOp>(loc, out_n, out_mask, output);
 
 }
 

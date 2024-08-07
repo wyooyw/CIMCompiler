@@ -92,6 +92,8 @@ def CIMOutputOp : CIMISA_Op<"cim_output"> {
   }];
 
   let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$out_n,
+    AnyTypeOf<[AnyInteger, Index]>:$out_mask_addr,
     AnyTypeOf<[AnyInteger, Index]>:$output_addr
   );
 

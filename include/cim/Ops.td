@@ -208,7 +208,11 @@ def CIMOutputOp : CIM_Op<"cim_output"> {
     cim output and clear
   }];
 
-  let arguments = (ins AnyMemRef:$dst);
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$out_n,
+    AnyTypeOf<[AnyInteger, Index]>:$mask_addr,
+    AnyMemRef:$dst
+  );
 
   let hasFolder = 1;
 }

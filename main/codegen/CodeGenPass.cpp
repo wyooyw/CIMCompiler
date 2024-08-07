@@ -546,15 +546,19 @@ static void codeGen(mlir::cimisa::CIMOutputOp op, std::unordered_map<llvm::hash_
   /*
 
   */
-  int output_addr_reg = getReg(regmap, op.getOperand());
+  int out_n = getReg(regmap, op.getOperand(0));
+  int out_mask_addr = getReg(regmap, op.getOperand(1));
+  int output_addr_reg = getReg(regmap, op.getOperand(2));
+  use.insert(out_n);
+  use.insert(out_mask_addr);
   use.insert(output_addr_reg);
   Inst inst = {
     {"class", 0b00},
     {"type", 0b10},
     {"outsum_move", 0},
     {"outsum", 0},
-    // {"rs1", input_addr_reg},
-    // {"rs2", input_size_reg},
+    {"rs1", out_n},
+    {"rs2", 0},
     {"rd", output_addr_reg},
   };
   instr_list.push_back(inst);
@@ -1603,7 +1607,7 @@ static void mappingRegisterLogicalToPhysical(
   
   // Step 2: Construct a mapping from logical register to physical register
   int num_logical_regs = logic_reg_life_begin.size();
-  int num_physical_regs = 64;
+  int num_physical_regs = 32;
   std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
   std::map<int, int> logical_to_physical_mapping;
   int max_physical_reg_used = 0;
