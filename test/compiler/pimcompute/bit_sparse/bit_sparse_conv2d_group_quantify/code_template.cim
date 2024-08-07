@@ -214,10 +214,11 @@ def quantify(
     null<int8>,
     out_channel_begin<index>,
     out_channel_len<index>,
-    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__>,
+    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__>,
     local_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
     local_output_i8< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__>,
-    local_out_zp< <1>, int32, __INPUT_MEMORY__>
+    local_out_zp< <1>, int32, __INPUT_MEMORY__>,
+    local_blank< <N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__>
     ){
     // Do quantify here
     for oh in range(0,OUTPUT_ROW) carry(null){
@@ -238,6 +239,10 @@ def quantify(
                 [1,1,1]
             );
             Quantify(use_i32_output, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
+
+            // Clear origin buffer
+            use_blank = Slice(local_blank, [0], [out_channel_len], [1]);
+            Trans(use_blank, use_i32_output);
         };
     };
 }
@@ -261,7 +266,14 @@ def main(null<int8>){
     Trans(global_out_zp, local_out_zp);
 
     global_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __GLOBAL__);
-    // global_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
+    local_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
+    local_output_for_temp_sum = Buffer(<N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__);
+    {% if SINGLE_OUTER_REDUCE == 0 %}
+        local_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__);
+    {% endif %}
+
+    // a blank buffer used to clear other buffer
+    local_blank = Buffer(<N_GROUP_VCOL>, int32, __OUTPUT_MEMORY__);
 
     // Copy input and index into local memory
     local_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
@@ -269,10 +281,7 @@ def main(null<int8>){
 
     // Prepare memory's that will be used
     
-    // Create a buffer to store output
-    local_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__);
-    local_output_for_temp_sum = Buffer(<N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__);
-
+    
     // PIM input reg buffer, it is a double-buffer. Each group use 128 byte, total 4 groups.
     pim_input_reg_buffer = Buffer(<2,N_GROUP,INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__);
 
@@ -453,27 +462,45 @@ def main(null<int8>){
                         
                         delta_h = group_i / 2;
                         delta_w = group_i % 2;
-                        use_local_output = Slice(local_output, 
-                            [oh+delta_h, ow+delta_w, out_channel_begin], 
-                            [1, 1, out_channel_len], 
-                            [1, 1, 1]
-                        );
-                        VVAdd(use_local_output_for_temp_sum, use_local_output, use_local_output);
+                        // if SINGLE_OUTER_REDUCE==1, we do quantify inside oh and ow loop, to turn i32 to i8 immediately for saving memory.
+                        // else, we add result to i32 output, and do quantize when the partial sum finish compute.
+                        {% if SINGLE_OUTER_REDUCE == 1 %}
+                            use_bias_scale = Slice(local_bias_scale,
+                                [out_channel_begin, 0],
+                                [out_channel_len, 2],
+                                [1, 1]
+                            );
+                            use_i8_output = Slice(local_output_i8,
+                                [oh+delta_h, ow+delta_w, out_channel_begin],
+                                [1,1,out_channel_len],
+                                [1,1,1]
+                            );
+                            Quantify(use_local_output_for_temp_sum, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
+                        {% else %}
+                            use_local_output_i32 = Slice(local_output_i32, 
+                                [oh+delta_h, ow+delta_w, out_channel_begin], 
+                                [1, 1, out_channel_len], 
+                                [1, 1, 1]
+                            );
+                            VVAdd(use_local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
+                        {% endif %}
                     };
                 };
             };
         };
 
-        // Do quantify here
-        quantify(null,
-            out_channel_begin,
-            out_channel_len,
-            local_output,
-            local_bias_scale,
-            local_output_i8,
-            local_out_zp
-        );
-        
+        {% if SINGLE_OUTER_REDUCE == 0 %}
+            // Do quantify here
+            quantify(null,
+                out_channel_begin,
+                out_channel_len,
+                local_output_i32,
+                local_bias_scale,
+                local_output_i8,
+                local_out_zp,
+                local_blank
+            );
+        {% endif %}
     };
     Trans(local_output_i8, global_output_i8);
 }
