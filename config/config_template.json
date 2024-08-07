@@ -32,7 +32,7 @@
           "name": "output_memory",
           "type": "sram",
           "addressing": {
-              "size_byte": 327680,
+              "size_byte": 900000,
               "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte"
           }
       },
