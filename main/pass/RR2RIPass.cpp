@@ -288,6 +288,11 @@ namespace {
             src_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), src_addr.getType(), constant);
             change = true;
         }
+        if (isConstant(output_number)) {
+            IntegerAttr constant = getConstantInt(output_number);
+            output_number = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), output_number.getType(), constant);
+            change = true;
+        }
         if (isConstant(output_mask_addr)) {
             IntegerAttr constant = getConstantInt(output_mask_addr);
             output_mask_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), output_mask_addr.getType(), constant);
@@ -413,6 +418,48 @@ namespace {
       }
     };
 
+    struct CIMOutputOpConvert : public OpRewritePattern<cimisa::CIMOutputOp> {
+      using OpRewritePattern<cimisa::CIMOutputOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cimisa::CIMOutputOp op, PatternRewriter &rewriter) const final {
+        std::cout << "CIMOutputOpConvert::matchAndRewrite begin" << std::endl;
+
+        Value out_n = op.getOperand(0);
+        Value mask_addr = op.getOperand(1);
+        Value out_addr = op.getOperand(2);
+        std::cout << "CIMOutputOpConvert::matchAndRewrite 1" << std::endl;
+
+        bool change = false;
+        if (isConstant(out_n)) {
+            IntegerAttr constant = getConstantInt(out_n);
+            out_n = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), out_n.getType(), constant);
+            change = true;
+        }
+        if (isConstant(mask_addr)) {
+            IntegerAttr constant = getConstantInt(mask_addr);
+            mask_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), mask_addr.getType(), constant);
+            change = true;
+        }
+        if (isConstant(out_addr)) {
+            IntegerAttr constant = getConstantInt(out_addr);
+            out_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), out_addr.getType(), constant);
+            change = true;
+        }
+
+        if (!change){
+            return failure();
+        }
+
+        std::cout << "CIMOutputOpConvert::matchAndRewrite 2" << std::endl;
+        // MemRefType memtype = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
+        // Type type = memtype.getElementType();
+        rewriter.replaceOpWithNewOp<cimisa::CIMOutputOp>(op, out_n, mask_addr, out_addr);
+        std::cout << "CIMOutputOpConvert::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
+
     struct CIMOutputSumOpConvert : public OpRewritePattern<cimisa::CIMOutputSumOp> {
       using OpRewritePattern<cimisa::CIMOutputSumOp>::OpRewritePattern;
 
@@ -507,6 +554,42 @@ namespace {
         return success();
       }
     };
+    struct CmpIOpConvert : public OpRewritePattern<arith::CmpIOp> {
+      using OpRewritePattern<arith::CmpIOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(arith::CmpIOp op, PatternRewriter &rewriter) const final {
+        std::cout << "CmpIOpConvert::matchAndRewrite begin" << std::endl;
+
+        Value operand0 = op.getOperand(0);
+        Value operand1 = op.getOperand(1);
+
+        std::cout << "CmpIOpConvert::matchAndRewrite 1" << std::endl;
+
+        bool change = false;
+        if (isConstant(operand0)) {
+            IntegerAttr constant = getConstantInt(operand0);
+            operand0 = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), operand0.getType(), constant);
+            change = true;
+        }
+        if (isConstant(operand1)) {
+            IntegerAttr constant = getConstantInt(operand1);
+            operand1 = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), operand1.getType(), constant);
+            change = true;
+        }
+
+        if (!change){
+            return failure();
+        }
+
+        std::cout << "CmpIOpConvert::matchAndRewrite 2" << std::endl;
+        // MemRefType memtype = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
+        // Type type = memtype.getElementType();
+        rewriter.replaceOpWithNewOp<arith::CmpIOp>(op, op.getPredicate(), operand0, operand1);
+        std::cout << "CmpIOpConvert::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
 }
 
 
@@ -533,8 +616,9 @@ void RR2RIPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   patterns.add<AddIOpConvert, SubIOpConvert, MulIOpConvert, DivSIOpConvert, RemSIOpConvert, MinSIOpConvert, 
       TransOpConvert, StoreBaseAndOffsetOpConvert, LoadBaseAndOffsetOpConvert, CIMTransferOpConvert,
-      CIMComputeOpConvert, VVAddOpConvert, CIMOutputSumOpConvert, QuantifyOpConvert>(
+      CIMComputeOpConvert, VVAddOpConvert, CIMOutputSumOpConvert, QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert>(
       &getContext());
+      // ForOpConvert
 
   if (failed(
           applyPatternsAndFoldGreedily(getOperation(), std::move(patterns))))
