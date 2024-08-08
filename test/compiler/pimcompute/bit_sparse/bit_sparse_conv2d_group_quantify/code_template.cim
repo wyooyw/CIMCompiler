@@ -280,7 +280,7 @@ def main(null<int8>){
     {% endif %}
 
     // a blank buffer used to clear other buffer
-    local_blank = Buffer(<N_GROUP_VCOL>, int32, __OUTPUT_MEMORY__);
+    local_blank = Buffer(<N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__);
 
     // Copy input and index into local memory
     local_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
