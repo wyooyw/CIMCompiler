@@ -32,7 +32,7 @@
           "name": "output_memory",
           "type": "sram",
           "addressing": {
-              "size_byte": 900000,
+              "size_byte": 262144,
               "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte"
           }
       },
@@ -80,7 +80,7 @@
         "name": "global",
         "type": "dram",
         "addressing": {
-            "size_byte": 16777216,
+            "size_byte": 33554432,
             "comments": "size: 16MB"
         }
       }
