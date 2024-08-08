@@ -92,7 +92,7 @@ class ModelRunner:
         os.makedirs(code_dir)
         df_dir = os.path.join(self.model_path, raw_layer["name"])
         logger.info(f"Layer {raw_layer['name']} begin")
-        output, check_result = op.compile_and_run_from_dataflow_dir(df_dir, code_dir, check_result=False)
+        output, check_result = op.compile_and_run_from_dataflow_dir(df_dir, code_dir, check_result=True)
 
         # show layer name and check result
         logger.info(f"Layer {raw_layer['name']} success: {check_result}")
