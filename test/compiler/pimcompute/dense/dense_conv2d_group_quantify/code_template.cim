@@ -186,6 +186,8 @@ def copy_input_to_input_buffer_for_all_group(
                         ow<index>,
                         i<index> 
 ){
+    ih = oh * {{STRIDE}};
+    iw = ow * {{STRIDE}};
         // TODO: unroll this loop
     for g in range(N_GROUP) carry(null){
         group_use_input_buffer = Slice(use_input_buffer,
@@ -198,8 +200,8 @@ def copy_input_to_input_buffer_for_all_group(
         copy_input_to_input_buffer(null,
             local_input, 
             group_use_input_buffer,
-            oh + delta_h,
-            ow + delta_w,
+            ih + delta_h,
+            iw + delta_w,
             i
         );
     };
