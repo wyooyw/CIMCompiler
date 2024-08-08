@@ -74,6 +74,7 @@ class Memory:
         self.size = size
         self.end = self.offset + self.size
         self._data = bytearray(np.zeros((size,) , dtype=np.int8))
+        self.write_hook_list = []
 
     def _check_range(self, offset, size):
         return (offset >= self.offset) and (offset + size <= self.offset + self.size)
@@ -97,8 +98,14 @@ class Memory:
         self._data[offset: offset+size] = data
         assert len(self._data) == self.size, f"{len(self._data)=}, {self.size=}, {offset=}, "
 
+        for hook in self.write_hook_list:
+            hook()
+
     def clear(self):
         self._data[:] = bytearray(np.zeros((self.size,) , dtype=np.int8))
+
+    def register_write_hook(self, hook):
+        self.write_hook_list.append(hook)
 
 
 class MemorySpace:
