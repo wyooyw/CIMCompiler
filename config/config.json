@@ -33,7 +33,7 @@
             "name": "output_memory",
             "type": "sram",
             "addressing": {
-                "size_byte": 900000,
+                "size_byte": 262144,
                 "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte",
                 "offset_byte": 262144
             }
@@ -44,7 +44,7 @@
             "addressing": {
                 "size_byte": 1024,
                 "comments": "offset: 256 * 1024 Byte, size: 0.5 * 1024 * 2 Byte",
-                "offset_byte": 1162144
+                "offset_byte": 524288
             }
         },
         {
@@ -53,7 +53,7 @@
             "addressing": {
                 "size_byte": 4096,
                 "comments": "offset: 257 * 1024 Byte, size: 4 * 1024 Byte",
-                "offset_byte": 1163168
+                "offset_byte": 525312
             }
         },
         {
@@ -62,7 +62,7 @@
             "addressing": {
                 "size_byte": 98304,
                 "comments": "offset: 261 * 1024 Byte, size: 96 * 1024 Byte",
-                "offset_byte": 1167264
+                "offset_byte": 529408
             }
         },
         {
@@ -71,7 +71,7 @@
             "addressing": {
                 "size_byte": 16384,
                 "comments": "offset: 357 * 1024 Byte, size: 16 * 1024 Byte",
-                "offset_byte": 1265568
+                "offset_byte": 627712
             }
         },
         {
@@ -80,16 +80,16 @@
             "addressing": {
                 "size_byte": 128,
                 "comments": "offset: 373 * 1024 Byte, size: 128 Byte",
-                "offset_byte": 1281952
+                "offset_byte": 644096
             }
         },
         {
             "name": "global",
             "type": "dram",
             "addressing": {
-                "size_byte": 16777216,
+                "size_byte": 33554432,
                 "comments": "size: 16MB",
-                "offset_byte": 1282080
+                "offset_byte": 644224
             }
         }
     ]
