@@ -22,7 +22,8 @@ from engine.operator_cim import (
     BitSparseConv2dQuantifyOperator,
     ValueBitSparseConv2dQuantifyOperator,
     DenseLinearQuantifyOperator,
-    BitSparseLinearQuantifyOperator
+    BitSparseLinearQuantifyOperator,
+    DepthWiseConv2dQuantifyOperator
 )
 
 
@@ -365,3 +366,103 @@ class BitSparseLinearQuantifyTemplate(LinearTemplate):
     def get_operator(self, raw_layer):
         op_config = self.raw_layer_to_op_config(raw_layer)
         return BitSparseLinearQuantifyOperator(self.config_path, self.template_path, op_config)
+
+
+class DepthWiseConv2dQuantifyTemplate(OperatorTemplate):
+    def __init__(self):
+        super().__init__(
+            "/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json", 
+            template_path,
+        )
+
+    def raw_layer_to_op_config(self, raw_layer):
+
+        in_hw = raw_layer["input_row"]
+        ker_size = raw_layer["weight_row"]
+        out_channel = raw_layer["output_channel"]
+        in_channel = raw_layer["input_channel"]
+
+        if raw_layer["padding_mode"] == "SAME":
+            if raw_layer["weight_row"] == 3:
+                padding = 1
+            elif raw_layer["weight_row"] == 1:
+                padding = 0
+            
+            out_hw = in_hw
+        else:
+            padding = 0
+            out_hw = in_hw - ker_size + 1
+
+        input_buffer_size_per_group = 128
+        # if in_channel >= 128:
+        #     input_buffer_size_per_group = 128
+        # elif in_channel < 128 and 128 % in_channel == 0:
+        #     input_buffer_size_per_group = 128
+        # else:
+        #     input_buffer_size_per_group = in_channel
+        
+        return {
+            "out_channel": out_channel,
+            "in_channel": in_channel, 
+            "ker_size": ker_size, 
+            "in_hw": in_hw,
+            "out_hw": out_hw, 
+            "input_buffer_size_per_group": input_buffer_size_per_group,
+            "padding": padding
+        }
+
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        """
+        Conditions:
+            1.input_row==input_col, and input_row and input_col should be multiple of 2
+            2.either 
+                input_channel % 128 == 0 
+            or 
+                input_channel < 128 and input_channel % 16 == 0
+            3.
+                weight_row == weight_col
+            4.
+                depthwise==False
+            5.
+                padding_mode==SAME or VALID
+            6.
+                stride==1    
+        """
+
+        if not raw_layer.get("type", None)=="CONV":
+            return False
+
+        if not raw_layer["input_row"]==raw_layer["input_col"]:
+            return False
+
+        if not (raw_layer["input_row"] % 2 == 0):
+            return False
+
+        # if not (
+        #     (raw_layer["input_channel"] % 128 == 0) or
+        #     (raw_layer["input_channel"] < 128 and raw_layer["input_channel"] % 16 == 0)
+        # ):
+        #     return False
+        
+        if not raw_layer["weight_row"]==raw_layer["weight_col"] and raw_layer["weight_col"]==3:
+            return False
+
+        if not raw_layer.get("depthwise", False)==True:
+            return False
+
+        if not raw_layer["padding_mode"] in ["SAME", "VALID"]:
+            return False
+
+        if not raw_layer["stride"] in [1,2]:
+            return False
+
+        if not (value_sparse==False and bit_sparse==False):
+            return False
+        if not (quantify==True):
+            return
+
+        return True
+
+    def get_operator(self, raw_layer):
+        op_config = self.raw_layer_to_op_config(raw_layer)
+        return DepthWiseConv2dQuantifyOperator(self.config_path, self.template_path, op_config)
