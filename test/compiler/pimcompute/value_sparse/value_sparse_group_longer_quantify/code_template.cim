@@ -31,7 +31,6 @@
 
 #define KERNEL_SIZE {{ KERNEL_SIZE }}
 #define PADDING {{ PADDING }}
-#define STRIDE {{ STRIDE }}
 
 #define N_MACRO_PER_GROUP {{ N_MACRO_PER_GROUP }}
 #define N_MACRO_REDUCE {{ N_MACRO_REDUCE }} // N_ROW * N_COMP = 64 * 16 = 1024;
@@ -162,6 +161,8 @@ def copy_input_to_input_buffer_general(
         //Print(in_pixel_end);
         //Print(in_pixel_len);
         //Debug(null);
+        oh = oh * {{STRIDE}};
+        ow = ow * {{STRIDE}};
         use_local_input = Slice(local_input,
             [oh + ker_h, ow + ker_w, in_pixel_begin],
             [1, 1, in_pixel_len], 
@@ -334,10 +335,10 @@ def main(null<int8>){
     // Spill
     Save(local_spill, [0], macro_to_from_begin);
     Save(local_spill, [1], row_abs_begin);
-    //Save(local_spill, [2], from_to_row_begin);
+    Save(local_spill, [5], from_to_row_begin);
     // @unroll
     for i_reduce_to_macro in range(0, MAPPING_REDUCE_TO_MACRO_LENGTH) 
-        carry (from_to_row_begin){
+        carry (null){
 
         out_channel_begin = i_reduce_to_macro * N_GROUP_VCOL;
         out_channel_end = Min(WEIGHT_OUT_CHANNEL, out_channel_begin + N_GROUP_VCOL);
@@ -349,7 +350,7 @@ def main(null<int8>){
         macro_to_from_end = macro_to_from_begin + macro_to_from_size;
         begin_tile_in_window = 0;
         for i_macro_to_from in range(macro_to_from_begin, macro_to_from_end) 
-            carry (begin_tile_in_window, from_to_row_begin){
+            carry (begin_tile_in_window){
             
             row_size = Load(mapping_macro_to_row, [i_macro_to_from]); // how many 16 in a macro(i.e. how many row to use)
             from_to_row_size = Load(mapping_macro_to_from, [i_macro_to_from]); // how many 128 in a macro
@@ -418,6 +419,8 @@ def main(null<int8>){
                     Save(local_spill, [2], sparse_mask_addr);
                     Save(local_spill, [3], row_to_activate);
 
+                    from_to_row_begin = Load(local_spill, [5]);
+                    from_to_row_size = Load(mapping_macro_to_from, [i_macro_to_from]);
                     from_to_row_end = from_to_row_begin + from_to_row_size;
                     for i_from_to_row in range(from_to_row_begin, from_to_row_end) carry (null){
                         i_rel_from_to_row = i_from_to_row - from_to_row_begin;
@@ -501,7 +504,10 @@ def main(null<int8>){
             row_abs_begin = row_abs_begin + row_size;
             Save(local_spill, [1], row_abs_begin);
 
+            from_to_row_begin = Load(local_spill, [5]);
+            from_to_row_size = Load(mapping_macro_to_from, [i_macro_to_from]);
             from_to_row_begin = from_to_row_begin + from_to_row_size;
+            Save(local_spill, [5], from_to_row_begin);
 
         }; // end of out_reduce_i
         macro_to_from_begin = macro_to_from_end;

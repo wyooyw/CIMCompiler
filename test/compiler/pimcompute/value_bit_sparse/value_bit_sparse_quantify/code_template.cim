@@ -167,6 +167,8 @@ def copy_input_to_input_buffer_general(
         //Print(in_pixel_end);
         //Print(in_pixel_len);
         //Debug(null);
+        oh = oh * {{STRIDE}};
+        ow = ow * {{STRIDE}};
         use_local_input = Slice(local_input,
             [oh + ker_h, ow + ker_w, in_pixel_begin],
             [1, 1, in_pixel_len], 
