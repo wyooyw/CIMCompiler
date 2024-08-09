@@ -432,6 +432,43 @@ def test_convert_value_sparse_conv2d_weight2():
     np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight2/mask.npy", mask)
     np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight2/index.npy", index)
 
+def convert_dense_depthwise_conv2d_weight(weight, macro_config):
+    """
+    weight: [oc,kh,kw,ic]
+    converted_weight: [oc, n_used_comp, n_group, n_group_vcol], n_used_comp = 9
+
+    if num_group > 1, weight should be replicated
+    """
+
+    if len(weight.shape)==4:
+        oc, kh, kw, ic = weight.shape
+        spatial_size = oc
+        reduce_size = ic * kh * kw
+        weight = weight.reshape(oc, reduce_size)
+    elif len(weight.shape)==2:
+        spatial_size, reduce_size = weight.shape
+    else:
+        assert False
+    assert weight.dtype==np.int8
+
+    n_vcol = macro_config["n_vcol"]
+    n_group = macro_config["n_group"]
+    n_macro_per_group = macro_config["n_macro"] // n_group
+    n_group_vcol = n_macro_per_group * n_vcol
+    n_comp = macro_config["n_comp"] # * macro_config["n_row"]
+
+    # padding weights
+    weight = weight.reshape(oc,1,reduce_size)
+    n_group_vcol_pad_size = n_group_vcol - 1
+    weight = np.pad(weight, ((0,0),(0,n_group_vcol_pad_size)), mode='constant', constant_values=0)
+    weight = np.transpose(weight, [0, 2, 1])
+    weight = weight.reshape(oc, reduce_size, 1, n_group_vcol_pad_size)
+    weight = np.repeat(weight, n_group, axis=2)
+    assert weight.shape==(oc, reduce_size, n_group, n_group_vcol)
+    assert reduce_size <= n_comp
+
+    return weight
+
 if __name__=="__main__":
         # 2 * 2 * 8 * n
     # out_channel = 4
