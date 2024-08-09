@@ -7,7 +7,8 @@ class MetaUtil:
         self.macro_config = macro_config
 
         self.recover_tensor_buffer = dict()
-        self.meta_memory.register_write_hook(self._clear_buffer)
+        if self.meta_memory is not None:
+            self.meta_memory.register_write_hook(self._clear_buffer)
 
     def _clear_buffer(self):
         del self.recover_tensor_buffer
