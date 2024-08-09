@@ -134,14 +134,22 @@ if __name__=="__main__":
     #     model_path_value_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/alexnet/AlexNet_0.6_csd_th2_data_0522",
     # )
 
-    compile_for_model(
-        model_name="VGG19",
-     model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vgg19/VGG19_ori_data_0513",
-    model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_csd_th2_data_0619",
-    model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vgg19/VGGNet_0.6_data_0731",
-    model_path_value_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vgg19/VGGNet_0.6_csd_th2_data_0717"
+    # compile_for_model(
+    #     model_name="VGG19",
+    #  model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vgg19/VGG19_ori_data_0513",
+    # model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_csd_th2_data_0619",
+    # model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vgg19/VGGNet_0.6_data_0731",
+    # model_path_value_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vgg19/VGGNet_0.6_csd_th2_data_0717"
         
-        )
+    #     )
+
+    compile_for_model(
+        model_name="ResNet18",
+        model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet18_ori_data_0731",
+        model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_csd_th2_data_0619",
+        model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_0.6_data_0725",
+        model_path_value_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_0.6_csd_th2_data_0703"
+    )
     # model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet18_ori_data_0731"
     # model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_csd_th2_data_0619"
     # model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_0.6_data_0725"
