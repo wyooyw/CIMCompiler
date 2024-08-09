@@ -97,6 +97,14 @@ class Conv2dTestHelper(TestHelper):
         else:
             self.padding = 0
 
+        if "stride" in op_config:
+            self.stride = op_config["stride"]
+        else:
+            self.stride = 1
+
+        should_output_hw = (self.in_hw + 2 * self.padding - self.ker_size) // self.stride + 1
+        assert should_output_hw == self.out_hw, f"{should_output_hw=}, {self.out_hw=}"
+
         if "input_buffer_size_per_group" in op_config:
             self.input_buffer_size_per_group = op_config["input_buffer_size_per_group"]
             assert self.input_buffer_size_per_group % 16 == 0
@@ -128,9 +136,10 @@ class Conv2dTestHelper(TestHelper):
 
         output = np.zeros((output_h, output_w, output_c), dtype=np.int32)
         weight = self.weight_data.reshape(self.weight_data.shape[0], -1)
+        stride = self.stride
         for row in range(output_h):
             for col in range(output_w):
-                input = self.input_data[row:row+self.ker_size,col:col+self.ker_size,:].reshape(-1,1)
+                input = self.input_data[stride*row: stride*row+self.ker_size,stride*col:stride*col+self.ker_size,:].reshape(-1,1)
                 golden = np.matmul(weight.astype(np.int32), input.astype(np.int32))
                 output[row,col,:] = golden.reshape(-1)
         return output
@@ -262,7 +271,7 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
             'OUTPUT_COL': self.out_hw,
             'KERNEL_SIZE': self.ker_size,
             'PADDING': 0,
-            'STRIDE': 1,
+            'STRIDE': self.stride,
 
             'N_MACRO': macro_config.n_macro,
             'N_MACRO_PER_GROUP': n_macro_per_group,
@@ -446,7 +455,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
             'OUTPUT_COL': self.out_hw,
             'KERNEL_SIZE': self.ker_size,
             'PADDING': 0,
-            'STRIDE': 1,
+            'STRIDE': self.stride,
 
             'N_MACRO': macro_config.n_macro,
             'N_MACRO_PER_GROUP': n_macro_per_group,
@@ -638,7 +647,7 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
             'OUTPUT_COL': self.out_hw,
             'KERNEL_SIZE': self.ker_size,
             'PADDING': 0,
-            'STRIDE': 1,
+            'STRIDE': self.stride,
 
             'N_MACRO': macro_config.n_macro,
             'N_MACRO_PER_GROUP': n_macro_per_group,
@@ -874,7 +883,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
             'OUTPUT_COL': self.out_hw,
             'KERNEL_SIZE': self.ker_size,
             'PADDING': 0,
-            'STRIDE': 1,
+            'STRIDE': self.stride,
 
             'N_MACRO': macro_config.n_macro,
             'N_MACRO_PER_GROUP': n_macro_per_group,
@@ -954,9 +963,10 @@ class QuantizeHelper:
 
         output = np.zeros((output_h, output_w, output_c), dtype=np.int32)
         weight = self.weight_data.reshape(self.weight_data.shape[0], -1)
+        stride = self.stride
         for row in range(output_h):
             for col in range(output_w):
-                input = self.input_data[row:row+self.ker_size,col:col+self.ker_size,:].reshape(-1,1)
+                input = self.input_data[stride*row:stride*row+self.ker_size, stride*col:stride*col+self.ker_size,:].reshape(-1,1)
                 golden = np.matmul(weight.astype(np.int32), input.astype(np.int32))
                 output[row,col,:] = golden.reshape(-1)
 
