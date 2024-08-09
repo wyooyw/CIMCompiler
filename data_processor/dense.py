@@ -440,10 +440,10 @@ def convert_dense_depthwise_conv2d_weight(weight, macro_config):
     if num_group > 1, weight should be replicated
     """
 
-    if len(weight.shape)==4:
-        oc, kh, kw, ic = weight.shape
+    if len(weight.shape)==3:
+        oc, kh, kw = weight.shape
         spatial_size = oc
-        reduce_size = ic * kh * kw
+        reduce_size = kh * kw
         weight = weight.reshape(oc, reduce_size)
     elif len(weight.shape)==2:
         spatial_size, reduce_size = weight.shape
@@ -460,9 +460,9 @@ def convert_dense_depthwise_conv2d_weight(weight, macro_config):
     # padding weights
     weight = weight.reshape(oc,1,reduce_size)
     n_group_vcol_pad_size = n_group_vcol - 1
-    weight = np.pad(weight, ((0,0),(0,n_group_vcol_pad_size)), mode='constant', constant_values=0)
+    weight = np.pad(weight, ((0,0),(0,n_group_vcol_pad_size),(0,0)), mode='constant', constant_values=0)
     weight = np.transpose(weight, [0, 2, 1])
-    weight = weight.reshape(oc, reduce_size, 1, n_group_vcol_pad_size)
+    weight = weight.reshape(oc, reduce_size, 1, n_group_vcol)
     weight = np.repeat(weight, n_group, axis=2)
     assert weight.shape==(oc, reduce_size, n_group, n_group_vcol)
     assert reduce_size <= n_comp
