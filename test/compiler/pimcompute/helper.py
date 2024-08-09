@@ -446,6 +446,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         n_macro_reduce = n_row * n_comp
         meta_base = simulator.memory_space.get_base_of("pim_meta_data_reg_buffer")
         in_hw_padding = self.in_hw + 2 * self.padding
+        max_out_channel_use = (self.out_begin_channel[1:] - self.out_begin_channel[:-1]).max()
         context = {
             'OUTPUT_CHANNEL': self.out_channel,
             'INPUT_ROW': in_hw_padding,
@@ -472,6 +473,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
 
             'BIT_SPARSE_META_BASE_ADDR': meta_base,
             "OUT_CHANNEL_BEGIN_LEN": self.out_begin_channel.shape[0],
+            "MAX_OUTER_SPATIEL_TILE_SIZE": max_out_channel_use,
         }
         return context
 
