@@ -316,6 +316,7 @@ class Simulator:
         self.special_rf = np.zeros([32], dtype=np.int32)
         self.print_record = list()
         self.jump_offset = None
+        self.meta_util._clear_buffer()
 
     def get_dtype(self, bitwidth):
         assert bitwidth in self._int_data_type
