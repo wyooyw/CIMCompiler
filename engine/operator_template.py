@@ -58,6 +58,7 @@ class Conv2dTemplate(OperatorTemplate):
         ker_size = raw_layer["weight_row"]
         out_channel = raw_layer["output_channel"]
         in_channel = raw_layer["input_channel"]
+        stride = raw_layer["stride"]
 
         if raw_layer["padding_mode"] == "SAME":
             if raw_layer["weight_row"] == 3:
@@ -65,10 +66,10 @@ class Conv2dTemplate(OperatorTemplate):
             elif raw_layer["weight_row"] == 1:
                 padding = 0
             
-            out_hw = in_hw
         else:
             padding = 0
-            out_hw = in_hw - ker_size + 1
+
+        out_hw = (in_hw + 2*padding - ker_size) // stride + 1
 
         input_buffer_size_per_group = 128
         # if in_channel >= 128:
@@ -85,7 +86,8 @@ class Conv2dTemplate(OperatorTemplate):
             "in_hw": in_hw,
             "out_hw": out_hw, 
             "input_buffer_size_per_group": input_buffer_size_per_group,
-            "padding": padding
+            "padding": padding,
+            "stride": stride
         }
 
     def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
@@ -130,7 +132,7 @@ class Conv2dTemplate(OperatorTemplate):
         if not raw_layer["padding_mode"] in ["SAME", "VALID"]:
             return False
 
-        if not raw_layer["stride"]==1:
+        if not (raw_layer["stride"]==1 or raw_layer["stride"]==2):
             return False
 
         return True
