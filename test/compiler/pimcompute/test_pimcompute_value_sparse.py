@@ -100,10 +100,15 @@ class TestPIMComputeValueSparse:
         'value_bit_sparse/value_bit_sparse_quantify'
         ])
     @pytest.mark.parametrize('op_config',[
-        # {"out_channel":32, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
-        # {"out_channel":64, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        {"out_channel":32, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        {"out_channel":64, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
         {"out_channel":16, "in_channel": 384, "ker_size": 3, "in_hw": 4, "out_hw": 2},
         {"out_channel":384, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+
+        {"out_channel":32, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 4, "padding": 1, "stride": 2},
+        {"out_channel":64, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 4, "padding": 1, "stride": 2},
+        {"out_channel":16, "in_channel": 384, "ker_size": 3, "in_hw": 4, "out_hw": 2, "padding": 1, "stride": 2},
+        {"out_channel":384, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 4, "padding": 1, "stride": 2},     
         ])
     def test_pim_compute(self, casename, op_config):
         case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
@@ -220,8 +225,9 @@ if __name__=="__main__":
     TestPIMComputeValueSparse.setup_class()
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
-    tester.test_pim_compute('dense/dense_conv2d_group_quantify', 
-        {"out_channel":128, "in_channel": 3, "ker_size": 3, "in_hw": 32, "out_hw": 30,
+    tester.test_pim_compute('value_bit_sparse/value_bit_sparse_quantify', 
+        {"out_channel":128, "in_channel": 128, "ker_size": 3, "in_hw": 8, "out_hw": 4, "padding": 1,
+        "stride":2 ,
         "input_buffer_size_per_group": 128
         }
     )
