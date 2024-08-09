@@ -44,8 +44,9 @@ class MetaUtil:
 
     def recover_weight(self, meta_addr, wtensor, n_group):
         cache_result = self._find_in_buffer(meta_addr, wtensor, n_group)
-        if cache_result:
+        if cache_result is not None:
             return cache_result
+        ori_wtensor = wtensor
         
         n_comp = self.macro_config.n_comp
         n_macro_per_group = self.macro_config.n_macro // n_group
@@ -71,5 +72,5 @@ class MetaUtil:
                 # print(f"value:",val,"sign:",sign,"location:",location,"csd:",csd,"int:",int_val)
                 recovered_wtensor[i_comp, i_col_and_macro] = int_val
 
-        self._set_in_buffer(meta_addr, wtensor, n_group, recovered_wtensor)
+        self._set_in_buffer(meta_addr, ori_wtensor, n_group, recovered_wtensor)
         return recovered_wtensor
