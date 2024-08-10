@@ -115,7 +115,7 @@ class Conv2dTemplate(OperatorTemplate):
         if not raw_layer["input_row"]==raw_layer["input_col"]:
             return False
 
-        if not (raw_layer["input_row"] % 2 == 0):
+        if not (raw_layer["input_row"] % 2 == 0 or raw_layer["input_row"]==1):
             return False
 
         # if not (
@@ -265,8 +265,8 @@ class BitSparseConv2dQuantifyTemplate(Conv2dQuantifyTemplate):
     def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
         if not (value_sparse==False and bit_sparse==True):
             return False
-        if not (raw_layer["input_channel"] % 16 == 0):
-            return False
+        # if not (raw_layer["input_channel"] % 16 == 0):
+        #     return False
         return super().check_raw_layer(raw_layer, value_sparse, bit_sparse, quantify)
     
     def get_operator(self, raw_layer):
@@ -315,7 +315,7 @@ class LinearTemplate(Conv2dTemplate):
                 stride==1    
         """
 
-        if not raw_layer.get("type", None)=="FCN":
+        if not (raw_layer.get("type", None)=="FCN"):
             return False
 
         if not (raw_layer["input_row"]==raw_layer["input_col"] and raw_layer["input_col"]==1):

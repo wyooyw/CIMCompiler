@@ -32,6 +32,7 @@
 #define N_VCOL {{ N_VCOL }}
 #define N_GROUP_VCOL {{ N_GROUP_VCOL }}
 #define N_GROUP {{ N_GROUP }}
+#define N_USE_GROUP {{ N_USE_GROUP }}
 #define N_ROW {{ N_ROW }}
 #define N_COMP {{ N_COMP }}
 #define N_MACRO_REDUCE {{ N_MACRO_REDUCE }} // N_ROW * N_COMP = 64 * 16 = 1024;
@@ -188,7 +189,7 @@ def copy_input_to_input_buffer_for_all_group(
                         i<index> 
 ){
     // TODO: unroll this loop
-    for g in range(N_GROUP) carry(null){
+    for g in range(N_USE_GROUP) carry(null){
         group_use_input_buffer = Slice(use_input_buffer,
             [0, g, 0],
             [1, 1, INPUT_BUFFER_SIZE_PER_GROUP],
@@ -291,7 +292,7 @@ def main(null<int8>){
     SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 8);
     SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 32);
     SpecialRegSet(SPECIAL_REG_GROUP_SIZE, N_MACRO_PER_GROUP);
-    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, N_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, N_USE_GROUP);
     SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, N_GROUP_VCOL);
     SpecialRegSet(SPECIAL_REG_GROUP_INPUT_STEP, INPUT_BUFFER_SIZE_PER_GROUP);
 
@@ -393,7 +394,7 @@ def main(null<int8>){
                     CIMOutput(N_GROUP_VCOL, 0, pim_output_reg_buffer);
 
                     // TODO: unroll this loop
-                    for group_i in range(4) carry (null){
+                    for group_i in range(N_USE_GROUP) carry (null){
                         output_buffer_group_i = Slice(pim_output_reg_buffer, [group_i * N_GROUP_VCOL], [out_channel_len], [1]);
                         use_local_output_for_temp_sum = Slice(local_output_for_temp_sum, [0], [out_channel_len], [1]);
                         delta_h = group_i / 2;

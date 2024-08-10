@@ -6,6 +6,12 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
         self.output_bytes = 1
         self.output_dtype = np.int8
 
+        # a special hack for efficient net
+        if self.in_hw==1 and self.out_hw==1 and self.ker_size==1:
+            self.n_use_group = 1
+        else:
+            self.n_use_group = 4
+
     def _calculate_golden(self):
         return self._calculate_golden_quantize()
 
@@ -23,4 +29,5 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
         context = super()._make_template_config(simulator)
         context["RELU"] = int(self.relu)
         context["SINGLE_OUTER_REDUCE"] = int(context["OUT_REDUCE_TILE"] <= simulator.macro_config.n_row)
+        context["N_USE_GROUP"] = self.n_use_group
         return context

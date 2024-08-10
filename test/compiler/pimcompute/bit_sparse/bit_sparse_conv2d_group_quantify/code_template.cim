@@ -33,6 +33,7 @@
 #define N_GROUP_VCOL {{ N_GROUP_VCOL }}
 #define N_GROUP_BCOL {{ N_GROUP_BCOL }}
 #define N_GROUP {{ N_GROUP }}
+#define N_USE_GROUP {{ N_USE_GROUP }}
 #define N_ROW {{ N_ROW }}
 #define N_COMP {{ N_COMP }}
 #define N_MACRO_REDUCE {{ N_MACRO_REDUCE }} // N_ROW * N_COMP = 64 * 16 = 1024;
@@ -178,7 +179,7 @@ def copy_input_to_input_buffer(
     group_use_input_buffer< <1, 1, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
     oh<index>,
     ow<index>,
-    i<index> 
+    i<index>
 ){
     copy_input_to_input_buffer_general(null, local_input, group_use_input_buffer, oh, ow, i);
 }
@@ -192,7 +193,7 @@ def copy_input_to_input_buffer_for_all_group(
                         i<index> 
 ){
         // TODO: unroll this loop
-    for g in range(N_GROUP) carry(null){
+    for g in range(N_USE_GROUP) carry(null){
         group_use_input_buffer = Slice(use_input_buffer,
             [0, g, 0],
             [1, 1, INPUT_BUFFER_SIZE_PER_GROUP],
@@ -313,7 +314,7 @@ def main(null<int8>){
     SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 1);
     SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 32);
     SpecialRegSet(SPECIAL_REG_GROUP_SIZE, N_MACRO_PER_GROUP);
-    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, N_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, N_USE_GROUP);
     SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, N_GROUP_BCOL);
     SpecialRegSet(SPECIAL_REG_GROUP_INPUT_STEP, INPUT_BUFFER_SIZE_PER_GROUP);
 
@@ -454,7 +455,7 @@ def main(null<int8>){
 
                     CIMOutputSum(N_GROUP_BCOL, use_outsum_mask, pim_output_reg_buffer);
                     // TODO: unroll this loop
-                    for group_i in range(4) carry (null){
+                    for group_i in range(N_USE_GROUP) carry (null){
                         
                         output_buffer_group_i = Slice(pim_output_reg_buffer, 
                             [group_i * N_GROUP_BCOL], [N_GROUP_BCOL], [1]
