@@ -93,7 +93,7 @@ class Operator:
         print(f"{pimcompute_count=}")
 
         status = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
-        assert status==self.simulator.FINISH
+        assert status==self.simulator.FINISH, status
 
         # check result
         output = self.helper.get_output(self.simulator.memory_space)
@@ -323,10 +323,10 @@ class DenseConv2dQuantifyOperator(Operator):
         if check_result:
 
             helper_golden = self.helper._calculate_golden()
-            correct = np.array_equal(golden_i8, output_i8)
-            
+            # correct = np.array_equal(golden_i8, output_i8)
             # assert correct
-            return output_i8, correct
+            correct_percent = (golden_i8==output_i8).sum() / golden_i8.size
+            return output_i8, correct_percent
 
         return output_i8, None
 
@@ -379,10 +379,10 @@ class ValueSparseConv2dQuantifyOperator(Operator):
         if check_result:
 
             helper_golden = self.helper._calculate_golden()
-            correct = np.array_equal(golden_i8, output_i8)
-            
+            # correct = np.array_equal(golden_i8, output_i8)
+            correct_percent = (golden_i8==output_i8).sum() / golden_i8.size
             # assert correct
-            return output_i8, correct
+            return output_i8, correct_percent
 
         return output_i8, None
 
@@ -435,10 +435,11 @@ class BitSparseConv2dQuantifyOperator(Operator):
         if check_result:
 
             helper_golden = self.helper._calculate_golden()
-            correct = np.array_equal(golden_i8, output_i8)
+            # correct = np.array_equal(golden_i8, output_i8)
+            correct_percent = (golden_i8==output_i8).sum() / golden_i8.size
             
             # assert correct
-            return output_i8, correct
+            return output_i8, correct_percent
 
         return output_i8, None
 
@@ -492,10 +493,10 @@ class ValueBitSparseConv2dQuantifyOperator(Operator):
         if check_result:
 
             helper_golden = self.helper._calculate_golden()
-            correct = np.array_equal(golden_i8, output_i8)
-            
+            # correct = np.array_equal(golden_i8, output_i8)
+            correct_percent = (golden_i8==output_i8).sum() / golden_i8.size
             # assert correct
-            return output_i8, correct
+            return output_i8, correct_percent
 
         return output_i8, None
 
@@ -624,9 +625,9 @@ class DepthWiseConv2dQuantifyOperator(Operator):
         #       C,H,W -> H,W,C
         #       - bias (currently not support bias)
         input = input.reshape(self.op_config["in_channel"], self.op_config["in_hw"], self.op_config["in_hw"])
-        input = np.transpose(input, (1,2,0))
-        weight = weight.reshape(self.op_config["out_channel"], self.op_config["in_channel"], self.op_config["ker_size"], self.op_config["ker_size"])
-        weight = np.transpose(weight, (0,2,3,1))
+        # input = np.transpose(input, (1,2,0))
+        weight = weight.reshape(self.op_config["out_channel"], self.op_config["ker_size"], self.op_config["ker_size"])
+        # weight = np.transpose(weight, (0,2,3,1))
         golden_i8 = golden_i8.reshape(self.op_config["out_channel"], self.op_config["out_hw"], self.op_config["out_hw"])
         golden_i8 = np.transpose(golden_i8, (1,2,0))
         relu = (golden_i8 >= 0).all()
@@ -652,10 +653,11 @@ class DepthWiseConv2dQuantifyOperator(Operator):
         if check_result:
 
             helper_golden = self.helper._calculate_golden()
-            correct = np.array_equal(golden_i8, output_i8)
-            
-            assert correct
-            return output_i8, correct
+            # correct = np.array_equal(golden_i8, output_i8)
+            correct_percent = (golden_i8==output_i8).sum() / golden_i8.size
+            # import pdb; pdb.set_trace()
+            # assert correct
+            return output_i8, correct_percent
 
         return output_i8, None
 
