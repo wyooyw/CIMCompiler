@@ -254,7 +254,7 @@ class Simulator:
     FINISH = 0
     TIMEOUT = 1
     ERROR = 2
-    def __init__(self, memory_space, macro_config, mask_config, safe_time=9999999, mask_memory_name="mask"):
+    def __init__(self, memory_space, macro_config, mask_config, safe_time=999999999, mask_memory_name="mask"):
         super().__init__()
         self.general_rf = np.zeros([64], dtype=np.int32)
         self.special_rf = np.zeros([32], dtype=np.int32)
@@ -371,7 +371,7 @@ class Simulator:
             logging.debug("Meet safe time!")
             return self.TIMEOUT
         else:
-            logging.debug(f"Strange exit situation! {pc=}, {len(code)=}, {cnt=}, {self.safe_time=}")
+            print(f"Strange exit situation! {pc=}, {len(code)=}, {cnt=}, {self.safe_time=}")
             return self.ERROR
     
     def read_general_reg(self, regid):
