@@ -465,12 +465,13 @@ def main(null<int8>){
                     
                     CIMOutput(N_GROUP_VCOL, 0, pim_output_reg_buffer);
 
+                    use_local_output_for_temp_sum = Slice(local_output_for_temp_sum, [0], [use_vcol], [1]);
                     // TODO: unroll this loop
                     for group_i in range(4) carry (null){
                         output_buffer_group_i = Slice(pim_output_reg_buffer, [group_i * N_GROUP_VCOL], [use_vcol], [1]);
                         delta_h = group_i / 2;
                         delta_w = group_i % 2;
-                        Trans(output_buffer_group_i, local_output_for_temp_sum);
+                        Trans(output_buffer_group_i, use_local_output_for_temp_sum);
 
                         // if SINGLE_OUTER_REDUCE==1, we do quantify inside oh and ow loop, to turn i32 to i8 immediately for saving memory.
                         // else, we add result to i32 output, and do quantize when the partial sum finish compute.
@@ -485,14 +486,14 @@ def main(null<int8>){
                                 [1,1,out_channel_len],
                                 [1,1,1]
                             );
-                            Quantify(local_output_for_temp_sum, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
+                            Quantify(use_local_output_for_temp_sum, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
                         {% else %}
                             use_local_output_i32 = Slice(local_output_i32, 
                                 [oh+delta_h, ow+delta_w, 0], 
                                 [1, 1, use_vcol], 
                                 [1, 1, 1]
                             );
-                            VVAdd(local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
+                            VVAdd(use_local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
                         {% endif %}
                     };
                 };
