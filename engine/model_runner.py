@@ -12,7 +12,8 @@ from engine.operator_template import (
     BitSparseConv2dQuantifyTemplate,
     ValueBitSparseConv2dQuantifyTemplate,
     DenseLinearQuantifyTemplate,
-    BitSparseLinearQuantifyTemplate
+    BitSparseLinearQuantifyTemplate,
+    DepthWiseConv2dQuantifyTemplate
 )
 from utils.logger import get_logger
 
@@ -34,7 +35,8 @@ OP_TEMPLATE_LIST = [
     BitSparseConv2dQuantifyTemplate(),
     ValueBitSparseConv2dQuantifyTemplate(),
     DenseLinearQuantifyTemplate(),
-    BitSparseLinearQuantifyTemplate()
+    BitSparseLinearQuantifyTemplate(),
+    DepthWiseConv2dQuantifyTemplate()
 ]
 
 class ModelRunner:
@@ -143,6 +145,13 @@ if __name__=="__main__":
         
     #     )
 
+    compile_for_model(
+        model_name="MobileNetV2",
+        model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet-ori-data-0801",
+        model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_csd_th2_data_0801",
+        model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.6_data_0725",
+        model_path_value_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.6_csd_th2_data_0518"
+    )
     compile_for_model(
         model_name="ResNet18",
         model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet18_ori_data_0731",
