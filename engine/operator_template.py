@@ -372,7 +372,7 @@ class DepthWiseConv2dQuantifyTemplate(OperatorTemplate):
     def __init__(self):
         super().__init__(
             "/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json", 
-            template_path,
+            "/home/wangyiou/project/cim_compiler_frontend/playground/test/compiler/pimcompute/dense/dense_dwconv_group_quantify",
         )
 
     def raw_layer_to_op_config(self, raw_layer):
@@ -381,17 +381,17 @@ class DepthWiseConv2dQuantifyTemplate(OperatorTemplate):
         ker_size = raw_layer["weight_row"]
         out_channel = raw_layer["output_channel"]
         in_channel = raw_layer["input_channel"]
+        stride = raw_layer["stride"]
 
         if raw_layer["padding_mode"] == "SAME":
             if raw_layer["weight_row"] == 3:
                 padding = 1
             elif raw_layer["weight_row"] == 1:
                 padding = 0
-            
-            out_hw = in_hw
         else:
             padding = 0
-            out_hw = in_hw - ker_size + 1
+        
+        out_hw = (in_hw + 2*padding - ker_size) // stride + 1
 
         input_buffer_size_per_group = 128
         # if in_channel >= 128:
@@ -403,12 +403,13 @@ class DepthWiseConv2dQuantifyTemplate(OperatorTemplate):
         
         return {
             "out_channel": out_channel,
-            "in_channel": in_channel, 
+            "in_channel": out_channel, 
             "ker_size": ker_size, 
             "in_hw": in_hw,
             "out_hw": out_hw, 
             "input_buffer_size_per_group": input_buffer_size_per_group,
-            "padding": padding
+            "padding": padding,
+            "stride": stride
         }
 
     def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
