@@ -31,7 +31,8 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
         cim_cfg = SimpleNamespace(
             bits_column=n_bcol,
             n_macro=simulator.macro_config.n_macro // n_group,   # n_macro_per_group
-            n_group=n_group
+            n_group=n_group,
+            n_comp=n_comp,
         )
         bit_sparse_weight, meta, fold = weight_transform_group(weight, cim_cfg, op_cfg, "OHWI")
         ele_in_filter = bit_sparse_weight.shape[1]
