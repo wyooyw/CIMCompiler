@@ -24,7 +24,7 @@
           "name": "input_memory",
           "type": "sram",
           "addressing": {
-              "size_byte": 131072,
+              "size_byte": 262144,
               "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte"
           }
       },
