@@ -125,7 +125,7 @@ class Conv2dTestHelper(TestHelper):
 
     def _get_mock_input(self):
         import numpy as np
-        input_data = np.random.randint(-100,100,size=(self.in_hw,self.in_hw, self.in_channel), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        input_data = np.random.randint(-127,127,size=(self.in_hw,self.in_hw, self.in_channel), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
         assert input_data.shape==(self.in_hw,self.in_hw,self.in_channel), f"{input_data.shape=}"
         return input_data
 
@@ -339,14 +339,15 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         cim_cfg = SimpleNamespace(
             bits_column=n_bcol,
             n_macro=simulator.macro_config.n_macro // n_group,   # n_macro_per_group
-            n_group=n_group
+            n_group=n_group,
+            n_comp=simulator.macro_config.n_comp,
         )
         bit_sparse_weight, meta, fold = weight_transform_group(weight, cim_cfg, op_cfg, "OHWI")
-        ele_in_filter = bit_sparse_weight.shape[1]
-        assert ele_in_filter % n_comp == 0, f"{ele_in_filter=}"
+        padded_ele_in_filter = bit_sparse_weight.shape[1]
+        assert padded_ele_in_filter % n_comp == 0, f"{padded_ele_in_filter=}"
         bit_sparse_weight = bit_sparse_weight.reshape(
             bit_sparse_weight.shape[0], 
-            ele_in_filter // n_comp,
+            padded_ele_in_filter // n_comp,
             n_comp,
             bit_sparse_weight.shape[2],
             bit_sparse_weight.shape[3]
@@ -720,9 +721,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
             weight[filter_begin:filter_end, :, :, :] = weight[filter_begin:filter_end, :, :, :] * mask
             mask = np.random.randint(0, 2, size=weight.shape[1:], dtype=np.int8)
             weight[filter_begin:filter_end, :, :, :] = weight[filter_begin:filter_end, :, :, :] * mask
-            mask = np.random.randint(0, 2, size=weight.shape[1:], dtype=np.int8)
-            weight[filter_begin:filter_end, :, :, :] = weight[filter_begin:filter_end, :, :, :] * mask
-        
+
         return weight
 
     def _make_value_bit_sparse_data(self, weight, simulator):

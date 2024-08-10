@@ -104,6 +104,8 @@ def parse_fold_weight(cim_cfg, op_cfg, weight_bit_num):
         return whole
 
 def weight_transform(weight, cim_cfg, op_cfg, weight_dtype="OIHW"):
+    import math
+
     assert len(weight.shape)==4, f"{weight.shape=}"
     assert type(weight)==np.ndarray
     if weight_dtype=="OIHW":
@@ -128,12 +130,14 @@ def weight_transform(weight, cim_cfg, op_cfg, weight_dtype="OIHW"):
     
     fold = parse_fold_weight(cim_cfg, op_cfg, weight_bit_num_per_out_channel)
 
+    padded_ele_in_filter = int(math.ceil(ele_in_filter / cim_cfg.n_comp)) * cim_cfg.n_comp
+
     filter_idx = 0
     # Elements in 'new_weight' and 'info' are 0 or 1. 
     # Datatype of these tensors is bit. 
     # Setting dtype='int8' just for save memory.
-    new_weight = np.zeros((len(fold), ele_in_filter, cim_cfg.bits_column*cim_cfg.n_macro), dtype="int8")
-    info = np.zeros((len(fold), ele_in_filter, cim_cfg.bits_column*cim_cfg.n_macro,3), dtype="int8")
+    new_weight = np.zeros((len(fold), padded_ele_in_filter, cim_cfg.bits_column*cim_cfg.n_macro), dtype="int8")
+    info = np.zeros((len(fold), padded_ele_in_filter, cim_cfg.bits_column*cim_cfg.n_macro,3), dtype="int8")
     for time_id, one_time_filters in enumerate(fold):
         bit_idx = 0
         for filter_threshold in one_time_filters:
@@ -149,17 +153,17 @@ def weight_transform(weight, cim_cfg, op_cfg, weight_dtype="OIHW"):
                 # Put 'value' into 'new_weight',
                 # Put 'sign' and 'location' into 'info'
                 for bit in range(filter_threshold):
-                    new_weight[time_id, :, bit_idx] = value[bit]
-                    info[time_id, :, bit_idx,0] = sign[bit]
-                    info[time_id, :, bit_idx,1:3] = location[bit]
+                    new_weight[time_id, :ele_in_filter, bit_idx] = value[bit]
+                    info[time_id, :ele_in_filter, bit_idx,0] = sign[bit]
+                    info[time_id, :ele_in_filter, bit_idx,1:3] = location[bit]
                     bit_idx += 1
             
             filter_idx += 1
 
     # Turn 'new_weight' and 'info' to tensor of bytes.
     assert (cim_cfg.bits_column*cim_cfg.n_macro) % 8==0
-    new_weight = new_weight.reshape(len(fold), ele_in_filter, cim_cfg.bits_column*cim_cfg.n_macro//8, 8)
-    info = info.reshape(len(fold), ele_in_filter, cim_cfg.bits_column*cim_cfg.n_macro*3//8, 8)
+    new_weight = new_weight.reshape(len(fold), padded_ele_in_filter, cim_cfg.bits_column*cim_cfg.n_macro//8, 8)
+    info = info.reshape(len(fold), padded_ele_in_filter, cim_cfg.bits_column*cim_cfg.n_macro*3//8, 8)
 
     new_weight = tensor_bits_to_int8(new_weight)
     info = tensor_bits_to_int8(info)
