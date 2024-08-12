@@ -104,6 +104,8 @@ class TestPIMComputeValueSparse:
         {"out_channel":64, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
         {"out_channel":16, "in_channel": 384, "ker_size": 3, "in_hw": 4, "out_hw": 2},
         {"out_channel":384, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        {"out_channel":256, "in_channel": 96, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        {"out_channel":256, "in_channel": 384, "ker_size": 3, "in_hw": 4, "out_hw": 2},
 
         {"out_channel":32, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 4, "padding": 1, "stride": 2},
         {"out_channel":64, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 4, "padding": 1, "stride": 2},
@@ -171,12 +173,13 @@ class TestPIMComputeValueSparse:
         # run code in simulator
 
         pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config, group_size=16)
-        status = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
+        status,stats = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH
 
         # check result
         # print_record = self.simulator.print_record
         helper.check_image(self.simulator.memory_space)
+        stats.dump(output_folder)
 
     # def test_memory_with_image(self):
     #     pass
@@ -230,9 +233,15 @@ if __name__=="__main__":
     TestPIMComputeValueSparse.setup_class()
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
-    tester.test_pim_compute('value_bit_sparse/value_bit_sparse_quantify', 
-        {"out_channel":32, "in_channel": 16, "ker_size": 1, "in_hw": 1, "out_hw": 1,
-        "stride":1 ,
-        "input_buffer_size_per_group": 128
+    tester.test_pim_compute('dense/dense_conv2d_group_quantify', 
+        {
+            "out_channel":64, 
+            "in_channel": 256, 
+            "ker_size": 3, 
+            "in_hw": 4, 
+            "out_hw": 4,
+            "padding":1 ,
+            "stride":1 ,
+            "input_buffer_size_per_group": 128
         }
     )

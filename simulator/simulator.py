@@ -11,7 +11,7 @@ from tqdm import tqdm
 import logging
 import cProfile
 from utils.round import banker_round
-
+from simulator.stats_util import StatsUtil
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -335,8 +335,11 @@ class Simulator:
         cnt = 0
         self.pbar = tqdm(total=total_pim_compute_count)
         self.pimcompute_cnt = 0
+        stats_util = StatsUtil()
         while pc < len(code) and cnt < self.safe_time:
             inst = code[pc]
+            stats_util.record(inst)
+
             inst_class = inst["class"]
             if inst_class==InstClass.PIM_CLASS.value:
                 self._run_pim_class_inst(inst)
@@ -366,13 +369,13 @@ class Simulator:
 
         if pc == len(code):
             logging.debug("Run finish!")
-            return self.FINISH
+            return self.FINISH, stats_util
         elif pc < len(code) and cnt == self.safe_time:
             logging.debug("Meet safe time!")
-            return self.TIMEOUT
+            return self.TIMEOUT, stats_util
         else:
             print(f"Strange exit situation! {pc=}, {len(code)=}, {cnt=}, {self.safe_time=}")
-            return self.ERROR
+            return self.ERROR, stats_util
     
     def read_general_reg(self, regid):
         return self.read_reg(self.general_rf, regid)

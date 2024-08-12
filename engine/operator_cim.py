@@ -92,8 +92,9 @@ class Operator:
         pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config, group_size=16)
         print(f"{pimcompute_count=}")
 
-        status = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
+        status,stats = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH, status
+        stats.dump(code_dir)
 
         # check result
         output = self.helper.get_output(self.simulator.memory_space)
