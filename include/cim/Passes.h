@@ -18,6 +18,7 @@ std::unique_ptr<Pass> createCodeGenerationPass(std::string outputFilePath);
 std::unique_ptr<Pass> createRR2RIPass();
 std::unique_ptr<Pass> createLoopUnrollPass(std::vector<mlir::scf::ForOp>& unrollForOps);
 std::unique_ptr<Pass> createCastEliminationPass();
+std::unique_ptr<Pass> createCommonSubexpressionExposePass();
 } // namespace cim
 } // namespace mlir
 

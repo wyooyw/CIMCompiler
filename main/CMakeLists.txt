@@ -24,6 +24,7 @@ add_llvm_executable(main
         pass/RR2RIPass.cpp
         pass/LoopUnrollPass.cpp
         pass/CastEliminationPass.cpp
+        pass/CommonSubexpressionExposePass.cpp
         codegen/CodeGenPass.cpp
 
         DEPENDS
