@@ -163,7 +163,7 @@ def copy_input_to_input_buffer_for_all_group(
 ){
     {% if INPUT_BUFFER_SIZE_PER_GROUP > INPUT_CHANNEL and INPUT_BUFFER_SIZE_PER_GROUP % INPUT_CHANNEL == 0 %}
         copy_input_to_input_buffer_for_all_group_iclt128(null, local_input, use_input_buffer, oh, ow, i);
-    {% elif INPUT_CHANNEL > INPUT_BUFFER_SIZE_PER_GROUP and INPUT_CHANNEL % INPUT_BUFFER_SIZE_PER_GROUP == 0 %}
+    {% elif INPUT_CHANNEL >= INPUT_BUFFER_SIZE_PER_GROUP and INPUT_CHANNEL % INPUT_BUFFER_SIZE_PER_GROUP == 0 %}
         copy_input_to_input_buffer_for_all_group_icgt128(null, local_input, use_input_buffer, oh, ow, i);
     {% else %}
         copy_input_to_input_buffer_for_all_group_general(null, local_input, use_input_buffer, oh, ow, i);
