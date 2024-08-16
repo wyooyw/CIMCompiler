@@ -10,7 +10,7 @@ import json
 from functools import partial
 import numpy as np
 from utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
-
+from utils.bit_sparse_weight_transform import find_nonzero_filter
 
 class Operator:
     def __init__(self, config_path, template_path, op_config):
@@ -584,6 +584,15 @@ class BitSparseLinearQuantifyOperator(Operator):
         assert scale.size==1
         scale = scale.repeat(self.op_config["out_channel"], axis=0)
 
+        # hack for zero-threshold filter
+        keep_oc = find_nonzero_filter(weight)
+        weight = np.take(weight, keep_oc, axis=0)
+        bias = np.take(bias, keep_oc, axis=0)
+        scale = np.take(scale, keep_oc, axis=0)
+        golden_i8 = np.take(golden_i8, keep_oc, axis=2)
+        self.op_config["out_channel"] = weight.shape[0]
+        self.helper.out_channel = weight.shape[0]
+        
         # compile and run, get output
         output_i8 = self.compile_and_run(code_dir, image_kwargs={
             "input": input, 
@@ -599,7 +608,6 @@ class BitSparseLinearQuantifyOperator(Operator):
             correct = np.array_equal(golden_i8, output_i8)
             correct_percent = (golden_i8==output_i8).sum() / golden_i8.size
             # if correct_percent < 0.9:
-            #     import pdb; pdb.set_trace()
             # assert correct
             return output_i8, correct_percent
 

@@ -432,6 +432,19 @@ def parse_out_begin_channel(fold):
         out_channel_begin.append(out_channel_begin[-1] + len(fold[i]))
     return np.array(out_channel_begin, dtype=np.int32)
 
+def find_nonzero_filter(weight):
+    # weight.shape: [oc, ks, ks, ic]
+    # bias: [oc]
+    # scale: [oc] or [1]
+    out_channel = weight.shape[0]
+    keep_oc = []
+    for oc in range(out_channel):
+        if (weight[oc,:,:,:]==0).any():
+            assert (weight[oc,:,:,:]==0).all()
+        else:
+            keep_oc.append(oc)
+    return keep_oc
+
 if __name__=="__main__":
     # for i in range(-128,129):
     #     csd_8 = int_to_csd(i)
