@@ -354,6 +354,10 @@ def main(null<int8>){
                 VVAdd(local_output_for_temp_sum, local_output_group_i, local_output_group_i);
             };
         };
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
+        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
         // Do quantify here
         quantify(null,
             out_channel_begin,
@@ -363,6 +367,9 @@ def main(null<int8>){
             local_output_i8,
             local_out_zp
         );
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
     };
     Trans(local_output_i8, global_output);
 }

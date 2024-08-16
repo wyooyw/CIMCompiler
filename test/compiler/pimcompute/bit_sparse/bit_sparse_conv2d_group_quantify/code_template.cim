@@ -158,9 +158,16 @@ def main(null<int8>){
     SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, N_GROUP_BCOL);
     SpecialRegSet(SPECIAL_REG_GROUP_INPUT_STEP, INPUT_BUFFER_SIZE_PER_GROUP);
 
-    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
-    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
-    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+    {% if SINGLE_OUTER_REDUCE == 1 %}
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
+        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
+    {% else %}
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+    {% endif %}
     
     for out_tile_i in range(0, OUT_SPATIAL_TILE) carry (null) {
         out_channel_begin = Load(local_out_channel_begin, [out_tile_i]);
@@ -350,6 +357,11 @@ def main(null<int8>){
             // Do quantify here
             out_channel_begin = Load(local_spill, [7]);
             out_channel_len = Load(local_spill, [8]);
+
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
+            SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
             quantify(null,
                 out_channel_begin,
                 out_channel_len,
@@ -359,6 +371,9 @@ def main(null<int8>){
                 local_out_zp,
                 local_blank
             );
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+            SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
         {% endif %}
     };
     Trans(local_output_i8, global_output_i8);
