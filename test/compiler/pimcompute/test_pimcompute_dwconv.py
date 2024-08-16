@@ -158,7 +158,7 @@ class TestPIMComputeValueSparse:
         # run code in simulator
 
         pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config, group_size=16)
-        status = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
+        status,stats = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH
 
         # check result

@@ -161,7 +161,7 @@ class TestPIMComputeValueSparse:
         # run code in simulator
 
         pimcompute_count = predict_pimcompute_count_for_linear_dense(self.macro_config, op_config, group_size=16)
-        status = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
+        status,stats = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH
         print("execute success!")
 
@@ -224,5 +224,5 @@ if __name__=="__main__":
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
     tester.test_pim_compute('linear/bit_sparse_quantify', 
-        {"out_channel":100, "in_channel": 2048}
+        {"out_channel":2048, "in_channel": 4096}
     )
