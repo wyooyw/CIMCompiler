@@ -335,10 +335,10 @@ class Simulator:
         cnt = 0
         self.pbar = tqdm(total=total_pim_compute_count)
         self.pimcompute_cnt = 0
-        stats_util = StatsUtil()
+        self.stats_util = StatsUtil()
         while pc < len(code) and cnt < self.safe_time:
             inst = code[pc]
-            stats_util.record(inst)
+            self.stats_util.record(inst)
 
             inst_class = inst["class"]
             if inst_class==InstClass.PIM_CLASS.value:
@@ -369,13 +369,13 @@ class Simulator:
 
         if pc == len(code):
             logging.debug("Run finish!")
-            return self.FINISH, stats_util
+            return self.FINISH, self.stats_util
         elif pc < len(code) and cnt == self.safe_time:
             logging.debug("Meet safe time!")
-            return self.TIMEOUT, stats_util
+            return self.TIMEOUT, self.stats_util
         else:
             print(f"Strange exit situation! {pc=}, {len(code)=}, {cnt=}, {self.safe_time=}")
-            return self.ERROR, stats_util
+            return self.ERROR, self.stats_util
     
     def read_general_reg(self, regid):
         return self.read_reg(self.general_rf, regid)
@@ -702,6 +702,8 @@ class Simulator:
         
         src_data = self.memory_space.read(src_addr, size)
         self.memory_space.write(src_data, dst_addr, size)
+
+        self.stats_util.record_trans_addr(src_addr, dst_addr, size)
 
 
     def _run_control_class_br_type_inst(self, inst):
@@ -1187,8 +1189,14 @@ class Simulator:
 
         # Compute
         if opcode==0x00:
+            assert input1_bitwidth==32
+            assert input2_bitwidth==32
+            assert output_bitwidth==32
             output_data = input1_data.astype(output_dtype) + input2_data.astype(output_dtype)
         elif opcode==0x02:
+            assert input1_bitwidth==8
+            assert input2_bitwidth==8
+            assert output_bitwidth==32
             output_data = input1_data.astype(output_dtype) * input2_data.astype(output_dtype)
         else:
             assert False, f"Not support: {opcode=}"
@@ -1244,6 +1252,11 @@ class Simulator:
         # print(f"{clip_min=}")
         # print(f"{inst['relu']=}")
         # import pdb; pdb.set_trace()
+
+        assert self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH) == 32
+        assert self.read_special_reg(SpecialReg.SIMD_INPUT_2_BIT_WIDTH) == 64
+        assert self.read_special_reg(SpecialReg.SIMD_INPUT_3_BIT_WIDTH) == 8
+        assert self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH) == 8
 
         input_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
         input_byte_size = input_bitwidth * input_size // 8

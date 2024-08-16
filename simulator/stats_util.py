@@ -19,6 +19,17 @@ class StatsUtil:
         self._last_pim_compute = None
         self._pim_compute_duration = []
 
+        self._trans_addr_max = 0
+        self._trans_addr_plus_size_max = 0
+
+    def record_trans_addr(self, src_addr, dst_addr, size):
+        self._trans_addr_max = max(self._trans_addr_max, src_addr, dst_addr)
+        self._trans_addr_plus_size_max = max(
+            self._trans_addr_plus_size_max,
+            src_addr + size,
+            dst_addr + size
+        )
+
     def record(self, inst):
         inst_class = inst["class"]
         if inst_class==InstClass.PIM_CLASS.value:
@@ -121,8 +132,12 @@ class StatsUtil:
         save_data = {
             "total_inst_cnt": self.total_inst_cnt,
             "per_class_cnt": self.per_class_cnt,
-            "pim_compute_duration": self._pim_compute_duration,
-            "pim_compute_duration_mean": pim_compute_duration_mean
+            "trans_addr":{
+                "addr_max": str(self._trans_addr_max),
+                "addr_plus_size_max": str(self._trans_addr_plus_size_max)
+            },
+            "pim_compute_duration_mean": pim_compute_duration_mean,
+            "pim_compute_duration": self._pim_compute_duration
         }
         save_json_path = os.path.join(save_path, "stats.json")
         with open(save_json_path, "w") as f:
