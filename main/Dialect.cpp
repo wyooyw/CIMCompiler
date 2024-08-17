@@ -292,6 +292,16 @@ LogicalResult CIMTransferOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::m
   return memref::foldMemRefCast(*this);
 }
 
+void AddrOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value src) {
+  state.addTypes(builder.getIndexType());
+  state.addOperands({src});
+}
+
+OpFoldResult AddrOp::fold(FoldAdaptor adaptor) {
+  // prefetch(memrefcast) -> prefetch
+  return succeeded(memref::foldMemRefCast(*this)) ? getResult() : Value();
+}
 // Bufferize
 
 static MemRefType convertTensorToMemRef(RankedTensorType type) {

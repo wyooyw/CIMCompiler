@@ -47,17 +47,17 @@ def quantify(
                 [1,1,out_channel_len],
                 [1,1,1]
             );
-            use_bias_scale = Slice(local_bias_scale,
-                [out_channel_begin, 0],
-                [out_channel_len, 2],
-                [1, 1]
-            );
+            //use_bias_scale = Slice(local_bias_scale,
+            //    [out_channel_begin, 0],
+            //    [out_channel_len, 2],
+            //    [1, 1]
+            //);
             use_i8_output = Slice(local_output_i8,
                 [oh,ow,out_channel_begin],
                 [1,1,out_channel_len],
                 [1,1,1]
             );
-            Quantify(use_i32_output, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
+            Quantify(use_i32_output, local_out_zp, use_i8_output, {{RELU}});
 
             // Clear origin buffer
             use_blank = Slice(local_blank, [0], [out_channel_len], [1]);
@@ -134,6 +134,14 @@ def main(null<int8>){
         out_channel_end = Min(out_channel_begin + N_GROUP_VCOL, OUTPUT_CHANNEL);
         out_channel_len = out_channel_end - out_channel_begin;
         out_tile_i = out_channel_begin / N_GROUP_VCOL;
+
+        use_bias_scale = Slice(local_bias_scale,
+               [out_channel_begin, 0],
+               [out_channel_len, 2],
+               [1, 1]
+        );
+        use_bias_scale_addr = Addr(use_bias_scale);
+        SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1, use_bias_scale_addr);
 
         inner_reduce_tile_size = N_ROW;
         for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (null){
@@ -233,17 +241,17 @@ def main(null<int8>){
                         // if SINGLE_OUTER_REDUCE==1, we do quantify inside oh and ow loop, to turn i32 to i8 immediately for saving memory.
                         // else, we add result to i32 output, and do quantize when the partial sum finish compute.
                         {% if SINGLE_OUTER_REDUCE == 1 %}
-                            use_bias_scale = Slice(local_bias_scale,
-                                [out_channel_begin, 0],
-                                [out_channel_len, 2],
-                                [1, 1]
-                            );
+                            //use_bias_scale = Slice(local_bias_scale,
+                            //    [out_channel_begin, 0],
+                            //    [out_channel_len, 2],
+                            //    [1, 1]
+                            //);
                             use_i8_output = Slice(local_output_i8,
                                 [oh+delta_h, ow+delta_w, out_channel_begin],
                                 [1,1,out_channel_len],
                                 [1,1,1]
                             );
-                            Quantify(use_local_output_for_temp_sum, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
+                            Quantify(use_local_output_for_temp_sum, local_out_zp, use_i8_output, {{RELU}});
                         {% else %}
                             use_local_output_i32 = Slice(local_output_i32, 
                                 [oh+delta_h, ow+delta_w, 0], 

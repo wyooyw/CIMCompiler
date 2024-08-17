@@ -179,17 +179,12 @@ def quantify(
         [1,1,out_channel_len],
         [1,1,1]
     );
-    use_bias_scale = Slice(local_bias_scale,
-        [out_channel_begin, 0],
-        [out_channel_len, 2],
-        [1, 1]
-    );
     use_i8_output = Slice(local_output_i8,
         [0,0,out_channel_begin],
         [1,1,out_channel_len],
         [1,1,1]
     );
-    Quantify(use_i32_output, use_bias_scale, local_out_zp, use_i8_output, {{RELU}});
+    Quantify(use_i32_output, local_out_zp, use_i8_output, {{RELU}});
 
 }
 
@@ -249,6 +244,14 @@ def main(null<int8>){
         out_channel_end = Min(out_channel_begin + out_channel_step, OUTPUT_CHANNEL);
         out_channel_len = out_channel_end - out_channel_begin;
         out_tile_i = out_channel_begin / out_channel_step;
+
+        use_bias_scale = Slice(local_bias_scale,
+            [out_channel_begin, 0],
+            [out_channel_len, 2],
+            [1, 1]
+        );
+        use_bias_scale_addr = Addr(use_bias_scale);
+        SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1, use_bias_scale_addr);
 
         inner_reduce_tile_size = N_ROW;
         for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (null){

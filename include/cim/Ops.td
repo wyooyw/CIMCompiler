@@ -148,6 +148,22 @@ def ShapeOp : CIM_Op<"shape", [Pure]> {
   let hasFolder = 1;
 }
 
+def AddrOp : CIM_Op<"addr", [Pure]> {
+  let summary = "get addr of a buffer";
+  let description = [{
+    get addr of a buffer
+  }];
+
+  let arguments = (ins AnyMemRef:$src);
+  let results = (outs Index:$output);
+
+  let builders = [
+    OpBuilder<(ins "Value":$src)>
+  ];
+
+  let hasFolder = 1;
+}
+
 def PrintOp : CIM_Op<"print"> {
   let summary = "print a integer";
   let description = [{

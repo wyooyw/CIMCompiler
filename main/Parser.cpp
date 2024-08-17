@@ -438,6 +438,8 @@ mlir::Value MLIRGenImpl::parse_call_return_value(const boost::property_tree::ptr
         return parse_bulitin_load(ast);
     }else if(call_func_name=="Min") {
         return parse_bulitin_min(ast);
+    }else if(call_func_name=="Addr") {
+        return parse_bulitin_addr(ast);
     }
 
     // check sign table
@@ -711,6 +713,18 @@ mlir::Value MLIRGenImpl::parse_bulitin_min(const boost::property_tree::ptree& as
     mlir::Value rhs = parse_expr(safe_get_child(get_item(ast_rhs, 0), "expr"));
 
     mlir::Value result = builder.create<mlir::arith::MinSIOp>(loc, lhs, rhs);
+    return result;
+}
+
+mlir::Value MLIRGenImpl::parse_bulitin_addr(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_addr" << std::endl;
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_buf = safe_get_child(get_item(ast_param_list,0), "call_param");
+
+    mlir::Value buf = parse_expr(safe_get_child(get_item(ast_buf, 0), "expr"));
+
+    mlir::Value result = builder.create<mlir::cim::AddrOp>(loc, buf);
     return result;
 }
 
