@@ -55,7 +55,6 @@ def QuantifyOp : CIMISA_Op<"quantify"> {
 
   let arguments = (ins 
     AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
-    AnyTypeOf<[AnyInteger, Index]>:$bias_scale_addr, 
     AnyTypeOf<[AnyInteger, Index]>:$out_zp_addr,
     AnyTypeOf<[AnyInteger, Index]>:$output_addr,
     AnyTypeOf<[AnyInteger, Index]>:$size,

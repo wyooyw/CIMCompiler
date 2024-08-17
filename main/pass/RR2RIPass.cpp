@@ -510,21 +510,16 @@ namespace {
         std::cout << "QuantifyOpConvert::matchAndRewrite begin" << std::endl;
 
         Value input_addr = op.getOperand(0);
-        Value bias_scale_addr = op.getOperand(1);
-        Value out_zp_addr = op.getOperand(2);
-        Value output_addr = op.getOperand(3);
-        Value size = op.getOperand(4);
+        // Value bias_scale_addr = op.getOperand(1);
+        Value out_zp_addr = op.getOperand(1);
+        Value output_addr = op.getOperand(2);
+        Value size = op.getOperand(3);
         std::cout << "QuantifyOpConvert::matchAndRewrite 1" << std::endl;
 
         bool change = false;
         if (isConstant(input_addr)) {
             IntegerAttr constant = getConstantInt(input_addr);
             input_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), input_addr.getType(), constant);
-            change = true;
-        }
-        if (isConstant(bias_scale_addr)) {
-            IntegerAttr constant = getConstantInt(bias_scale_addr);
-            bias_scale_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), bias_scale_addr.getType(), constant);
             change = true;
         }
         if (isConstant(out_zp_addr)) {
@@ -549,7 +544,7 @@ namespace {
         std::cout << "QuantifyOpConvert::matchAndRewrite 2" << std::endl;
         // MemRefType memtype = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
         // Type type = memtype.getElementType();
-        rewriter.replaceOpWithNewOp<cimisa::QuantifyOp>(op, input_addr, bias_scale_addr, out_zp_addr, output_addr, size, op.getRelu());
+        rewriter.replaceOpWithNewOp<cimisa::QuantifyOp>(op, input_addr, out_zp_addr, output_addr, size, op.getRelu());
         std::cout << "QuantifyOpConvert::matchAndRewrite finish" << std::endl;
         return success();
       }

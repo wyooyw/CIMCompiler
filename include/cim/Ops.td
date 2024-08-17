@@ -72,7 +72,6 @@ def QuantifyOp : CIM_Op<"quantify"> {
 
   let arguments = (ins 
     AnyMemRef:$input, 
-    AnyMemRef:$bias_scale, 
     AnyMemRef:$output_zp,
     AnyMemRef:$output,
     I1Attr:$relu

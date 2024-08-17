@@ -602,13 +602,13 @@ void MLIRGenImpl::parse_bulitin_quantify(const boost::property_tree::ptree& ast)
     auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
 
     auto ast_input = safe_get_child(get_item(ast_param_list,0), "call_param");
-    auto ast_bias_scale = safe_get_child(get_item(ast_param_list,2), "call_param");
-    auto ast_out_zp = safe_get_child(get_item(ast_param_list,4), "call_param");
-    auto ast_output = safe_get_child(get_item(ast_param_list,6), "call_param");
-    auto ast_relu = safe_get_child(get_item(ast_param_list,8), "call_param");
+    // auto ast_bias_scale = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_out_zp = safe_get_child(get_item(ast_param_list,2), "call_param");
+    auto ast_output = safe_get_child(get_item(ast_param_list,4), "call_param");
+    auto ast_relu = safe_get_child(get_item(ast_param_list,6), "call_param");
 
     mlir::Value input = parse_expr(safe_get_child(get_item(ast_input, 0), "expr"));
-    mlir::Value bias_scale = parse_expr(safe_get_child(get_item(ast_bias_scale, 0), "expr"));
+    // mlir::Value bias_scale = parse_expr(safe_get_child(get_item(ast_bias_scale, 0), "expr"));
     mlir::Value out_zp = parse_expr(safe_get_child(get_item(ast_out_zp, 0), "expr"));
     mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
     mlir::Value relu = parse_expr(safe_get_child(get_item(ast_relu, 0), "expr"));
@@ -624,7 +624,7 @@ void MLIRGenImpl::parse_bulitin_quantify(const boost::property_tree::ptree& ast)
     int relu_const = relu_const_op.getValue().cast<mlir::IntegerAttr>().getInt();
     mlir::IntegerAttr relu_flag = mlir::IntegerAttr::get(builder.getIntegerType(1), relu_const>0);
 
-    builder.create<mlir::cim::QuantifyOp>(loc, input, bias_scale, out_zp, output, relu_const);
+    builder.create<mlir::cim::QuantifyOp>(loc, input, out_zp, output, relu_const);
 }
 
 mlir::Value MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree& ast){

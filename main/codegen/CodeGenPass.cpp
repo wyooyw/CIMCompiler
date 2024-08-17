@@ -326,14 +326,14 @@ static void codeGen(mlir::cimisa::QuantifyOp op,
     - output bit width：输出向量每个元素的bit长度
   */
   int input_addr = getReg(regmap, op.getOperand(0));
-  int bias_scale_addr = getReg(regmap, op.getOperand(1));
-  int out_zp_addr = getReg(regmap, op.getOperand(2));
-  int output_addr = getReg(regmap, op.getOperand(3));
-  int size = getReg(regmap, op.getOperand(4));
+  // int bias_scale_addr = getReg(regmap, op.getOperand(1));
+  int out_zp_addr = getReg(regmap, op.getOperand(1));
+  int output_addr = getReg(regmap, op.getOperand(2));
+  int size = getReg(regmap, op.getOperand(3));
   bool relu = op.getRelu();
   
   use.insert(input_addr);
-  use.insert(bias_scale_addr);
+  // use.insert(bias_scale_addr);
   use.insert(out_zp_addr);
   use.insert(output_addr);
   use.insert(size);
@@ -343,7 +343,7 @@ static void codeGen(mlir::cimisa::QuantifyOp op,
     {"input_num", 0b10},
     {"opcode", 3},
     {"rs1", input_addr},
-    {"rs1_1", bias_scale_addr},
+    // {"rs1_1", bias_scale_addr},
     {"rs2", out_zp_addr},
     {"rs3", size},
     {"rd", output_addr},
@@ -351,7 +351,7 @@ static void codeGen(mlir::cimisa::QuantifyOp op,
   };
   instr_list.push_back(inst);
 
-  twin_reg[input_addr] = bias_scale_addr;
+  // twin_reg[input_addr] = bias_scale_addr;
   // twin_reg[bias_scale_addr] = input_addr;
 }
 

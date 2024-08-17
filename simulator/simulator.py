@@ -35,6 +35,8 @@ class SpecialReg(Enum):
     SIMD_INPUT_3_BIT_WIDTH = 18
     SIMD_INPUT_4_BIT_WIDTH = 19
     SIMD_OUTPUT_BIT_WIDTH = 20
+    SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 = 21
+    SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 = 22
 
 class InstClass(Enum):
     PIM_CLASS = 0 # 0b00
@@ -1243,7 +1245,7 @@ class Simulator:
 
     def _run_simd_class_quantify_inst(self, inst):
         input_addr = self.read_general_reg(inst["rs1"])
-        bias_scale_addr = self.read_general_reg(inst["rs1"] + 1)
+        bias_scale_addr = self.read_special_reg(SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1)
         out_zp_addr = self.read_general_reg(inst["rs2"])
         input_size = self.read_general_reg(inst["rs3"])
         output_addr = self.read_general_reg(inst["rd"])
