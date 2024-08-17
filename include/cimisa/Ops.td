@@ -74,7 +74,6 @@ def CIMComputeOp : CIMISA_Op<"cim_compute"> {
 
   let arguments = (ins 
     AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
-    AnyTypeOf<[AnyInteger, Index]>:$output_addr, 
     AnyTypeOf<[AnyInteger, Index]>:$row_index,
     AnyTypeOf<[AnyInteger, Index]>:$input_size,
     I1Attr:$acc_flag,

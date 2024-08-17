@@ -98,7 +98,6 @@ def CIMComputeOp : CIM_Op<"cim_compute"> {
   let arguments = (ins 
     AnyMemRef:$input, 
     AnyMemRef:$macro, 
-    AnyMemRef:$output,
     I1Attr:$value_sparse_flag,
     I1Attr:$bit_sparse_flag
   );

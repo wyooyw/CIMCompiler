@@ -150,7 +150,7 @@ def main(null<int8>){
                     [1, N_GROUP, WINDOW_SIZE],
                     [1, 1, 1]
                 );
-                CIMComputeDense(compute_use_input_buffer, activate_macro, pim_output_reg_buffer);
+                CIMComputeDense(compute_use_input_buffer, activate_macro);
                 
 
                 CIMOutput(N_GROUP_VCOL, 0, pim_output_reg_buffer);

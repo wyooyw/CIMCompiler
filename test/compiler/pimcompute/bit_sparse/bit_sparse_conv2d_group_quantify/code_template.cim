@@ -270,7 +270,7 @@ def main(null<int8>){
                             // Print(meta_addr);
                             SpecialRegSet(SPECIAL_REG_BIT_SPARSE_META_ADDR, meta_addr);
 
-                            CIMComputeBitSparse(compute_use_input_buffer, activate_macro, pim_output_reg_buffer);
+                            CIMComputeBitSparse(compute_use_input_buffer, activate_macro);
                             
                             row_to_activate = row_to_activate + 1;
                             meta_addr = meta_addr + meta_addr_step;

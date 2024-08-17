@@ -488,7 +488,7 @@ namespace {
         std::cout << "CIMComputeOpLowering::matchAndRewrite 1" << std::endl;
         Value addr_input = getAddrValue(op.getOperand(0), rewriter);
         std::cout << "CIMComputeOpLowering::matchAndRewrite 2" << std::endl;
-        Value addr_output = getAddrValue(op.getOperand(2), rewriter);
+        // Value addr_output = getAddrValue(op.getOperand(2), rewriter);
         std::cout << "CIMComputeOpLowering::matchAndRewrite 3" << std::endl;
         std::vector<Value> macro_activate = getMacroActivatePosition(op, rewriter, 1);
         std::cout << "CIMComputeOpLowering::matchAndRewrite 4" << std::endl;
@@ -501,7 +501,7 @@ namespace {
         Value input_size_all = getLengthValue(op.getOperand(0), rewriter);
         Value input_size = rewriter.create<arith::DivSIOp>(op.getLoc(), input_size_all, num_group);
         
-        if (!addr_input || !addr_output || !row_index || !input_size) {
+        if (!addr_input || !row_index || !input_size) {
           std::cout << "CIMComputeOpLowering::matchAndRewrite fail 2" << std::endl;
           return failure();
         }
@@ -517,7 +517,7 @@ namespace {
         
         rewriter.replaceOpWithNewOp<cimisa::CIMComputeOp>(op, 
               addr_input,           // AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
-              addr_output,          // AnyTypeOf<[AnyInteger, Index]>:$output_addr, 
+              // addr_output,          // AnyTypeOf<[AnyInteger, Index]>:$output_addr, 
               row_index,            // AnyTypeOf<[AnyInteger, Index]>:$row_index,
               input_size,           // AnyTypeOf<[AnyInteger, Index]>:$input_size,
               acc_flag,             // I1:$acc_flag,

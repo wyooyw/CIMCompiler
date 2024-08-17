@@ -325,7 +325,7 @@ def main(null<int8>){
                         [1, N_GROUP, input_len],
                         [1, 1, 1]
                     );
-                    CIMComputeDense(compute_use_input_buffer, activate_macro, pim_output_reg_buffer);
+                    CIMComputeDense(compute_use_input_buffer, activate_macro);
                     
                     row_to_activate = row_to_activate + 1;
                 };

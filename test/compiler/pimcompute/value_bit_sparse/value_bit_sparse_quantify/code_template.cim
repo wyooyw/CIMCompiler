@@ -326,7 +326,7 @@ def main(null<int8>){
                             );
                             //Print(sparse_mask_addr);
                             //Debug();
-                            CIMComputeValueBitSparse(use_input_buffer, activate_macro, pim_output_reg_buffer);
+                            CIMComputeValueBitSparse(use_input_buffer, activate_macro);
                             
                             row_to_activate = row_to_activate + 1;
                             sparse_mask_addr = sparse_mask_addr + sparse_mask_step;

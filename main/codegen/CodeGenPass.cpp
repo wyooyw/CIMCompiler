@@ -517,11 +517,11 @@ static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash
     - activation element col num：每个group内激活的element列的数量
   */
   int input_addr_reg = getReg(regmap, op.getOperand(0));
-  int output_addr_reg = getReg(regmap, op.getOperand(1));
-  int activate_row_reg = getReg(regmap, op.getOperand(2));
-  int input_size_reg = getReg(regmap, op.getOperand(3));
+  // int output_addr_reg = getReg(regmap, op.getOperand(1));
+  int activate_row_reg = getReg(regmap, op.getOperand(1));
+  int input_size_reg = getReg(regmap, op.getOperand(2));
   use.insert(input_addr_reg);
-  use.insert(output_addr_reg);
+  // use.insert(output_addr_reg);
   use.insert(activate_row_reg);
   use.insert(input_size_reg);
   Inst inst = {
@@ -535,7 +535,7 @@ static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash
     {"rs1", input_addr_reg},
     {"rs2", input_size_reg},
     {"rs3", activate_row_reg},
-    {"rd", output_addr_reg},
+    // {"rd", output_addr_reg},
   };
   instr_list.push_back(inst);
 }

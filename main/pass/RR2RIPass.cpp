@@ -330,9 +330,9 @@ namespace {
         std::cout << "CIMComputeOpConvert::matchAndRewrite begin" << std::endl;
 
         Value input_addr = op.getOperand(0);
-        Value output_addr = op.getOperand(1);
-        Value row_index = op.getOperand(2);
-        Value input_size = op.getOperand(3);
+        // Value output_addr = op.getOperand(1);
+        Value row_index = op.getOperand(1);
+        Value input_size = op.getOperand(2);
         std::cout << "CIMComputeOpConvert::matchAndRewrite 1" << std::endl;
 
         bool change = false;
@@ -341,11 +341,11 @@ namespace {
             input_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), input_addr.getType(), constant);
             change = true;
         }
-        if (isConstant(output_addr)) {
-            IntegerAttr constant = getConstantInt(output_addr);
-            output_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), output_addr.getType(), constant);
-            change = true;
-        }
+        // if (isConstant(output_addr)) {
+        //     IntegerAttr constant = getConstantInt(output_addr);
+        //     output_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), output_addr.getType(), constant);
+        //     change = true;
+        // }
         if (isConstant(row_index)) {
             IntegerAttr constant = getConstantInt(row_index);
             row_index = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(), row_index.getType(), constant);
@@ -364,7 +364,7 @@ namespace {
         std::cout << "CIMComputeOpConvert::matchAndRewrite 2" << std::endl;
         // MemRefType memtype = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
         // Type type = memtype.getElementType();
-        rewriter.replaceOpWithNewOp<cimisa::CIMComputeOp>(op, input_addr, output_addr, row_index, input_size, op.getAccFlag(), op.getValueSparseFlag(), op.getBitSparseFlag());
+        rewriter.replaceOpWithNewOp<cimisa::CIMComputeOp>(op, input_addr, row_index, input_size, op.getAccFlag(), op.getValueSparseFlag(), op.getBitSparseFlag());
         std::cout << "CIMComputeOpConvert::matchAndRewrite finish" << std::endl;
         return success();
       }
@@ -610,8 +610,10 @@ void RR2RIPass::runOnOperation() {
 
   RewritePatternSet patterns(&getContext());
   patterns.add<AddIOpConvert, SubIOpConvert, MulIOpConvert, DivSIOpConvert, RemSIOpConvert, MinSIOpConvert, 
-      TransOpConvert, StoreBaseAndOffsetOpConvert, LoadBaseAndOffsetOpConvert, CIMTransferOpConvert,
-      CIMComputeOpConvert, VVAddOpConvert, CIMOutputSumOpConvert, QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert>(
+      StoreBaseAndOffsetOpConvert, LoadBaseAndOffsetOpConvert,
+      TransOpConvert, CIMTransferOpConvert,
+      CIMComputeOpConvert, VVAddOpConvert, CIMOutputSumOpConvert, QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert
+      >(
       &getContext());
       // ForOpConvert
 
