@@ -206,8 +206,12 @@ def main(null<int8>){
                         useful_input_len = Min(sliding_window_size - i_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP);
                         row_to_activate = Load(local_spill, [1]);
                         for input_begin_in_buffer in range(0, useful_input_len, N_COMP) carry (row_to_activate){
-                            input_end_in_buffer = Min(input_begin_in_buffer + N_COMP, useful_input_len);
-                            input_len = input_end_in_buffer - input_begin_in_buffer;
+                            {% if KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL % N_COMP == 0 %}
+                                input_len = N_COMP;
+                            {% else %}
+                                input_end_in_buffer = Min(input_begin_in_buffer + N_COMP, useful_input_len);
+                                input_len = input_end_in_buffer - input_begin_in_buffer;
+                            {% endif %}
                             //Print(useful_input_len);
                             //Print(row_to_activate);
                             // activate macro

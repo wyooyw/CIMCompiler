@@ -249,8 +249,12 @@ def main(null<int8>){
                         meta_addr = Load(local_spill, [4]);
                         for input_begin_in_buffer in range(0, useful_input_len, N_COMP) 
                             carry (row_to_activate, meta_addr){
-                            input_end_in_buffer = Min(input_begin_in_buffer + N_COMP, useful_input_len);
-                            input_len = input_end_in_buffer - input_begin_in_buffer;
+                            {% if KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL % N_COMP == 0 %}
+                                input_len = N_COMP;
+                            {% else %}
+                                input_end_in_buffer = Min(input_begin_in_buffer + N_COMP, useful_input_len);
+                                input_len = input_end_in_buffer - input_begin_in_buffer;
+                            {% endif %}
                             // Print(input_len);
                             // Debug();
                             //Print(useful_input_len);
