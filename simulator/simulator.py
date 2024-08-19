@@ -341,6 +341,7 @@ class Simulator:
         while pc < len(code) and cnt < self.safe_time:
             inst = code[pc]
             self.stats_util.record(inst)
+            self.stats_util.record_reg_status(pc + 1, cnt, self.general_rf)
 
             inst_class = inst["class"]
             if inst_class==InstClass.PIM_CLASS.value:

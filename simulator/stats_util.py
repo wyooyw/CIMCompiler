@@ -21,6 +21,7 @@ class StatsUtil:
 
         self._trans_addr_max = 0
         self._trans_addr_plus_size_max = 0
+        self._reg_data = []
 
     def record_trans_addr(self, src_addr, dst_addr, size):
         self._trans_addr_max = max(self._trans_addr_max, src_addr, dst_addr)
@@ -29,6 +30,13 @@ class StatsUtil:
             src_addr + size,
             dst_addr + size
         )
+
+    def record_reg_status(self, pc, idx, general_rf):
+        self._reg_data.append({
+            "pc": pc,
+            "idx": idx,
+            "general_rf": general_rf[:32].tolist()
+        })
 
     def record(self, inst):
         inst_class = inst["class"]
@@ -57,14 +65,14 @@ class StatsUtil:
     def _record_pim_class_inst(self, inst):
         self.per_class_cnt["pim"]["total"] += 1
         if inst["type"]==0b00:
-            self.per_class_cnt["pim"]["pim-compute"] += 1
+            self.per_class_cnt["pim"]["pim_compute"] += 1
             self._record_pim_compute_duration()
         elif inst["type"]==0b01:
-            self.per_class_cnt["pim"]["pim-set"] += 1
+            self.per_class_cnt["pim"]["pim_set"] += 1
         elif inst["type"]==0b10:
-            self.per_class_cnt["pim"]["pim-output"] += 1
+            self.per_class_cnt["pim"]["pim_output"] += 1
         elif inst["type"]==0b11:
-            self.per_class_cnt["pim"]["pim-transfer"] += 1
+            self.per_class_cnt["pim"]["pim_transfer"] += 1
         else:
             assert False, f"Unknown pim inst type: {inst['type']}"
 
@@ -100,13 +108,11 @@ class StatsUtil:
                 assert False, f"Unknown scalar opcode: {inst['opcode']}"
         elif inst["type"]==0b11:
             if inst["opcode"]==0b00:
-                self.per_class_cnt["scalar"]["general-li"] += 1
+                self.per_class_cnt["scalar"]["general_li"] += 1
             elif inst["opcode"]==0b01:
-                self.per_class_cnt["scalar"]["special-li"] += 1
-            elif inst["opcode"]==0b10:
-                self.per_class_cnt["scalar"]["general-to-special"] += 1
-            elif inst["opcode"]==0b11:
-                self.per_class_cnt["scalar"]["special-to-general"] += 1
+                self.per_class_cnt["scalar"]["special_li"] += 1
+            elif inst["opcode"] in [0b10, 0b11]:
+                self.per_class_cnt["scalar"]["special_general_assign"] += 1
             else:
                 assert False, f"Unknown scalar opcode: {inst['opcode']}"
         else:
@@ -125,12 +131,13 @@ class StatsUtil:
             assert False, f"Unknown control type: {inst['type']}"
 
     def _record_other_class_inst(self, inst):
-        self.per_class_cnt["other"]["total"] += 1
+        pass
+        # self.per_class_cnt["other"]["total"] += 1
 
     def dump(self, save_path):
         pim_compute_duration_mean = (sum(self._pim_compute_duration) / len(self._pim_compute_duration)) if len(self._pim_compute_duration) > 0 else 0
         save_data = {
-            "total_inst_cnt": self.total_inst_cnt,
+            "total": self.total_inst_cnt,
             "per_class_cnt": self.per_class_cnt,
             "trans_addr":{
                 "addr_max": str(self._trans_addr_max),
@@ -139,7 +146,25 @@ class StatsUtil:
             "pim_compute_duration_mean": pim_compute_duration_mean,
             "pim_compute_duration": self._pim_compute_duration
         }
+        save_json_path = os.path.join(save_path, "stats_for_optimize.json")
+        with open(save_json_path, "w") as f:
+            json.dump(save_data, f, indent=2)
+        print(f"Stats for optimize saved to {save_json_path}")
+
+
+        save_data = {
+            "total": self.total_inst_cnt,
+            **self.per_class_cnt
+        }
         save_json_path = os.path.join(save_path, "stats.json")
         with open(save_json_path, "w") as f:
             json.dump(save_data, f, indent=2)
         print(f"Stats saved to {save_json_path}")
+        
+
+        save_json_path = os.path.join(save_path, "regs.json")
+        with open(save_json_path, "w") as f:
+            for reg_data in self._reg_data:
+                f.write(f"pc: {reg_data['pc']}, ins id: {reg_data['idx']}, general reg: {reg_data['general_rf']}\n")
+        print(f"Regs info saved to {save_json_path}")
+        
