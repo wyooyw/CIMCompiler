@@ -33,9 +33,11 @@
 #define OUT_CHANNEL_BEGIN_LEN {{ OUT_CHANNEL_BEGIN_LEN }}
 #define MAX_OUTER_SPATIEL_TILE_SIZE {{ MAX_OUTER_SPATIEL_TILE_SIZE }}
 
-
-{% include 'lib/input_loader.cim' %}
-
+{% if IM2COL %}
+    {% include 'lib/input_loader_im2col.cim' %}
+{% else %}
+    {% include 'lib/input_loader.cim' %}
+{% endif %}
 
 def quantify(
     null<int8>,
@@ -71,7 +73,11 @@ def quantify(
 
 def main(null<int8>){
     // input, weight, mask and index will be prepared in memory image
-    global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
+    {% if IM2COL %}
+        global_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __GLOBAL__);
+    {% else %}
+        global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
+    {% endif %}
     global_weight = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __GLOBAL__);
     
     global_meta = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP_BCOL, 3>, int1, __GLOBAL__);
@@ -105,7 +111,11 @@ def main(null<int8>){
     local_blank = Buffer(<N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__);
 
     // Copy input and index into local memory
-    local_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+    {% if IM2COL %}
+        local_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __INPUT_MEMORY__);
+    {% else %}
+        local_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+    {% endif %}
     Trans(global_input, local_input);
 
     // Prepare memory's that will be used

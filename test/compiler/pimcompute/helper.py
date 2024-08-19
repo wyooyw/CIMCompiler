@@ -125,7 +125,7 @@ class Conv2dTestHelper(TestHelper):
 
     def _get_mock_input(self):
         import numpy as np
-        input_data = np.random.randint(-127,127,size=(self.in_hw,self.in_hw, self.in_channel), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        input_data = np.random.randint(-126,126,size=(self.in_hw,self.in_hw, self.in_channel), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
         assert input_data.shape==(self.in_hw,self.in_hw,self.in_channel), f"{input_data.shape=}"
         return input_data
 
@@ -167,6 +167,20 @@ class Conv2dTestHelper(TestHelper):
         input_data = np.pad(input_data, ((self.padding,self.padding),(self.padding,self.padding),(0,0)), mode='constant', constant_values=0)
         return input_data
 
+    def _apply_im2col(self, input_data):
+        import numpy as np
+        in_hw, _, in_channel = input_data.shape
+        ker_size = self.ker_size
+        stride = self.stride
+        out_hw = self.out_hw
+        im2col_input = np.zeros((out_hw, in_hw, ker_size, in_channel), dtype=np.int8)
+        for ow in range(out_hw):
+            iw = ow * stride
+            for ih in range(in_hw):
+                im2col_input[ow, ih, :, :] = input_data[ih, iw:iw+ker_size, :]
+        im2col_input = im2col_input.reshape(out_hw, -1)
+        return im2col_input
+
     def get_image(self, simulator, **image_kwargs):
         assert False, "Not implemented"
 
@@ -178,6 +192,7 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
         super().__init__(op_config)
         self.output_bytes = 4
         self.output_dtype = np.int32
+        self.im2col = False
 
 
     def _make_dense_data(self, weight, simulator):
@@ -227,13 +242,18 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
 
         self._assert_check_input_and_weight_shape(self.input_data, self.weight_data)
         self.input_data = self._apply_padding(self.input_data)
+        if self.im2col:
+            self.input_data_im2col = self._apply_im2col(self.input_data)
 
         self.converted_weight = self._make_dense_data(self.weight_data, simulator)
 
         assert self.input_data.dtype==np.int8, f"{self.input_data.dtype=}"
         assert self.converted_weight.dtype==np.int8, f"{self.converted_weight.dtype=}"
 
-        input_data = bytearray(self.input_data)
+        if self.im2col:
+            input_data = bytearray(self.input_data_im2col)
+        else:
+            input_data = bytearray(self.input_data)
         converted_weight_bytes = bytearray(self.converted_weight)
 
         print(f"{self.input_data.shape=}, {self.input_data.dtype=}, byte_size={len(input_data)}")
@@ -312,12 +332,12 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         super().__init__(op_config)
         self.output_bytes = 4
         self.output_dtype = np.int32
-
+        self.im2col = False
     
     def _get_mock_weight(self):
         from utils.bit_sparse_weight_transform import generate_valid_weight
 
-        weight = generate_valid_weight([self.out_channel, self.ker_size, self.ker_size, self.in_channel])
+        weight = generate_valid_weight([self.out_channel, self.ker_size, self.ker_size, self.in_channel], 2)
         return weight
 
     def _make_bit_sparse_data(self, weight, simulator):
@@ -392,6 +412,8 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
 
         self._assert_check_input_and_weight_shape(self.input_data, self.weight_data)
         self.input_data = self._apply_padding(self.input_data)
+        if self.im2col:
+            self.input_data_im2col = self._apply_im2col(self.input_data)
 
         bit_sparse_weight, meta, outsum_mask, transfer_mask, out_begin_channel = self._make_bit_sparse_data(self.weight_data, simulator)
 
@@ -401,7 +423,10 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         self.transfer_mask = transfer_mask
         self.out_begin_channel = out_begin_channel
 
-        input_data = bytearray(self.input_data)
+        if self.im2col:
+            input_data = bytearray(self.input_data_im2col)
+        else:
+            input_data = bytearray(self.input_data)
         converted_weight_bytes = bytearray(self.converted_weight)
         meta_bytes = bytearray(self.meta)
         outsum_offset_bytes = bytearray(self.outsum_mask)
@@ -567,7 +592,8 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
 
         self._assert_check_input_and_weight_shape(self.input_data, self.weight_data)
         self.input_data = self._apply_padding(self.input_data)
-
+        if self.im2col:
+            self.input_data_im2col = self._apply_im2col(self.input_data)
 
         result = self._make_value_sparse_data(self.weight_data, simulator)
         self.converted_weight = result["converted_weight"]
@@ -596,7 +622,10 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
         mask_bits = self.mask.reshape(*self.mask.shape[:2], self.mask.shape[-1]//8, 8)
         mask_bits = tensor_bits_to_int8(mask_bits)
 
-        input_data = bytearray(self.input_data)
+        if self.im2col:
+            input_data = bytearray(self.input_data_im2col)
+        else:
+            input_data = bytearray(self.input_data)
         converted_weight_bytes = bytearray(self.converted_weight)
         mask_bytes = bytearray(mask_bits)
         mapping_reduce_to_macro_bytes = bytearray(self.mapping_reduce_to_macro)
@@ -763,6 +792,8 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
 
         self._assert_check_input_and_weight_shape(self.input_data, self.weight_data)
         self.input_data = self._apply_padding(self.input_data)
+        if self.im2col:
+            self.input_data_im2col = self._apply_im2col(self.input_data)
 
 
         result = self._make_value_bit_sparse_data(self.weight_data, simulator)
@@ -818,7 +849,10 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
         transfer_mask_bits = transfer_mask.reshape(*transfer_mask.shape[:-1], transfer_mask.shape[-1]//8, 8)
         transfer_mask_bits = tensor_bits_to_int8(transfer_mask_bits)
 
-        input_data = bytearray(self.input_data)
+        if self.im2col:
+            input_data = bytearray(self.input_data_im2col)
+        else:
+            input_data = bytearray(self.input_data)
         converted_weight_bytes = bytearray(converted_weight)
         mask_bytes = bytearray(mask_bits)
         mapping_reduce_to_macro_bytes = bytearray(self.mapping_reduce_to_macro)

@@ -11,6 +11,8 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
             self.n_use_group = 1
         else:
             self.n_use_group = 4
+        
+        self.im2col = True
             
     def _calculate_golden(self):
         return self._calculate_golden_quantize()
@@ -30,4 +32,8 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
         context["RELU"] = int(self.relu)
         context["SINGLE_OUTER_REDUCE"] = int(context["OUT_REDUCE_TILE"] <= simulator.macro_config.n_row)
         context["N_USE_GROUP"] = self.n_use_group
+        context["IM2COL"] = self.im2col
+        if self.im2col:
+            context["IM2COL_SIZE_0"] = self.input_data_im2col.shape[0]
+            context["IM2COL_SIZE_1"] = self.input_data_im2col.shape[1]
         return context

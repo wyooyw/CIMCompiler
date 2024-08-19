@@ -12,6 +12,8 @@ class TestHelper(ValueSparseConv2dTestHelper, QuantizeHelper):
         else:
             self.n_use_group = 4
 
+        self.im2col = True
+
     def _calculate_golden(self):
         return self._calculate_golden_quantize()
 
@@ -30,4 +32,8 @@ class TestHelper(ValueSparseConv2dTestHelper, QuantizeHelper):
         context["RELU"] = int(self.relu)
         context["SINGLE_OUTER_REDUCE"] = (self.mapping_reduce_to_macro==1).all()
         context["N_USE_GROUP"] = self.n_use_group
+        context["IM2COL"] = self.im2col
+        if self.im2col:
+            context["IM2COL_SIZE_0"] = self.input_data_im2col.shape[0]
+            context["IM2COL_SIZE_1"] = self.input_data_im2col.shape[1]
         return context
