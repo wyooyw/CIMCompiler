@@ -101,10 +101,10 @@ def main(null<int8>){
     global_mapping_macro_to_from = Buffer(<MAPPING_MACRO_TO_FROM_LENGTH>, index, __GLOBAL__);
     global_mapping_macro_to_row = Buffer(<MAPPING_MACRO_TO_ROW_LENGTH>, index, __GLOBAL__);
     global_mapping_from_to_row = Buffer(<MAPPING_FROM_TO_ROW_LENGTH>, index, __GLOBAL__);
-    mapping_reduce_to_macro = Buffer(<MAPPING_REDUCE_TO_MACRO_LENGTH>, index, __INPUT_MEMORY__);
-    mapping_macro_to_from = Buffer(<MAPPING_MACRO_TO_FROM_LENGTH>, index, __INPUT_MEMORY__);
-    mapping_macro_to_row = Buffer(<MAPPING_MACRO_TO_ROW_LENGTH>, index, __INPUT_MEMORY__);
-    mapping_from_to_row = Buffer(<MAPPING_FROM_TO_ROW_LENGTH>, index, __INPUT_MEMORY__);
+    mapping_reduce_to_macro = Buffer(<MAPPING_REDUCE_TO_MACRO_LENGTH>, index, __INDEX_MEMORY__);
+    mapping_macro_to_from = Buffer(<MAPPING_MACRO_TO_FROM_LENGTH>, index, __INDEX_MEMORY__);
+    mapping_macro_to_row = Buffer(<MAPPING_MACRO_TO_ROW_LENGTH>, index, __INDEX_MEMORY__);
+    mapping_from_to_row = Buffer(<MAPPING_FROM_TO_ROW_LENGTH>, index, __INDEX_MEMORY__);
     Trans(global_mapping_reduce_to_macro, mapping_reduce_to_macro);
     Trans(global_mapping_macro_to_from, mapping_macro_to_from);
     Trans(global_mapping_macro_to_row, mapping_macro_to_row);
@@ -167,7 +167,7 @@ def main(null<int8>){
     pim_output_reg_to_output_memory_buffer = Buffer(<1>, int32, __PIM_OUTPUT_REG_TO_OUTPUT_MEMORY_BUFFER__);
 
     // Spill
-    local_spill = Buffer(<16>, index, __INPUT_MEMORY__);
+    local_spill = Buffer(<16>, index, __INDEX_MEMORY__);
 
     // TODO: Add 'SPECIAL_REG_' prefix for these macro.
     SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);

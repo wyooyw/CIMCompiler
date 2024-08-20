@@ -86,7 +86,7 @@ def main(null<int8>){
     global_out_channel_begin = Buffer(<OUT_CHANNEL_BEGIN_LEN>, index, __GLOBAL__);
     local_outsum_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __INPUT_MEMORY__);
     local_transfer_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __INPUT_MEMORY__);
-    local_out_channel_begin = Buffer(<OUT_CHANNEL_BEGIN_LEN>, index, __INPUT_MEMORY__);
+    local_out_channel_begin = Buffer(<OUT_CHANNEL_BEGIN_LEN>, index, __INDEX_MEMORY__);
     Trans(global_outsum_mask, local_outsum_mask);
     Trans(global_transfer_mask, local_transfer_mask);
     Trans(global_out_channel_begin, local_out_channel_begin);
@@ -137,7 +137,7 @@ def main(null<int8>){
     pim_output_reg_to_output_memory_buffer = Buffer(<1>, int32, __PIM_OUTPUT_REG_TO_OUTPUT_MEMORY_BUFFER__);
 
     // Spill
-    local_spill = Buffer(<16>, index, __INPUT_MEMORY__);
+    local_spill = Buffer(<16>, index, __INDEX_MEMORY__);
 
     // TODO: Add 'SPECIAL_REG_' prefix for these macro.
     SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);

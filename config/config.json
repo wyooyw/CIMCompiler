@@ -21,12 +21,21 @@
             }
         },
         {
+            "name": "index_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 4096,
+                "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
+                "offset_byte": 131072
+            }
+        },
+        {
             "name": "input_memory",
             "type": "sram",
             "addressing": {
                 "size_byte": 262144,
                 "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
-                "offset_byte": 131072
+                "offset_byte": 135168
             }
         },
         {
@@ -35,7 +44,7 @@
             "addressing": {
                 "size_byte": 262144,
                 "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte",
-                "offset_byte": 393216
+                "offset_byte": 397312
             }
         },
         {
@@ -44,7 +53,7 @@
             "addressing": {
                 "size_byte": 1024,
                 "comments": "offset: 256 * 1024 Byte, size: 0.5 * 1024 * 2 Byte",
-                "offset_byte": 655360
+                "offset_byte": 659456
             }
         },
         {
@@ -53,7 +62,7 @@
             "addressing": {
                 "size_byte": 4096,
                 "comments": "offset: 257 * 1024 Byte, size: 4 * 1024 Byte",
-                "offset_byte": 656384
+                "offset_byte": 660480
             }
         },
         {
@@ -62,7 +71,7 @@
             "addressing": {
                 "size_byte": 98304,
                 "comments": "offset: 261 * 1024 Byte, size: 96 * 1024 Byte",
-                "offset_byte": 660480
+                "offset_byte": 664576
             }
         },
         {
@@ -71,7 +80,7 @@
             "addressing": {
                 "size_byte": 16384,
                 "comments": "offset: 357 * 1024 Byte, size: 16 * 1024 Byte",
-                "offset_byte": 758784
+                "offset_byte": 762880
             }
         },
         {
@@ -80,7 +89,7 @@
             "addressing": {
                 "size_byte": 128,
                 "comments": "offset: 373 * 1024 Byte, size: 128 Byte",
-                "offset_byte": 775168
+                "offset_byte": 779264
             }
         },
         {
@@ -89,7 +98,7 @@
             "addressing": {
                 "size_byte": 33554432,
                 "comments": "size: 16MB",
-                "offset_byte": 775296
+                "offset_byte": 779392
             }
         }
     ]

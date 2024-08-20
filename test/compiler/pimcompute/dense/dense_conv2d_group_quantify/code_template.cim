@@ -119,7 +119,7 @@ def main(null<int8>){
     macros = Buffer(<N_ROW, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __MACRO__);
 
     // Spill
-    local_spill = Buffer(<4>, index, __INPUT_MEMORY__);
+    local_spill = Buffer(<4>, index, __INDEX_MEMORY__);
 
     // TODO: Add 'SPECIAL_REG_' prefix for these macro.
     SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
