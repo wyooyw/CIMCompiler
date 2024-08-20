@@ -287,17 +287,27 @@ def main(null<int8>){
 
             // Step 1: Prepare weight
             // notice that weight.shape = <TIME, N_TO, N_GROUP, N_MACRO_PER_GROUP, N_VCOL>
-            use_weight = Slice(global_weight,
-                        [out_tile_i, out_reduce_begin, 0, 0, 0],              // offsets
-                        [1, out_reduce_len, N_COMP, N_GROUP, N_GROUP_VCOL],   // sizes
+            for cp_weight_rel_row in range(out_reduce_len) carry (null){
+                cp_weight_row = cp_weight_rel_row + out_reduce_begin;
+                for cp_weight_comp  in range(N_COMP) carry (null){
+                    use_weight = Slice(global_weight,
+                        [out_tile_i, cp_weight_row, cp_weight_comp, 0, 0],              // offsets
+                        [1, 1, 1, 1, N_GROUP_VCOL],   // sizes
                         [1,1,1,1,1]                                           // strides
-                        );
+                    );
+                    use_macros = Slice(macros,
+                        [cp_weight_rel_row, cp_weight_comp, 0, 0],
+                        [1, 1, 1, N_GROUP_VCOL],
+                        [1,1,1,1]
+                    );
+                    Trans(use_weight, use_macros);
+                };
+            };
             use_macros = Slice(macros,
                 [0, 0, 0, 0],
                 [out_reduce_len, N_COMP, N_GROUP, N_GROUP_VCOL],
                 [1,1,1,1]
             );
-            Trans(use_weight, use_macros);
 
             // save meta
             use_meta = Slice(global_meta,
@@ -368,13 +378,13 @@ def main(null<int8>){
                     // activate macro
                     activate_macro = Slice(use_macros,
                         [row_to_activate, 0, 0, 0],
-                        [1,  N_COMP, N_GROUP, N_GROUP_VCOL],
+                        [1,  N_COMP, 1, N_GROUP_VCOL],
                         [1,1,1,1]
                     );
                     // this is an uncontinous subview!!!
                     compute_use_input_buffer = Slice(use_input_buffer,
                         [0, 0, input_begin_in_buffer],
-                        [1, N_GROUP, input_len],
+                        [1, 1, input_len],
                         [1, 1, 1]
                     );
                     // Print(meta_addr);
