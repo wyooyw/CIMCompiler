@@ -81,15 +81,18 @@ def convert_bit_sparse_conv2d_weight(weight, value_sparse_weight, cim_cfg, mappi
     total_threshold = []
     total_outsum_mask = np.zeros((out_spatial_time, n_macro_per_group, n_bcol), dtype=np.int8)
     total_transfer_mask = np.zeros((out_spatial_time, n_macro_per_group, n_bcol), dtype=np.int8)
+    total_pimset_mask = np.zeros((out_spatial_time, n_macro_per_group, n_bcol), dtype=np.int8)
     for outer_oc in range(0, out_channel, n_filter_per_group):
         group_threshold = []
         outsum_mask_per_group = []
         transfer_mask_per_group = []
+        pimset_mask_per_group = []
 
         for middle_oc in range(0, n_filter_per_group, n_filter_per_macro):
             # macro_threshold = []
             outsum_mask_per_macro = []
             transfer_mask_per_macro = []
+            pimset_mask_per_macro = []
 
             for inner_oc in range(0, n_filter_per_macro):
                 oc = outer_oc + middle_oc + inner_oc
@@ -97,6 +100,7 @@ def convert_bit_sparse_conv2d_weight(weight, value_sparse_weight, cim_cfg, mappi
                     total_threshold.append(1)
                     outsum_mask_per_macro.append(0)
                     transfer_mask_per_macro.append(0)
+                    pimset_mask_per_macro.append(0)
                     continue
                 one_filter_threshold = weight_bit_num[:,:,:,oc].max()
                 assert one_filter_threshold > 0
@@ -107,15 +111,22 @@ def convert_bit_sparse_conv2d_weight(weight, value_sparse_weight, cim_cfg, mappi
                 if one_filter_threshold == 2:
                     outsum_mask_per_macro.append(1)
                     outsum_mask_per_macro.append(0)
+
                     transfer_mask_per_macro.append(1)
                     transfer_mask_per_macro.append(0)
+
+                    pimset_mask_per_macro.append(1)
+                    pimset_mask_per_macro.append(1)
+
                 elif one_filter_threshold == 1:
                     outsum_mask_per_macro.append(0)
                     transfer_mask_per_macro.append(1)
+                    pimset_mask_per_macro.append(1)
                 else:
                     assert False
             # group_threshold.append(macro_threshold)
             assert len(outsum_mask_per_macro) == len(transfer_mask_per_macro)
+            assert len(outsum_mask_per_macro) == len(pimset_mask_per_macro)
             assert len(outsum_mask_per_macro) <= n_bcol
             outsum_mask_per_macro = np.array(outsum_mask_per_macro, dtype=np.int8)
             outsum_mask_per_macro = np.pad(outsum_mask_per_macro, (0, n_bcol - len(outsum_mask_per_macro)), mode='constant', constant_values=0)
@@ -124,6 +135,10 @@ def convert_bit_sparse_conv2d_weight(weight, value_sparse_weight, cim_cfg, mappi
             transfer_mask_per_macro = np.array(transfer_mask_per_macro, dtype=np.int8)
             transfer_mask_per_macro = np.pad(transfer_mask_per_macro, (0, n_bcol - len(transfer_mask_per_macro)), mode='constant', constant_values=0)
             transfer_mask_per_group.append(transfer_mask_per_macro)
+
+            pimset_mask_per_macro = np.array(pimset_mask_per_macro, dtype=np.int8)
+            pimset_mask_per_macro = np.pad(pimset_mask_per_macro, (0, n_bcol - len(pimset_mask_per_macro)), mode='constant', constant_values=0)
+            pimset_mask_per_group.append(pimset_mask_per_macro)
 
         outsum_mask_per_group = np.stack(outsum_mask_per_group, axis=0)
         outsum_mask_per_group = np.pad(outsum_mask_per_group, ((0, n_macro_per_group - len(outsum_mask_per_group)), (0,0)), mode='constant', constant_values=0)
@@ -135,15 +150,22 @@ def convert_bit_sparse_conv2d_weight(weight, value_sparse_weight, cim_cfg, mappi
         assert len(transfer_mask_per_group.shape)==2
         assert transfer_mask_per_group.shape[0]==n_macro_per_group and transfer_mask_per_group.shape[1]==n_bcol
 
+        pimset_mask_per_group = np.stack(pimset_mask_per_group, axis=0)
+        pimset_mask_per_group = np.pad(pimset_mask_per_group, ((0, n_macro_per_group - len(pimset_mask_per_group)), (0,0)), mode='constant', constant_values=0)
+        assert len(pimset_mask_per_group.shape)==2
+        assert pimset_mask_per_group.shape[0]==n_macro_per_group and pimset_mask_per_group.shape[1]==n_bcol
+
         outer_oc_idx = outer_oc//n_filter_per_group
         print(f"f{total_outsum_mask.shape=}, {outsum_mask_per_group.shape=}")
         total_outsum_mask[outer_oc_idx,:,:] = outsum_mask_per_group
         total_transfer_mask[outer_oc_idx,:,:] = transfer_mask_per_group
+        total_pimset_mask[outer_oc_idx,:,:] = pimset_mask_per_group
 
     assert len(total_threshold) == int(math.ceil(out_channel / n_filter_per_group) * n_filter_per_group)
     
     total_outsum_mask = total_outsum_mask.reshape(total_outsum_mask.shape[0], -1)
     total_transfer_mask = total_transfer_mask.reshape(total_transfer_mask.shape[0], -1)
+    total_pimset_mask = total_pimset_mask.reshape(total_pimset_mask.shape[0], -1)
     
     # step 2: transform value-sparse weight to value-bit-sparse weight
     time, n_to, n_macro_per_group, n_vcol = value_sparse_weight.shape
@@ -207,12 +229,14 @@ def convert_bit_sparse_conv2d_weight(weight, value_sparse_weight, cim_cfg, mappi
 
     total_outsum_mask = total_outsum_mask.astype(np.int8)
     total_transfer_mask = total_transfer_mask.astype(np.int8)
+    total_pimset_mask = total_pimset_mask.astype(np.int8)
 
     return {
         "converted_weight": new_weight,
         "meta": info,
         "outsum_mask": total_outsum_mask,
-        "transfer_mask": total_transfer_mask
+        "transfer_mask": total_transfer_mask,
+        "pimset_mask": total_pimset_mask
     }
     
 

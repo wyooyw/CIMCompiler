@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from utils.df_layout import tensor_bits_to_int8
 def convert_dense_conv2d_weight(weight, macro_config):
     """
     weight: [oc,ic,kh,kw]
@@ -46,7 +47,13 @@ def convert_dense_conv2d_weight(weight, macro_config):
     weight = np.transpose(weight, (0, 2, 3, 4, 1))
     # weight = weight.reshape(out_spatial_tile, out_reduce_tile, n_comp, n_group, n_group_vcol)
 
-    return weight
+    # create pimset_mask
+    pimset_mask = np.ones((out_spatial_tile, n_group_vcol), dtype=np.int8)
+    pimset_mask[-1, n_group_vcol-spatial_pad_size:] = 0
+    pimset_mask = pimset_mask.reshape(pimset_mask.shape[0], pimset_mask.shape[1]//8, 8)
+    pimset_mask = tensor_bits_to_int8(pimset_mask)
+
+    return weight, pimset_mask
 
 def extract_non_zero_mask_2d(weight3d, strict_align=False):
     """
@@ -308,7 +315,7 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
                 mapping_macro_to_row.append(row_in_macro)
                 macro_in_reduce += 1
                 reduce_element += from_in_macro * n_from
-            print(f"{reduce_element=},  {i_outer_reduce=}")
+            # print(f"{reduce_element=},  {i_outer_reduce=}")
             # if macro_fill:
             #     break
 
@@ -331,13 +338,21 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
 
     # mask.shape : [t, n_from, n_macro_per_group] -> [t, n_macro_per_group, n_from]
     mask = np.transpose(mask, [0,2,1]).astype(np.int8)
+
+    # create pimset_mask
+    pimset_mask = np.ones((out_spatial_tile, n_group_vcol), dtype=np.int8)
+    pimset_mask[-1, n_group_vcol-spatial_pad_size:] = 0
+    pimset_mask = pimset_mask.reshape(pimset_mask.shape[0], pimset_mask.shape[1]//8, 8)
+    pimset_mask = tensor_bits_to_int8(pimset_mask)
+
     return {
         "converted_weight":converted_weight, 
         "mask": mask, 
         "mapping_reduce_to_macro": mapping_reduce_to_macro,
         "mapping_macro_to_from": mapping_macro_to_from,
         "mapping_from_to_row": mapping_from_to_row,
-        "mapping_macro_to_row": mapping_macro_to_row
+        "mapping_macro_to_row": mapping_macro_to_row,
+        "pimset_mask":pimset_mask
     }
 
 def test_extrace_mask_and_data():
@@ -353,10 +368,10 @@ def test_extrace_mask_and_data():
     ])
     # n_from, n_macro, n_vcol -> n_vcol, n_from, n_macro
     weight = np.transpose(weight, (2, 0, 1))
-    print(weight.shape)
+    # print(weight.shape)
     mask,data = extrace_mask_and_data(weight, 8, 4, False, False)
-    print(mask)
-    print(data)
+    # print(mask)
+    # print(data)
     np.save("test/data_processor/golden/test_extrace_mask_and_data/mask.npy", mask)
     np.save("test/data_processor/golden/test_extrace_mask_and_data/data.npy", data)
 
@@ -382,16 +397,16 @@ def test_convert_value_sparse_conv2d_weight():
     }
 
     converted_weight, mask, index = convert_value_sparse_conv2d_weight(weight, macro_config)
-    print(f"{converted_weight.shape=} ([time, n_to, n_group, n_macro_per_group, n_vcol])")
-    print(converted_weight)
+    # print(f"{converted_weight.shape=} ([time, n_to, n_group, n_macro_per_group, n_vcol])")
+    # print(converted_weight)
     time, n_to, n_group, n_macro_per_group, n_vcol = converted_weight.shape
     converted_weight = converted_weight.reshape(time, n_to, n_group, -1)
-    print(f"{converted_weight.shape=} ([time, n_to, n_group, n_macro_per_group * n_vcol])")
-    print(converted_weight)
-    print(f"{mask.shape=}")
-    print(mask)
-    print(f"{index.shape=}")
-    print(index)
+    # print(f"{converted_weight.shape=} ([time, n_to, n_group, n_macro_per_group * n_vcol])")
+    # print(converted_weight)
+    # print(f"{mask.shape=}")
+    # print(mask)
+    # print(f"{index.shape=}")
+    # print(index)
     np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight/converted_weight.npy", converted_weight)
     np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight/mask.npy", mask)
     np.save("test/data_processor/golden/test_convert_value_sparse_conv2d_weight/index.npy", index)
@@ -467,7 +482,13 @@ def convert_dense_depthwise_conv2d_weight(weight, macro_config):
     assert weight.shape==(oc, reduce_size, n_group, n_group_vcol)
     assert reduce_size <= n_comp
 
-    return weight
+    # create pimset_mask
+    pimset_mask = np.ones((n_group_vcol,), dtype=np.int8)
+    pimset_mask[1:] = 0
+    pimset_mask = pimset_mask.reshape(pimset_mask.shape[0]//8, 8)
+    pimset_mask = tensor_bits_to_int8(pimset_mask)
+
+    return weight, pimset_mask
 
 if __name__=="__main__":
         # 2 * 2 * 8 * n

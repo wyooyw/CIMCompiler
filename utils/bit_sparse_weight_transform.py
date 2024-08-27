@@ -397,6 +397,7 @@ def outsum_mask_to_transfer_mask(outsum_mask):
 def parse_out_mask_and_transfer_mask(fold, padding_to):
     out_mask_list = []
     transfer_mask_list = []
+    pimset_mask_list = []
     for i in range(len(fold)):
         out_mask = parse_out_mask(fold[i])
         transfer_mask = outsum_mask_to_transfer_mask(out_mask)
@@ -411,9 +412,15 @@ def parse_out_mask_and_transfer_mask(fold, padding_to):
         transfer_mask = np.pad(transfer_mask, ((0, padding_to - transfer_mask.shape[0])), mode='constant', constant_values=0)
         out_mask_list.append(out_mask)
         transfer_mask_list.append(transfer_mask)
+
+        useful_col_num_in_group = sum(fold[i])
+        pimset_mask = np.ones((useful_col_num_in_group,),dtype=np.int8)
+        pimset_mask = np.pad(pimset_mask, ((0, padding_to - pimset_mask.shape[0])), mode='constant', constant_values=0)
+        pimset_mask_list.append(pimset_mask)
     
     np_out_mask = np.stack(out_mask_list, axis=0)
     np_transfer_mask = np.stack(transfer_mask_list, axis=0)
+    np_pimset_mask = np.stack(pimset_mask_list, axis=0)
 
     assert len(np_out_mask.shape)==2
     assert np_out_mask.shape[1] % 8 == 0
@@ -424,7 +431,12 @@ def parse_out_mask_and_transfer_mask(fold, padding_to):
     np_transfer_mask = np_transfer_mask.reshape(-1, np_transfer_mask.shape[1]//8, 8)
     np_transfer_mask = tensor_bits_to_int8(np_transfer_mask)
 
-    return np_out_mask, np_transfer_mask
+    # import pdb; pdb.set_trace()
+    np_pimset_mask = np_pimset_mask.reshape(-1, np_pimset_mask.shape[1]//8, 8)
+    np_pimset_mask = tensor_bits_to_int8(np_pimset_mask)
+    
+
+    return np_out_mask, np_transfer_mask, np_pimset_mask
 
 def parse_out_begin_channel(fold):
     out_channel_begin = [0]
@@ -446,12 +458,12 @@ def find_nonzero_filter(weight):
     return keep_oc
 
 if __name__=="__main__":
-    # for i in range(-128,129):
-    #     csd_8 = int_to_csd(i)
-    #     csd_16 = int_to_csd(i,16)
-    #     assert csd_16[8:]==csd_8
-    #     print(f"{i}:",int_to_csd(i,8))
-
+    for i in range(-127,127):
+        csd_8 = int_to_csd(i)
+        csd_16 = int_to_csd(i,16)
+        assert csd_16[8:]==csd_8
+        print(f"{i}:",int_to_csd(i,8))
+    exit()
     # num = 16
     # result = parse(num)
     # for i in result:
