@@ -26,10 +26,26 @@
 
 #define WINDOW_SIZE {{WINDOW_SIZE}}
 
+{% if IM2COL %}
+    {% include 'lib/input_loader_im2col_dw.cim' %}
+{% else %}
+    {% include 'lib/input_loader_dw.cim' %}
+{% endif %}
+
+
 def main(null<int8>){
     // input, weight, mask and index will be prepared in memory image
-    global_input = Buffer(<INPUT_CHANNEL, INPUT_ROW, INPUT_COL>, int8, __GLOBAL__);
+    {% if IM2COL %}
+        global_input = Buffer(<INPUT_CHANNEL, {{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __GLOBAL__);
+    {% else %}
+        global_input = Buffer(<INPUT_CHANNEL, INPUT_ROW, INPUT_COL>, int8, __GLOBAL__);
+    {% endif %}
     global_weight = Buffer(<OUTPUT_CHANNEL, WINDOW_SIZE, N_GROUP, N_GROUP_VCOL>, int8, __GLOBAL__);
+
+    global_pimset_mask = Buffer(<N_GROUP_VCOL>, int1, __GLOBAL__);
+    local_pimset_mask = Buffer(<N_GROUP_VCOL>, int1, __INPUT_MEMORY__);
+    Trans(global_pimset_mask, local_pimset_mask);
+    
     
     // prepare quantify buffers
     global_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __GLOBAL__);
@@ -47,8 +63,11 @@ def main(null<int8>){
     
     // Copy input and index into local memory
     // dwconv use [I,H,W] axis order
-    local_input = Buffer(<INPUT_CHANNEL, INPUT_ROW, INPUT_COL>, int8, __INPUT_MEMORY__);
-    Trans(global_input, local_input);
+    {% if IM2COL %}
+        local_input = Buffer(<1, {{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __INPUT_MEMORY__);
+    {% else %}
+        local_input = Buffer(<1, INPUT_ROW, INPUT_COL>, int8, __INPUT_MEMORY__);
+    {% endif %}
 
     // PIM input reg buffer, it is a double-buffer. Each group use 128 byte, total 4 groups.
     pim_input_reg_buffer = Buffer(<2,N_GROUP,INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__);
@@ -76,7 +95,20 @@ def main(null<int8>){
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
     SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
 
+    CIMSet(local_pimset_mask); // this should after set SPECIAL_REG_WEIGHT_BIT_WIDTH
+
     for out_channel_begin in range(0, OUTPUT_CHANNEL) carry (null) {
+
+        {% if IM2COL %}
+            use_global_input = Slice(global_input, 
+                [out_channel_begin, 0, 0], [1, {{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}], [1,1,1]
+            );
+        {% else %}
+            use_global_input = Slice(global_input, 
+                [out_channel_begin, 0, 0], [1, INPUT_ROW, INPUT_COL], [1,1,1]
+            );
+        {% endif %}
+        Trans(use_global_input, local_input);
 
         use_bias_scale = Slice(local_bias_scale,
             [out_channel_begin, 0],
@@ -114,29 +146,13 @@ def main(null<int8>){
                     [1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP], 
                     [1,1,1]
                 );
-                for g in range(N_GROUP) carry(null){
-                    delta_h = g / 2;
-                    delta_w = g % 2;
-                    ih = oh + delta_h;
-                    iw = ow + delta_w;
-                    ih = ih * {{STRIDE}};
-                    iw = iw * {{STRIDE}};
-                    for ker_row in range(KERNEL_SIZE) carry(null){
-                        ih = ih + ker_row;
-                        
-                        use_local_input = Slice(local_input, 
-                            [out_channel_begin, ih, iw],
-                            [1, 1, KERNEL_SIZE],
-                            [1,1,1]
-                        );
-                        group_use_input_buffer = Slice(use_input_buffer,
-                            [0, g, ker_row * KERNEL_SIZE],
-                            [1, 1, KERNEL_SIZE],
-                            [1, 1, 1]
-                        );
-                        Trans(use_local_input, group_use_input_buffer);
-                    };
-                };
+                copy_input_to_input_buffer_dw(null,
+                    local_input,
+                    use_input_buffer,
+                    oh,
+                    ow,
+                    out_channel_begin
+                );
 
                 // Step 4: compute
                 activate_macro = Slice(use_macros,
