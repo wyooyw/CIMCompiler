@@ -618,6 +618,36 @@ src_addr,
   instr_list.push_back(inst);
 }
 
+
+static void codeGen(mlir::cimisa::CIMSetOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+    std::set<int> &def, std::set<int> &use){
+  /*
+  pim设置：pim-set
+  设置pim单元的一些参数，以每个MacroGroup为单位进行设置，设置的参数包括每个macro激活的element列等
+  - [31, 30]，2bit：class，指令类别码，值为00
+  - [29, 28]，2bit：type，指令类型码，值为01
+  - [27, 21]，7bit：reserve，保留字段
+  - [20, 20]，1bit：group broadcast，表示是否进行设置的组广播
+    - 0：不进行组广播，即仅对单个MacroGroup进行设置，MacroGroup编号由寄存器rs1给出
+    - 1：进行组广播，即对所有MacroGroup进行该次设置，此时忽略寄存器rs1
+  - [19, 15]，5bit：rs1，通用寄存器1，表示单播时设置的MacroGroup编号
+  - [14, 10]，5bit：rs2，通用寄存器2，表示一个MacroGroup内所有Macro激活element列的掩码mask地址
+    - 每个element列对应1bit mask，0表示不激活，1表示激活
+    - 每个Macro的mask从前到后依次排布，连续存储
+  - [9, 0]，10bit：reserve，保留字段
+  */
+  int mask_addr = getReg(regmap, op.getOperand());
+  use.insert(mask_addr);
+  Inst inst = {
+    {"class", 0b00},
+    {"type", 0b01},
+    {"group_broadcast", 1},
+    {"rs1", 0},
+    {"rs2", mask_addr}
+  };
+  instr_list.push_back(inst);
+}
+
 /*
   ControlFlow
   BranchOp, CondBranchOp
@@ -1074,6 +1104,8 @@ static void codeGen(std::vector<Block*> &blocks,
       }else if(auto _op = dyn_cast<mlir::cimisa::CIMOutputSumOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::CIMTransferOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::CIMSetOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::TransOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);

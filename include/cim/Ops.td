@@ -263,4 +263,17 @@ def CIMTransferOp : CIM_Op<"cim_transfer"> {
   let hasFolder = 1;
 }
 
+def CIMSetOp : CIM_Op<"cim_set"> {
+  let summary = "cim set";
+  let description = [{
+    cim set
+  }];
+
+  let arguments = (ins 
+    AnyMemRef:$mask
+  );
+
+  let hasFolder = 1;
+}
+
 #endif // CIM_OPS

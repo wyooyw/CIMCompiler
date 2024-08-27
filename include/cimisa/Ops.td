@@ -129,6 +129,18 @@ def CIMTransferOp : CIMISA_Op<"cim_transfer"> {
 
 }
 
+def CIMSetOp : CIMISA_Op<"cim_set"> {
+  let summary = "cim set";
+  let description = [{
+    cim set
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$mask_addr
+  );
+
+}
+
 /////////////////////////////////
 // Other Operator //
 /////////////////////////////////

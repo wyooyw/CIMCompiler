@@ -695,6 +695,28 @@ namespace {
       }
     };
 
+    struct CIMSetOpLowering : public OpRewritePattern<cim::CIMSetOp> {
+      using OpRewritePattern<cim::CIMSetOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::CIMSetOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "CIMSetOpLowering::matchAndRewrite begin" << std::endl;
+        Value mask_addr = getAddrValue(op.getOperand(), rewriter);
+        if (!mask_addr) {
+          std::cerr << "CIMSetOpLowering::matchAndRewrite fail" << std::endl;
+          std::exit(1);
+        }
+        rewriter.replaceOpWithNewOp<cimisa::CIMSetOp>(op, 
+          mask_addr
+        );
+        std::cout << "CIMSetOpLowering::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
+
     struct AddrOpLowering : public OpRewritePattern<cim::AddrOp> {
       using OpRewritePattern<cim::AddrOp>::OpRewritePattern;
 
@@ -762,7 +784,7 @@ void CIMLoweringPass::runOnOperation() {
   patterns.add<TransOpLowering,CIMComputeOpLowering,LoadOpLowering,StoreOpLowering,
               VVAddOpLowering, SpecialRegSetOpLowering, CIMOutputOpLowering,
               CIMOutputSumOpLowering, CIMTransferOpLowering,QuantifyOpLowering,
-              AddrOpLowering>(
+              AddrOpLowering, CIMSetOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

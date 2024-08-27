@@ -495,6 +495,9 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree& ast){
     }else if(call_func_name=="CIMTransfer"){
         parse_bulitin_cimtransfer(ast);
         return;
+    }else if(call_func_name=="CIMSet"){
+        parse_bulitin_cimset(ast);
+        return;
     }else if(call_func_name=="Save") {
         parse_bulitin_save(ast);
         return;
@@ -830,6 +833,19 @@ void MLIRGenImpl::parse_bulitin_cimtransfer(const boost::property_tree::ptree& a
     mlir::Value dst = parse_expr(safe_get_child(get_item(ast_dst, 0), "expr"));
 
     builder.create<mlir::cim::CIMTransferOp>(loc, src, output_num, output_mask, buffer, dst);
+
+}
+
+void MLIRGenImpl::parse_bulitin_cimset(const boost::property_tree::ptree& ast){
+    std::cout << "parse_bulitin_cimset" << std::endl;
+
+    auto ast_param_list = safe_get_child(get_item(ast,2), "call_param_list");
+
+    auto ast_mask = safe_get_child(get_item(ast_param_list,0), "call_param");
+
+    mlir::Value mask = parse_expr(safe_get_child(get_item(ast_mask, 0), "expr"));
+
+    builder.create<mlir::cim::CIMSetOp>(loc, mask);
 
 }
 

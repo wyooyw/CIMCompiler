@@ -132,6 +132,7 @@ private:
     void parse_bulitin_cimoutput(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimoutput_sum(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimtransfer(const boost::property_tree::ptree& ast);
+    void parse_bulitin_cimset(const boost::property_tree::ptree& ast);
     void parse_bulitin_special_reg_set(const boost::property_tree::ptree& ast);
     // mlir::Value parse_bulitin_reshape(const boost::property_tree::ptree& ast);
 

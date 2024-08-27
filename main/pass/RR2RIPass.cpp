@@ -612,7 +612,8 @@ void RR2RIPass::runOnOperation() {
   patterns.add<AddIOpConvert, SubIOpConvert, MulIOpConvert, DivSIOpConvert, RemSIOpConvert, MinSIOpConvert, 
       StoreBaseAndOffsetOpConvert, LoadBaseAndOffsetOpConvert,
       TransOpConvert, CIMTransferOpConvert,
-      CIMComputeOpConvert, VVAddOpConvert, CIMOutputSumOpConvert, QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert
+      CIMComputeOpConvert,
+      VVAddOpConvert, CIMOutputSumOpConvert, QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert
       >(
       &getContext());
       // ForOpConvert
