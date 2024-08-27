@@ -48,7 +48,7 @@ class InstClass(Enum):
 
 class PIMInstType(Enum):
     PIM_COMPUTE = 0 # 0b00
-    PIM_BATCH = 1 # 0b01
+    PIM_SET = 1 # 0b01
     PIM_OUTPUT = 2 # 0b10
     PIM_TRANSFER = 3 # 0b11
 
@@ -420,6 +420,8 @@ class Simulator:
             self._run_pim_class_pim_output_type_inst(inst)
         elif inst_type==PIMInstType.PIM_TRANSFER.value:
             self._run_pim_class_pim_transfer_type_inst(inst)
+        elif inst_type==PIMInstType.PIM_SET.value:
+            self._run_pim_class_pim_set_type_inst(inst)
         else:
             assert False, f"Not support"
 
@@ -922,6 +924,13 @@ class Simulator:
             weight_data = group_weight_data[group_id]
             # logging.debug(f"{input_data=}, {weight_data=}")
 
+            # use pimset to mask weight
+            assert self.pimset_mask is not None
+            assert len(self.pimset_mask) == weight_data.shape[1], f"{len(self.pimset_mask)=}, {weight_data.shape[1]=}"
+            assert self.pimset_mask.dtype==bool, f"{self.pimset_mask.dtype=}"
+            weight_data[:, self.pimset_mask] = 0
+            # import pdb; pdb.set_trace()
+
             assert input_data.ndim==1
             assert weight_data.ndim==2, f"{weight_data.shape=}"
             out_dtype = get_dtype_from_bitwidth(output_bw)
@@ -1013,6 +1022,12 @@ class Simulator:
             input_data = group_input_data[group_id]
             weight_data = group_weight_data[group_id]
             # logging.debug(f"{input_data=}, {weight_data=}")
+
+            # use pimset to mask weight
+            assert self.pimset_mask is not None
+            assert len(self.pimset_mask) == weight_data.shape[1], f"{len(self.pimset_mask)=}, {weight_data.shape[1]=}"
+            assert self.pimset_mask.dtype==bool, f"{self.pimset_mask.dtype=}"
+            weight_data[:, self.pimset_mask] = 0
 
             assert input_data.ndim==1
             assert weight_data.ndim==2, f"{weight_data.shape=}"
@@ -1149,6 +1164,42 @@ class Simulator:
         # import pdb; pdb.set_trace()
         assert filtered_data.size == output_mask.sum(), f"{filtered_data.size=}, {data.sum()=}"
         self.memory_space.write(filtered_data, dst_addr, filtered_data.size * output_byte)
+
+    def _run_pim_class_pim_set_type_inst(self, inst):
+        """
+        pim设置：pim-set
+        设置pim单元的一些参数，以每个MacroGroup为单位进行设置，设置的参数包括每个macro激活的element列等
+        - [31, 30]，2bit：class，指令类别码，值为00
+        - [29, 28]，2bit：type，指令类型码，值为01
+        - [27, 21]，7bit：reserve，保留字段
+        - [20, 20]，1bit：group broadcast，表示是否进行设置的组广播
+        - 0：不进行组广播，即仅对单个MacroGroup进行设置，MacroGroup编号由寄存器rs1给出
+        - 1：进行组广播，即对所有MacroGroup进行该次设置，此时忽略寄存器rs1
+        - [19, 15]，5bit：rs1，通用寄存器1，表示单播时设置的MacroGroup编号
+        - [14, 10]，5bit：rs2，通用寄存器2，表示一个MacroGroup内所有Macro激活element列的掩码mask地址
+        - 每个element列对应1bit mask，0表示不激活，1表示激活
+        - 每个Macro的mask从前到后依次排布，连续存储
+        - [9, 0]，10bit：reserve，保留字段
+        """
+        assert inst["group_broadcast"]==1, "Only support group broadcast"
+        mask_addr = self.read_general_reg(inst["rs2"])
+        
+        group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
+        vcol = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
+        n_vcol_per_group = self.macro_config.n_vcol(vcol) * group_size
+        mask_size = n_vcol_per_group // 8
+
+        mask_data = self.memory_space.read_as(mask_addr, mask_size, np.int8)
+        mask_data = tensor_int8_to_bits(mask_data)
+        mask_data = mask_data.reshape(-1)
+        self.stats_util.record_pimset_mask(mask_data.tolist(), vcol)
+
+        # import pdb; pdb.set_trace()
+        mask_data = mask_data.astype(bool)
+        mask_data = ~mask_data
+        self.pimset_mask = mask_data.copy()
+
+        
 
     def _run_debug_class_inst(self, inst):
         if inst["type"]==0: #print
