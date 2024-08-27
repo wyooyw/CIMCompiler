@@ -34,8 +34,12 @@ class FlatInstUtil:
         
         self.flat_general_rf = np.zeros([32], dtype=np.int32)
         self.flat_special_rf = np.zeros([32], dtype=np.int32)
+        self.last_access_time = np.zeros([32], dtype=np.int32)
 
         self.flat_inst_list = []
+
+        self.max_int32 = np.iinfo(np.int32).max
+
 
     def get_flat_code(self):
         return copy.deepcopy(self.flat_inst_list)
@@ -58,7 +62,7 @@ class FlatInstUtil:
             "imm": imm.item()
         }
     
-    def _load_general_regs(self, regs):
+    def _load_general_regs(self, inst, regs_name, idx):
         """
         通用寄存器立即数赋值指令：general-li
         指令字段划分：
@@ -68,11 +72,71 @@ class FlatInstUtil:
         - [25, 21]，5bit：rd，通用寄存器编号，即要赋值的通用寄存器
         - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
         """
+        regs = [inst[reg] for reg in regs_name]
+
         assert type(regs)==list
         for reg in regs:
             if not self.flat_general_rf[reg] == self.general_rf[reg]:
                 self.flat_general_rf[reg] = self.general_rf[reg]
                 self.flat_inst_list.append(self._li_general_inst(reg, self.general_rf[reg]))
+
+
+    # def _load_general_regs(self, inst, regs_name, idx):
+    #     """
+    #     通用寄存器立即数赋值指令：general-li
+    #     指令字段划分：
+    #     - [31, 30]，2bit：class，指令类别码，值为10
+    #     - [29, 28]，2bit：type，指令类型码，值为11
+    #     - [27, 26]，2bit：opcode，指令操作码，值为00
+    #     - [25, 21]，5bit：rd，通用寄存器编号，即要赋值的通用寄存器
+    #     - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
+    #     """
+        
+    #     regs = [inst[reg] for reg in regs_name]
+        
+    #     assert type(regs)==list
+    #     new_regs = copy.deepcopy(regs)
+    #     need_alloc_regs = []
+    #     use_old_regs = []
+    #     for i_reg, reg in enumerate(regs):
+    #         need_value = self.general_rf[reg]
+    #         # if need_value==660480:
+    #         #     import pdb; pdb.set_trace()
+    #         if (self.flat_general_rf==need_value).any():
+    #             # get index
+    #             new_reg = np.where(self.flat_general_rf==need_value)[0][0]
+    #             new_regs[i_reg] = new_reg.item()
+    #             use_old_regs.append(i_reg)
+    #         else:
+    #             need_alloc_regs.append(i_reg)
+    #     # if self.general_rf[regs[0]]==883840:
+    #     #     import pdb; pdb.set_trace()
+    #     last_access_time = self.last_access_time.copy()
+    #     for lock_reg in use_old_regs:
+    #         last_access_time[new_regs[lock_reg]] = self.max_int32
+    #     for i_reg in need_alloc_regs:
+    #         need_value = self.general_rf[regs[i_reg]]
+    #         use_reg = last_access_time.argmin().item()
+    #         last_access_time[use_reg] = self.max_int32
+    #         self.flat_general_rf[use_reg] = need_value
+    #         self.flat_inst_list.append(self._li_general_inst(use_reg, need_value))
+    #         new_regs[i_reg] = use_reg
+            
+    #     for i_reg, reg in enumerate(new_regs):
+    #         self.last_access_time[reg] = idx
+        
+    #     origin_values = [self.general_rf[reg] for reg in regs]
+    #     new_values = [self.flat_general_rf[reg] for reg in new_regs]
+    #     assert origin_values==new_values, f"{origin_values=}, {new_values=}"
+    #     # print([self.flat_general_rf[reg] for reg in new_regs])
+    #     # print(f"{inst=}")
+        
+    #     for i_reg, reg in enumerate(regs_name):
+    #         inst[reg] = new_regs[i_reg]
+    #         # print(type(inst[reg]))
+    #     # print(f"{inst=}")
+    #     # import pdb; pdb.set_trace()
+        
 
     def _load_special_regs(self, regs):
         """
@@ -91,32 +155,36 @@ class FlatInstUtil:
                 self.flat_special_rf[reg] = self.special_rf[reg]
                 self.flat_inst_list.append(self._li_special_inst(reg, self.special_rf[reg]))
 
-    def flat_inst(self, inst):
+    def flat_inst(self, inst, idx):
+        inst = copy.deepcopy(inst)
         if inst["class"]==0b110 and inst["type"]==0b0: # trans
-            self._flat_trans(inst)
+            self._flat_trans(inst, idx)
         elif inst["class"]==0b00 and inst["type"]==0b00: # pim_compute
-            self._flat_pim_compute(inst)
+            self._flat_pim_compute(inst, idx)
+        elif inst["class"]==0b00 and inst["type"]==0b01: # pim_set
+            self._flat_pim_set(inst, idx)
         elif inst["class"]==0b00 and inst["type"]==0b10: # pim_output
-            # self._flat_pim_output(inst)
+            # self._flat_pim_output(inst, idx)
             pass
         elif inst["class"]==0b00 and inst["type"]==0b11: # pim_transfer
-            # self._flat_pim_transfer(inst)
+            # self._flat_pim_transfer(inst, idx)
             pass
         elif inst["class"]==0b01: # simd
-            self._flat_simd(inst)
+            self._flat_simd(inst, idx)
         else:
             assert inst["class"] in [
                 0b10,  # scalar
                 0b110, # trans
-                0b111  # branch
+                0b111,  # branch
+                -1,     #bebug
             ], f"Unsupported instruction class: {inst['class']}"
 
-    def _flat_trans(self, inst):
-        self._load_general_regs([inst["rs1"], inst["rs2"], inst["rd"]])
+    def _flat_trans(self, inst, idx):
+        self._load_general_regs(inst, ["rs1", "rs2", "rd"], idx)
         self.flat_inst_list.append(inst)
     
-    def _flat_pim_compute(self, inst):
-        self._load_general_regs([inst["rs1"], inst["rs2"], inst["rs3"]])
+    def _flat_pim_compute(self, inst, idx):
+        self._load_general_regs(inst, ["rs1", "rs2", "rs3"], idx)
         self._load_special_regs([
             SpecialReg.INPUT_BIT_WIDTH,
             SpecialReg.OUTPUT_BIT_WIDTH,
@@ -130,8 +198,16 @@ class FlatInstUtil:
         ])
         self.flat_inst_list.append(inst)
 
-    def _flat_simd(self, inst):
-        self._load_general_regs([inst["rs1"], inst["rs2"], inst["rs3"], inst["rd"]])
+    def _flat_pim_set(self, inst, idx):
+        self._load_general_regs(inst, ["rs2"], idx)
+        self._load_special_regs([
+            SpecialReg.WEIGHT_BIT_WIDTH,
+            SpecialReg.GROUP_SIZE
+        ])
+        self.flat_inst_list.append(inst)
+
+    def _flat_simd(self, inst, idx):
+        self._load_general_regs(inst, ["rs1", "rs2", "rs3", "rd"], idx)
         self._load_special_regs([
             SpecialReg.SIMD_INPUT_1_BIT_WIDTH,
             SpecialReg.SIMD_INPUT_2_BIT_WIDTH,
@@ -143,8 +219,8 @@ class FlatInstUtil:
         ])
         self.flat_inst_list.append(inst)
 
-    def _flat_pim_output(self, inst):
-        self._load_general_regs([inst["rs1"], inst["rs2"], inst["rd"]])
+    def _flat_pim_output(self, inst, idx):
+        self._load_general_regs(inst, ["rs1", "rs2", "rd"], idx)
         self._load_special_regs([
             SpecialReg.WEIGHT_BIT_WIDTH,
             SpecialReg.OUTPUT_BIT_WIDTH,
@@ -153,8 +229,8 @@ class FlatInstUtil:
         ])
         self.flat_inst_list.append(inst)
 
-    def _flat_pim_transfer(self, inst):
-        self._load_general_regs([inst["rs1"], inst["rs2"], inst["rs3"], inst["rs4"], inst["rd"]])
+    def _flat_pim_transfer(self, inst, idx):
+        self._load_general_regs(inst, ["rs1", "rs2", "rs3", "rs4", "rd"], idx)
         self._load_special_regs([
             SpecialReg.OUTPUT_BIT_WIDTH
         ])
@@ -165,6 +241,9 @@ class FlatInstUtil:
         with open(file_path, "w") as f:
             f.write("[\n")
             for i,inst in enumerate(self.flat_inst_list):
+                # print(i, inst)
+                # for key,valye in inst.items():
+                #     print(key, valye, type(valye))
                 str_inst = json.dumps(inst)
                 f.write(str_inst)
                 if i < len(self.flat_inst_list)-1:
