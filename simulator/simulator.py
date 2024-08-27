@@ -12,6 +12,7 @@ import logging
 import cProfile
 from utils.round import banker_round
 from simulator.stats_util import StatsUtil
+from simulator.flat_inst_util import FlatInstUtil
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -171,7 +172,7 @@ class MemorySpace:
         assert type(memtype)==list
         for memory in self.memory_space:
             if offset >= memory.offset and (offset+size <= memory.offset+memory.size):
-                assert memory.memtype in memtype, f"require {memtype=}, but get {memory.memtype=}"
+                assert memory.memtype in memtype, f"require {memtype=}, but get {memory.memtype=}. {offset=}, {size=}"
                 return
         assert False, f'can not find memory! {offset=}, {size=}, {memtype=}'
 
@@ -338,10 +339,12 @@ class Simulator:
         self.pbar = tqdm(total=total_pim_compute_count)
         self.pimcompute_cnt = 0
         self.stats_util = StatsUtil()
+        self.flat_inst_util = FlatInstUtil(self.general_rf, self.special_rf)
         while pc < len(code) and cnt < self.safe_time:
             inst = code[pc]
             self.stats_util.record(inst)
             self.stats_util.record_reg_status(pc + 1, cnt, self.general_rf)
+            self.flat_inst_util.flat_inst(inst, cnt)
 
             inst_class = inst["class"]
             if inst_class==InstClass.PIM_CLASS.value:
@@ -372,13 +375,13 @@ class Simulator:
 
         if pc == len(code):
             logging.debug("Run finish!")
-            return self.FINISH, self.stats_util
+            return self.FINISH, self.stats_util, self.flat_inst_util
         elif pc < len(code) and cnt == self.safe_time:
             logging.debug("Meet safe time!")
-            return self.TIMEOUT, self.stats_util
+            return self.TIMEOUT, self.stats_util, self.flat_inst_util
         else:
             print(f"Strange exit situation! {pc=}, {len(code)=}, {cnt=}, {self.safe_time=}")
-            return self.ERROR, self.stats_util
+            return self.ERROR, self.stats_util, self.flat_inst_util
     
     def read_general_reg(self, regid):
         return self.read_reg(self.general_rf, regid)
@@ -399,7 +402,7 @@ class Simulator:
         self.write_reg(self.special_rf, regid, value)
 
     def read_reg(self, rf, regid):
-        assert type(regid)==int, f"{regid=}"
+        assert type(regid)==int, f"{type(regid)=}"
         assert 0 <= regid and regid < rf.shape[0], f"{regid=}"
         return rf[regid]
 
@@ -689,7 +692,7 @@ class Simulator:
         """
         src_base = self.read_general_reg(inst["rs1"])
         dst_base = self.read_general_reg(inst["rd"])
-        offset = self.read_general_reg(inst["offset"])
+        offset = inst["offset"]
         src_offset_mask = inst["source_offset_mask"]
         dst_offset_mask = inst["destination_offset_mask"]
         size = self.read_general_reg(inst["rs2"])
@@ -817,6 +820,16 @@ class Simulator:
     def _run_pim_class_pim_compute_type_inst_value_sparse(self, inst):
         assert False, "Executor not support value sparse yet."
 
+    def _stats_macro_util(self, macro_id, group_size, n_use_comp, width_bw):
+        pimset_mask = self.pimset_mask.reshape(group_size, -1)
+        n_comp = self.macro_config.n_comp
+        n_col = self.macro_config.n_bcol
+
+        macro_pimset_mask = ~pimset_mask[macro_id]
+        n_use_col = (macro_pimset_mask.sum() * width_bw).item()
+        if n_use_col > 0 and n_use_comp > 0:
+            self.stats_util.record_macro_ultilize(n_use_comp, n_use_col, n_comp * n_col)
+
     def _value_sparsity_compute(self, inst, input_data, weight_data):
         if inst["value_sparse"]==0:
             return input_data
@@ -848,11 +861,16 @@ class Simulator:
         # logging.debug(f"{weight_data.shape=}")
         # logging.debug(weight_data.reshape(self.macro_config.n_comp, -1))
         # import pdb; pdb.set_trace()
+        pimset_mask = self.pimset_mask.reshape(group_size, -1)
+        n_comp = self.macro_config.n_comp
+        n_col = self.macro_config.n_bcol
+
         output_list = []
         out_dtype = get_dtype_from_bitwidth(output_bw)
         for macro_id in range(group_size):
             # get macro input data
             macro_mask = mask_data[macro_id]
+            # import pdb; pdb.set_trace()
             macro_input_data = input_data[macro_mask]
             # logging.debug(f"{input_data=}, {macro_mask=}, {macro_input_data=}")
             assert macro_input_data.ndim == 1
@@ -865,6 +883,14 @@ class Simulator:
             macro_output = np.dot(macro_input_data.astype(out_dtype), macro_weight.astype(out_dtype))
             # logging.debug(f"{macro_input_data=}, {macro_weight=}, {macro_output=}")
             output_list.append(macro_output)
+
+            n_use_comp = macro_mask.sum().item()
+            # macro_pimset_mask = ~pimset_mask[macro_id]
+            # n_use_col = (macro_pimset_mask.sum() * width_bw).item()
+            # if n_use_col > 0:
+            #     self.stats_util.record_macro_ultilize(n_use_comp, n_use_col, n_comp * n_col)
+            self._stats_macro_util(macro_id, group_size, n_use_comp, width_bw)
+        # import pdb; pdb.set_trace()
         output_data = np.concatenate(output_list)
         # logging.debug(f"{output_data=}")
         return output_data
@@ -937,6 +963,10 @@ class Simulator:
             if value_sparsity:
                 output_data = self._value_sparsity_compute(inst, input_data, weight_data)
             else:
+                for macro_id in range(group_size):
+                    n_use_comp = input_data.size
+                    self._stats_macro_util(macro_id, group_size, n_use_comp, width_bw)
+                    
                 assert 0 < input_data.size and input_data.size <= self.macro_config.n_comp, f"{input_data.size=}, {self.macro_config.n_comp=}"
                 input_data = np.pad(input_data, (0, self.macro_config.n_comp - input_data.size), mode='constant', constant_values=0)
                 assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
@@ -1035,10 +1065,15 @@ class Simulator:
             if value_sparsity:
                 output_data = self._value_sparsity_compute(inst, input_data, weight_data)
             else:
+                for macro_id in range(group_size):
+                    n_use_comp = input_data.size
+                    self._stats_macro_util(macro_id, group_size, n_use_comp, width_bw)
+                
                 assert 0 < input_data.size and input_data.size <= self.macro_config.n_comp, f"{input_data.size=}, {self.macro_config.n_comp=}"
                 input_data = np.pad(input_data, (0, self.macro_config.n_comp - input_data.size), mode='constant', constant_values=0)
                 assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
                 output_data = np.dot(input_data.astype(out_dtype), weight_data.astype(out_dtype))
+                
 
             group_output_data.append(output_data)
         # import pdb; pdb.set_trace()
