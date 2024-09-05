@@ -163,8 +163,10 @@ class DenseConv2dOperator(Operator):
         if check_result:
 
             helper_golden = self.helper._calculate_golden()
-            correct = np.array_equal(golden, output)
-            return output, correct
+            # correct = np.array_equal(golden, output)
+            correct_percent = (golden==output).sum() / golden.size
+            # import pdb; pdb.set_trace()
+            return output, correct_percent
 
         return output, None
 
@@ -203,8 +205,9 @@ class BitSparseConv2dOperator(Operator):
         if check_result:
 
             helper_golden = self.helper._calculate_golden()
-            correct = np.array_equal(golden, output)
-            return output, correct
+            # correct = np.array_equal(golden, output)
+            correct_percent = (golden==output).sum() / golden.size
+            return output, correct_percent
 
         return output, None
 
@@ -244,7 +247,8 @@ class ValueSparseConv2dOperator(Operator):
 
             helper_golden = self.helper._calculate_golden()
             correct = np.array_equal(golden, output)
-            return output, correct
+            correct_percent = (golden==output).sum() / golden.size
+            return output, correct_percent
 
         return output, None
 
