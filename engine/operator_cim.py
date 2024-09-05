@@ -293,8 +293,124 @@ class ValueBitSparseConv2dOperator(Operator):
         if check_result:
 
             helper_golden = self.helper._calculate_golden()
-            correct = np.array_equal(golden, output)
-            return output, correct
+            correct_percent = (golden==output).sum() / golden.size
+            return output, correct_percent
+
+        return output, None
+
+class DenseLinearOperator(Operator):
+    def __init__(self, config_path, template_path, op_config):
+        super().__init__(config_path, template_path, op_config)
+
+    def compile_and_run_from_dataflow_dir(self, df_dir, code_dir, check_result=False):
+        # read data
+        input = np.loadtxt(os.path.join(df_dir, "input.txt"), dtype=np.int8)
+        weight = np.loadtxt(os.path.join(df_dir, "weight.txt"), dtype=np.int8)
+        bias = np.loadtxt(os.path.join(df_dir, "bias.txt"), dtype=np.int32)
+        scale = np.loadtxt(os.path.join(df_dir, "scale.txt"), dtype=np.float32).reshape(-1)
+        out_zp = np.loadtxt(os.path.join(df_dir, "qo.zero_point.txt"), dtype=np.int32).reshape(1)
+        golden = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int32)
+        golden_i8 = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8)
+        # bias = bias.reshape(-1,1,1)
+        # golden = golden - bias
+        # golden_i8 = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8)
+        relu = (golden_i8 >= 0).all()
+
+        # transform data
+        #   input & golden: C,H,W -> H,W,C
+        #   weight: O,I,H,W -> O,H,W,I
+        #   golden output: 
+        #       C,H,W -> H,W,C
+        #       - bias (currently not support bias)
+        input = input.reshape(self.op_config["in_channel"], self.op_config["in_hw"], self.op_config["in_hw"])
+        input = np.transpose(input, (1,2,0))
+        weight = weight.reshape(self.op_config["out_channel"], self.op_config["in_channel"], self.op_config["ker_size"], self.op_config["ker_size"])
+        weight = np.transpose(weight, (0,2,3,1))
+        # golden_i8 = golden_i8.reshape(self.op_config["out_channel"], self.op_config["out_hw"], self.op_config["out_hw"])
+        # golden_i8 = np.transpose(golden_i8, (1,2,0))
+        # assert scale.size==1
+        # scale = scale.repeat(self.op_config["out_channel"], axis=0)
+
+        # compile and run, get output
+        # compile and run, get output
+        output = self.compile_and_run(code_dir, image_kwargs={"input": input, "weight": weight})
+
+        # check result
+        if check_result:
+
+            helper_golden = self.helper._calculate_golden()
+
+            output_data = output + bias
+            output_data = banker_round(output_data * scale) + out_zp
+            clip_min = 0 if relu else -128
+            clip_max = 127
+            output_data = banker_round(np.clip(output_data, clip_min, clip_max))
+            output_data = output_data.astype("int8")
+            output = output_data
+            
+            correct_percent = (golden==output).sum() / golden.size
+            return output, correct_percent
+
+        return output, None
+
+
+class BitSparseLinearOperator(Operator):
+    def __init__(self, config_path, template_path, op_config):
+        super().__init__(config_path, template_path, op_config)
+
+    def compile_and_run_from_dataflow_dir(self, df_dir, code_dir, check_result=False):
+        # read data
+        input = np.loadtxt(os.path.join(df_dir, "input.txt"), dtype=np.int8)
+        weight = np.loadtxt(os.path.join(df_dir, "weight.txt"), dtype=np.int8)
+        bias = np.loadtxt(os.path.join(df_dir, "bias.txt"), dtype=np.int32)
+        scale = np.loadtxt(os.path.join(df_dir, "scale.txt"), dtype=np.float32).reshape(-1)
+        out_zp = np.loadtxt(os.path.join(df_dir, "qo.zero_point.txt"), dtype=np.int32).reshape(1)
+        # golden_i32 = np.loadtxt(os.path.join(df_dir, "output_feature.txt"), dtype=np.int32)
+        golden_i8 = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8)
+        relu = (golden_i8 >= 0).all()
+
+        # transform data
+        #   input & golden: C,H,W -> H,W,C
+        #   weight: O,I,H,W -> O,H,W,I
+        #   golden output: 
+        #       C,H,W -> H,W,C
+        #       - bias (currently not support bias)
+        input = input.reshape(self.op_config["in_channel"], self.op_config["in_hw"], self.op_config["in_hw"])
+        input = np.transpose(input, (1,2,0))
+        weight = weight.reshape(self.op_config["out_channel"], self.op_config["in_channel"], self.op_config["ker_size"], self.op_config["ker_size"])
+        weight = np.transpose(weight, (0,2,3,1))
+        golden_i8 = golden_i8.reshape(self.op_config["out_channel"], self.op_config["out_hw"], self.op_config["out_hw"])
+        golden_i8 = np.transpose(golden_i8, (1,2,0))
+        assert scale.size==1
+        # scale = scale.repeat(self.op_config["out_channel"], axis=0)
+
+        # hack for zero-threshold filter
+        keep_oc = find_nonzero_filter(weight)
+        weight = np.take(weight, keep_oc, axis=0)
+        bias = np.take(bias, keep_oc, axis=0)
+        # scale = np.take(scale, keep_oc, axis=0)
+        golden_i8 = np.take(golden_i8, keep_oc, axis=2)
+        self.op_config["out_channel"] = weight.shape[0]
+        self.helper.out_channel = weight.shape[0]
+        
+        # compile and run, get output
+        output = self.compile_and_run(code_dir, image_kwargs={"input": input, "weight": weight})
+
+        # check result
+        if check_result:
+
+            helper_golden = self.helper._calculate_golden()
+
+            output_data = output + bias.reshape(-1)
+            output_data = banker_round(output_data * scale.reshape(-1)[0]) + out_zp
+            clip_min = 0 if relu else -128
+            clip_max = 127
+            output_data = banker_round(np.clip(output_data, clip_min, clip_max))
+            output_data = output_data.astype("int8")
+            output = output_data
+            
+            correct_percent = (golden_i8==output).sum() / golden_i8.size
+            return output, correct_percent
 
         return output, None
 
