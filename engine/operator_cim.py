@@ -10,8 +10,8 @@ import json
 from functools import partial
 import numpy as np
 from utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
-from utils.bit_sparse_weight_transform import find_nonzero_filter
-
+from utils.bit_sparse_weight_transform import find_nonzero_filter, argsort_filters_threshold
+from utils.round import banker_round
 class Operator:
     def __init__(self, config_path, template_path, op_config):
         self.config_path = config_path
