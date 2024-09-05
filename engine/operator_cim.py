@@ -195,6 +195,12 @@ class BitSparseConv2dOperator(Operator):
         golden = golden.reshape(self.op_config["out_channel"], self.op_config["out_hw"], self.op_config["out_hw"])
         bias = bias.reshape(-1,1,1)
         golden = golden - bias
+
+        # reorder by threshold
+        sort_index = argsort_filters_threshold(weight)
+        weight = weight[sort_index]
+        golden = golden[sort_index]
+
         golden = np.transpose(golden, (1,2,0))
 
         
