@@ -79,8 +79,9 @@ class Operator:
         print('输出:', result.stdout)
         print('错误:', result.stderr)
         assert result.returncode==0
+        return image
 
-    def run(self, code_dir):
+    def run(self, code_dir, image):
         op_config = self.op_config
 
         # get output code
@@ -92,17 +93,29 @@ class Operator:
         pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config, group_size=16)
         print(f"{pimcompute_count=}")
 
-        status,stats = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
+        status,stats,flat = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH, status
         stats.dump(code_dir)
+        flat.dump(code_dir)
+        output = self.helper.get_output(self.simulator.memory_space)
+
+        # get flat code
+        flat_code = flat.get_flat_code()
+        self.simulator.clear()
+        global_memory_base = self.simulator.memory_space.get_base_of("global")
+        self.simulator.memory_space.write(image, global_memory_base, len(image))
+        self.simulator._read_reg_value_directly = True
+        status,stats,flat = self.simulator.run_code(flat_code, total_pim_compute_count = pimcompute_count, record_flat=False)
+        self.simulator._read_reg_value_directly = False
+        assert status==self.simulator.FINISH
+        stats.dump(code_dir, prefix="flat_")
 
         # check result
-        output = self.helper.get_output(self.simulator.memory_space)
         return output
 
     def compile_and_run(self, code_dir, image_kwargs):
-        self.compile(code_dir, image_kwargs)
-        return self.run(code_dir)
+        image = self.compile(code_dir, image_kwargs)
+        return self.run(code_dir, image)
         # return None
 
     def compile_and_run_with_mock_data(self, code_dir):
