@@ -46,6 +46,7 @@
 
 #define OUT_SPATIAL_TILE {{OUT_SPATIAL_TILE}}
 #define N_FILTER_PER_GROUP {{N_FILTER_PER_GROUP}}
+#define MAX_I32_CHANNEL {{MAX_I32_CHANNEL}}
 
 {% if IM2COL %}
     {% include 'lib/input_loader_im2col.cim' %}
@@ -57,7 +58,7 @@ def quantify(
     null<int8>,
     out_channel_begin<index>,
     out_channel_len<index>,
-    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__>,
+    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, MAX_I32_CHANNEL>, int32, __OUTPUT_MEMORY__>,
     local_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
     local_output_i8< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__>,
     local_out_zp< <1>, int32, __INPUT_MEMORY__>,
@@ -114,10 +115,13 @@ def main(null<int8>){
     global_meta = Buffer(<TIME, N_TO, N_GROUP_BCOL, 3>, int1, __GLOBAL__);
     global_outsum_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
     global_transfer_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
+    global_pimset_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
     local_outsum_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __INPUT_MEMORY__);
     local_transfer_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __INPUT_MEMORY__);
+    local_pimset_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __INPUT_MEMORY__);
     Trans(global_outsum_mask, local_outsum_mask);
     Trans(global_transfer_mask, local_transfer_mask);
+    Trans(global_pimset_mask, local_pimset_mask);
 
     // prepare quantify buffers
     global_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __GLOBAL__);
@@ -131,7 +135,7 @@ def main(null<int8>){
     local_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
     local_output_for_temp_sum = Buffer(<N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__);
     {% if SINGLE_OUTER_REDUCE == 0 %}
-        local_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, N_GROUP_BCOL>, int32, __OUTPUT_MEMORY__);
+        local_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, MAX_I32_CHANNEL>, int32, __OUTPUT_MEMORY__);
     {% endif %}
 
     // a blank buffer used to clear other buffer
@@ -205,6 +209,13 @@ def main(null<int8>){
         out_channel_len = out_channel_end - out_channel_begin;
         Save(local_spill, [7], out_channel_begin);
         Save(local_spill, [8], out_channel_len);
+
+        use_pimset_mask = Slice(local_pimset_mask,
+            [i_reduce_to_macro, 0],
+            [1, N_GROUP_BCOL],
+            [1, 1]
+        );
+        CIMSet(use_pimset_mask);
         
         use_bias_scale = Slice(local_bias_scale,
                [out_channel_begin, 0],

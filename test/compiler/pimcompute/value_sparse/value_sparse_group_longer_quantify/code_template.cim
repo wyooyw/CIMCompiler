@@ -102,6 +102,10 @@ def main(null<int8>){
     Trans(global_mapping_macro_to_row, mapping_macro_to_row);
     Trans(global_mapping_from_to_row, mapping_from_to_row);
 
+    global_pimset_mask = Buffer(<MAPPING_REDUCE_TO_MACRO_LENGTH, N_GROUP_VCOL>, int1, __GLOBAL__);
+    local_pimset_mask = Buffer(<MAPPING_REDUCE_TO_MACRO_LENGTH, N_GROUP_VCOL>, int1, __INPUT_MEMORY__);
+    Trans(global_pimset_mask, local_pimset_mask);
+
     // prepare quantify buffers
     global_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __GLOBAL__);
     global_out_zp = Buffer(<1>, int32, __GLOBAL__);
@@ -183,6 +187,13 @@ def main(null<int8>){
         out_channel_len = out_channel_end - out_channel_begin;
         Save(local_spill, [7], out_channel_begin);
         Save(local_spill, [8], out_channel_len);
+
+        use_pimset_mask = Slice(local_pimset_mask,
+            [i_reduce_to_macro, 0],
+            [1, N_GROUP_VCOL],
+            [1, 1]
+        );
+        CIMSet(use_pimset_mask);
 
         use_bias_scale = Slice(local_bias_scale,
             [out_channel_begin, 0],
