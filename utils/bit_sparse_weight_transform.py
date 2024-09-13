@@ -457,6 +457,17 @@ def find_nonzero_filter(weight):
             keep_oc.append(oc)
     return keep_oc
 
+def argsort_filters_threshold(weight):
+    # weight.shape: [oc, ks, ks, ic]
+    out_channel,ker_height,ker_width,in_channel = weight.shape
+    weight = weight.reshape(out_channel, -1)
+
+    # Check threshold
+    weight_bit_num = int_to_csd_nonzero_count_tensor(weight)
+    filter_bit_num = weight_bit_num[:,0]
+    sort_index = np.argsort(filter_bit_num)[::-1]
+    return sort_index
+
 if __name__=="__main__":
     for i in range(-127,127):
         csd_8 = int_to_csd(i)
