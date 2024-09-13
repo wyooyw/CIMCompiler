@@ -1,7 +1,7 @@
 {
   "macro": {
-    "n_macro": 64,
-    "n_row": 64,
+    "n_macro": 32,
+    "n_row": 16,
     "n_comp": 16,
     "n_bcol": 16
   },
@@ -16,7 +16,7 @@
           "type": "macro",
           "addressing": {
               "offset_byte": 0,
-              "size_byte": 131072,
+              "size_byte": 16384,
               "comments": "offset: 0 Byte, size: 128 * 1024 Byte"
           }
       },
@@ -24,15 +24,31 @@
           "name": "index_memory",
           "type": "sram",
           "addressing": {
-              "size_byte": 4096,
+              "size_byte": 8192,
               "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte"
           }
+      },
+      {
+            "name": "blank_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 512,
+                "comments": ""
+            }
+      },
+      {
+        "name": "temp_sum_memory",
+        "type": "sram",
+        "addressing": {
+            "size_byte": 512,
+            "comments": ""
+        }
       },
       {
           "name": "input_memory",
           "type": "sram",
           "addressing": {
-              "size_byte": 262144,
+              "size_byte": 131072,
               "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte"
           }
       },

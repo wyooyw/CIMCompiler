@@ -1,7 +1,7 @@
 {
     "macro": {
-        "n_macro": 64,
-        "n_row": 64,
+        "n_macro": 32,
+        "n_row": 16,
         "n_comp": 16,
         "n_bcol": 16
     },
@@ -16,7 +16,7 @@
             "type": "macro",
             "addressing": {
                 "offset_byte": 0,
-                "size_byte": 131072,
+                "size_byte": 16384,
                 "comments": "offset: 0 Byte, size: 128 * 1024 Byte"
             }
         },
@@ -24,18 +24,36 @@
             "name": "index_memory",
             "type": "sram",
             "addressing": {
-                "size_byte": 4096,
+                "size_byte": 8192,
                 "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
-                "offset_byte": 131072
+                "offset_byte": 16384
+            }
+        },
+        {
+            "name": "blank_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 512,
+                "comments": "",
+                "offset_byte": 24576
+            }
+        },
+        {
+            "name": "temp_sum_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 512,
+                "comments": "",
+                "offset_byte": 25088
             }
         },
         {
             "name": "input_memory",
             "type": "sram",
             "addressing": {
-                "size_byte": 262144,
+                "size_byte": 131072,
                 "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
-                "offset_byte": 135168
+                "offset_byte": 25600
             }
         },
         {
@@ -44,7 +62,7 @@
             "addressing": {
                 "size_byte": 262144,
                 "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte",
-                "offset_byte": 397312
+                "offset_byte": 156672
             }
         },
         {
@@ -53,7 +71,7 @@
             "addressing": {
                 "size_byte": 1024,
                 "comments": "offset: 256 * 1024 Byte, size: 0.5 * 1024 * 2 Byte",
-                "offset_byte": 659456
+                "offset_byte": 418816
             }
         },
         {
@@ -62,7 +80,7 @@
             "addressing": {
                 "size_byte": 4096,
                 "comments": "offset: 257 * 1024 Byte, size: 4 * 1024 Byte",
-                "offset_byte": 660480
+                "offset_byte": 419840
             }
         },
         {
@@ -71,7 +89,7 @@
             "addressing": {
                 "size_byte": 98304,
                 "comments": "offset: 261 * 1024 Byte, size: 96 * 1024 Byte",
-                "offset_byte": 664576
+                "offset_byte": 423936
             }
         },
         {
@@ -80,7 +98,7 @@
             "addressing": {
                 "size_byte": 16384,
                 "comments": "offset: 357 * 1024 Byte, size: 16 * 1024 Byte",
-                "offset_byte": 762880
+                "offset_byte": 522240
             }
         },
         {
@@ -89,7 +107,7 @@
             "addressing": {
                 "size_byte": 128,
                 "comments": "offset: 373 * 1024 Byte, size: 128 Byte",
-                "offset_byte": 779264
+                "offset_byte": 538624
             }
         },
         {
@@ -98,7 +116,7 @@
             "addressing": {
                 "size_byte": 33554432,
                 "comments": "size: 16MB",
-                "offset_byte": 779392
+                "offset_byte": 538752
             }
         }
     ]
