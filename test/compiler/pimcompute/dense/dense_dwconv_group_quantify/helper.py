@@ -6,16 +6,18 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
         self.output_bytes = 1
         self.output_dtype = np.int8
 
+        self.im2col = True
+
     def _get_mock_weight(self):
         import numpy as np
-        # weight = np.random.randint(-1,3, size=(self.out_channel, self.ker_size, self.ker_size), dtype=np.int8)
-        weight = np.ones((self.out_channel, self.ker_size, self.ker_size), dtype=np.int8)
+        weight = np.random.randint(-1,3, size=(self.out_channel, self.ker_size, self.ker_size), dtype=np.int8)
+        # weight = np.ones((self.out_channel, self.ker_size, self.ker_size), dtype=np.int8)
         return weight
 
     def _get_mock_input(self):
         import numpy as np
-        # input_data = np.random.randint(-1,3,size=(self.in_channel,self.in_hw,self.in_hw), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
-        input_data = np.ones((self.in_channel,self.in_hw,self.in_hw), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        input_data = np.random.randint(-1,3,size=(self.in_channel,self.in_hw,self.in_hw), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        # input_data = np.ones((self.in_channel,self.in_hw,self.in_hw), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
         return input_data
 
     def _get_mock_bias(self):
@@ -72,7 +74,7 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
             "n_macro": macro_config.n_macro,
             "n_comp": macro_config.n_comp,
         }
-        converted_weight = convert_dense_depthwise_conv2d_weight(weight, config)
+        converted_weight, pimset_mask = convert_dense_depthwise_conv2d_weight(weight, config)
 
         assert len(converted_weight.shape)==4, f"{converted_weight.shape=}"
         assert converted_weight.shape[0]==self.out_channel, f"{converted_weight.shape=}, {self.out_channel=}"
@@ -80,7 +82,7 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
         assert converted_weight.shape[2]==n_group, f"{converted_weight.shape=}, {n_group=}"
         assert converted_weight.shape[3]==n_group_vcol, f"{converted_weight.shape=}, {n_group_vcol=}"
         
-        return converted_weight
+        return converted_weight, pimset_mask
 
     def _calculate_golden(self):
         import numpy as np
@@ -114,6 +116,22 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
         # print(output_quantify)
         return output_quantify
 
+    def _apply_im2col(self, input_data):
+        import numpy as np
+        in_channel, in_hw, _ = input_data.shape
+        ker_size = self.ker_size
+        stride = self.stride
+        out_hw = self.out_hw
+        im2col_input = np.zeros((in_channel, out_hw, in_hw, ker_size), dtype=np.int8)
+        for ic in range(in_channel):
+            for ow in range(out_hw):
+                iw = ow * stride
+                for ih in range(in_hw):
+                    im2col_input[ic, ow, ih, :] = input_data[ic, ih, iw:iw+ker_size]
+        im2col_input = im2col_input.reshape(in_channel, out_hw, -1)
+        # import pdb; pdb.set_trace()
+        return im2col_input
+
     def get_image(self, simulator, input=None, weight=None, bias=None, scale=None, out_zp=None, relu=False):
         import numpy as np
         from utils.bias_scale_fuse import bias_scale_fuse
@@ -128,4 +146,8 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
         context = super()._make_template_config(simulator)
         context["RELU"] = int(self.relu)
         context["WINDOW_SIZE"] = self.ker_size * self.ker_size
+        context["IM2COL"] = self.im2col
+        if self.im2col:
+            context["IM2COL_SIZE_0"] = self.input_data_im2col.shape[1]
+            context["IM2COL_SIZE_1"] = self.input_data_im2col.shape[2]
         return context
