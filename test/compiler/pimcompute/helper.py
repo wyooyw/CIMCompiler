@@ -126,6 +126,7 @@ class Conv2dTestHelper(TestHelper):
     def _get_mock_input(self):
         import numpy as np
         input_data = np.random.randint(-126,126,size=(self.in_hw,self.in_hw, self.in_channel), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        # input_data = np.ones((self.in_hw,self.in_hw, self.in_channel), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
         assert input_data.shape==(self.in_hw,self.in_hw,self.in_channel), f"{input_data.shape=}"
         return input_data
 
@@ -210,7 +211,7 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
             "n_macro": macro_config.n_macro,
             "n_comp": macro_config.n_comp,
         }
-        converted_weight = convert_dense_conv2d_weight(weight, config)
+        converted_weight, pimset_mask = convert_dense_conv2d_weight(weight, config)
 
         assert len(converted_weight.shape)==5, f"{converted_weight.shape=}"
         assert converted_weight.shape[2]==macro_config.n_comp, f"{converted_weight.shape=}, {macro_config.n_comp=}"
@@ -223,7 +224,7 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
         print(f"{converted_weight.shape=}, {converted_weight.dtype=}")
         # print(converted_weight)
         
-        return converted_weight
+        return converted_weight, pimset_mask
 
     def get_image(self, simulator, input=None, weight=None):
         import numpy as np
@@ -245,7 +246,7 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
         if self.im2col:
             self.input_data_im2col = self._apply_im2col(self.input_data)
 
-        self.converted_weight = self._make_dense_data(self.weight_data, simulator)
+        self.converted_weight,self.pimset_mask = self._make_dense_data(self.weight_data, simulator)
 
         assert self.input_data.dtype==np.int8, f"{self.input_data.dtype=}"
         assert self.converted_weight.dtype==np.int8, f"{self.converted_weight.dtype=}"
@@ -255,12 +256,13 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
         else:
             input_data = bytearray(self.input_data)
         converted_weight_bytes = bytearray(self.converted_weight)
+        pimset_mask_bytes = bytearray(self.pimset_mask)
 
         print(f"{self.input_data.shape=}, {self.input_data.dtype=}, byte_size={len(input_data)}")
         print(f"{self.converted_weight.shape=}, {self.converted_weight.dtype=}, byte_size={len(converted_weight_bytes)}")
 
         # import pdb; pdb.set_trace()
-        image = input_data + converted_weight_bytes
+        image = input_data + converted_weight_bytes + pimset_mask_bytes
         self.output_offset = len(image)
 
         return image
@@ -337,6 +339,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
     def _get_mock_weight(self):
         from utils.bit_sparse_weight_transform import generate_valid_weight
 
+        # weight = generate_valid_weight([self.out_channel, self.ker_size, self.ker_size, self.in_channel], 2)
         weight = generate_valid_weight([self.out_channel, self.ker_size, self.ker_size, self.in_channel], 2)
         return weight
 
@@ -372,7 +375,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
             bit_sparse_weight.shape[2],
             bit_sparse_weight.shape[3]
             )
-        outsum_mask, transfer_mask = parse_out_mask_and_transfer_mask(fold, n_group_bcol)
+        outsum_mask, transfer_mask, pimset_mask = parse_out_mask_and_transfer_mask(fold, n_group_bcol)
         out_begin_channel = parse_out_begin_channel(fold)
 
         assert len(bit_sparse_weight.shape)==5, f"{bit_sparse_weight.shape=}"
@@ -381,12 +384,15 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         assert bit_sparse_weight.shape[4]==(n_group_bcol // 8), f"{bit_sparse_weight.shape=}, {(n_group_bcol//8)=}"
         assert outsum_mask.shape[1]==(n_group_bcol//8), f"{outsum_mask.shape=}, {(n_group_bcol//8)=}"
         assert transfer_mask.shape[1]==(n_group_bcol//8), f"{outsum_mask.shape=}, {(n_group_bcol//8)=}"
+        assert pimset_mask.shape[1]==(n_group_bcol//8), f"{pimset_mask.shape=}, {(n_group_bcol//8)=}"
         assert outsum_mask.shape[0]==bit_sparse_weight.shape[0], f"{outsum_mask.shape=}, {bit_sparse_weight.shape=}"
         assert transfer_mask.shape[0]==bit_sparse_weight.shape[0], f"{outsum_mask.shape=}, {bit_sparse_weight.shape=}"
+        assert pimset_mask.shape[0]==bit_sparse_weight.shape[0], f"{pimset_mask.shape=}, {bit_sparse_weight.shape=}"
         
         assert bit_sparse_weight.dtype==np.int8, f"{bit_sparse_weight.dtype=}"
         assert outsum_mask.dtype==np.int8, f"{outsum_mask.dtype=}"
         assert transfer_mask.dtype==np.int8, f"{transfer_mask.dtype=}"
+        assert pimset_mask.dtype==np.int8, f"{pimset_mask.dtype=}"
         assert meta.dtype==np.int8, f"{meta.dtype=}"
 
         assert len(out_begin_channel.shape)==1
@@ -394,7 +400,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         assert out_begin_channel[-1] == self.out_channel, f"{out_begin_channel[-1]=}, {self.out_channel=}"
         assert out_begin_channel.dtype==np.int32, f"{out_begin_channel.dtype=}"
         
-        return bit_sparse_weight, meta, outsum_mask, transfer_mask, out_begin_channel
+        return bit_sparse_weight, meta, outsum_mask, transfer_mask, pimset_mask, out_begin_channel
 
     def get_image(self, simulator, input=None, weight=None):
         import numpy as np
@@ -415,12 +421,13 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         if self.im2col:
             self.input_data_im2col = self._apply_im2col(self.input_data)
 
-        bit_sparse_weight, meta, outsum_mask, transfer_mask, out_begin_channel = self._make_bit_sparse_data(self.weight_data, simulator)
+        bit_sparse_weight, meta, outsum_mask, transfer_mask, pimset_mask, out_begin_channel = self._make_bit_sparse_data(self.weight_data, simulator)
 
         self.converted_weight = bit_sparse_weight
         self.meta = meta
         self.outsum_mask = outsum_mask
         self.transfer_mask = transfer_mask
+        self.pimset_mask = pimset_mask
         self.out_begin_channel = out_begin_channel
 
         if self.im2col:
@@ -431,6 +438,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         meta_bytes = bytearray(self.meta)
         outsum_offset_bytes = bytearray(self.outsum_mask)
         transfer_offset_bytes = bytearray(self.transfer_mask)
+        pimset_mask_bytes = bytearray(self.pimset_mask)
         out_begin_channel_bytes = bytearray(self.out_begin_channel)
 
         print(f"{self.input_data.shape=}, {self.input_data.dtype=}, byte_size={len(input_data)}")
@@ -447,6 +455,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
             + meta_bytes 
             + outsum_offset_bytes 
             + transfer_offset_bytes
+            + pimset_mask_bytes
             + out_begin_channel_bytes
         )
         
@@ -602,6 +611,7 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
         self.mapping_macro_to_from = result["mapping_macro_to_from"]
         self.mapping_from_to_row = result["mapping_from_to_row"]
         self.mapping_macro_to_row = result["mapping_macro_to_row"]
+        self.pimset_mask = result["pimset_mask"]
 
         print(f"{self.mapping_reduce_to_macro=}")
         print(f"{self.mapping_macro_to_from=}")
@@ -632,6 +642,7 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
         mapping_macro_to_from_bytes = bytearray(self.mapping_macro_to_from)
         mapping_from_to_row_bytes = bytearray(self.mapping_from_to_row)
         mapping_macro_to_row_bytes = bytearray(self.mapping_macro_to_row)
+        pimset_mask_bytes = bytearray(self.pimset_mask)
 
         print(f"{self.input_data.shape=}, {self.input_data.dtype=}, byte_size={len(input_data)}")
         print(f"{self.converted_weight.shape=}, {self.converted_weight.dtype=}, byte_size={len(converted_weight_bytes)}")
@@ -648,6 +659,7 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
             + mapping_macro_to_from_bytes
             + mapping_macro_to_row_bytes
             + mapping_from_to_row_bytes
+            + pimset_mask_bytes
         )
         self.output_offset = len(image)
         # image = input_data + index_bytes + tile_list_bytes
@@ -744,12 +756,12 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
         # weight = generate_valid_weight([self.out_channel, self.ker_size, self.ker_size, self.in_channel], threshold=2)
         # weight = np.zeros((self.out_channel, self.ker_size, self.ker_size, self.in_channel), dtype=np.int8) + 3
         weight = generate_valid_weight([self.out_channel, self.ker_size, self.ker_size, self.in_channel], threshold=2)
-        for filter_begin in range(0, self.out_channel, 8):
-            filter_end = min(filter_begin+8, self.out_channel)
-            mask = np.random.randint(0, 2, size=weight.shape[1:], dtype=np.int8)
-            weight[filter_begin:filter_end, :, :, :] = weight[filter_begin:filter_end, :, :, :] * mask
-            mask = np.random.randint(0, 2, size=weight.shape[1:], dtype=np.int8)
-            weight[filter_begin:filter_end, :, :, :] = weight[filter_begin:filter_end, :, :, :] * mask
+        # for filter_begin in range(0, self.out_channel, 8):
+        #     filter_end = min(filter_begin+8, self.out_channel)
+        #     mask = np.random.randint(0, 2, size=weight.shape[1:], dtype=np.int8)
+        #     weight[filter_begin:filter_end, :, :, :] = weight[filter_begin:filter_end, :, :, :] * mask
+        #     mask = np.random.randint(0, 2, size=weight.shape[1:], dtype=np.int8)
+        #     weight[filter_begin:filter_end, :, :, :] = weight[filter_begin:filter_end, :, :, :] * mask
 
         return weight
 
@@ -811,6 +823,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
         meta = bit_sparse_result["meta"]
         outsum_mask = bit_sparse_result["outsum_mask"]
         transfer_mask = bit_sparse_result["transfer_mask"]
+        pimset_mask = bit_sparse_result["pimset_mask"]
 
         print(f"{self.mapping_reduce_to_macro=}")
         print(f"{self.mapping_macro_to_from=}")
@@ -836,8 +849,10 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
 
         assert outsum_mask.shape[1]==(n_group_bcol), f"{outsum_mask.shape=}, {(n_group_bcol)=}"
         assert transfer_mask.shape[1]==(n_group_bcol), f"{outsum_mask.shape=}, {(n_group_bcol)=}"
+        assert pimset_mask.shape[1]==(n_group_bcol), f"{pimset_mask.shape=}, {(n_group_bcol)=}"
         assert outsum_mask.shape[0]==self.mapping_reduce_to_macro.shape[0], f"{outsum_mask.shape=}, {bit_sparse_weight.shape=}"
         assert transfer_mask.shape[0]==self.mapping_reduce_to_macro.shape[0], f"{outsum_mask.shape=}, {bit_sparse_weight.shape=}"
+        assert pimset_mask.shape[0]==self.mapping_reduce_to_macro.shape[0], f"{pimset_mask.shape=}, {bit_sparse_weight.shape=}"
 
         assert mask.shape[-1] % 8 == 0, f"{mask.shape=}"
         mask_bits = mask.reshape(*mask.shape[:-1], mask.shape[-1]//8, 8)
@@ -848,6 +863,9 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
         assert transfer_mask.shape[-1] % 8 == 0, f"{transfer_mask.shape=}"
         transfer_mask_bits = transfer_mask.reshape(*transfer_mask.shape[:-1], transfer_mask.shape[-1]//8, 8)
         transfer_mask_bits = tensor_bits_to_int8(transfer_mask_bits)
+        assert pimset_mask.shape[-1] % 8 == 0, f"{pimset_mask.shape=}"
+        pimset_mask_bits = pimset_mask.reshape(*pimset_mask.shape[:-1], pimset_mask.shape[-1]//8, 8)
+        pimset_mask_bits = tensor_bits_to_int8(pimset_mask_bits)
 
         if self.im2col:
             input_data = bytearray(self.input_data_im2col)
@@ -862,6 +880,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
         meta_bytes = bytearray(meta)
         outsum_offset_bytes = bytearray(outsum_mask_bits)
         transfer_offset_bytes = bytearray(transfer_mask_bits)
+        pimset_offset_bytes = bytearray(pimset_mask_bits)
 
         print(f"{self.input_data.shape=}, {self.input_data.dtype=}, byte_size={len(input_data)}")
         print(f"{converted_weight.shape=}, {converted_weight.dtype=}, byte_size={len(converted_weight_bytes)}")
@@ -886,6 +905,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
             + meta_bytes
             + outsum_offset_bytes
             + transfer_offset_bytes
+            + pimset_offset_bytes
         )
         self.output_offset = len(image)
         # image = input_data + index_bytes + tile_list_bytes
@@ -943,7 +963,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
 
             'BIT_SPARSE_META_BASE_ADDR': meta_base,
             'OUT_SPATIAL_TILE': self.mapping_reduce_to_macro.shape[0],
-            'N_FILTER_PER_GROUP': 128
+            'N_FILTER_PER_GROUP': 8 * n_macro_per_group
 
 
         }
