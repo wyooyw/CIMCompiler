@@ -36,4 +36,6 @@ class TestHelper(ValueBitSparseConv2dTestHelper, QuantizeHelper):
         if self.im2col:
             context["IM2COL_SIZE_0"] = self.input_data_im2col.shape[0]
             context["IM2COL_SIZE_1"] = self.input_data_im2col.shape[1]
+
+        context["MAX_I32_CHANNEL"] = context["N_GROUP_BCOL"] // 2
         return context
