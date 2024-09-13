@@ -85,21 +85,27 @@ class TestPIMComputeValueSparse:
         cls.macro_config = cls.simulator.macro_config
         cls.mask_config = cls.simulator.mask_config
 
+        import random
+        np.random.seed(4)
+        random.seed(4)
+
     def setup_method(self):
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        # 'value_sparse/value_sparse_group_longer' , 
-        # 'dense/dense_conv2d_group',
-        # 'bit_sparse/bit_sparse_conv2d_group' ,
-        # 'value_bit_sparse/value_bit_sparse_base',
+        'value_sparse/value_sparse_group_longer' , 
+        'dense/dense_conv2d_group',
+        'bit_sparse/bit_sparse_conv2d_group' ,
+        'value_bit_sparse/value_bit_sparse_base',
         # quantify
-        'dense/dense_conv2d_group_quantify' ,
-        'bit_sparse/bit_sparse_conv2d_group_quantify',
-        'value_sparse/value_sparse_group_longer_quantify' , 
-        'value_bit_sparse/value_bit_sparse_quantify'
+        # 'dense/dense_conv2d_group_quantify' ,
+        # 'bit_sparse/bit_sparse_conv2d_group_quantify',
+        # 'value_sparse/value_sparse_group_longer_quantify' , 
+        # 'value_bit_sparse/value_bit_sparse_quantify'
         ])
     @pytest.mark.parametrize('op_config',[
+        {"out_channel":4, "in_channel": 3, "ker_size": 3, "in_hw": 8, "out_hw": 6},
+        {"out_channel":16, "in_channel": 3, "ker_size": 3, "in_hw": 8, "out_hw": 6},
         {"out_channel":32, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
         {"out_channel":64, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 6},
         {"out_channel":16, "in_channel": 384, "ker_size": 3, "in_hw": 4, "out_hw": 2},
@@ -148,9 +154,13 @@ class TestPIMComputeValueSparse:
 
         # load image
         image = helper.get_image(self.simulator)
+        with open(os.path.join(output_folder, 'global_image'), 'wb') as file:
+            file.write(image)
+        with open(os.path.join(output_folder, 'global_image'), 'rb') as file:
+            image = bytearray(file.read())
         global_memory_base = self.simulator.memory_space.get_base_of("global")
         self.simulator.memory_space.write(image, global_memory_base, len(image))
-
+            
         # fill code template
         helper.fill_template(input_template_path, input_path, self.simulator)
         # return
@@ -173,13 +183,25 @@ class TestPIMComputeValueSparse:
         # run code in simulator
 
         pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config, group_size=16)
-        status,stats = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
+        status,stats,flat = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH
 
         # check result
         # print_record = self.simulator.print_record
-        helper.check_image(self.simulator.memory_space)
         stats.dump(output_folder)
+        flat.dump(output_folder)
+        helper.check_image(self.simulator.memory_space)
+
+        # run flat code
+        flat_code = flat.get_flat_code()
+        self.simulator.clear()
+        self.simulator.memory_space.write(image, global_memory_base, len(image))
+        # self.simulator._read_reg_value_directly = True
+        status,stats,flat = self.simulator.run_code(flat_code, total_pim_compute_count = pimcompute_count, record_flat=False)
+        assert status==self.simulator.FINISH
+        stats.dump(output_folder, prefix="flat_")
+        helper.check_image(self.simulator.memory_space)
+        # self.simulator._read_reg_value_directly = False
 
     # def test_memory_with_image(self):
     #     pass
@@ -233,15 +255,8 @@ if __name__=="__main__":
     TestPIMComputeValueSparse.setup_class()
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
-    tester.test_pim_compute('dense/dense_conv2d_group_quantify', 
+    tester.test_pim_compute('value_bit_sparse/value_bit_sparse_base', 
         {
-            "out_channel":64, 
-            "in_channel": 256, 
-            "ker_size": 3, 
-            "in_hw": 4, 
-            "out_hw": 4,
-            "padding":1 ,
-            "stride":1 ,
-            "input_buffer_size_per_group": 128
+            "out_channel":128, "in_channel": 32, "ker_size": 3, "in_hw": 8, "out_hw": 8, "padding":1
         }
     )
