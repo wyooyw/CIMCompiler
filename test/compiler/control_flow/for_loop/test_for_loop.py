@@ -62,7 +62,7 @@ class TestForLoop:
             code = json.load(f)
 
         # run code in simulator
-        status = self.simulator.run_code(code)
+        status, stats = self.simulator.run_code(code)
         assert status==self.simulator.FINISH
 
         # check result
