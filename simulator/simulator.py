@@ -333,7 +333,7 @@ class Simulator:
         profiler.print_stats(sort='cumtime')
         return status
 
-    def run_code(self, code: list[dict], total_pim_compute_count=0):
+    def run_code(self, code: list[dict], total_pim_compute_count=0, record_flat=True):
         pc = 0
         cnt = 0
         self.pbar = tqdm(total=total_pim_compute_count)
@@ -344,7 +344,8 @@ class Simulator:
             inst = code[pc]
             self.stats_util.record(inst)
             self.stats_util.record_reg_status(pc + 1, cnt, self.general_rf)
-            self.flat_inst_util.flat_inst(inst, cnt)
+            if record_flat:
+                self.flat_inst_util.flat_inst(inst, cnt)
 
             inst_class = inst["class"]
             if inst_class==InstClass.PIM_CLASS.value:
