@@ -158,11 +158,23 @@ class TestPIMComputeValueSparse:
         # run code in simulator
 
         pimcompute_count = predict_pimcompute_count_for_conv2d_dense(self.macro_config, op_config, group_size=16)
-        status,stats = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
+        status,stats,flat = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH
 
+        stats.dump(output_folder)
+        flat.dump(output_folder)
+        
         # check result
         # print_record = self.simulator.print_record
+        helper.check_image(self.simulator.memory_space)
+
+        # run flat code
+        flat_code = flat.get_flat_code()
+        self.simulator.clear()
+        self.simulator.memory_space.write(image, global_memory_base, len(image))
+        status,stats,flat = self.simulator.run_code(flat_code, total_pim_compute_count = pimcompute_count)
+        assert status==self.simulator.FINISH
+        stats.dump(output_folder, prefix="flat_")
         helper.check_image(self.simulator.memory_space)
 
     # def test_memory_with_image(self):
@@ -218,10 +230,10 @@ if __name__=="__main__":
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
     tester.test_pim_compute('dense/dense_dwconv_group_quantify', 
-        {"out_channel":4, "in_channel": 4, 
-        "ker_size": 3, "in_hw": 4, "out_hw": 2, 
+        {"out_channel":32, "in_channel": 32, 
+        "ker_size": 3, "in_hw": 32, "out_hw": 32, 
         "padding": 1,
-        "stride":2,
+        "stride":1,
         "input_buffer_size_per_group": 128
         }
     )

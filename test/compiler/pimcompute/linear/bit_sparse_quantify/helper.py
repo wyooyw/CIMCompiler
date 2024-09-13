@@ -44,7 +44,7 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
             bit_sparse_weight.shape[2],
             bit_sparse_weight.shape[3]
             )
-        outsum_mask, transfer_mask = parse_out_mask_and_transfer_mask(fold, n_group_bcol)
+        outsum_mask, transfer_mask, pimset_mask = parse_out_mask_and_transfer_mask(fold, n_group_bcol)
         out_begin_channel = parse_out_begin_channel(fold)
 
         assert len(bit_sparse_weight.shape)==5, f"{bit_sparse_weight.shape=}"
@@ -53,12 +53,15 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
         assert bit_sparse_weight.shape[4]==(n_group_bcol // 8), f"{bit_sparse_weight.shape=}, {(n_group_bcol//8)=}"
         assert outsum_mask.shape[1]==(n_group_bcol//8), f"{outsum_mask.shape=}, {(n_group_bcol//8)=}"
         assert transfer_mask.shape[1]==(n_group_bcol//8), f"{outsum_mask.shape=}, {(n_group_bcol//8)=}"
+        assert pimset_mask.shape[1]==(n_group_bcol//8), f"{outsum_mask.shape=}, {(n_group_bcol//8)=}"
         assert outsum_mask.shape[0]==bit_sparse_weight.shape[0], f"{outsum_mask.shape=}, {bit_sparse_weight.shape=}"
         assert transfer_mask.shape[0]==bit_sparse_weight.shape[0], f"{outsum_mask.shape=}, {bit_sparse_weight.shape=}"
+        assert pimset_mask.shape[0]==bit_sparse_weight.shape[0], f"{outsum_mask.shape=}, {bit_sparse_weight.shape=}"
         
         assert bit_sparse_weight.dtype==np.int8, f"{bit_sparse_weight.dtype=}"
         assert outsum_mask.dtype==np.int8, f"{outsum_mask.dtype=}"
         assert transfer_mask.dtype==np.int8, f"{transfer_mask.dtype=}"
+        assert pimset_mask.dtype==np.int8, f"{pimset_mask.dtype=}"
         assert meta.dtype==np.int8, f"{meta.dtype=}"
 
         assert len(out_begin_channel.shape)==1
@@ -66,7 +69,7 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
         assert out_begin_channel[-1] == self.out_channel, f"{out_begin_channel[-1]=}, {self.out_channel=}"
         assert out_begin_channel.dtype==np.int32, f"{out_begin_channel.dtype=}"
         
-        return bit_sparse_weight, meta, outsum_mask, transfer_mask, out_begin_channel
+        return bit_sparse_weight, meta, outsum_mask, transfer_mask, pimset_mask, out_begin_channel
 
     def _calculate_golden(self):
         return self._calculate_golden_quantize()

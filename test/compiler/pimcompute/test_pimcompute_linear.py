@@ -89,11 +89,13 @@ class TestPIMComputeValueSparse:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        # 'linear/dense',
-        # 'linear/bit_sparse',
+        'linear/dense',
+        'linear/dense_onegroup',
+        'linear/bit_sparse',
         # quantify
-        'linear/dense_quantify',
-        'linear/bit_sparse_quantify',
+        # 'linear/dense_quantify',
+        # 'linear/bit_sparse_quantify',
+        # 'linear/dense_quantify_onegroup'
         ])
     @pytest.mark.parametrize('op_config',[
         {"out_channel":32, "in_channel": 16},
@@ -161,15 +163,26 @@ class TestPIMComputeValueSparse:
         # run code in simulator
 
         pimcompute_count = predict_pimcompute_count_for_linear_dense(self.macro_config, op_config, group_size=16)
-        status,stats = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
+        status,stats,flat = self.simulator.run_code(code, total_pim_compute_count = pimcompute_count)
         assert status==self.simulator.FINISH
         print("execute success!")
 
         # check result
         # print_record = self.simulator.print_record
+        stats.dump(output_folder)
+        flat.dump(output_folder)
         helper.check_image(self.simulator.memory_space)
         print("check image success!")
         print(f"result save to {output_folder}")
+
+        # run flat code
+        flat_code = flat.get_flat_code()
+        self.simulator.clear()
+        self.simulator.memory_space.write(image, global_memory_base, len(image))
+        status,stats,flat = self.simulator.run_code(flat_code, total_pim_compute_count = pimcompute_count)
+        assert status==self.simulator.FINISH
+        stats.dump(output_folder, prefix="flat_")
+        # helper.check_image(self.simulator.memory_space)
 
     # def test_memory_with_image(self):
     #     pass
@@ -223,6 +236,6 @@ if __name__=="__main__":
     TestPIMComputeValueSparse.setup_class()
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
-    tester.test_pim_compute('linear/bit_sparse_quantify', 
-        {"out_channel":2048, "in_channel": 4096}
+    tester.test_pim_compute('linear/bit_sparse', 
+        {"out_channel":32, "in_channel": 16}
     )
