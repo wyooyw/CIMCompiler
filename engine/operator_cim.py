@@ -104,9 +104,9 @@ class Operator:
         self.simulator.clear()
         global_memory_base = self.simulator.memory_space.get_base_of("global")
         self.simulator.memory_space.write(image, global_memory_base, len(image))
-        self.simulator._read_reg_value_directly = True
+        # self.simulator._read_reg_value_directly = True
         status,stats,flat = self.simulator.run_code(flat_code, total_pim_compute_count = pimcompute_count, record_flat=False)
-        self.simulator._read_reg_value_directly = False
+        # self.simulator._read_reg_value_directly = False
         assert status==self.simulator.FINISH
         stats.dump(code_dir, prefix="flat_")
 
