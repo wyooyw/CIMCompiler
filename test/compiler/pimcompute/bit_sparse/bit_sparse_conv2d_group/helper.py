@@ -51,5 +51,10 @@ class TestHelper(BitSparseConv2dTestHelper):
         if self.im2col:
             context["IM2COL_SIZE_0"] = self.input_data_im2col.shape[0]
             context["IM2COL_SIZE_1"] = self.input_data_im2col.shape[1]
-        context["FAST_MODE"] = int(os.environ.get("FAST_MODE"))
+            if context["IM2COL_SIZE_0"] > 1:
+                context["IM2COL_SMALL_INPUT_MEMORY"] = bool(int(os.environ.get("IM2COL_SMALL_INPUT_MEMORY")))
+            else:
+                context["IM2COL_SMALL_INPUT_MEMORY"] = False
+                
+        context["FAST_MODE"] = bool(int(os.environ.get("FAST_MODE")))
         return context

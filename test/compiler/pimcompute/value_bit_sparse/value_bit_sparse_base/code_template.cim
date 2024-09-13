@@ -102,11 +102,16 @@ def main(null<int8>){
 
     // Copy input and index into local memory
     {% if IM2COL %}
-        local_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __INPUT_MEMORY__);
+        {% if IM2COL_SMALL_INPUT_MEMORY %}
+            local_input = Buffer(<2, {{IM2COL_SIZE_1}}>, int8, __INPUT_MEMORY__);
+        {% else %}
+            local_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __INPUT_MEMORY__);
+            Trans(global_input, local_input);
+        {% endif %}
     {% else %}
         local_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+        Trans(global_input, local_input);
     {% endif %}
-    Trans(global_input, local_input);
 
 
     // Prepare memory's that will be used
@@ -231,8 +236,19 @@ def main(null<int8>){
             // So, the 'step' of oh and ow is 2.
             double_buffer_id = 1;
             Save(local_spill,[6],double_buffer_id);
-            for oh in range(0,OUTPUT_ROW,2) carry(null) {
-                for ow in range(0,OUTPUT_COL,2) carry(null) {
+            for ow in range(0,OUTPUT_COL,2) carry(null) {
+                
+                {% if IM2COL_SMALL_INPUT_MEMORY %}
+                    use_global_input = Slice(global_input,
+                        [ow, 0],
+                        [2, {{IM2COL_SIZE_1}}],
+                        [1, 1]
+                    );
+                    Trans(use_global_input, local_input);
+                {% endif %}
+
+                for oh in range(0,OUTPUT_ROW,2) carry(null) {
+                
                     // Double buffer index
                     double_buffer_id = Load(local_spill,[6]);
                     double_buffer_id = 1 - double_buffer_id;
@@ -269,7 +285,7 @@ def main(null<int8>){
                             local_input, 
                             use_input_buffer,
                             oh,
-                            ow,
+                            {% if IM2COL_SMALL_INPUT_MEMORY %} 0 {% else %} ow {% endif %},
                             i_tile_in_window
                         );
                         // all 4 * 128 inputs are now in input_reg_buf.
