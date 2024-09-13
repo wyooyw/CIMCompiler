@@ -3,6 +3,7 @@ import numpy as np
 import os
 import json
 import copy
+import os
 
 class SpecialReg(Enum):
 
@@ -164,11 +165,11 @@ class FlatInstUtil:
         elif inst["class"]==0b00 and inst["type"]==0b01: # pim_set
             self._flat_pim_set(inst, idx)
         elif inst["class"]==0b00 and inst["type"]==0b10: # pim_output
-            # self._flat_pim_output(inst, idx)
-            pass
+            if int(os.environ.get("FAST_MODE"))==0:
+                self._flat_pim_output(inst, idx)
         elif inst["class"]==0b00 and inst["type"]==0b11: # pim_transfer
-            # self._flat_pim_transfer(inst, idx)
-            pass
+            if int(os.environ.get("FAST_MODE"))==0:
+                self._flat_pim_transfer(inst, idx)
         elif inst["class"]==0b01: # simd
             self._flat_simd(inst, idx)
         else:
