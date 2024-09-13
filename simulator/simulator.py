@@ -282,6 +282,8 @@ class Simulator:
 
         self._add_internel_macro_output_buffer()
 
+        self._read_reg_value_directly = False
+
     def _add_internel_macro_output_buffer(self):
         """
         This is an internal memory for doing accumulate for macro's output
@@ -320,6 +322,7 @@ class Simulator:
         self.print_record = list()
         self.jump_offset = None
         self.meta_util._clear_buffer()
+        self._read_reg_value_directly = False
 
     def get_dtype(self, bitwidth):
         assert bitwidth in self._int_data_type
@@ -385,6 +388,8 @@ class Simulator:
             return self.ERROR, self.stats_util, self.flat_inst_util
     
     def read_general_reg(self, regid):
+        if self._read_reg_value_directly:
+            return regid
         return self.read_reg(self.general_rf, regid)
 
     def write_general_reg(self, regid, value):

@@ -81,6 +81,23 @@ class FlatInstUtil:
                 self.flat_general_rf[reg] = self.general_rf[reg]
                 self.flat_inst_list.append(self._li_general_inst(reg, self.general_rf[reg]))
 
+    # def _load_general_regs(self, inst, regs_name, idx):
+    #     """
+    #     通用寄存器立即数赋值指令：general-li
+    #     指令字段划分：
+    #     - [31, 30]，2bit：class，指令类别码，值为10
+    #     - [29, 28]，2bit：type，指令类型码，值为11
+    #     - [27, 26]，2bit：opcode，指令操作码，值为00
+    #     - [25, 21]，5bit：rd，通用寄存器编号，即要赋值的通用寄存器
+    #     - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
+    #     """
+    #     regs = [inst[reg] for reg in regs_name]
+
+    #     assert type(regs)==list
+    #     for reg_name in regs_name:
+    #         reg = inst[reg_name]
+    #         inst[reg_name] = self.general_rf[reg].item()
+
 
     # def _load_general_regs(self, inst, regs_name, idx):
     #     """
