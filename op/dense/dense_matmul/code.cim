@@ -1,0 +1,54 @@
+#define INPUT_BIT_WIDTH 0
+#define OUTPUT_BIT_WIDTH 1
+#define WEIGHT_BIT_WIDTH 2
+#define GROUP_SIZE 3
+#define ACTIVATION_GROUP_NUM 4
+#define ACTIVATION_ELEMENT_COL_NUM 5
+#define GROUP_INPUT_STEP 6
+#define GROUP_INPUT_OFFSET_ADDR 6
+#define VALUE_SPARSE_MASK_ADDR 7
+#define BIT_SPARSE_META_ADDR 8
+
+#define SIMD_INPUT_1_BIT_WIDTH 16
+#define SIMD_INPUT_2_BIT_WIDTH 17
+#define SIMD_INPUT_3_BIT_WIDTH 18
+#define SIMD_INPUT_4_BIT_WIDTH 19
+#define SIMD_OUTPUT_BIT_WIDTH 20
+
+def main(null<int8>){
+    // input and weight will be prepared in memory image
+    input = Buffer(<8,8>, int8, __GLOBAL__);
+    weight = Buffer(<8,8>, int8, __GLOBAL__);
+    output = Buffer(<8,8>, int32, __GLOBAL__);
+
+    in_buffer = Buffer(<4>, int8, __PIM_INPUT_REG_BUFFER__);
+    out_buffer = Buffer(<8,8>, int32, __PIM_OUTPUT_REG_BUFFER__);
+    macros = Buffer(<4, 4, 1, 8>, int8, __MACRO__);
+
+    macro_use = Slice(macros, [0,0,0,0],[2,4,1,8],[1,1,1,1]);
+    Trans(weight, macro_use);
+
+    SpecialRegSet(INPUT_BIT_WIDTH, 8);
+    SpecialRegSet(WEIGHT_BIT_WIDTH, 8);
+    SpecialRegSet(OUTPUT_BIT_WIDTH, 32);
+    SpecialRegSet(GROUP_SIZE, 4);
+    SpecialRegSet(ACTIVATION_GROUP_NUM, 1);
+    SpecialRegSet(ACTIVATION_ELEMENT_COL_NUM, 8);
+
+    for i in range(8) carry (null){
+        out_buffer_use = Slice(out_buffer, [i,0], [1,8], [1,1]);
+        for j in range(0, 2) carry (null){
+            input_use = Slice(input, [i, j * 4], [1,4], [1,1]);
+            Trans(input_use, in_buffer);
+            macro_use = Slice(macros, [j,0,0,0],[1,4,1,8],[1,1,1,1]);
+            CIMComputeDense(in_buffer, macro_use, out_buffer_use);
+        };
+        CIMOutput(out_buffer);
+
+        output_use = Slice(output, [i,0], [1,8], [1,1]);
+        Trans(out_buffer, output_use);
+    };
+
+    //write output
+    //Trans(out_buffer, output);
+}

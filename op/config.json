@@ -1,0 +1,44 @@
+{
+    "memory_list": [
+        {
+            "name": "global",
+            "type": "dram",
+            "addressing": {
+                "offset_byte": 0,
+                "size_byte": 1024
+            }
+        },
+        {
+            "name": "local",
+            "type": "sram",
+            "addressing": {
+                "offset_byte": 1024,
+                "size_byte": 1024
+            }
+        },
+        {
+            "name": "pim_input_reg_buffer",
+            "type": "rf",
+            "addressing": {
+                "offset_byte": 2048,
+                "size_byte": 512
+            }
+        },
+        {
+            "name": "pim_output_reg_buffer",
+            "type": "rf",
+            "addressing": {
+                "offset_byte": 2560,
+                "size_byte": 512
+            }
+        },
+        {
+            "name": "macro",
+            "type": "macro",
+            "addressing": {
+                "offset_byte": 3072,
+                "size_byte": 128
+            }
+        }
+    ]
+}
