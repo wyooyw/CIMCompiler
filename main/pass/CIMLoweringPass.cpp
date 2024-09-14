@@ -86,6 +86,10 @@ static int getMemoryBaseAddr(Value buffer){
   mlir::MemRefType type = llvm::cast<mlir::MemRefType>(buffer.getType());
   mlir::DictionaryAttr memory_space = llvm::cast<mlir::DictionaryAttr>(type.getMemorySpace());
   std::string memory = llvm::cast<mlir::StringAttr>(memory_space.get("memory")).getValue().str();
+  if (!memory_addr_list.count(memory)){
+    std::cerr << "can't find memory: " << memory << std::endl;
+    std::exit(1);
+  }
   int memory_addr = memory_addr_list[memory];
   return memory_addr;
 }
@@ -141,6 +145,7 @@ static Value getAddrValue(Value operand, PatternRewriter &rewriter){
     auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
     if (!allocOp){
       std::cout << "getAddrValue allocOp==nullptr" << std::endl;
+      std::exit(1);
       return nullptr;
     }
     llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
@@ -158,9 +163,22 @@ static Value getAddrValue(Value operand, PatternRewriter &rewriter){
       }
     }
     int64_t bitwidth = getBitWidthMemRefOperand(operand);
-    int64_t bytewidth = bitwidth / 8;
-    Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
-    Value byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
+    Value byte_addr_offset;
+    if(bitwidth == 1){
+      Value bytewidth_reciprocal_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 8);
+      // we assume that addr_offset is multiple of 8 
+      byte_addr_offset = rewriter.create<arith::DivSIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_reciprocal_value);
+    }else if(bitwidth >= 8 && bitwidth%8==0){
+      int64_t bytewidth = bitwidth / 8;
+      Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+      byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
+    }else{
+      std::cerr << "Wrong bitwidth: " << bitwidth << std::endl;
+      std::exit(1);
+    }
+    // int64_t bytewidth = bitwidth / 8;
+    // Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+    // Value byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
     
     mlir::Value addr_base = getBufferBaseAddr(allocOp.getResult(), rewriter);
     mlir::Value real_address = rewriter.create<arith::AddIOp>(rewriter.getUnknownLoc(), addr_base, byte_addr_offset);
@@ -169,6 +187,60 @@ static Value getAddrValue(Value operand, PatternRewriter &rewriter){
     std::cout << "getAddrValue fail" << std::endl;
     std::exit(1);
     return nullptr;
+  }
+  
+}
+
+static std::pair<Value,Value> getAddrBaseAndOffsetValue(Value operand, PatternRewriter &rewriter){
+  if(auto alloc_op = operand.getDefiningOp<memref::AllocOp>()){
+    mlir::Value base = getBufferBaseAddr(alloc_op.getResult(), rewriter);
+    mlir::Value offset = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 0);
+    return std::make_pair(base, offset);
+  }else if(auto subViewOp = operand.getDefiningOp<memref::SubViewOp>()){
+    auto allocOp = subViewOp.getOperand(0).getDefiningOp<memref::AllocOp>();
+    if (!allocOp){
+      std::cout << "getAddrValue allocOp==nullptr" << std::endl;
+      std::exit(1);
+    }
+    llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
+    SmallVector<OpFoldResult> offsets = subViewOp.getMixedOffsets();
+    
+    Value addr_offset = getValue(offsets[0], rewriter);
+    for(int i = 1; i<offsets.size(); i++){
+      if(Value offset_i = getValue(offsets[i],rewriter)){
+        Value shape_i = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[i]);
+        Value mul = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, shape_i);
+        Value add = rewriter.create<arith::AddIOp>(rewriter.getUnknownLoc(), mul, offset_i);
+        addr_offset = add;
+      }else{
+        std::cout << "Can't get value!" << std::endl;
+        std::exit(1);
+      }
+    }
+    int64_t bitwidth = getBitWidthMemRefOperand(operand);
+    Value byte_addr_offset;
+    if(bitwidth == 1){
+      Value bytewidth_reciprocal_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 8);
+      // we assume that addr_offset is multiple of 8 
+      byte_addr_offset = rewriter.create<arith::DivSIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_reciprocal_value);
+    }else if(bitwidth >= 8 && bitwidth%8==0){
+      int64_t bytewidth = bitwidth / 8;
+      Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+      byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
+    }else{
+      std::cerr << "Wrong bitwidth: " << bitwidth << std::endl;
+      std::exit(1);
+    }
+    // int64_t bytewidth = bitwidth / 8;
+    // Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+    // Value byte_addr_offset = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), addr_offset, bytewidth_value);
+    
+    mlir::Value addr_base = getBufferBaseAddr(allocOp.getResult(), rewriter);
+    // mlir::Value real_address = rewriter.create<arith::AddIOp>(rewriter.getUnknownLoc(), addr_base, byte_addr_offset);
+    return std::make_pair(addr_base, byte_addr_offset);
+  }else{
+    std::cout << "getAddrValue fail" << std::endl;
+    std::exit(1);
   }
   
 }
@@ -205,23 +277,31 @@ static Value getLengthValue(Value operand, PatternRewriter &rewriter){
 
 static Value getSizeValue(Value operand, PatternRewriter &rewriter){
   if(auto allocOp = operand.getDefiningOp<memref::AllocOp>()){
-    int bitwidth = getBitWidthMemRefOperand(operand);
-    int bytewidth = bitwidth / 8;
+    
 
     llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
-    int64_t size = bytewidth;
+    int64_t size = 1;
     for(int i = 0; i<allocShapes.size(); i++){
       size *= allocShapes[i];
     }
+
+    int bitwidth = getBitWidthMemRefOperand(operand);
+    int bytewidth = bitwidth / 8;
+    if(bitwidth == 1){
+      size = size / 8;
+    }else if(bitwidth >= 8 && bitwidth%8==0){
+      size = size * (bitwidth / 8);
+    }else{
+      std::cerr << "Wrong bitwidth: " << bitwidth << std::endl;
+      std::exit(1);
+    }
+
     mlir::Value zero = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), size);
     return zero;
   }else if(auto subViewOp = operand.getDefiningOp<memref::SubViewOp>()){
     SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
     
-    int bitwidth = getBitWidthMemRefOperand(operand);
-    int bytewidth = bitwidth / 8;
-    
-    Value size = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+    Value size = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
     for(int i = 0; i<shapes.size(); i++){
       if(Value shape_i = getValue(shapes[i],rewriter)){
         size = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), size, shape_i);
@@ -229,6 +309,22 @@ static Value getSizeValue(Value operand, PatternRewriter &rewriter){
         return nullptr;
       }
     }
+
+    int bitwidth = getBitWidthMemRefOperand(operand);
+    int bytewidth = bitwidth / 8;
+
+    if(bitwidth == 1){
+      Value bytewidth_reciprocal_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 8);
+      size = rewriter.create<arith::DivSIOp>(rewriter.getUnknownLoc(), size, bytewidth_reciprocal_value);
+    }else if(bitwidth >= 8 && bitwidth%8==0){
+      int64_t bytewidth = bitwidth / 8;
+      Value bytewidth_value = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), bytewidth);
+      size = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(), size, bytewidth_value);
+    }else{
+      std::cerr << "Wrong bitwidth: " << bitwidth << std::endl;
+      std::exit(1);
+    }
+
     return size;
   }else{
     std::cout << "getSizeValue fail" << std::endl;
@@ -287,6 +383,20 @@ static IntegerAttr getI1IntegerAttr(int32_t value, PatternRewriter &rewriter) {
   return IntegerAttr::get(rewriter.getIntegerType(1), APInt(1, value));
 }
 
+static bool isConstant(Value operand){
+    return operand.getDefiningOp<arith::ConstantOp>();
+}
+
+static IntegerAttr getConstantInt(Value operand){
+    if(auto constantOp = operand.getDefiningOp<arith::ConstantOp>()){
+        return constantOp.getValue().cast<IntegerAttr>();
+    }else{
+        std::cerr << "getConstantInt fail" << std::endl;
+        std::exit(1);
+        return 0;
+    }
+}
+
 // why need this namespace ?
 namespace {
 
@@ -299,9 +409,12 @@ namespace {
           Now, all index of load is 0.
         */
         std::cout << "LoadOpLowering::matchAndRewrite 1" << std::endl;
-        Value addr_src = getAddrValue(op.getOperand(0), rewriter);
+        // Value addr_src = getAddrValue(op.getOperand(0), rewriter);
+        std::pair<Value, Value> base_and_offset = getAddrBaseAndOffsetValue(op.getOperand(0), rewriter);
+        Value base = base_and_offset.first;
+        Value offset = base_and_offset.second;
         std::cout << "LoadOpLowering::matchAndRewrite 4" << std::endl;
-        if (!addr_src) {
+        if (!base | !offset) {
           std::cout << "LoadOpLowering::matchAndRewrite fail" << std::endl;
           return failure();
         }
@@ -309,7 +422,7 @@ namespace {
 
         MemRefType memtype = llvm::cast<mlir::MemRefType>(op.getOperand(0).getType());
         Type type = memtype.getElementType();
-        mlir::cimisa::LoadOp new_op = rewriter.create<mlir::cimisa::LoadOp>(op.getLoc(), type, addr_src);
+        auto new_op = rewriter.create<mlir::cimisa::LoadBaseAndOffsetOp>(op.getLoc(), type, base, offset);
         rewriter.replaceOp(op, {new_op.getResult()});
         // rewriter.replaceOpWithNewOp<mlir::cimisa::LoadOp>(op, type, addr_src);
         return success();
@@ -326,15 +439,21 @@ namespace {
         */
         std::cout << "StoreOpLowering::matchAndRewrite 1" << std::endl;
         Value value = op.getOperand(0);
-        Value addr_dst = getAddrValue(op.getOperand(1), rewriter);
+        // Value addr_dst = getAddrValue(op.getOperand(1), rewriter);
+        std::pair<Value, Value> base_and_offset = getAddrBaseAndOffsetValue(op.getOperand(1), rewriter);
+        Value base = base_and_offset.first;
+        Value offset = base_and_offset.second;
+
+        // if (isConstant(offset))
+
         std::cout << "StoreOpLowering::matchAndRewrite 4" << std::endl;
-        if (!addr_dst || !value) {
+        if (!base || !offset) {
           std::cout << "StoreOpLowering::matchAndRewrite fail" << std::endl;
           return failure();
         }
         std::cout << "StoreOpLowering::matchAndRewrite success" << std::endl;
 
-        rewriter.replaceOpWithNewOp<cimisa::StoreOp>(op, addr_dst, value);
+        rewriter.replaceOpWithNewOp<cimisa::StoreBaseAndOffsetOp>(op, base, offset, value);
         return success();
       }
     };
@@ -344,7 +463,7 @@ namespace {
 
       LogicalResult
       matchAndRewrite(cim::CopyOp op, PatternRewriter &rewriter) const final {
-
+        std::cout << "TransOpLowering::matchAndRewrite begin" << std::endl;
         Value addr_src = getAddrValue(op.getOperand(0), rewriter);
         Value addr_dst = getAddrValue(op.getOperand(1), rewriter);
         Value size = getSizeValue(op.getOperand(0), rewriter);
@@ -369,7 +488,7 @@ namespace {
         std::cout << "CIMComputeOpLowering::matchAndRewrite 1" << std::endl;
         Value addr_input = getAddrValue(op.getOperand(0), rewriter);
         std::cout << "CIMComputeOpLowering::matchAndRewrite 2" << std::endl;
-        Value addr_output = getAddrValue(op.getOperand(2), rewriter);
+        // Value addr_output = getAddrValue(op.getOperand(2), rewriter);
         std::cout << "CIMComputeOpLowering::matchAndRewrite 3" << std::endl;
         std::vector<Value> macro_activate = getMacroActivatePosition(op, rewriter, 1);
         std::cout << "CIMComputeOpLowering::matchAndRewrite 4" << std::endl;
@@ -382,7 +501,7 @@ namespace {
         Value input_size_all = getLengthValue(op.getOperand(0), rewriter);
         Value input_size = rewriter.create<arith::DivSIOp>(op.getLoc(), input_size_all, num_group);
         
-        if (!addr_input || !addr_output || !row_index || !input_size) {
+        if (!addr_input || !row_index || !input_size) {
           std::cout << "CIMComputeOpLowering::matchAndRewrite fail 2" << std::endl;
           return failure();
         }
@@ -398,7 +517,7 @@ namespace {
         
         rewriter.replaceOpWithNewOp<cimisa::CIMComputeOp>(op, 
               addr_input,           // AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
-              addr_output,          // AnyTypeOf<[AnyInteger, Index]>:$output_addr, 
+              // addr_output,          // AnyTypeOf<[AnyInteger, Index]>:$output_addr, 
               row_index,            // AnyTypeOf<[AnyInteger, Index]>:$row_index,
               input_size,           // AnyTypeOf<[AnyInteger, Index]>:$input_size,
               acc_flag,             // I1:$acc_flag,
@@ -415,7 +534,7 @@ namespace {
 
       LogicalResult
       matchAndRewrite(cim::VVAddOp op, PatternRewriter &rewriter) const final {
-
+        std::cout << "VVAddOpLowering::matchAndRewrite begin" << std::endl;
         Value lhs = getAddrValue(op.getOperand(0), rewriter);
         Value rhs = getAddrValue(op.getOperand(1), rewriter);
         Value result = getAddrValue(op.getOperand(2), rewriter);
@@ -438,6 +557,30 @@ namespace {
         
         rewriter.replaceOpWithNewOp<cimisa::VVAddOp>(op, lhs, rhs, result, size, 
                 bitwidth_lhs, bitwidth_rhs, bitwidth_out);
+
+        return success();
+      }
+    };
+
+    struct QuantifyOpLowering : public OpRewritePattern<cim::QuantifyOp> {
+      using OpRewritePattern<cim::QuantifyOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::QuantifyOp op, PatternRewriter &rewriter) const final {
+        std::cout << "QuantifyOpLowering::matchAndRewrite begin" << std::endl;
+        Value input_addr = getAddrValue(op.getOperand(0), rewriter);
+        Value out_zp_addr = getAddrValue(op.getOperand(1), rewriter);
+        Value output_addr = getAddrValue(op.getOperand(2), rewriter);
+        Value size = getLengthValue(op.getOperand(0), rewriter);
+        
+        std::cout << "QuantifyOpLowering::matchAndRewrite" << std::endl;
+        if (!input_addr || !out_zp_addr || !output_addr || !size) {
+          std::cout << "QuantifyOpLowering::matchAndRewrite fail" << std::endl;
+          return failure();
+        }
+        std::cout << "QuantifyOpLowering::matchAndRewrite success" << std::endl;
+        
+        rewriter.replaceOpWithNewOp<cimisa::QuantifyOp>(op, input_addr, out_zp_addr, output_addr, size, op.getRelu());
 
         return success();
       }
@@ -473,6 +616,123 @@ namespace {
           std::exit(1);
         }
         std::cout << "SpecialRegSetOpLowering::matchAndRewrite success" << std::endl;
+        return success();
+      }
+    };
+
+    struct CIMOutputOpLowering : public OpRewritePattern<cim::CIMOutputOp> {
+      using OpRewritePattern<cim::CIMOutputOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::CIMOutputOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "CIMOutputOpLowering::matchAndRewrite begin" << std::endl;
+        Value out_n = op.getOperand(0);
+        Value mask_addr = op.getOperand(1); // this is true, no need to call getAddrValue
+        Value addr_dst = getAddrValue(op.getOperand(2), rewriter);
+        if (!out_n || !mask_addr || !addr_dst) {
+          std::cerr << "CIMOutputOpLowering::matchAndRewrite fail" << std::endl;
+          std::exit(1);
+        }
+        rewriter.replaceOpWithNewOp<cimisa::CIMOutputOp>(op, out_n, mask_addr, addr_dst);
+        std::cout << "CIMOutputOpLowering::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
+
+    struct CIMOutputSumOpLowering : public OpRewritePattern<cim::CIMOutputSumOp> {
+      using OpRewritePattern<cim::CIMOutputSumOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::CIMOutputSumOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "CIMOutputSumOpLowering::matchAndRewrite begin" << std::endl;
+        Value out_n = op.getOperand(0);
+        Value out_mask_addr = getAddrValue(op.getOperand(1), rewriter);
+        Value output_addr = getAddrValue(op.getOperand(2), rewriter);
+        if (!out_mask_addr || !output_addr) {
+          std::cerr << "CIMOutputSumOpLowering::matchAndRewrite fail" << std::endl;
+          std::exit(1);
+        }
+        rewriter.replaceOpWithNewOp<cimisa::CIMOutputSumOp>(op, out_n, out_mask_addr, output_addr);
+        std::cout << "CIMOutputSumOpLowering::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
+
+  
+    struct CIMTransferOpLowering : public OpRewritePattern<cim::CIMTransferOp> {
+      using OpRewritePattern<cim::CIMTransferOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::CIMTransferOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "CIMTransferOpLowering::matchAndRewrite begin" << std::endl;
+        Value src_addr = getAddrValue(op.getOperand(0), rewriter);
+        Value output_number = op.getOperand(1);
+        Value output_mask_addr = getAddrValue(op.getOperand(2), rewriter);
+        Value buffer_addr = getAddrValue(op.getOperand(3), rewriter);
+        Value dst_addr = getAddrValue(op.getOperand(4), rewriter);
+        if (!src_addr || !output_number || !output_mask_addr || !buffer_addr || !dst_addr) {
+          std::cerr << "CIMTransferOpLowering::matchAndRewrite fail" << std::endl;
+          std::exit(1);
+        }
+        rewriter.replaceOpWithNewOp<cimisa::CIMTransferOp>(op, 
+          src_addr,
+          output_number, 
+          output_mask_addr, 
+          buffer_addr, 
+          dst_addr
+        );
+        std::cout << "CIMTransferOpLowering::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
+
+    struct CIMSetOpLowering : public OpRewritePattern<cim::CIMSetOp> {
+      using OpRewritePattern<cim::CIMSetOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::CIMSetOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "CIMSetOpLowering::matchAndRewrite begin" << std::endl;
+        Value mask_addr = getAddrValue(op.getOperand(), rewriter);
+        if (!mask_addr) {
+          std::cerr << "CIMSetOpLowering::matchAndRewrite fail" << std::endl;
+          std::exit(1);
+        }
+        rewriter.replaceOpWithNewOp<cimisa::CIMSetOp>(op, 
+          mask_addr
+        );
+        std::cout << "CIMSetOpLowering::matchAndRewrite finish" << std::endl;
+        return success();
+      }
+    };
+
+    struct AddrOpLowering : public OpRewritePattern<cim::AddrOp> {
+      using OpRewritePattern<cim::AddrOp>::OpRewritePattern;
+
+      LogicalResult
+      matchAndRewrite(cim::AddrOp op, PatternRewriter &rewriter) const final {
+        /*
+          Now, all index of load is 0.
+        */
+        std::cout << "AddrOpLowering::matchAndRewrite begin" << std::endl;
+        Value src_addr = getAddrValue(op.getOperand(), rewriter);
+        if (!src_addr) {
+          std::cerr << "AddrOpLowering::matchAndRewrite fail" << std::endl;
+          std::exit(1);
+        }
+        rewriter.replaceOp(op, {src_addr});
+        std::cout << "AddrOpLowering::matchAndRewrite finish" << std::endl;
         return success();
       }
     };
@@ -522,7 +782,9 @@ void CIMLoweringPass::runOnOperation() {
   // the set of patterns that will lower the Toy operations.
   RewritePatternSet patterns(&getContext());
   patterns.add<TransOpLowering,CIMComputeOpLowering,LoadOpLowering,StoreOpLowering,
-              VVAddOpLowering, SpecialRegSetOpLowering>(
+              VVAddOpLowering, SpecialRegSetOpLowering, CIMOutputOpLowering,
+              CIMOutputSumOpLowering, CIMTransferOpLowering,QuantifyOpLowering,
+              AddrOpLowering, CIMSetOpLowering>(
       &getContext());
 
   // With the target and rewrite patterns defined, we can now attempt the

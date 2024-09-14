@@ -58,7 +58,10 @@ class TestSimulator:
             self.inst_util.scalar_rr(0, 1, rd=2, opcode="add"),
             self.inst_util.scalar_rr(0, 1, rd=3, opcode="sub"),
             self.inst_util.scalar_rr(0, 1, rd=4, opcode="mul"),
-            self.inst_util.scalar_rr(0, 1, rd=5, opcode="div")
+            self.inst_util.scalar_rr(0, 1, rd=5, opcode="div"),
+            self.inst_util.general_li(1, 3),
+            self.inst_util.scalar_rr(0, 1, rd=6, opcode="mod"),
+            self.inst_util.scalar_rr(0, 1, rd=7, opcode="min"),
         ]
         self.simulator.run_code(inst_list)
 
@@ -66,6 +69,8 @@ class TestSimulator:
         assert self.simulator.general_rf[3] == 6
         assert self.simulator.general_rf[4] == 16
         assert self.simulator.general_rf[5] == 4
+        assert self.simulator.general_rf[6] == 2
+        assert self.simulator.general_rf[7] == 3
 
     def test_general_to_special(self):
         inst_list_1 = [

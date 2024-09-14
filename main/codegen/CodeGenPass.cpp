@@ -82,7 +82,7 @@ static int getReg(std::unordered_map<llvm::hash_code, int > &regmap, mlir::Value
   
 }
 
-typedef map<string, int> Inst;
+typedef map<std::string, int> Inst;
 
 static void codeGen(mlir::arith::ConstantOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
   std::set<int> &def, std::set<int> &use){
@@ -94,6 +94,28 @@ static void codeGen(mlir::arith::ConstantOp op, std::unordered_map<llvm::hash_co
     - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
   */
   int value = cast<IntegerAttr>(op.getValueAttr()).getInt();
+  int reg = getReg(regmap, op.getResult());
+  def.insert(reg);
+  Inst inst = {
+    {"class", 0b10},
+    {"type", 0b11},
+    {"opcode", 0b00},
+    {"rd", reg},
+    {"imm", value}
+  };
+  instr_list.push_back(inst);
+}
+
+static void codeGen(mlir::cimisa::GeneralRegLiOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
+  /*
+    - [31, 30]，2bit：class，指令类别码，值为10
+    - [29, 28]，2bit：type，指令类型码，值为11
+    - [27, 26]，2bit：opcode，指令操作码，值为00
+    - [25, 21]，5bit：rd，通用寄存器编号，即要赋值的通用寄存器
+    - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
+  */
+  int64_t value = op.getValue().getSExtValue();
   int reg = getReg(regmap, op.getResult());
   def.insert(reg);
   Inst inst = {
@@ -142,6 +164,13 @@ static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regma
       opcode = 0b010; // Ty2 的 opcode
   } else if constexpr (std::is_same<Ty, mlir::arith::DivSIOp>::value) {
       opcode = 0b011; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::arith::RemSIOp>::value) {
+      opcode = 0b111; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::arith::MinSIOp>::value) {
+      opcode = 0b1000; // Ty2 的 opcode
+  } else {
+    std::cerr << "Unsupport arith op!" << std::endl;
+    std::exit(1);
   }
   
   Inst inst = {
@@ -151,6 +180,58 @@ static void codeGenArith(Ty op, std::unordered_map<llvm::hash_code, int > &regma
     {"rs1", rs1},
     {"rs2", rs2},
     {"rd", rd}
+  };
+  instr_list.push_back(inst);
+}
+
+template <typename Ty>
+static void codeGenRI(Ty op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
+  /*
+    R-I型整数运算指令：scalar-RI
+    指令字段划分：
+    - [31, 30]，2bit：class，指令类别码，值为10
+    - [29, 28]，2bit：type，指令类型码，值为01
+    - [27, 26]，2bit：opcode，操作类别码，表示具体计算的类型
+      - 00：addi，整型立即数加法
+      - 01：muli，整型立即数乘法，结果寄存器仅保留低32位
+      - 10：lui，高16位立即数赋值
+    - [25, 21]，5bit：rs，通用寄存器1，表示运算数1的值
+    - [20, 16]，5bit：rd，通用寄存器2，即运算结果写回的寄存器
+    - [15, 0]，16bit：imm，立即数，表示运算数2的值
+  */
+  int rs = getReg(regmap, op.getOperand());
+  int rd = getReg(regmap, op.getResult());
+  int64_t imm = op.getConstant().getSExtValue();
+  
+  def.insert(rd);
+  use.insert(rs);
+
+  int opcode = 0b000; // 默认值
+  if constexpr (std::is_same<Ty, mlir::cimisa::RIAddIOp>::value) {
+      opcode = 0b000; // Ty1 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::cimisa::RISubIOp>::value) {
+      opcode = 0b001; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::cimisa::RIMulIOp>::value) {
+      opcode = 0b010; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::cimisa::RIDivSIOp>::value) {
+      opcode = 0b011; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::cimisa::RIRemSIOp>::value) {
+      opcode = 0b111; // Ty2 的 opcode
+  } else if constexpr (std::is_same<Ty, mlir::cimisa::RIMinSIOp>::value) {
+      opcode = 0b1000; // Ty2 的 opcode
+  } else {
+    std::cerr << "Unsupport arith ri op!" << std::endl;
+    std::exit(1);
+  }
+  
+  Inst inst = {
+    {"class", 0b10},
+    {"type", 0b01},
+    {"opcode", opcode},
+    {"rs", rs},
+    {"rd", rd},
+    {"imm", imm}
   };
   instr_list.push_back(inst);
 }
@@ -211,29 +292,92 @@ static void codeGen(mlir::cimisa::VVAddOp op, std::unordered_map<llvm::hash_code
 }
 
 
+static void codeGen(mlir::cimisa::QuantifyOp op, 
+  std::unordered_map<llvm::hash_code, int > &regmap, 
+  std::vector<Inst>& instr_list,
+  std::set<int> &def, 
+  std::set<int> &use,
+  std::map<int,int>& twin_reg){
+  /*
+    SIMD计算：SIMD-compute
+    指令字段划分：
+    - [31, 30]，2bit：class，指令类别码，值为01
+    - [29, 28]，2bit：input num，input向量的个数，范围是1到4
+      - 00：1个输入向量，地址由rs1给出
+      - 01：2个输入向量，地址由rs1和rs2给出
+      - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
+      - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
+    - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
+      - 0x00：add，向量加法
+      - 0x01：add-scalar，向量和标量加法
+      - 0x02：multiply，向量逐元素乘法
+      - 0x03：quantify，量化
+      - 0x04：quantify-resadd，resadd量化
+      - 0x05：quantify-multiply，乘法量化
+    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
+    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
+    - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
+    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
+    使用的专用寄存器：
+    - input 1 bit width：输入向量1每个元素的bit长度
+    - input 2 bit width：输入向量2每个元素的bit长度
+    - input 3 bit width：输入向量3每个元素的bit长度
+    - input 4 bit width：输入向量4每个元素的bit长度
+    - output bit width：输出向量每个元素的bit长度
+  */
+  int input_addr = getReg(regmap, op.getOperand(0));
+  // int bias_scale_addr = getReg(regmap, op.getOperand(1));
+  int out_zp_addr = getReg(regmap, op.getOperand(1));
+  int output_addr = getReg(regmap, op.getOperand(2));
+  int size = getReg(regmap, op.getOperand(3));
+  bool relu = op.getRelu();
+  
+  use.insert(input_addr);
+  // use.insert(bias_scale_addr);
+  use.insert(out_zp_addr);
+  use.insert(output_addr);
+  use.insert(size);
+
+  Inst inst = {
+    {"class", 0b01},
+    {"input_num", 0b10},
+    {"opcode", 3},
+    {"rs1", input_addr},
+    // {"rs1_1", bias_scale_addr},
+    {"rs2", out_zp_addr},
+    {"rs3", size},
+    {"rd", output_addr},
+    {"relu", relu}
+  };
+  instr_list.push_back(inst);
+
+  // twin_reg[input_addr] = bias_scale_addr;
+  // twin_reg[bias_scale_addr] = input_addr;
+}
+
 /*
   PrintOp
 */
 
 static void codeGen(mlir::cim::PrintOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
   std::set<int> &def, std::set<int> &use){
-  /*
-  - [31, 29]，3bit：class，指令类别码，值为110
-  - [28, 28]，1bit：type，指令类型码，值为0
-  - [27, 26]，1bit：offset mask，偏移值掩码，0表示该地址不使用偏移值，1表示使用偏移值
-    - [27]，1bit：source offset mask，源地址偏移值掩码
-    - [26]，1bit：destination offset mask，目的地址偏移值掩码
-  - [25, 21]，5bit：rs，通用寄存器1，表示传输源地址的基址
-  - [20, 16]，5bit：rd，通用寄存器2，表示传输目的地址的基址
-  - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
-    - 源地址计算公式：$rs + offset * [27]
-    - 目的地址计算公式：$rd + offset * [26]
-  */
+
   int rs = getReg(regmap, op.getOperand());
   use.insert(rs);
   Inst inst = {
     {"class", -1},
+    {"type", 0},
     {"rs", rs}
+  };
+  instr_list.push_back(inst);
+}
+
+static void codeGen(mlir::cim::DebugOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+  std::set<int> &def, std::set<int> &use){
+
+  Inst inst = {
+    {"class", -1},
+    {"type", 1},
   };
   instr_list.push_back(inst);
 }
@@ -295,6 +439,7 @@ static void codeGen(mlir::cimisa::LoadOp op, std::unordered_map<llvm::hash_code,
   */
   int rs1 = getReg(regmap, op.getOperand());
   int rs2 = getReg(regmap, op.getResult());
+  int64_t imm = op.getConstant().getSExtValue();
   use.insert(rs1);
   def.insert(rs2);
   Inst inst = {
@@ -303,7 +448,7 @@ static void codeGen(mlir::cimisa::LoadOp op, std::unordered_map<llvm::hash_code,
     {"opcode", 0b00},
     {"rs1", rs1},
     {"rs2", rs2},
-    {"offset", 0b0},
+    {"offset", imm},
   };
   instr_list.push_back(inst);
 }
@@ -328,6 +473,7 @@ static void codeGen(mlir::cimisa::StoreOp op, std::unordered_map<llvm::hash_code
   */
   int rs1 = getReg(regmap, op.getOperand(0));
   int rs2 = getReg(regmap, op.getOperand(1));
+  int64_t imm = op.getConstant().getSExtValue();
   use.insert(rs1);
   use.insert(rs2);
   Inst inst = {
@@ -336,7 +482,7 @@ static void codeGen(mlir::cimisa::StoreOp op, std::unordered_map<llvm::hash_code
     {"opcode", 0b01},
     {"rs1", rs1},
     {"rs2", rs2},
-    {"offset", 0b0},
+    {"offset", imm},
   };
   instr_list.push_back(inst);
 }
@@ -371,11 +517,11 @@ static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash
     - activation element col num：每个group内激活的element列的数量
   */
   int input_addr_reg = getReg(regmap, op.getOperand(0));
-  int output_addr_reg = getReg(regmap, op.getOperand(1));
-  int activate_row_reg = getReg(regmap, op.getOperand(2));
-  int input_size_reg = getReg(regmap, op.getOperand(3));
+  // int output_addr_reg = getReg(regmap, op.getOperand(1));
+  int activate_row_reg = getReg(regmap, op.getOperand(1));
+  int input_size_reg = getReg(regmap, op.getOperand(2));
   use.insert(input_addr_reg);
-  use.insert(output_addr_reg);
+  // use.insert(output_addr_reg);
   use.insert(activate_row_reg);
   use.insert(input_size_reg);
   Inst inst = {
@@ -389,7 +535,115 @@ static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash
     {"rs1", input_addr_reg},
     {"rs2", input_size_reg},
     {"rs3", activate_row_reg},
+    // {"rd", output_addr_reg},
+  };
+  instr_list.push_back(inst);
+}
+
+
+static void codeGen(mlir::cimisa::CIMOutputOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+    std::set<int> &def, std::set<int> &use){
+  /*
+
+  */
+  int out_n = getReg(regmap, op.getOperand(0));
+  int out_mask_addr = getReg(regmap, op.getOperand(1));
+  int output_addr_reg = getReg(regmap, op.getOperand(2));
+  use.insert(out_n);
+  use.insert(out_mask_addr);
+  use.insert(output_addr_reg);
+  Inst inst = {
+    {"class", 0b00},
+    {"type", 0b10},
+    {"outsum_move", 0},
+    {"outsum", 0},
+    {"rs1", out_n},
+    {"rs2", 0},
     {"rd", output_addr_reg},
+  };
+  instr_list.push_back(inst);
+}
+
+static void codeGen(mlir::cimisa::CIMOutputSumOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+    std::set<int> &def, std::set<int> &use){
+  /*
+
+  */
+  int out_n = getReg(regmap, op.getOperand(0));
+  int out_mask_addr = getReg(regmap, op.getOperand(1));
+  int output_addr_reg = getReg(regmap, op.getOperand(2));
+  use.insert(out_n);
+  use.insert(out_mask_addr);
+  use.insert(output_addr_reg);
+  Inst inst = {
+    {"class", 0b00},
+    {"type", 0b10},
+    {"outsum_move", 0},
+    {"outsum", 1},
+    {"rs1", out_n},
+    {"rs2", out_mask_addr},
+    {"rd", output_addr_reg},
+  };
+  instr_list.push_back(inst);
+}
+
+static void codeGen(mlir::cimisa::CIMTransferOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+    std::set<int> &def, std::set<int> &use){
+  /*
+src_addr,
+    AnyTypeOf<[AnyInteger, Index]>:output_number, 
+    AnyTypeOf<[AnyInteger, Index]>:output_mask_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:buffer_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:dst_addr
+  */
+  int src_addr = getReg(regmap, op.getOperand(0));
+  int output_number = getReg(regmap, op.getOperand(1));
+  int output_mask_addr = getReg(regmap, op.getOperand(2));
+  int buffer_addr = getReg(regmap, op.getOperand(3));
+  int dst_addr = getReg(regmap, op.getOperand(4));
+  use.insert(src_addr);
+  use.insert(output_number);
+  use.insert(output_mask_addr);
+  use.insert(buffer_addr);
+  use.insert(dst_addr);
+  Inst inst = {
+    {"class", 0b00},
+    {"type", 0b11},
+    {"rs1", src_addr},
+    {"rs2", output_number},
+    {"rs3", output_mask_addr},
+    {"rs4", buffer_addr},
+    {"rd", dst_addr},
+  };
+  instr_list.push_back(inst);
+}
+
+
+static void codeGen(mlir::cimisa::CIMSetOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
+    std::set<int> &def, std::set<int> &use){
+  /*
+  pim设置：pim-set
+  设置pim单元的一些参数，以每个MacroGroup为单位进行设置，设置的参数包括每个macro激活的element列等
+  - [31, 30]，2bit：class，指令类别码，值为00
+  - [29, 28]，2bit：type，指令类型码，值为01
+  - [27, 21]，7bit：reserve，保留字段
+  - [20, 20]，1bit：group broadcast，表示是否进行设置的组广播
+    - 0：不进行组广播，即仅对单个MacroGroup进行设置，MacroGroup编号由寄存器rs1给出
+    - 1：进行组广播，即对所有MacroGroup进行该次设置，此时忽略寄存器rs1
+  - [19, 15]，5bit：rs1，通用寄存器1，表示单播时设置的MacroGroup编号
+  - [14, 10]，5bit：rs2，通用寄存器2，表示一个MacroGroup内所有Macro激活element列的掩码mask地址
+    - 每个element列对应1bit mask，0表示不激活，1表示激活
+    - 每个Macro的mask从前到后依次排布，连续存储
+  - [9, 0]，10bit：reserve，保留字段
+  */
+  int mask_addr = getReg(regmap, op.getOperand());
+  use.insert(mask_addr);
+  Inst inst = {
+    {"class", 0b00},
+    {"type", 0b01},
+    {"group_broadcast", 1},
+    {"rs1", 0},
+    {"rs2", mask_addr}
   };
   instr_list.push_back(inst);
 }
@@ -399,8 +653,13 @@ static void codeGen(mlir::cimisa::CIMComputeOp op, std::unordered_map<llvm::hash
   BranchOp, CondBranchOp
 */
 
-static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, int > &regmap, std::vector<Inst>& instr_list,
-    std::set<int> &def, std::set<int> &use ){
+static void codeGen(
+  mlir::cf::BranchOp op, 
+  std::unordered_map<llvm::hash_code, int > &regmap, 
+  std::unordered_map<llvm::hash_code, int > &block_args_special_reg_map, 
+  std::vector<Inst>& instr_list,
+  std::set<int> &def, 
+  std::set<int> &use ){
   /*
 - [31, 29]，3bit：class，指令类别码，值为111
 - [28, 26]，3bit：type，指令类型码，值为100
@@ -419,21 +678,38 @@ static void codeGen(mlir::cf::BranchOp op, std::unordered_map<llvm::hash_code, i
   for (int i = 0; i < args_size; i++){
     mlir::Value arg = llvm::cast<mlir::Value>(dest_args[i]);
     mlir::Value operand = dest_operands[i];
-    int arg_reg = getReg(regmap, arg);
+    
     int operand_reg = getReg(regmap, operand);
-    // we don't have a move instruct between general register, so we use addi zero instead
-    Inst add_zero_inst = {
-      {"class", 0b10},
-      {"type", 0b01},
-      {"opcode", 0b00},
-      {"rs", operand_reg},
-      {"rd", arg_reg},
-      {"imm", 0}
-    };
-    instr_list.push_back(add_zero_inst);
-    use.insert(operand_reg);
-    // def.insert(arg_reg);
-    use.insert(arg_reg);
+    if (block_args_special_reg_map.count(mlir::hash_value(arg))){
+      int arg_special_reg = getReg(block_args_special_reg_map, arg);
+      // assign into special register
+      Inst to_special_inst = {
+        {"class", 0b10},
+        {"type", 0b11},
+        {"opcode", 0b10},
+        {"rs1", operand_reg},
+        {"rs2", arg_special_reg}
+      };
+      instr_list.push_back(to_special_inst);
+      use.insert(operand_reg);
+    }else{
+      int arg_reg = getReg(regmap, arg);
+      // we don't have a move instruct between general register, so we use addi zero instead
+      Inst add_zero_inst = {
+        {"class", 0b10},
+        {"type", 0b01},
+        {"opcode", 0b00},
+        {"rs", operand_reg},
+        {"rd", arg_reg},
+        {"imm", 0}
+      };
+      // assign args into special register
+      instr_list.push_back(add_zero_inst);
+      use.insert(operand_reg);
+      def.insert(arg_reg);
+    }
+
+    // use.insert(arg_reg);
   }
 
   Inst inst = {
@@ -547,6 +823,25 @@ static void codeGen(mlir::cimisa::SpecialRegAssignOp op, std::unordered_map<llvm
   CodeGen For Operator Finish!
 */
 
+static void block_dfs(Block *block, std::vector<Block*> &blocks, std::unordered_map<Block*, bool> &blocks_completed){
+  blocks.push_back(block);
+  blocks_completed[block] = true;
+
+  auto terminator = block->getTerminator();
+  if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
+    if (blocks_completed[_op.getFalseDest()]){
+      std::cerr << "Error: false-dest block already completed" << std::endl;
+      std::exit(1);
+    }else{
+      block_dfs(_op.getFalseDest(), blocks, blocks_completed);
+    }
+
+    if (!blocks_completed[_op.getTrueDest()]){
+      block_dfs(_op.getTrueDest(), blocks, blocks_completed);
+    }
+  }
+}
+
 static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
   std::cout << "getBlockList begin" << std::endl;
   auto regions = func->getRegions();
@@ -563,7 +858,8 @@ static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
 
   int block_cnt = 0;
   int total_block_cnt = region.getBlocks().size();
-  while(block_cnt < total_block_cnt){
+  while(blocks.size() < total_block_cnt){
+    Block *selected_block;
     if (block_cnt==0){
 
       // find the block with no predeccessor
@@ -571,8 +867,7 @@ static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
         int num_predecessors = 0;
         for (auto *b : block.getPredecessors()) num_predecessors++;
         if (num_predecessors==0){
-          blocks.push_back(&block);
-          blocks_completed[&block] = true;
+          selected_block = &block;
           break;
         }
       }
@@ -596,8 +891,7 @@ static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
         }
         if (flag){
           find = 1;
-          blocks.push_back(&block);
-          blocks_completed[&block] = true;
+          selected_block = &block;
           break;
         }
       }
@@ -609,36 +903,152 @@ static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
 
     } // end if block_cnt==0
 
-    Block *selected_block = blocks.back();
+    block_dfs(selected_block, blocks, blocks_completed);
 
     // False-dest chain
-    while(true){
-      auto terminator = selected_block->getTerminator();
-      if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
-        if (blocks_completed[_op.getFalseDest()]){
-          std::cerr << "Error: false-dest block already completed" << std::endl;
-          std::exit(1);
-        }
-        blocks.push_back(_op.getFalseDest());
-        blocks_completed[_op.getFalseDest()] = true;
-        selected_block = _op.getFalseDest();
-        block_cnt++;
-      }else{
-        break;
-      }
-    }
+    // while(true){
+    //   auto terminator = selected_block->getTerminator();
+    //   if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
+    //     if (blocks_completed[_op.getFalseDest()]){
+    //       std::cerr << "Error: false-dest block already completed" << std::endl;
+    //       std::exit(1);
+    //     }
+    //     blocks.push_back(_op.getFalseDest());
+    //     blocks_completed[_op.getFalseDest()] = true;
+    //     selected_block = _op.getFalseDest();
+    //     block_cnt++;
+    //   }else{
+    //     break;
+    //   }
+    // }
   }
   std::cout << "getBlockList end" << std::endl;
   return blocks;
 }
 
-static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_code, int > &regmap, 
+// static std::vector<Block*> getBlockList(mlir::func::FuncOp func){
+//   std::cout << "getBlockList begin" << std::endl;
+//   auto regions = func->getRegions();
+//   if (regions.size()>1){
+//     std::cout << "regions.size()" << regions.size() << std::endl;
+//     std::exit(1);
+//   }
+//   Region &region = regions.front();
+//   std::vector<Block*> blocks;
+//   std::unordered_map<Block*, bool> blocks_completed;
+//   for (Block &block : region.getBlocks()){
+//     blocks_completed[&block] = false;
+//   }
+
+//   int block_cnt = 0;
+//   int total_block_cnt = region.getBlocks().size();
+//   while(block_cnt < total_block_cnt){
+//     if (block_cnt==0){
+
+//       // find the block with no predeccessor
+//       for (Block &block : region.getBlocks()){
+//         int num_predecessors = 0;
+//         for (auto *b : block.getPredecessors()) num_predecessors++;
+//         if (num_predecessors==0){
+//           blocks.push_back(&block);
+//           blocks_completed[&block] = true;
+//           break;
+//         }
+//       }
+//       block_cnt = 1;
+
+//     }else{
+
+//       // find the block with no false-dest predecessor
+//       int find = 0;
+//       for (Block &block : region.getBlocks()){
+//         if (blocks_completed[&block]) continue;
+//         int flag = 1;
+//         for (auto *b : block.getPredecessors()){
+//           auto terminator = b->getTerminator();
+//           if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
+//             if (_op.getFalseDest()==&block){
+//               flag = 0;
+//               break;
+//             }
+//           }
+//         }
+//         if (flag){
+//           find = 1;
+//           blocks.push_back(&block);
+//           blocks_completed[&block] = true;
+//           break;
+//         }
+//       }
+//       if (!find){
+//         std::cout << "can't find block with no false-dest predecessor" << std::endl;
+//         std::exit(1);
+//       }
+//       block_cnt++;
+
+//     } // end if block_cnt==0
+
+//     Block *selected_block = blocks.back();
+
+//     // False-dest chain
+//     while(true){
+//       auto terminator = selected_block->getTerminator();
+//       if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(terminator)){
+//         if (blocks_completed[_op.getFalseDest()]){
+//           std::cerr << "Error: false-dest block already completed" << std::endl;
+//           std::exit(1);
+//         }
+//         blocks.push_back(_op.getFalseDest());
+//         blocks_completed[_op.getFalseDest()] = true;
+//         selected_block = _op.getFalseDest();
+//         block_cnt++;
+//       }else{
+//         break;
+//       }
+//     }
+//   }
+//   std::cout << "getBlockList end" << std::endl;
+//   return blocks;
+// }
+
+static void codeGenForBlockArgs(
+  Block *block, 
+  std::unordered_map<llvm::hash_code, int > &general_reg_map, 
+  std::unordered_map<llvm::hash_code, int > &block_args_special_reg_map, 
+  std::vector<Inst>& instr_list,
+  std::set<int>& write,
+  std::set<int>& read
+  ){
+
+  auto args = block->getArguments();
+  for (int i = 0; i < args.size(); i++){
+    mlir::Value arg = llvm::cast<mlir::Value>(args[i]);
+    if (block_args_special_reg_map.count(mlir::hash_value(arg))){
+      int special_reg = getReg(block_args_special_reg_map, arg);
+      int general_reg = getReg(general_reg_map, arg);
+      Inst inst = {
+        {"class", 0b10},
+        {"type", 0b11},
+        {"opcode", 0b11},
+        {"rs1", general_reg},
+        {"rs2", special_reg}
+      };
+      instr_list.push_back(inst);
+      write.insert(general_reg);
+    }
+  }
+}
+
+static void codeGen(std::vector<Block*> &blocks, 
+          std::unordered_map<llvm::hash_code, int > &regmap, 
+          std::unordered_map<llvm::hash_code, int > &block_args_special_reg_map,
           std::vector<Inst>& instr_list, 
           std::map<Block*, int>& block2line,
           std::map<Block*, int>& block2line_end,
           std::map<Operation*, int>& jump2line,
           std::map<Block*, std::set<int> >& def,
-          std::map<Block*, std::set<int> >& use
+          std::map<Block*, std::set<int> >& use,
+          std::map<int,int>& twin_reg
           ){
   
   for (Block *block : blocks){
@@ -647,11 +1057,17 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
 
     std::set<int> _write;
     std::set<int> _read;
+
+    codeGenForBlockArgs(block, regmap, block_args_special_reg_map, instr_list, _write, _read);
     for (Operation &op_obj : block->getOperations()){
       Operation *op = &op_obj;
       
       if(auto _op = dyn_cast<mlir::arith::ConstantOp>(op) ){
         codeGen(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::GeneralRegLiOp>(op) ){
+        codeGen(_op, regmap, instr_list, _write, _read);
+
+      // RR
       }else if(auto _op = dyn_cast<mlir::arith::AddIOp>(op)){
         codeGenArith<mlir::arith::AddIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::SubIOp>(op)){
@@ -660,9 +1076,36 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
         codeGenArith<mlir::arith::MulIOp>(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::arith::DivSIOp>(op)){
         codeGenArith<mlir::arith::DivSIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::arith::RemSIOp>(op)){
+        codeGenArith<mlir::arith::RemSIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::arith::MinSIOp>(op)){
+        codeGenArith<mlir::arith::MinSIOp>(_op, regmap, instr_list, _write, _read);
+
+      // RI
+      }else if(auto _op = dyn_cast<mlir::cimisa::RIAddIOp>(op)){
+        codeGenRI<mlir::cimisa::RIAddIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::RISubIOp>(op)){
+        codeGenRI<mlir::cimisa::RISubIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::RIMulIOp>(op)){
+        codeGenRI<mlir::cimisa::RIMulIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::RIDivSIOp>(op)){
+        codeGenRI<mlir::cimisa::RIDivSIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::RIRemSIOp>(op)){
+        codeGenRI<mlir::cimisa::RIRemSIOp>(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::RIMinSIOp>(op)){
+        codeGenRI<mlir::cimisa::RIMinSIOp>(_op, regmap, instr_list, _write, _read);
+
       }else if(auto _op = dyn_cast<mlir::cimisa::VVAddOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::CIMOutputOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::CIMOutputSumOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::CIMTransferOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cimisa::CIMSetOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::TransOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
@@ -672,16 +1115,21 @@ static void codeGen(std::vector<Block*> &blocks, std::unordered_map<llvm::hash_c
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cim::PrintOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
+      }else if(auto _op = dyn_cast<mlir::cim::DebugOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cf::CondBranchOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
         jump2line[op] = instr_list.size() - 1;
       }else if(auto _op = dyn_cast<mlir::cf::BranchOp>(op)){
-        codeGen(_op, regmap, instr_list, _write, _read);
+        codeGen(_op, regmap, block_args_special_reg_map, instr_list, _write, _read);
         jump2line[op] = instr_list.size() - 1;
       }else if(auto _op = dyn_cast<mlir::cimisa::SpecialRegLiOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
       }else if(auto _op = dyn_cast<mlir::cimisa::SpecialRegAssignOp>(op)){
         codeGen(_op, regmap, instr_list, _write, _read);
+      
+      }else if(auto _op = dyn_cast<mlir::cimisa::QuantifyOp>(op)){
+        codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
       }else{
         std::cerr << "error: unsupport operator: " << op->getName().getStringRef().str() << std::endl;
       }
@@ -754,24 +1202,112 @@ static void _getRegisterMappingAliasBetweenBasicBlock(
   }
 }
 
+// static void _getRegisterMappingForBlockArgs(
+//   mlir::func::FuncOp func,
+//   std::unordered_map<llvm::hash_code, int >& mapping,
+//   int& reg_cnt){
+    
+
+//   auto regions = func->getRegions();
+//   for (Region &region : regions){
+//     // for each block
+//     for (Block &block : region.getBlocks()){
+//       auto block_arguments = block.getArguments();
+//       for (int arg_i = 0; arg_i < block_arguments.size(); arg_i++){
+//         BlockArgument block_arg = block_arguments[arg_i];
+//         mlir::Value block_arg_val = llvm::cast<mlir::Value>(block_arg);
+//         mapValueAsRegister(block_arg_val, mapping, reg_cnt);
+//       }
+//     }
+//   }
+// }
+struct BlockWithLifeTime{
+  Block* block;
+  int lifetime;
+};
 static void _getRegisterMappingForBlockArgs(
   mlir::func::FuncOp func,
   std::unordered_map<llvm::hash_code, int >& mapping,
+  std::unordered_map<llvm::hash_code, int >& special_reg_mapping,
   int& reg_cnt){
-    
+  std::vector<Block*> blocks = getBlockList(func);
+  std::map<Block*, int> block2index;
+  // get block2index
+  for (int i = 0; i < blocks.size(); i++){
+    block2index[blocks[i]] = i;
+  }
 
-  auto regions = func->getRegions();
-  for (Region &region : regions){
-    // for each block
-    for (Block &block : region.getBlocks()){
-      auto block_arguments = block.getArguments();
-      for (int arg_i = 0; arg_i < block_arguments.size(); arg_i++){
-        BlockArgument block_arg = block_arguments[arg_i];
-        mlir::Value block_arg_val = llvm::cast<mlir::Value>(block_arg);
-        mapValueAsRegister(block_arg_val, mapping, reg_cnt);
+  std::vector<BlockWithLifeTime> block_with_lifetime;
+
+  for (Block *block : blocks){
+    auto block_arguments = block->getArguments();
+    if (block_arguments.size()==0){
+      BlockWithLifeTime block_with_lifetime_obj = {block, -1};
+      block_with_lifetime.push_back(block_with_lifetime_obj);
+      continue;
+    }
+
+    std::vector<Block*> predecessors;
+    for (auto *b : block->getPredecessors()) predecessors.push_back(b);
+    if (predecessors.size()==0){
+      BlockWithLifeTime block_with_lifetime_obj = {block, -1};
+      block_with_lifetime.push_back(block_with_lifetime_obj);
+      continue;
+    }
+
+    int lifetime_begin = block2index[block];
+    int lifetime_end = block2index[block];
+    for (Block *pred : predecessors){
+      lifetime_begin = std::min(lifetime_begin, block2index[pred]);
+      lifetime_end = std::max(lifetime_end, block2index[pred]);
+    }
+    int lifetime = lifetime_end - lifetime_begin;
+    BlockWithLifeTime block_with_lifetime_obj = {block, lifetime};
+    block_with_lifetime.push_back(block_with_lifetime_obj);
+  }
+
+  // sort block_with_lifetime by lifetime
+  std::sort(block_with_lifetime.begin(), block_with_lifetime.end(), 
+    [](const BlockWithLifeTime &a, const BlockWithLifeTime &b){
+      return a.lifetime > b.lifetime;
+    });
+
+  std::vector<int> vec = {9,10,11,12,13,14,15, 21,22,23,24,25,26,27,28,29,30,31};
+  std::queue<int> usable_special_regs;
+  // for (int &i : vec) usable_special_regs.push(i);
+  // std::queue<int> usable_special_regs = 
+  // std::queue<int> usable_special_regs = {};
+
+  for (BlockWithLifeTime &block_with_lifetime_obj : block_with_lifetime){
+    Block *block = block_with_lifetime_obj.block;
+    auto block_arguments = block->getArguments();
+    std::cout << "block->lifetime = " << block_with_lifetime_obj.lifetime << "num args: " << block_arguments.size() << std::endl;
+    for (int arg_i = 0; arg_i < block_arguments.size(); arg_i++){
+      BlockArgument block_arg = block_arguments[arg_i];
+      mlir::Value block_arg_val = llvm::cast<mlir::Value>(block_arg);
+      int special_reg = -1;
+      if(!usable_special_regs.empty()){
+        special_reg = usable_special_regs.front();
+        usable_special_regs.pop();
+        mapValueAsRegister(block_arg_val, special_reg_mapping, special_reg);
       }
+      mapValueAsRegister(block_arg_val, mapping, reg_cnt);
+      std::cout << "    block arg: logical reg: " << reg_cnt-1 << ", special reg: " << special_reg << std::endl;
     }
   }
+
+  // auto regions = func->getRegions();
+  // for (Region &region : regions){
+  //   // for each block
+  //   for (Block &block : region.getBlocks()){
+  //     auto block_arguments = block.getArguments();
+  //     for (int arg_i = 0; arg_i < block_arguments.size(); arg_i++){
+  //       BlockArgument block_arg = block_arguments[arg_i];
+  //       mlir::Value block_arg_val = llvm::cast<mlir::Value>(block_arg);
+  //       mapValueAsRegister(block_arg_val, mapping, reg_cnt);
+  //     }
+  //   }
+  // }
 }
 
 static void _getRegisterMappingGeneral(
@@ -782,6 +1318,10 @@ static void _getRegisterMappingGeneral(
   func.walk([&](mlir::Operation *op) {
     if(auto _op = dyn_cast<mlir::arith::ConstantOp>(op) ){
       mapResultAsRegister<mlir::arith::ConstantOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::GeneralRegLiOp>(op) ){
+      mapResultAsRegister<mlir::cimisa::GeneralRegLiOp>(_op, mapping, reg_cnt);
+    
+    // RR
     }else if(auto _op = dyn_cast<mlir::arith::AddIOp>(op)){
       mapResultAsRegister<mlir::arith::AddIOp>(_op, mapping, reg_cnt);
     }else if(auto _op = dyn_cast<mlir::arith::SubIOp>(op)){
@@ -792,27 +1332,46 @@ static void _getRegisterMappingGeneral(
       mapResultAsRegister<mlir::arith::DivSIOp>(_op, mapping, reg_cnt);
     }else if(auto _op = dyn_cast<mlir::arith::RemSIOp>(op)){
       mapResultAsRegister<mlir::arith::RemSIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::arith::MinSIOp>(op)){
+      mapResultAsRegister<mlir::arith::MinSIOp>(_op, mapping, reg_cnt);
+    
+    // RI
+    }else if(auto _op = dyn_cast<mlir::cimisa::RIAddIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RIAddIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::RISubIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RISubIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::RIMulIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RIMulIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::RIDivSIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RIDivSIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::RIRemSIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RIRemSIOp>(_op, mapping, reg_cnt);
+    }else if(auto _op = dyn_cast<mlir::cimisa::RIMinSIOp>(op)){
+      mapResultAsRegister<mlir::cimisa::RIMinSIOp>(_op, mapping, reg_cnt);
+
     }else if(auto _op = dyn_cast<mlir::cimisa::LoadOp>(op)){
       mapResultAsRegister<mlir::cimisa::LoadOp>(_op, mapping, reg_cnt);
     }
   });
   std::cout << "_getRegisterMappingGeneral finish" << std::endl;
 }
-static std::unordered_map<llvm::hash_code, int > getRegisterMapping(mlir::func::FuncOp func){
+static std::pair<std::unordered_map<llvm::hash_code, int >, std::unordered_map<llvm::hash_code, int > > getRegisterMapping(mlir::func::FuncOp func){
   /*
     Step 1: get special register mapping
     Step 2: get alias rf between basic block
     Step 3: get other rf
   */
   std::unordered_map<llvm::hash_code, int > mapping;
+  std::unordered_map<llvm::hash_code, int > block_args_special_reg_map;
   int reg_cnt = 0;
 
 
   // _getRegisterMappingAliasBetweenBasicBlock(func, mapping, reg_cnt);
-  _getRegisterMappingForBlockArgs(func, mapping, reg_cnt);
+  _getRegisterMappingForBlockArgs(func, mapping, block_args_special_reg_map, reg_cnt);
+  std::cout << "_getRegisterMappingForBlockArgs:" << reg_cnt << std::endl;
   _getRegisterMappingGeneral(func, mapping, reg_cnt);
   std::cout << "getRegisterMapping finish" << std::endl;
-  return mapping;
+  return std::make_pair(mapping, block_args_special_reg_map);
 }
 
 static string instToStr(Inst& inst){
@@ -923,7 +1482,6 @@ static void liveVariableAnalysis(
       }
       // std::cout << "------" << change << std::endl;
     }while(change);
-    
 }
 
 static bool isPrefix(const std::string& str, const std::string& prefix) {
@@ -948,7 +1506,7 @@ static bool isSpecialLi(Inst& inst){
   return false;
 }
 
-static bool isSpecialAssign(Inst& inst){
+static bool isGeneralToSpecialAssign(Inst& inst){
   if((inst.count("class") && inst["class"]==0b10) && 
      (inst.count("type") && inst["type"]==0b11 ) && 
      (inst.count("opcode") && inst["opcode"]==0b10)){
@@ -957,25 +1515,86 @@ static bool isSpecialAssign(Inst& inst){
   return false;
 }
 
+static bool isSpecialToGeneralAssign(Inst& inst){
+  if((inst.count("class") && inst["class"]==0b10) && 
+     (inst.count("type") && inst["type"]==0b11 ) && 
+     (inst.count("opcode") && inst["opcode"]==0b11)){
+    return true;
+  }
+  return false;
+}
+
+static bool is_general_reg(Inst &inst, std::string key){
+  bool is_gen_to_spec_assign = isGeneralToSpecialAssign(inst);
+  bool is_spec_to_gen_assign = isSpecialToGeneralAssign(inst);
+  bool is_special_assign = is_gen_to_spec_assign || is_spec_to_gen_assign;
+  bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
+  return is_reg_general;
+}
+
+static std::pair<int,int> get_twin_physical_reg(std::priority_queue<int, std::vector<int>, std::greater<int>> &physical_regs){
+  std::vector<int> temp_save;
+  std::pair<int,int> twin;
+  bool find = false;
+  while(!physical_regs.empty()){
+    int top = physical_regs.top();
+    if(temp_save.size()>=1 && top==temp_save.back()+1){
+      twin.first = temp_save.back();
+      twin.second = top;
+      find = true;
+      temp_save.pop_back();
+      physical_regs.pop();
+      break;
+    }
+    temp_save.push_back(top);
+    physical_regs.pop();
+  }
+  if(!find){
+    std::cerr << "error: can't find twin physical register" << std::endl;
+    std::exit(1);
+  }
+  // move temp_save back to physical_regs
+  for(int i = 0; i < temp_save.size(); i++){
+    physical_regs.push(temp_save[i]);
+  }
+  std::cout << "get_twin_physical_reg: " << twin.first << " " << twin.second << std::endl;
+  return twin;
+}
+
 static void mappingRegisterLogicalToPhysical(
       std::vector<Inst>& instr_list,
       std::map<Block*, std::set<int> > &in,
       std::map<Block*, std::set<int> > &out,
       std::map<Block*, int> &block2line,
-      std::map<Block*, int> &block2line_end){
+      std::map<Block*, int> &block2line_end,
+      std::map<int,int> &twin_reg){
+  
+  // show twin_reg
+  for (const auto& [key, value] : twin_reg) {
+    std::cout << "twin_reg: " << key << " -> " << value << std::endl;
+  }
+  std::map<int,int> two_way_twin_reg;
+  for (const auto& [key, value] : twin_reg) {
+    two_way_twin_reg[key] = value;
+    two_way_twin_reg[value] = key;
+  }
 
   // Step 1: get life cycle of each logical register
-  unordered_map<int, int> logic_reg_life_begin;
-  unordered_map<int, int> logic_reg_life_end;
+  std::map<int, int> logic_reg_life_begin;
+  std::map<int, int> logic_reg_life_end;
+  std::set<int> set_logical_regs;
+  std::vector<int> logical_regs;
   for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
     Inst inst = instr_list[inst_id];
     // skip special register instruction
     if(isSpecialLi(inst)) continue;
 
     for (const auto& [key, value] : inst) {
-      bool is_special_assign = isSpecialAssign(inst);
-      bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
-      if(is_reg_general){
+      // bool is_gen_to_spec_assign = isGeneralToSpecialAssign(inst);
+      // bool is_spec_to_gen_assign = isSpecialToGeneralAssign(inst);
+      // bool is_special_assign = is_gen_to_spec_assign || is_spec_to_gen_assign;
+      // bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
+      if(is_general_reg(inst, key)){
         int reg_id = value;
         if (!logic_reg_life_begin.count(reg_id)){
           logic_reg_life_begin[reg_id] = inst_id;
@@ -983,36 +1602,81 @@ static void mappingRegisterLogicalToPhysical(
         }else{
           logic_reg_life_end[reg_id] = inst_id;
         }
+        set_logical_regs.insert(reg_id);
       }
     }
+    std::cout << std::endl;
   }
   for (const auto& [block, regs] : in) {
     for(auto reg_id : regs){
-      logic_reg_life_begin[reg_id] = min(logic_reg_life_begin[reg_id], block2line[block]);
-      logic_reg_life_end[reg_id] = max(logic_reg_life_end[reg_id], block2line_end[block]);
+      if(!(logic_reg_life_begin.count(reg_id) && logic_reg_life_end.count(reg_id))){
+        std::cerr << "error: reg_id not in logic_reg_life_begin" << std::endl;
+        std::exit(1);
+      }
+      int old_begin = logic_reg_life_begin[reg_id];
+      int old_end = logic_reg_life_end[reg_id];
+      logic_reg_life_begin[reg_id] = min(old_begin, block2line[block]);
+      logic_reg_life_end[reg_id] = max(old_end, block2line_end[block]);
     }
   }
   for (const auto& [block, regs] : out) {
     for(auto reg_id : regs){
-      logic_reg_life_begin[reg_id] = min(logic_reg_life_begin[reg_id], block2line[block]);
-      logic_reg_life_end[reg_id] = max(logic_reg_life_end[reg_id], block2line_end[block]);
+      if(!(logic_reg_life_begin.count(reg_id) && logic_reg_life_end.count(reg_id))){
+        std::cerr << "error: reg_id not in logic_reg_life_begin" << std::endl;
+        std::exit(1);
+      }
+      int old_begin = logic_reg_life_begin[reg_id];
+      int old_end = logic_reg_life_end[reg_id];
+      logic_reg_life_begin[reg_id] = min(old_begin, block2line[block]);
+      logic_reg_life_end[reg_id] = max(old_end, block2line_end[block]);
     }
   }
+  logical_regs.assign(set_logical_regs.begin(), set_logical_regs.end());
+  std::sort(logical_regs.begin(), logical_regs.end(), 
+    [&](int a, int b){
+      return a < b;
+    });
   
   // Step 2: Construct a mapping from logical register to physical register
   int num_logical_regs = logic_reg_life_begin.size();
   int num_physical_regs = 32;
   std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
-  std::unordered_map<int, int> logical_to_physical_mapping;
+  std::map<int, int> logical_to_physical_mapping;
+  int max_physical_reg_used = 0;
+  std::set<int> twin_have_allocated;
   for(int i = 0; i < num_physical_regs; i++) physical_regs.push(i);
   for(int inst_id = 0;inst_id < instr_list.size(); inst_id++){
-    for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
+    for(int logical_reg_id : logical_regs){
       if(logic_reg_life_begin[logical_reg_id]==inst_id){
         if (physical_regs.empty()){
           std::cerr << "No more physical_regs can use!" << std::endl;
           std::exit(1);
         }
+        if (two_way_twin_reg.count(logical_reg_id)){
+          int twin_logical_reg_id = two_way_twin_reg[logical_reg_id];
+          int master_reg, salve_reg;
+          if (twin_reg.count(logical_reg_id)){
+            master_reg = logical_reg_id;
+            salve_reg = twin_logical_reg_id;
+          }else if (twin_reg.count(twin_logical_reg_id)){
+            master_reg = twin_logical_reg_id;
+            salve_reg = logical_reg_id;
+          }else{
+            std::cerr << "error: can't find master reg" << std::endl;
+            std::exit(1);
+          }
+          if(!twin_have_allocated.count(master_reg)){
+            std::pair<int,int> twin_physical_reg = get_twin_physical_reg(physical_regs);
+            logical_to_physical_mapping[master_reg] = twin_physical_reg.first;
+            logical_to_physical_mapping[salve_reg] = twin_physical_reg.second;
+            twin_have_allocated.insert(master_reg);
+            max_physical_reg_used = max(max_physical_reg_used, twin_physical_reg.first);
+            max_physical_reg_used = max(max_physical_reg_used, twin_physical_reg.second);
+          }
+          continue;
+        }
         int physical_reg = physical_regs.top();
+        max_physical_reg_used = max(max_physical_reg_used, physical_reg);
         physical_regs.pop();
         logical_to_physical_mapping[logical_reg_id] = physical_reg;
       }else if(logic_reg_life_end[logical_reg_id]==inst_id){
@@ -1021,10 +1685,11 @@ static void mappingRegisterLogicalToPhysical(
       }
     }
   }
-  for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
+  std::cout << "max_physical_reg_used: " << max_physical_reg_used << std::endl;
+  for(int logical_reg_id : logical_regs){
     std::cout << "logical_reg: " << logical_reg_id << " -> physical_reg: " << logical_to_physical_mapping[logical_reg_id] << std::endl;
   }
-  for(int logical_reg_id = 0; logical_reg_id < num_logical_regs ;logical_reg_id++){
+  for(int logical_reg_id : logical_regs){
     std::cout << "logical_reg:" << logical_reg_id << " begin: " << logic_reg_life_begin[logical_reg_id] << " end: " << logic_reg_life_end[logical_reg_id] << std::endl;
   }
   // return;
@@ -1036,7 +1701,12 @@ static void mappingRegisterLogicalToPhysical(
     
     std::unordered_map<string, int> replace;
     for (const auto& [key, value] : inst) {
-      if(isPrefix(key, "rs") || isPrefix(key, "rd")){
+      // bool is_gen_to_spec_assign = isGeneralToSpecialAssign(inst);
+      // bool is_spec_to_gen_assign = isSpecialToGeneralAssign(inst);
+      // bool is_special_assign = is_gen_to_spec_assign || is_spec_to_gen_assign;
+      // bool is_reg_general = (is_special_assign && key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") || isPrefix(key, "rd")));
+
+      if(is_general_reg(inst, key)){
         replace[key] = logical_to_physical_mapping[value];
       }
     }
@@ -1054,10 +1724,17 @@ struct CodeGenerationPass
 
   void runOnOperation() override {
     std::cout << "run on operation" << std::endl;
-    auto f = getOperation();
     std::cout << "code generation pass!" << std::endl;
+    auto f = getOperation();
+    if (f.getName()!="main"){
+      return;
+    }
+    std::cout << "code generation pass, run on main!" << std::endl;
+    
 
-    std::unordered_map<llvm::hash_code, int > regmap = getRegisterMapping(f);
+    std::pair<std::unordered_map<llvm::hash_code, int >, std::unordered_map<llvm::hash_code, int > > regmaps = getRegisterMapping(f);
+    std::unordered_map<llvm::hash_code, int > regmap = regmaps.first;
+    std::unordered_map<llvm::hash_code, int > block_args_special_reg_map = regmaps.second;
     std::cout << "getRegisterMapping finish!" << std::endl;
 
     std::vector<Inst> instr_list;
@@ -1066,8 +1743,9 @@ struct CodeGenerationPass
     std::map<Operation*, int> jump2line;
     std::map<Block*, std::set<int> > def;
     std::map<Block*, std::set<int> > use;
+    std::map<int,int> twin_reg;
     std::vector<Block*> blocks = getBlockList(f);
-    codeGen(blocks, regmap, instr_list, block2line, block2line_end, jump2line, def, use);
+    codeGen(blocks, regmap, block_args_special_reg_map, instr_list, block2line, block2line_end, jump2line, def, use, twin_reg);
     std::cout << "codegen finish!" << std::endl;
 
     fillJumpBranchOffset(f, instr_list, block2line, jump2line);
@@ -1078,7 +1756,7 @@ struct CodeGenerationPass
     liveVariableAnalysis(blocks, def, use, in, out);
     std::cout << "live variable analysis finish!" << std::endl;
 
-    mappingRegisterLogicalToPhysical(instr_list, in, out, block2line, block2line_end);
+    mappingRegisterLogicalToPhysical(instr_list, in, out, block2line, block2line_end, twin_reg);
 
     // std::string filename = "result.json";
     std::ofstream file(outputFilePath);

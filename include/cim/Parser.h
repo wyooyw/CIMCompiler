@@ -23,6 +23,7 @@ public:
 
     mlir::ModuleOp parseJson(std::string json_path);
     mlir::ModuleOp parseModule(const boost::property_tree::ptree &ast);
+    std::vector<mlir::scf::ForOp> getUnrollForOps();
 
 private:
     mlir::OpBuilder builder;
@@ -34,6 +35,9 @@ private:
     std::unordered_map<std::string, mlir::func::FuncOp > signature_table_func;
     std::string current_func_name;
     std::stack<mlir::Block*> block_stack;
+    std::vector<mlir::scf::ForOp> unrollForOps;
+
+    
 
     const boost::property_tree::ptree& safe_get_child(const boost::property_tree::ptree& ast, const std::string& key);
     std::string safe_get_str(const boost::property_tree::ptree& ast, const std::string& key);
@@ -111,16 +115,24 @@ private:
     void parse_bulitin_trans(const boost::property_tree::ptree& ast);
     mlir::Value parse_bulitin_slice(const boost::property_tree::ptree& ast);
     void parse_bulitin_vvadd(const boost::property_tree::ptree& ast);
+    void parse_bulitin_quantify(const boost::property_tree::ptree& ast);
     mlir::Value parse_bulitin_buffer(const boost::property_tree::ptree& ast);
     void parse_bulitin_print(const boost::property_tree::ptree& ast);
+    void parse_bulitin_debug(const boost::property_tree::ptree& ast);
     void parse_bulitin_free(const boost::property_tree::ptree& ast);
     mlir::Value parse_bulitin_load(const boost::property_tree::ptree& ast);
+    mlir::Value parse_bulitin_min(const boost::property_tree::ptree& ast);
+    mlir::Value parse_bulitin_addr(const boost::property_tree::ptree& ast);
     void parse_bulitin_save(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimcompute_dense(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimcompute_value_sparse(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimcompute_bit_sparse(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimcompute_value_bit_sparse(const boost::property_tree::ptree& ast);
     void parse_bulitin_cimcompute(const boost::property_tree::ptree& ast, bool value_sparse, bool bit_sparse);
+    void parse_bulitin_cimoutput(const boost::property_tree::ptree& ast);
+    void parse_bulitin_cimoutput_sum(const boost::property_tree::ptree& ast);
+    void parse_bulitin_cimtransfer(const boost::property_tree::ptree& ast);
+    void parse_bulitin_cimset(const boost::property_tree::ptree& ast);
     void parse_bulitin_special_reg_set(const boost::property_tree::ptree& ast);
     // mlir::Value parse_bulitin_reshape(const boost::property_tree::ptree& ast);
 

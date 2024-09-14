@@ -17,7 +17,7 @@
             }
         },
         {
-            "name": "input_buffer",
+            "name": "pim_input_reg_buffer",
             "type": "rf",
             "addressing": {
                 "offset_byte": 256,
@@ -25,7 +25,7 @@
             }
         },
         {
-            "name": "output_buffer",
+            "name": "pim_output_reg_buffer",
             "type": "rf",
             "addressing": {
                 "offset_byte": 320,

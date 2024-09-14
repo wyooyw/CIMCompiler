@@ -1,5 +1,5 @@
 def main(null<int8>){
-    buf1 = Buffer(<4>, index, local);
+    buf1 = Buffer(<4>, index, __LOCAL__);
     Save(buf1, [0], 0);
     Save(buf1, [1], 1);
     Save(buf1, [2], 2);
@@ -9,7 +9,7 @@ def main(null<int8>){
     Print(Load(buf1, [2])); // 2
     Print(Load(buf1, [3])); // 3
 
-    buf2 = Buffer(<4>, index, local);
+    buf2 = Buffer(<4>, index, __LOCAL__);
     Save(buf2, [0], 4);
     Save(buf2, [1], 5);
     Save(buf2, [2], 6);

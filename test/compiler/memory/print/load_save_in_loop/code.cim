@@ -1,5 +1,5 @@
 def main(null<int8>){
-    buf1 = Buffer(<4,4>, index, local);
+    buf1 = Buffer(<4,4>, index, __LOCAL__);
     for i in range(4) carry(null){
         for j in range(4) carry(null){
             t1 = i * 4;

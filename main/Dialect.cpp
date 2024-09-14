@@ -272,6 +272,41 @@ LogicalResult VVAddOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::O
   return memref::foldMemRefCast(*this);
 }
 
+LogicalResult QuantifyOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+
+LogicalResult CIMOutputOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+
+LogicalResult CIMOutputSumOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+
+LogicalResult CIMTransferOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+
+LogicalResult CIMSetOp::fold(FoldAdaptor adaptor, llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+
+void AddrOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                  mlir::Value src) {
+  state.addTypes(builder.getIndexType());
+  state.addOperands({src});
+}
+
+OpFoldResult AddrOp::fold(FoldAdaptor adaptor) {
+  // prefetch(memrefcast) -> prefetch
+  return succeeded(memref::foldMemRefCast(*this)) ? getResult() : Value();
+}
 // Bufferize
 
 static MemRefType convertTensorToMemRef(RankedTensorType type) {

@@ -98,9 +98,20 @@ struct MemoryAddressAllocationPass
       std::string memory = _memory.str();
 
       auto shape = type.getShape(); // TODO: how to get memref's size?
-      int size = getBitWidth(type.getElementType()) / 8;
+
+      int size = 1;
       for(auto s = shape.begin(); s!=shape.end(); s++){
         size *= (*s);
+      }
+
+      int bitwidth = getBitWidth(type.getElementType());
+      if (bitwidth==1){
+        size = size / 8;
+      }else if(bitwidth >= 8 && bitwidth % 8 ==0){
+        size = size * bitwidth / 8;
+      }else{
+        std::cerr << "Unsupported bit width: " << bitwidth << std::endl;
+        std::exit(1);
       }
       
       if (!address_table.count(memory)){

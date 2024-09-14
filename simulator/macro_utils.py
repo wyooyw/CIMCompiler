@@ -1,11 +1,12 @@
 from simulator.data_type import *
-
+import json
 class MacroConfig:
     def __init__(self, n_macro, n_row, n_comp, n_bcol):
         self.n_macro = n_macro
         self.n_row = n_row
         self.n_comp = n_comp
         self.n_bcol = n_bcol
+        print(f"Macro config: {n_macro=}, {n_row=}, {n_comp=}, {n_bcol=}")
 
     def n_vcol(self, bitwidth):
         assert self.n_bcol % bitwidth == 0
@@ -13,6 +14,16 @@ class MacroConfig:
 
     def total_size(self):
         return self.n_macro * self.n_row * self.n_comp * self.n_bcol // 8
+
+    @classmethod
+    def from_config(cls, config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json"):
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        n_macro = config["macro"]["n_macro"]
+        n_row = config["macro"]["n_row"]
+        n_comp = config["macro"]["n_comp"]
+        n_bcol = config["macro"]["n_bcol"]
+        return cls(n_macro, n_row, n_comp, n_bcol)
 
 class MacroUtil:
     def __init__(self, macro_memory, macro_config):
@@ -55,7 +66,7 @@ class MacroUtil:
         assert 0 <= activate_group_num and activate_group_num <= group_num, f"{activate_group_num=}, {group_num=}"
 
         macro = self.extract_macro_structure_from_memory(data_type, group_num)
-        print(f"{macro.shape=}")
+        # print(f"{macro.shape=}")
         macro = macro.reshape(*macro.shape[:3], -1)
         data = macro[activate_row, :, :activate_group_num, :activate_element_col_num]
         return data

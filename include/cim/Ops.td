@@ -9,6 +9,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "cim/ShapeInferenceInterface.td"
 
+
 // Provide a definition of the 'toy' dialect in the ODS framework so that we
 // can define our operations.
 def CIM_Dialect : Dialect {
@@ -62,6 +63,27 @@ def VSMulOp : CIM_Op<"vs_mul", [Pure]> {
   ];
 }
 
+def QuantifyOp : CIM_Op<"quantify"> {
+  let summary = "element-wise addition operation";
+  let description = [{
+    The "add" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins 
+    AnyMemRef:$input, 
+    AnyMemRef:$output_zp,
+    AnyMemRef:$output,
+    I1Attr:$relu
+  );
+
+  // Allow building an AddOp with from the two input operands.
+  // let builders = [
+  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
+  // ];
+
+  let hasFolder = 1;
+}
 
 /////////////////////////////////
 // CIM Compute //
@@ -76,7 +98,6 @@ def CIMComputeOp : CIM_Op<"cim_compute"> {
   let arguments = (ins 
     AnyMemRef:$input, 
     AnyMemRef:$macro, 
-    AnyMemRef:$output,
     I1Attr:$value_sparse_flag,
     I1Attr:$bit_sparse_flag
   );
@@ -126,6 +147,22 @@ def ShapeOp : CIM_Op<"shape", [Pure]> {
   let hasFolder = 1;
 }
 
+def AddrOp : CIM_Op<"addr", [Pure]> {
+  let summary = "get addr of a buffer";
+  let description = [{
+    get addr of a buffer
+  }];
+
+  let arguments = (ins AnyMemRef:$src);
+  let results = (outs Index:$output);
+
+  let builders = [
+    OpBuilder<(ins "Value":$src)>
+  ];
+
+  let hasFolder = 1;
+}
+
 def PrintOp : CIM_Op<"print"> {
   let summary = "print a integer";
   let description = [{
@@ -133,6 +170,20 @@ def PrintOp : CIM_Op<"print"> {
   }];
 
   let arguments = (ins AnyTypeOf<[AnyInteger, Index]>:$value); // TODO: which type can represent any Tensor?
+
+  //let builders = [
+  //  OpBuilder<(ins "Value":$value)>
+  //];
+
+}
+
+def DebugOp : CIM_Op<"debug"> {
+  let summary = "break for debug";
+  let description = [{
+    break for debug
+  }];
+
+  // let arguments = (ins AnyTypeOf<[AnyInteger, Index]>:$value); // TODO: which type can represent any Tensor?
 
   //let builders = [
   //  OpBuilder<(ins "Value":$value)>
@@ -163,6 +214,66 @@ def SpecialRegSetOp : CIM_Op<"special_reg_set"> {
     set a special reg
   }];
   let arguments = (ins AnyTypeOf<[AnyInteger, Index]>:$special_reg, AnyTypeOf<[AnyInteger, Index]>:$set_value); // TODO: which type can represent any Tensor?
+}
+
+def CIMOutputOp : CIM_Op<"cim_output"> {
+  let summary = "cim output and clear";
+  let description = [{
+    cim output and clear
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$out_n,
+    AnyTypeOf<[AnyInteger, Index]>:$mask_addr,
+    AnyMemRef:$dst
+  );
+
+  let hasFolder = 1;
+}
+
+def CIMOutputSumOp : CIM_Op<"cim_output_sum"> {
+  let summary = "cim output and clear";
+  let description = [{
+    cim output and clear
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$out_n, 
+    AnyMemRef:$out_mask, 
+    AnyMemRef:$dst
+  );
+
+  let hasFolder = 1;
+}
+
+def CIMTransferOp : CIM_Op<"cim_transfer"> {
+  let summary = "cim output and clear";
+  let description = [{
+    cim output and clear
+  }];
+
+  let arguments = (ins 
+    AnyMemRef:$src,
+    AnyTypeOf<[AnyInteger, Index]>:$output_num, 
+    AnyMemRef:$output_mask,
+    AnyMemRef:$buffer,
+    AnyMemRef:$dst
+  );
+
+  let hasFolder = 1;
+}
+
+def CIMSetOp : CIM_Op<"cim_set"> {
+  let summary = "cim set";
+  let description = [{
+    cim set
+  }];
+
+  let arguments = (ins 
+    AnyMemRef:$mask
+  );
+
+  let hasFolder = 1;
 }
 
 #endif // CIM_OPS

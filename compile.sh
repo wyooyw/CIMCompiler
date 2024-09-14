@@ -28,5 +28,5 @@ echo "ANTLR Down."
 
 # ast(json) -> mlir
 if [ "$1" == "isa" ]; then
-    ./build/bin/main $output_path/ast.json $output_path/final_code.json $config_path
+    ./build/bin/main $output_path/ast.json $output_path $config_path
 fi
