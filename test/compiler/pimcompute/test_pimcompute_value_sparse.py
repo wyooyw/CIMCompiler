@@ -124,7 +124,10 @@ class TestPIMComputeValueSparse:
         {"out_channel":384, "in_channel": 16, "ker_size": 1, "in_hw": 1, "out_hw": 1},
         ])
     def test_pim_compute(self, casename, op_config):
-        case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
+        op_base_dir = os.environ.get("OP_BASE_DIR")
+        assert op_base_dir is not None and os.path.exists(op_base_dir), f"{op_base_dir} not exists"
+        case_dir = os.path.join(op_base_dir, casename)
+        
         assert os.path.exists(case_dir), f"{case_dir} not exists"
         assert os.path.isdir(case_dir), f"{case_dir} is not a directory"
 
@@ -255,7 +258,7 @@ if __name__=="__main__":
     TestPIMComputeValueSparse.setup_class()
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
-    tester.test_pim_compute('value_bit_sparse/value_bit_sparse_base', 
+    tester.test_pim_compute('dense/dense_conv2d_group', 
         {
             "out_channel":128, "in_channel": 32, "ker_size": 3, "in_hw": 8, "out_hw": 8, "padding":1
         }

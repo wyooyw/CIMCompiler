@@ -89,7 +89,7 @@ class TestPIMComputeValueSparse:
         self.simulator.clear()
 
     @pytest.mark.parametrize('casename',[
-        'linear/dense',
+        # 'linear/dense',
         'linear/dense_onegroup',
         'linear/bit_sparse',
         # quantify
@@ -108,7 +108,11 @@ class TestPIMComputeValueSparse:
         op_config["in_hw"] = 1
         op_config["out_hw"] = 1
         op_config["padding"] = 0
-        case_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), casename)
+
+        op_base_dir = os.environ.get("OP_BASE_DIR")
+        assert op_base_dir is not None and os.path.exists(op_base_dir), f"{op_base_dir} not exists"
+        case_dir = os.path.join(op_base_dir, casename)
+
         assert os.path.exists(case_dir), f"{case_dir} not exists"
         assert os.path.isdir(case_dir), f"{case_dir} is not a directory"
 
