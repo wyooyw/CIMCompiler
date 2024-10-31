@@ -60,7 +60,7 @@ Model files are not pushed yet.
 
 ## Operator Template
 
-Operator templates are written in CIM DSL. Here are the convolution operator templates:
+Operator templates are written in CIM-DSL and Jinja-Template. Here are the convolution operator templates:
 
 - `Dense Conv2d`: [op/dense/dense_conv2d_group/code_template.cim](https://github.com/wyooyw/CIMCompiler/blob/master/op/dense/dense_conv2d_group/code_template.cim)
 - `Value Sparse Conv2d`: [op/value_sparse/value_sparse_group_longer/code_template.cim](https://github.com/wyooyw/CIMCompiler/blob/master/op/value_sparse/value_sparse_group_longer/code_template.cim)
