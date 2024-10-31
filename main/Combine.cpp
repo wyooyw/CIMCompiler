@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "cim/Dialect.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Value.h"
-#include "mlir/Support/LogicalResult.h"
-#include "cim/Dialect.h"
 #include "mlir/InitAllDialects.h"
+#include "mlir/Support/LogicalResult.h"
 #include <iostream>
 using namespace mlir;
 using namespace cim;
@@ -36,20 +36,20 @@ struct VVAddDuplicateOperand_to_VSMul : public mlir::OpRewritePattern<VVAddOp> {
 
   /// This method attempts to match a pattern and rewrite it.
   mlir::LogicalResult
-  matchAndRewrite(VVAddOp op,
-                  mlir::PatternRewriter &rewriter) const override {
+  matchAndRewrite(VVAddOp op, mlir::PatternRewriter &rewriter) const override {
     // Look through the input of the current transpose.
     auto operands = op.getOperands();
     std::cout << "VVAddDuplicateOperand_to_VSMul" << std::endl;
     // std::cout << "operands[0]: " << operands[0] << std::endl;
     // std::cout << "operands[1]: " << operands[1] << std::endl;
 
-    if (operands[0]!=operands[1]) {
+    if (operands[0] != operands[1]) {
       return failure();
     }
 
     // Otherwise, we replace VVAddOp to VSMulOp. Use the rewriter.
-    mlir::Value factor = rewriter.create<mlir::arith::ConstantIntOp>(op.getLoc(), 2, 32);
+    mlir::Value factor =
+        rewriter.create<mlir::arith::ConstantIntOp>(op.getLoc(), 2, 32);
     auto vs_mul = rewriter.create<VSMulOp>(op.getLoc(), operands[0], factor);
     rewriter.replaceOp(op, {vs_mul.getResult()});
     return success();
@@ -59,12 +59,10 @@ struct VVAddDuplicateOperand_to_VSMul : public mlir::OpRewritePattern<VVAddOp> {
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
 void VVAddOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                              MLIRContext *context) {
-  std::cout << "VVAddOp::getCanonicalizationPatterns" << std::endl;                      
+                                          MLIRContext *context) {
+  std::cout << "VVAddOp::getCanonicalizationPatterns" << std::endl;
   results.add<VVAddDuplicateOperand_to_VSMul>(context);
 }
-
-
 
 struct ShapeToConstant : public mlir::OpRewritePattern<mlir::cim::ShapeOp> {
   /// We register this pattern to match every cim.vv_add in the IR.
@@ -82,19 +80,22 @@ struct ShapeToConstant : public mlir::OpRewritePattern<mlir::cim::ShapeOp> {
     auto operands = op.getOperands();
 
     mlir::Value source = operands[0];
-    mlir::MemRefType source_type = llvm::cast<mlir::MemRefType>(source.getType());
+    mlir::MemRefType source_type =
+        llvm::cast<mlir::MemRefType>(source.getType());
     ArrayRef<int64_t> shape = source_type.getShape();
 
     mlir::Value index = operands[1];
-    mlir::arith::ConstantIndexOp const_index_op = index.getDefiningOp<mlir::arith::ConstantIndexOp>();
+    mlir::arith::ConstantIndexOp const_index_op =
+        index.getDefiningOp<mlir::arith::ConstantIndexOp>();
     int64_t index_value = const_index_op.value();
 
     int64_t size = shape[index_value];
-    if(size==mlir::ShapedType::kDynamic){
+    if (size == mlir::ShapedType::kDynamic) {
       return failure();
     }
-    
-    mlir::Value new_constant = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), size);
+
+    mlir::Value new_constant =
+        rewriter.create<arith::ConstantIndexOp>(op.getLoc(), size);
     rewriter.replaceOp(op, {new_constant});
     return success();
   }
@@ -103,15 +104,14 @@ struct ShapeToConstant : public mlir::OpRewritePattern<mlir::cim::ShapeOp> {
 /// Register our patterns as "canonicalization" patterns on the TransposeOp so
 /// that they can be picked up by the Canonicalization framework.
 void ShapeOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                              MLIRContext *context) {
-  std::cout << "ShapeOp::getCanonicalizationPatterns" << std::endl;                      
+                                          MLIRContext *context) {
+  std::cout << "ShapeOp::getCanonicalizationPatterns" << std::endl;
   results.add<ShapeToConstant>(context);
 }
 
 /*
  Cast Op
 */
-
 
 struct CastToNoOp : public mlir::OpRewritePattern<mlir::cim::CastOp> {
   /// We register this pattern to match every cim.vv_add in the IR.
@@ -129,27 +129,31 @@ struct CastToNoOp : public mlir::OpRewritePattern<mlir::cim::CastOp> {
     auto operand = op.getOperand();
 
     mlir::Value source = operand;
-    mlir::MemRefType source_type = llvm::cast<mlir::MemRefType>(source.getType());
+    mlir::MemRefType source_type =
+        llvm::cast<mlir::MemRefType>(source.getType());
     ArrayRef<int64_t> source_shape = source_type.getShape();
     // ArrayRef<int64_t> source_shape = source_type.getStride();
 
     mlir::Value target = op.getResult();
-    mlir::MemRefType target_type = llvm::cast<mlir::MemRefType>(target.getType());
+    mlir::MemRefType target_type =
+        llvm::cast<mlir::MemRefType>(target.getType());
     ArrayRef<int64_t> target_shape = target_type.getShape();
 
     // int64_t size = shape[index_value];
     // if(size==mlir::ShapedType::kDynamic){
     //   return failure();
     // }
-    
-    // mlir::Value new_constant = rewriter.create<arith::ConstantOp>(op.getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(size));
+
+    // mlir::Value new_constant =
+    // rewriter.create<arith::ConstantOp>(op.getLoc(), rewriter.getI64Type(),
+    // rewriter.getI64IntegerAttr(size));
     rewriter.replaceOp(op, {source});
     return success();
   }
 };
 
 void CastOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                              MLIRContext *context) {
-  std::cout << "CastOp::getCanonicalizationPatterns" << std::endl;                      
+                                         MLIRContext *context) {
+  std::cout << "CastOp::getCanonicalizationPatterns" << std::endl;
   results.add<CastToNoOp>(context);
 }

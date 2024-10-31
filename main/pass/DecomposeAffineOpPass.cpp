@@ -1,25 +1,24 @@
 
+#include "cim/Dialect.h"
+#include "cim/Passes.h"
+#include "cim/ShapeInferenceInterface.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Affine/Transforms/Transforms.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/TypeID.h"
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Affine/Transforms/Transforms.h"
-#include "cim/Dialect.h"
-#include "cim/Passes.h"
-#include "cim/ShapeInferenceInterface.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include <memory>
 #include <iostream>
+#include <memory>
 
 #define PASS_NAME "test-decompose-affine-ops"
-
 
 using namespace mlir;
 using namespace cim;

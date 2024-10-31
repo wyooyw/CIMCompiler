@@ -11,22 +11,22 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "cim/Dialect.h"
+#include "cim/Passes.h"
+#include "cim/ShapeInferenceInterface.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/TypeID.h"
-#include "cim/Dialect.h"
-#include "cim/Passes.h"
-#include "cim/ShapeInferenceInterface.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include <memory>
 #include <iostream>
+#include <memory>
 
 #define DEBUG_TYPE "shape-inference"
 
@@ -54,7 +54,8 @@ namespace {
 ///   3) If the worklist is empty, the algorithm succeeded.
 ///
 struct ShapeInferencePass
-    : public mlir::PassWrapper<ShapeInferencePass, OperationPass<mlir::func::FuncOp>> {
+    : public mlir::PassWrapper<ShapeInferencePass,
+                               OperationPass<mlir::func::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ShapeInferencePass)
 
   void runOnOperation() override {

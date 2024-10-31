@@ -1,23 +1,23 @@
 
+#include "cim/Dialect.h"
+#include "cim/Passes.h"
+#include "cim/ShapeInferenceInterface.h"
+#include "mlir/Dialect/MemRef/Transforms/Passes.h"
+#include "mlir/Dialect/MemRef/Transforms/Transforms.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Pass/Pass.h"
-#include "mlir/Dialect/MemRef/Transforms/Passes.h"
-#include "mlir/Dialect/MemRef/Transforms/Transforms.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/TypeID.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "cim/Dialect.h"
-#include "cim/Passes.h"
-#include "cim/ShapeInferenceInterface.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include <memory>
 #include <iostream>
+#include <memory>
 
 #define DEBUG_TYPE "shape-inference"
 
@@ -31,11 +31,11 @@ namespace memref {
 using namespace mlir;
 using namespace cim;
 
-
 namespace {
 
 struct FoldMemRefAliasOpsPass final
-    : public mlir::memref::impl::FoldMemRefAliasOpsBase<FoldMemRefAliasOpsPass> {
+    : public mlir::memref::impl::FoldMemRefAliasOpsBase<
+          FoldMemRefAliasOpsPass> {
   void runOnOperation() override;
 };
 
