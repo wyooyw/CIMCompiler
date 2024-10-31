@@ -1,13 +1,16 @@
 from op.helper import DenseConv2dTestHelper
+
+
 class TestHelper(DenseConv2dTestHelper):
     def __init__(self, op_config):
         super().__init__(op_config)
         import numpy as np
+
         self.output_bytes = 4
         self.output_dtype = np.int32
 
         # a special hack for efficient net
-        if self.in_hw==1 and self.out_hw==1 and self.ker_size==1:
+        if self.in_hw == 1 and self.out_hw == 1 and self.ker_size == 1:
             self.n_use_group = 1
         else:
             self.n_use_group = 4
@@ -66,20 +69,27 @@ class TestHelper(DenseConv2dTestHelper):
 
     def _make_template_config(self, simulator):
         import os
+
         context = super()._make_template_config(simulator)
         # context["RELU"] = int(self.relu)
-        context["SINGLE_OUTER_REDUCE"] = int(context["OUT_REDUCE_TILE"] <= simulator.macro_config.n_row)
+        context["SINGLE_OUTER_REDUCE"] = int(
+            context["OUT_REDUCE_TILE"] <= simulator.macro_config.n_row
+        )
         context["N_USE_GROUP"] = self.n_use_group
         context["IM2COL"] = self.im2col
         if self.im2col:
             context["IM2COL_SIZE_0"] = self.input_data_im2col.shape[0]
             context["IM2COL_SIZE_1"] = self.input_data_im2col.shape[1]
             if context["IM2COL_SIZE_0"] > 1:
-                context["IM2COL_SMALL_INPUT_MEMORY"] = bool(int(os.environ.get("IM2COL_SMALL_INPUT_MEMORY")))
+                context["IM2COL_SMALL_INPUT_MEMORY"] = bool(
+                    int(os.environ.get("IM2COL_SMALL_INPUT_MEMORY"))
+                )
             else:
                 context["IM2COL_SMALL_INPUT_MEMORY"] = False
-        
-        context["LOCAL_OUTPUT_CHANNEL"] = min(context["OUTPUT_CHANNEL"], context["N_GROUP_VCOL"])
+
+        context["LOCAL_OUTPUT_CHANNEL"] = min(
+            context["OUTPUT_CHANNEL"], context["N_GROUP_VCOL"]
+        )
         context["FAST_MODE"] = bool(int(os.environ.get("FAST_MODE")))
-        
+
         return context

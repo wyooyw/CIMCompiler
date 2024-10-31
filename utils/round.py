@@ -1,4 +1,6 @@
 import numpy as np
+
+
 def banker_round(x):
 
     half = 0.5

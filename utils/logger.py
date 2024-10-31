@@ -1,5 +1,6 @@
 import logging
 
+
 def get_logger(name, level, output_file=None):
     # 创建日志记录器，设置日志名称
     logger = logging.getLogger(name)
@@ -9,7 +10,9 @@ def get_logger(name, level, output_file=None):
         file_handler = logging.FileHandler(output_file)
 
         # 创建日志格式器
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         file_handler.setFormatter(formatter)
 
         # 将文件处理器添加到日志记录器

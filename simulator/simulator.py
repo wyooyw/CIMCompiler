@@ -1,20 +1,25 @@
-from enum import Enum
-import numpy as np
-from simulator.macro_utils import MacroUtil, MacroConfig
-from simulator.mask_utils import MaskUtil, MaskConfig
-from simulator.meta_utils import MetaUtil
 import copy
-from simulator.data_type import get_dtype_from_bitwidth, get_bitwidth_from_dtype
-import json
-from utils.df_layout import tensor_int8_to_bits
-from tqdm import tqdm
-import logging
 import cProfile
-from utils.round import banker_round
-from simulator.stats_util import StatsUtil
+import json
+import logging
+from enum import Enum
+
+import numpy as np
+from tqdm import tqdm
+
+from simulator.data_type import get_bitwidth_from_dtype, get_dtype_from_bitwidth
 from simulator.flat_inst_util import FlatInstUtil
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+from simulator.macro_utils import MacroConfig, MacroUtil
+from simulator.mask_utils import MaskConfig, MaskUtil
+from simulator.meta_utils import MetaUtil
+from simulator.stats_util import StatsUtil
+from utils.df_layout import tensor_int8_to_bits
+from utils.round import banker_round
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 class SpecialReg(Enum):
 
@@ -39,35 +44,41 @@ class SpecialReg(Enum):
     SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 = 21
     SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 = 22
 
+
 class InstClass(Enum):
-    PIM_CLASS = 0 # 0b00
-    SIMD_CLASS = 1 # 0b01
-    SCALAR_CLASS = 2 # 0b10
-    TRANS_CLASS = 6 # 0b110
-    CTR_CLASS = 7 # 0b111
+    PIM_CLASS = 0  # 0b00
+    SIMD_CLASS = 1  # 0b01
+    SCALAR_CLASS = 2  # 0b10
+    TRANS_CLASS = 6  # 0b110
+    CTR_CLASS = 7  # 0b111
     DEBUG_CLASS = -1
 
+
 class PIMInstType(Enum):
-    PIM_COMPUTE = 0 # 0b00
-    PIM_SET = 1 # 0b01
-    PIM_OUTPUT = 2 # 0b10
-    PIM_TRANSFER = 3 # 0b11
+    PIM_COMPUTE = 0  # 0b00
+    PIM_SET = 1  # 0b01
+    PIM_OUTPUT = 2  # 0b10
+    PIM_TRANSFER = 3  # 0b11
+
 
 class ScalarInstType(Enum):
-    RR = 0          # 0b00
-    RI = 1             # 0b01
-    LOAD_STORE = 2      # 0b10
-    OTHER = 3           # 0b11
+    RR = 0  # 0b00
+    RI = 1  # 0b01
+    LOAD_STORE = 2  # 0b10
+    OTHER = 3  # 0b11
+
 
 class ControlInstType(Enum):
-    EQ_BR = 0       # 0b000
-    NE_BR = 1       # 0b001
-    GT_BR = 2       # 0b010
-    LT_BR = 3       # 0b011
-    JUMP = 4        # 0b100
+    EQ_BR = 0  # 0b000
+    NE_BR = 1  # 0b001
+    GT_BR = 2  # 0b010
+    LT_BR = 3  # 0b011
+    JUMP = 4  # 0b100
+
 
 class TransInstType(Enum):
-    TRANS = 0 # 0b0
+    TRANS = 0  # 0b0
+
 
 class Memory:
     def __init__(self, name, memtype, offset, size):
@@ -76,7 +87,7 @@ class Memory:
         self.offset = offset
         self.size = size
         self.end = self.offset + self.size
-        self._data = bytearray(np.zeros((size,) , dtype=np.int8))
+        self._data = bytearray(np.zeros((size,), dtype=np.int8))
         self.write_hook_list = []
 
     def _check_range(self, offset, size):
@@ -85,7 +96,7 @@ class Memory:
     def read(self, offset, size):
         assert self._check_range(offset, size), f"offset={offset}, size={size}"
         offset = offset - self.offset
-        return copy.copy(self._data[offset: offset+size])
+        return copy.copy(self._data[offset : offset + size])
 
     def read_all(self):
         return copy.copy(self._data)
@@ -98,14 +109,16 @@ class Memory:
         assert len(data) == size, f"{len(data)=}, {size=}"
 
         offset = offset - self.offset
-        self._data[offset: offset+size] = data
-        assert len(self._data) == self.size, f"{len(self._data)=}, {self.size=}, {offset=}, "
+        self._data[offset : offset + size] = data
+        assert (
+            len(self._data) == self.size
+        ), f"{len(self._data)=}, {self.size=}, {offset=}, "
 
         for hook in self.write_hook_list:
             hook()
 
     def clear(self):
-        self._data[:] = bytearray(np.zeros((self.size,) , dtype=np.int8))
+        self._data[:] = bytearray(np.zeros((self.size,), dtype=np.int8))
 
     def register_write_hook(self, hook):
         self.write_hook_list.append(hook)
@@ -159,7 +172,9 @@ class MemorySpace:
         check [offset, offset + size) is in one memory
         """
         for memory in self.memory_space:
-            if offset >= memory.offset and (offset+size <= memory.offset+memory.size):
+            if offset >= memory.offset and (
+                offset + size <= memory.offset + memory.size
+            ):
                 return memory
         assert False, f"can not find memory! {offset=}, {size=}"
 
@@ -167,19 +182,22 @@ class MemorySpace:
         """
         check [offset, offset + size) is in one memory
         """
-        if type(memtype)==str:
+        if type(memtype) == str:
             memtype = [memtype]
-        assert type(memtype)==list
+        assert type(memtype) == list
         for memory in self.memory_space:
-            if offset >= memory.offset and (offset+size <= memory.offset+memory.size):
-                assert memory.memtype in memtype, f"require {memtype=}, but get {memory.memtype=}. {offset=}, {size=}"
+            if offset >= memory.offset and (
+                offset + size <= memory.offset + memory.size
+            ):
+                assert (
+                    memory.memtype in memtype
+                ), f"require {memtype=}, but get {memory.memtype=}. {offset=}, {size=}"
                 return
-        assert False, f'can not find memory! {offset=}, {size=}, {memtype=}'
+        assert False, f"can not find memory! {offset=}, {size=}, {memtype=}"
 
     def read(self, offset, size):
         memory = self.get_memory_and_check_range(offset, size)
         return memory.read(offset, size)
-
 
     def write(self, data, offset, size):
         memory = self.get_memory_and_check_range(offset, size)
@@ -192,25 +210,25 @@ class MemorySpace:
 
     def get_macro_memory(self):
         for memory in self.memory_space:
-            if memory.memtype=="macro":
+            if memory.memtype == "macro":
                 return memory
         return None
 
     def get_mask_memory(self):
         for memory in self.memory_space:
-            if memory.name=="mask":
+            if memory.name == "mask":
                 return memory
         return None
-    
+
     def get_memory_by_name(self, name):
         for memory in self.memory_space:
-            if memory.name==name:
+            if memory.name == name:
                 return memory
         return None
 
     def get_base_of(self, name):
         for memory in self.memory_space:
-            if memory.name==name:
+            if memory.name == name:
                 return memory.offset
         assert False, f"Can not find {name=}"
         return None
@@ -220,7 +238,7 @@ class MemorySpace:
             memory.clear()
 
     def load_memory_image(self, memory_image_path):
-        with open(memory_image_path, 'rb') as file:
+        with open(memory_image_path, "rb") as file:
             content = file.read()
         byte_array = bytearray(content)
         total_size = sum([memory.size for memory in self.memory_space])
@@ -229,19 +247,22 @@ class MemorySpace:
         offset = 0
         for memory in self.memory_space:
             size = memory.size
-            memory.write(byte_array[offset: offset+size], memory.offset, size)
+            memory.write(byte_array[offset : offset + size], memory.offset, size)
             offset += size
-    
+
     def save_memory_image(self, memory_image_path):
         byte_array = bytearray()
         for memory in self.memory_space:
             byte_array += memory.read_all()
-        with open(memory_image_path, 'wb') as file:
+        with open(memory_image_path, "wb") as file:
             file.write(byte_array)
 
     @classmethod
-    def from_memory_config(cls, memory_config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json"):
-        with open(memory_config_path, 'r') as f:
+    def from_memory_config(
+        cls,
+        memory_config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json",
+    ):
+        with open(memory_config_path, "r") as f:
             memory_config = json.load(f)
         memory_space = cls()
         for memory in memory_config["memory_list"]:
@@ -253,11 +274,20 @@ class MemorySpace:
             memory_space.add_memory(Memory(name, memtype, offset, size))
         return memory_space
 
+
 class Simulator:
     FINISH = 0
     TIMEOUT = 1
     ERROR = 2
-    def __init__(self, memory_space, macro_config, mask_config, safe_time=999999999, mask_memory_name="mask"):
+
+    def __init__(
+        self,
+        memory_space,
+        macro_config,
+        mask_config,
+        safe_time=999999999,
+        mask_memory_name="mask",
+    ):
         super().__init__()
         self.general_rf = np.zeros([64], dtype=np.int32)
         self.special_rf = np.zeros([32], dtype=np.int32)
@@ -265,18 +295,21 @@ class Simulator:
         self.macro_config = macro_config
         self.mask_config = mask_config
         self.macro_util = MacroUtil(self.memory_space.get_macro_memory(), macro_config)
-        self.mask_util = MaskUtil(self.memory_space.get_memory_by_name(mask_memory_name), macro_config, mask_config)
-        self.meta_util = MetaUtil(self.memory_space.get_memory_by_name("pim_meta_data_reg_buffer"), macro_config)
+        self.mask_util = MaskUtil(
+            self.memory_space.get_memory_by_name(mask_memory_name),
+            macro_config,
+            mask_config,
+        )
+        self.meta_util = MetaUtil(
+            self.memory_space.get_memory_by_name("pim_meta_data_reg_buffer"),
+            macro_config,
+        )
         self.jump_offset = None
         self.safe_time = safe_time
 
         self.debug_hook = None
 
-        self._int_data_type = {
-            8: np.int8,
-            16: np.int16,
-            32: np.int32
-        }
+        self._int_data_type = {8: np.int8, 16: np.int16, 32: np.int32}
 
         self.print_record = list()
 
@@ -289,32 +322,44 @@ class Simulator:
         This is an internal memory for doing accumulate for macro's output
         """
         if self.memory_space.get_memory_by_name("pim_output_reg_buffer") is None:
-            logging.debug("[Warning] Can't find pim_output_reg_buffer. Make sure the code has no macro-related instruction.")
+            logging.debug(
+                "[Warning] Can't find pim_output_reg_buffer. Make sure the code has no macro-related instruction."
+            )
             return
         end_memory = self.memory_space.memory_space[-1]
         end_offset = end_memory.offset + end_memory.size
-        output_buffer_size = self.memory_space.get_memory_by_name("pim_output_reg_buffer").size
+        output_buffer_size = self.memory_space.get_memory_by_name(
+            "pim_output_reg_buffer"
+        ).size
         internel_macro_output_buffer = Memory(
             "internel_macro_output_reg_buffer",
             "reg_buffer",
             offset=end_offset,
-            size=output_buffer_size
+            size=output_buffer_size,
         )
         logging.debug(f"{end_offset=}")
         self.memory_space.add_memory(internel_macro_output_buffer)
 
     @classmethod
-    def from_config(cls, config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json"):
-        with open(config_path, 'r') as f:
+    def from_config(
+        cls,
+        config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json",
+    ):
+        with open(config_path, "r") as f:
             config = json.load(f)
         memory_space = MemorySpace.from_memory_config(config_path)
         macro_config = MacroConfig.from_config(config_path)
         mask_config = MaskConfig.from_config(config_path)
         if "mask_memory_name" in config:
-            return cls(memory_space, macro_config, mask_config, mask_memory_name=config["mask_memory_name"])
+            return cls(
+                memory_space,
+                macro_config,
+                mask_config,
+                mask_memory_name=config["mask_memory_name"],
+            )
         else:
             return cls(memory_space, macro_config, mask_config)
-    
+
     def clear(self):
         self.memory_space.clear()
         self.general_rf = np.zeros([64], dtype=np.int32)
@@ -333,7 +378,7 @@ class Simulator:
         profiler.enable()
         status = self.run_code(code, total_pim_compute_count)
         profiler.disable()
-        profiler.print_stats(sort='cumtime')
+        profiler.print_stats(sort="cumtime")
         return status
 
     def run_code(self, code: list[dict], total_pim_compute_count=0, record_flat=True):
@@ -351,17 +396,17 @@ class Simulator:
                 self.flat_inst_util.flat_inst(inst, cnt)
 
             inst_class = inst["class"]
-            if inst_class==InstClass.PIM_CLASS.value:
+            if inst_class == InstClass.PIM_CLASS.value:
                 self._run_pim_class_inst(inst)
-            elif inst_class==InstClass.SIMD_CLASS.value:
+            elif inst_class == InstClass.SIMD_CLASS.value:
                 self._run_simd_class_inst(inst)
-            elif inst_class==InstClass.SCALAR_CLASS.value:
+            elif inst_class == InstClass.SCALAR_CLASS.value:
                 self._run_scalar_class_inst(inst)
-            elif inst_class==InstClass.TRANS_CLASS.value:
+            elif inst_class == InstClass.TRANS_CLASS.value:
                 self._run_trans_class_inst(inst)
-            elif inst_class==InstClass.CTR_CLASS.value:
+            elif inst_class == InstClass.CTR_CLASS.value:
                 self._run_control_class_inst(inst)
-            elif inst_class==InstClass.DEBUG_CLASS.value:
+            elif inst_class == InstClass.DEBUG_CLASS.value:
                 self._run_debug_class_inst(inst)
             else:
                 assert False, f"Not support {inst_class=}"
@@ -371,7 +416,7 @@ class Simulator:
                 self.jump_offset = None
             else:
                 pc += 1
-            
+
             cnt += 1
 
         print(f"{self.pimcompute_cnt=}, {total_pim_compute_count=}")
@@ -384,9 +429,11 @@ class Simulator:
             logging.debug("Meet safe time!")
             return self.TIMEOUT, self.stats_util, self.flat_inst_util
         else:
-            print(f"Strange exit situation! {pc=}, {len(code)=}, {cnt=}, {self.safe_time=}")
+            print(
+                f"Strange exit situation! {pc=}, {len(code)=}, {cnt=}, {self.safe_time=}"
+            )
             return self.ERROR, self.stats_util, self.flat_inst_util
-    
+
     def read_general_reg(self, regid):
         if self._read_reg_value_directly:
             return regid
@@ -396,24 +443,24 @@ class Simulator:
         self.write_reg(self.general_rf, regid, value)
 
     def read_special_reg(self, regid):
-        if type(regid)==SpecialReg:
+        if type(regid) == SpecialReg:
             regid = regid.value
-        assert type(regid)==int, f"{regid=}"
+        assert type(regid) == int, f"{regid=}"
         return self.read_reg(self.special_rf, regid)
 
     def write_special_reg(self, regid, value):
-        if type(regid)==SpecialReg:
+        if type(regid) == SpecialReg:
             regid = regid.value
-        assert type(regid)==int, f"{regid=}"
+        assert type(regid) == int, f"{regid=}"
         self.write_reg(self.special_rf, regid, value)
 
     def read_reg(self, rf, regid):
-        assert type(regid)==int, f"{type(regid)=}"
+        assert type(regid) == int, f"{type(regid)=}"
         assert 0 <= regid and regid < rf.shape[0], f"{regid=}"
         return rf[regid]
 
     def write_reg(self, rf, regid, value):
-        assert type(regid)==int, f"{regid=}"
+        assert type(regid) == int, f"{regid=}"
         assert 0 <= regid and regid < rf.shape[0], f"{regid=}, {rf.shape[0]=}"
         # TODO: check value is in range of int32
         rf[regid] = value
@@ -421,15 +468,16 @@ class Simulator:
     """
     Classes
     """
+
     def _run_pim_class_inst(self, inst):
         inst_type = inst["type"]
-        if inst_type==PIMInstType.PIM_COMPUTE.value:
+        if inst_type == PIMInstType.PIM_COMPUTE.value:
             self._run_pim_class_pim_compute_type_inst(inst)
-        elif inst_type==PIMInstType.PIM_OUTPUT.value:
+        elif inst_type == PIMInstType.PIM_OUTPUT.value:
             self._run_pim_class_pim_output_type_inst(inst)
-        elif inst_type==PIMInstType.PIM_TRANSFER.value:
+        elif inst_type == PIMInstType.PIM_TRANSFER.value:
             self._run_pim_class_pim_transfer_type_inst(inst)
-        elif inst_type==PIMInstType.PIM_SET.value:
+        elif inst_type == PIMInstType.PIM_SET.value:
             self._run_pim_class_pim_set_type_inst(inst)
         else:
             assert False, f"Not support"
@@ -463,11 +511,11 @@ class Simulator:
         - output bit width：输出向量每个元素的bit长度
         """
         opcode = inst["opcode"]
-        if opcode in [0x00, 0x02]: # vec add
+        if opcode in [0x00, 0x02]:  # vec add
             self._run_simd_class_vector_vector_inst(inst)
-        elif opcode==0b01: # scalar add
+        elif opcode == 0b01:  # scalar add
             self._run_simd_class_scalar_vector_inst(inst)
-        elif opcode==3:
+        elif opcode == 3:
             self._run_simd_class_quantify_inst(inst)
         else:
             assert False, f"Not support {opcode=} yet."
@@ -475,39 +523,42 @@ class Simulator:
     def _run_scalar_class_inst(self, inst):
         inst_type = inst["type"]
         # import pdb; pdb.set_trace()
-        if inst_type==ScalarInstType.RR.value:
+        if inst_type == ScalarInstType.RR.value:
             self._run_scalar_class_rr_type_inst(inst)
-        elif inst_type==ScalarInstType.RI.value:
+        elif inst_type == ScalarInstType.RI.value:
             self._run_scalar_class_ri_type_inst(inst)
-        elif inst_type==ScalarInstType.LOAD_STORE.value:
+        elif inst_type == ScalarInstType.LOAD_STORE.value:
             self._run_scalar_class_load_store_type_inst(inst)
-        elif inst_type==ScalarInstType.OTHER.value:
+        elif inst_type == ScalarInstType.OTHER.value:
             self._run_scalar_class_other_type_inst(inst)
         else:
             assert False, f"Not support"
 
     def _run_control_class_inst(self, inst):
         inst_type = inst["type"]
-        if inst_type in [ControlInstType.EQ_BR.value, 
-                            ControlInstType.NE_BR.value, 
-                            ControlInstType.GT_BR.value, 
-                            ControlInstType.LT_BR.value]:
+        if inst_type in [
+            ControlInstType.EQ_BR.value,
+            ControlInstType.NE_BR.value,
+            ControlInstType.GT_BR.value,
+            ControlInstType.LT_BR.value,
+        ]:
             self._run_control_class_br_type_inst(inst)
-        elif inst_type==ControlInstType.JUMP.value:
+        elif inst_type == ControlInstType.JUMP.value:
             self._run_control_class_jump_type_inst(inst)
         else:
             assert False, f"Not support"
 
     def _run_trans_class_inst(self, inst):
         inst_type = inst["type"]
-        if inst_type==TransInstType.TRANS.value:
+        if inst_type == TransInstType.TRANS.value:
             self._run_trans_class_trans_type_inst(inst)
         else:
             assert False, f"Not support"
-    
+
     """
     Types
     """
+
     def _run_scalar_class_rr_type_inst(self, inst):
         """
         - [31, 30]，2bit：class，指令类别码，值为10
@@ -529,56 +580,56 @@ class Simulator:
         value1 = self.read_general_reg(inst["rs1"])
         value2 = self.read_general_reg(inst["rs2"])
         opcode = inst["opcode"]
-        if opcode==0b000: # add
+        if opcode == 0b000:  # add
             result = value1 + value2
-        elif opcode==0b001: # sub
+        elif opcode == 0b001:  # sub
             result = value1 - value2
-        elif opcode==0b010: # mul
+        elif opcode == 0b010:  # mul
             result = value1 * value2
-        elif opcode==0b011: # div
+        elif opcode == 0b011:  # div
             result = value1 // value2
-        elif opcode==0b100: # sll
+        elif opcode == 0b100:  # sll
             assert False, "Not support sll yet"
-        elif opcode==0b101: # srl
+        elif opcode == 0b101:  # srl
             assert False, "Not support srl yet"
-        elif opcode==0b110: # sra
+        elif opcode == 0b110:  # sra
             assert False, "Not support sra yet"
-        elif opcode==0b111: # mod
+        elif opcode == 0b111:  # mod
             result = value1 % value2
-        elif opcode==0b1000: # min
-            result = min(value1 , value2)
+        elif opcode == 0b1000:  # min
+            result = min(value1, value2)
         else:
             assert False, f"Not support {opcode=}."
         self.write_general_reg(inst["rd"], result)
 
     def _run_scalar_class_ri_type_inst(self, inst):
         """
-            R-I型整数运算指令：scalar-RI
-            指令字段划分：
-            - [31, 30]，2bit：class，指令类别码，值为10
-            - [29, 28]，2bit：type，指令类型码，值为01
-            - [27, 26]，2bit：opcode，操作类别码，表示具体计算的类型
-            - 00：addi，整型立即数加法
-            - 01：muli，整型立即数乘法，结果寄存器仅保留低32位
-            - 10：lui，高16位立即数赋值
-            - [25, 21]，5bit：rs，通用寄存器1，表示运算数1的值
-            - [20, 16]，5bit：rd，通用寄存器2，即运算结果写回的寄存器
-            - [15, 0]，16bit：imm，立即数，表示运算数2的值
+        R-I型整数运算指令：scalar-RI
+        指令字段划分：
+        - [31, 30]，2bit：class，指令类别码，值为10
+        - [29, 28]，2bit：type，指令类型码，值为01
+        - [27, 26]，2bit：opcode，操作类别码，表示具体计算的类型
+        - 00：addi，整型立即数加法
+        - 01：muli，整型立即数乘法，结果寄存器仅保留低32位
+        - 10：lui，高16位立即数赋值
+        - [25, 21]，5bit：rs，通用寄存器1，表示运算数1的值
+        - [20, 16]，5bit：rd，通用寄存器2，即运算结果写回的寄存器
+        - [15, 0]，16bit：imm，立即数，表示运算数2的值
         """
         value = self.read_general_reg(inst["rs"])
         imm = inst["imm"]
         opcode = inst["opcode"]
-        if opcode==0b000: # add
+        if opcode == 0b000:  # add
             result = value + imm
-        elif opcode==0b001: # sub
+        elif opcode == 0b001:  # sub
             result = value - imm
-        elif opcode==0b010: # mul
+        elif opcode == 0b010:  # mul
             result = value * imm
-        elif opcode==0b011: # div
+        elif opcode == 0b011:  # div
             result = value / imm
-        elif opcode==0b111: # mod
+        elif opcode == 0b111:  # mod
             result = value % imm
-        elif opcode==0b1000: # min
+        elif opcode == 0b1000:  # min
             result = min(value, imm)
         else:
             assert False, f"Not support {opcode=}."
@@ -586,22 +637,22 @@ class Simulator:
 
     def _run_scalar_class_load_store_type_inst(self, inst):
         """
-            Load/Store指令：scalar-SL
-            指令字段划分：
-            - [31, 30]，2bit：class，指令类别码，值为10
-            - [29, 28]，2bit：type，指令类型码，值为10
-            - [27, 26]，2bit：opcode，操作类别码，表示具体操作的类型
-            - 00：本地存储load至寄存器
-            - 01：寄存器值store至本地存储
-            - 10：全局存储load至寄存器
-            - 11：寄存器值store至全局存储
-            - [25, 21]，5bit：rs1，通用寄存器1，即寻址的基址寄存器base
-            - [20, 16]，5bit：rs2，通用寄存器2，即存储load/store值的寄存器
-            - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
-            - 地址计算公式：$rs + offset
+        Load/Store指令：scalar-SL
+        指令字段划分：
+        - [31, 30]，2bit：class，指令类别码，值为10
+        - [29, 28]，2bit：type，指令类型码，值为10
+        - [27, 26]，2bit：opcode，操作类别码，表示具体操作的类型
+        - 00：本地存储load至寄存器
+        - 01：寄存器值store至本地存储
+        - 10：全局存储load至寄存器
+        - 11：寄存器值store至全局存储
+        - [25, 21]，5bit：rs1，通用寄存器1，即寻址的基址寄存器base
+        - [20, 16]，5bit：rs2，通用寄存器2，即存储load/store值的寄存器
+        - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
+        - 地址计算公式：$rs + offset
         """
         opcode = inst["opcode"]
-        if opcode==0b00: # load
+        if opcode == 0b00:  # load
 
             addr = self.read_general_reg(inst["rs1"])
             offset = inst["offset"]
@@ -609,7 +660,7 @@ class Simulator:
             value = self.memory_space.read_as(addr, 4, np.int32).item()
             self.write_general_reg(inst["rs2"], value)
 
-        elif opcode==0b01: # store
+        elif opcode == 0b01:  # store
 
             addr = self.read_general_reg(inst["rs1"])
             value = self.read_general_reg(inst["rs2"])
@@ -619,11 +670,10 @@ class Simulator:
 
         else:
             assert False, f"Not support {opcode=}."
-        
 
     def _run_scalar_class_other_type_inst(self, inst):
-        assert inst["class"]==0b10
-        assert inst["type"]==0b11
+        assert inst["class"] == 0b10
+        assert inst["type"] == 0b11
         if inst["opcode"] in [0b00, 0b01]:
             self._run_scalar_class_other_type_li_inst(inst)
         elif inst["opcode"] in [0b10, 0b11]:
@@ -652,9 +702,9 @@ class Simulator:
         rd = inst["rd"]
         imm = inst["imm"]
         opcode = inst["opcode"]
-        if opcode==0b00: # 通用寄存器
+        if opcode == 0b00:  # 通用寄存器
             rf = self.general_rf
-        elif opcode==0b01: # 专用寄存器
+        elif opcode == 0b01:  # 专用寄存器
             rf = self.special_rf
         self.write_reg(rf, rd, imm)
 
@@ -671,10 +721,10 @@ class Simulator:
         - [20, 16]，5bit：rs2，专用寄存器编号，即涉及赋值的专用寄存器
         - [15, 0]，16bit：reserve，保留字段
         """
-        if opcode==0b10:
+        if opcode == 0b10:
             value = self.read_general_reg(inst["rs1"])
             self.write_special_reg(inst["rs2"], value)
-        elif opcode==0b11:
+        elif opcode == 0b11:
             value = self.read_special_reg(inst["rs2"])
             self.write_general_reg(inst["rs1"], value)
         else:
@@ -706,19 +756,20 @@ class Simulator:
         src_addr = src_base + src_offset_mask * offset
         dst_addr = dst_base + dst_offset_mask * offset
 
-        logging.debug("Trans: from {}({}) to {}({}), {} bytes".format(
-            str(src_addr),
-            self.memory_space.get_memory_by_address(src_addr).name,
-            str(dst_addr),
-            self.memory_space.get_memory_by_address(dst_addr).name,
-            str(size)
-        ))
-        
+        logging.debug(
+            "Trans: from {}({}) to {}({}), {} bytes".format(
+                str(src_addr),
+                self.memory_space.get_memory_by_address(src_addr).name,
+                str(dst_addr),
+                self.memory_space.get_memory_by_address(dst_addr).name,
+                str(size),
+            )
+        )
+
         src_data = self.memory_space.read(src_addr, size)
         self.memory_space.write(src_data, dst_addr, size)
 
         self.stats_util.record_trans_addr(src_addr, dst_addr, size)
-
 
     def _run_control_class_br_type_inst(self, inst):
         """
@@ -736,40 +787,40 @@ class Simulator:
         val1 = self.read_general_reg(inst["rs1"])
         val2 = self.read_general_reg(inst["rs2"])
         inst_type = inst["type"]
-        if inst_type==0b000: # equals
-            cond = (val1 == val2)
-        elif inst_type==0b001: # not equals
+        if inst_type == 0b000:  # equals
+            cond = val1 == val2
+        elif inst_type == 0b001:  # not equals
             cond = not (val1 == val2)
-        elif inst_type==0b010: # greater than
-            cond = (val1 > val2)
-        elif inst_type==0b011: # less than
-            cond = (val1 < val2)
+        elif inst_type == 0b010:  # greater than
+            cond = val1 > val2
+        elif inst_type == 0b011:  # less than
+            cond = val1 < val2
         else:
             assert False, f"Unsupported {inst_type=} in control instruction!"
-        
+
         if cond:
             self.jump_offset = inst["offset"]
-        
+
     def _run_control_class_jump_type_inst(self, inst):
         """
-            无条件跳转指令：jmp
-            指令字段划分：
-            - [31, 29]，3bit：class，指令类别码，值为111
-            - [28, 26]，3bit：type，指令类型码，值为100
-            - [25, 0]，26bit：offset，立即数，表示跳转指令地址相对于该指令的偏移值
+        无条件跳转指令：jmp
+        指令字段划分：
+        - [31, 29]，3bit：class，指令类别码，值为111
+        - [28, 26]，3bit：type，指令类型码，值为100
+        - [25, 0]，26bit：offset，立即数，表示跳转指令地址相对于该指令的偏移值
         """
         self.jump_offset = inst["offset"]
 
     def _run_scalar_class_other_type_inst(self, inst):
         opcode = inst["opcode"]
-        if opcode==0b00: # general-li
+        if opcode == 0b00:  # general-li
             self.write_general_reg(inst["rd"], inst["imm"])
-        elif opcode==0b01: # special-li
+        elif opcode == 0b01:  # special-li
             self.write_special_reg(inst["rd"], inst["imm"])
-        elif opcode==0b10: # general-to-special
+        elif opcode == 0b10:  # general-to-special
             val = self.read_general_reg(inst["rs1"])
             self.write_special_reg(inst["rs2"], val)
-        elif opcode==0b11: # special-to-general
+        elif opcode == 0b11:  # special-to-general
             val = self.read_special_reg(inst["rs2"])
             self.write_general_reg(inst["rs1"], val)
         else:
@@ -820,9 +871,10 @@ class Simulator:
     """
     Diffenet Pim Compute
     """
+
     def _run_pim_class_pim_compute_type_inst_value_bit_sparse(self, inst):
         assert False, "Executor not support value & bit sparse yet."
-    
+
     def _run_pim_class_pim_compute_type_inst_value_sparse(self, inst):
         assert False, "Executor not support value sparse yet."
 
@@ -837,30 +889,51 @@ class Simulator:
             self.stats_util.record_macro_ultilize(n_use_comp, n_use_col, n_comp * n_col)
 
     def _value_sparsity_compute(self, inst, input_data, weight_data):
-        if inst["value_sparse"]==0:
+        if inst["value_sparse"] == 0:
             return input_data
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
         logging.debug(f"{group_size=}, {self.macro_config.n_macro=}")
         logging.debug(f"old {weight_data.shape=}")
-        weight_data = np.pad(weight_data, ((0,0),(0, group_size * self.macro_config.n_vcol(width_bw) - weight_data.shape[1])), mode='constant', constant_values=0)
+        weight_data = np.pad(
+            weight_data,
+            (
+                (0, 0),
+                (
+                    0,
+                    group_size * self.macro_config.n_vcol(width_bw)
+                    - weight_data.shape[1],
+                ),
+            ),
+            mode="constant",
+            constant_values=0,
+        )
         logging.debug(f"new {weight_data.shape=}")
-        weight_data = weight_data.reshape(self.macro_config.n_comp, group_size, self.macro_config.n_vcol(width_bw))
-        
-        assert weight_data.ndim==3
+        weight_data = weight_data.reshape(
+            self.macro_config.n_comp, group_size, self.macro_config.n_vcol(width_bw)
+        )
+
+        assert weight_data.ndim == 3
         assert weight_data.shape[0] == self.macro_config.n_comp
         assert weight_data.shape[1] == group_size
         assert weight_data.shape[2] == self.macro_config.n_vcol(width_bw)
 
-        assert input_data.size==self.mask_config.n_from, f"{input_data.size=}, {self.mask_config.n_from=}"
+        assert (
+            input_data.size == self.mask_config.n_from
+        ), f"{input_data.size=}, {self.mask_config.n_from=}"
         mask_addr = self.read_special_reg(SpecialReg.VALUE_SPARSE_MASK_ADDR)
         # logging.debug(f"{mask_addr=}")
         mask_data = self.mask_util.get_mask(mask_addr, input_data.size, group_size)
-        assert mask_data.ndim==2, f"{mask_data.ndim=}"
-        assert mask_data.shape[0]==group_size and mask_data.shape[1]==self.mask_config.n_from, f"{mask_data.shape=}, {group_size=}, {self.mask_config.n_from=}"
-        assert mask_data.dtype==bool, f"{mask_data.dtype}"
-        assert (mask_data.sum(axis=1) <= self.mask_config.n_to).all(), f"{mask_data.sum(axis=1)=}, {self.mask_config.n_to=}"
+        assert mask_data.ndim == 2, f"{mask_data.ndim=}"
+        assert (
+            mask_data.shape[0] == group_size
+            and mask_data.shape[1] == self.mask_config.n_from
+        ), f"{mask_data.shape=}, {group_size=}, {self.mask_config.n_from=}"
+        assert mask_data.dtype == bool, f"{mask_data.dtype}"
+        assert (
+            mask_data.sum(axis=1) <= self.mask_config.n_to
+        ).all(), f"{mask_data.sum(axis=1)=}, {self.mask_config.n_to=}"
         # np.set_printoptions(threshold=65536)
         # logging.debug(f"{mask_data.shape=}")
         # logging.debug(mask_data.astype(np.int8))
@@ -881,12 +954,19 @@ class Simulator:
             # logging.debug(f"{input_data=}, {macro_mask=}, {macro_input_data=}")
             assert macro_input_data.ndim == 1
             assert macro_input_data.size <= self.mask_config.n_to
-            macro_input_data = np.pad(macro_input_data, (0, self.mask_config.n_to-macro_input_data.size), mode='constant', constant_values=0)
+            macro_input_data = np.pad(
+                macro_input_data,
+                (0, self.mask_config.n_to - macro_input_data.size),
+                mode="constant",
+                constant_values=0,
+            )
             assert macro_input_data.size == self.mask_config.n_to
 
-            macro_weight = weight_data[:,macro_id,:]
+            macro_weight = weight_data[:, macro_id, :]
             # import pdb; pdb.set_trace();
-            macro_output = np.dot(macro_input_data.astype(out_dtype), macro_weight.astype(out_dtype))
+            macro_output = np.dot(
+                macro_input_data.astype(out_dtype), macro_weight.astype(out_dtype)
+            )
             # logging.debug(f"{macro_input_data=}, {macro_weight=}, {macro_output=}")
             output_list.append(macro_output)
 
@@ -900,8 +980,6 @@ class Simulator:
         output_data = np.concatenate(output_list)
         # logging.debug(f"{output_data=}")
         return output_data
-        
-        
 
     def _run_pim_class_pim_compute_type_inst_dense(self, inst):
         input_offset = self.read_general_reg(inst["rs1"])
@@ -911,15 +989,17 @@ class Simulator:
         input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
-        activation_element_col_num = self.read_special_reg(SpecialReg.ACTIVATION_ELEMENT_COL_NUM)
+        activation_element_col_num = self.read_special_reg(
+            SpecialReg.ACTIVATION_ELEMENT_COL_NUM
+        )
 
         activation_group_num = self.read_special_reg(SpecialReg.ACTIVATION_GROUP_NUM)
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
         assert self.macro_config.n_macro % group_size == 0
-        group_num =  self.macro_config.n_macro // group_size
+        group_num = self.macro_config.n_macro // group_size
         group_input_step = self.read_special_reg(SpecialReg.GROUP_INPUT_STEP)
-        assert inst.get("group", -1)==1
-        assert inst.get("group_input_mode", -1)==0
+        assert inst.get("group", -1) == 1
+        assert inst.get("group_input_mode", -1) == 0
         logging.debug(f"{group_num=}")
         # logging.debug(f"{self.macro_config.n_macro=}")
         # logging.debug(f"{self.macro_config.n_macro=}")
@@ -931,23 +1011,25 @@ class Simulator:
         group_input_data = []
         for group_id in range(activation_group_num):
             group_input_offset = input_offset + group_id * group_input_step
-            input_data = self.memory_space.read_as(group_input_offset, input_byte_size, self.get_dtype(input_bw))
+            input_data = self.memory_space.read_as(
+                group_input_offset, input_byte_size, self.get_dtype(input_bw)
+            )
             group_input_data.append(input_data)
 
         # Get weight matrix
         activate_element_row_num = input_size
         weight_data = self.macro_util.get_macro_data(
-            activate_row, 
-            width_bw, 
+            activate_row,
+            width_bw,
             group_num,
-            activate_element_row_num, 
+            activate_element_row_num,
             activation_element_col_num,
-            activation_group_num
-        ) # shape: [compartment, group, vcolumn]
+            activation_group_num,
+        )  # shape: [compartment, group, vcolumn]
         logging.debug(f"{weight_data.shape=}")
         group_weight_data = []
         for group_id in range(activation_group_num):
-            group_weight_data.append(weight_data[:,group_id,:])
+            group_weight_data.append(weight_data[:, group_id, :])
 
         # compute
         group_output_data = []
@@ -958,42 +1040,65 @@ class Simulator:
 
             # use pimset to mask weight
             assert self.pimset_mask is not None
-            assert len(self.pimset_mask) == weight_data.shape[1], f"{len(self.pimset_mask)=}, {weight_data.shape[1]=}"
-            assert self.pimset_mask.dtype==bool, f"{self.pimset_mask.dtype=}"
+            assert (
+                len(self.pimset_mask) == weight_data.shape[1]
+            ), f"{len(self.pimset_mask)=}, {weight_data.shape[1]=}"
+            assert self.pimset_mask.dtype == bool, f"{self.pimset_mask.dtype=}"
             weight_data[:, self.pimset_mask] = 0
             # import pdb; pdb.set_trace()
 
-            assert input_data.ndim==1
-            assert weight_data.ndim==2, f"{weight_data.shape=}"
+            assert input_data.ndim == 1
+            assert weight_data.ndim == 2, f"{weight_data.shape=}"
             out_dtype = get_dtype_from_bitwidth(output_bw)
             if value_sparsity:
-                output_data = self._value_sparsity_compute(inst, input_data, weight_data)
+                output_data = self._value_sparsity_compute(
+                    inst, input_data, weight_data
+                )
             else:
                 for macro_id in range(group_size):
                     n_use_comp = input_data.size
                     self._stats_macro_util(macro_id, group_size, n_use_comp, width_bw)
-                    
-                assert 0 < input_data.size and input_data.size <= self.macro_config.n_comp, f"{input_data.size=}, {self.macro_config.n_comp=}"
-                input_data = np.pad(input_data, (0, self.macro_config.n_comp - input_data.size), mode='constant', constant_values=0)
-                assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
-                output_data = np.dot(input_data.astype(out_dtype), weight_data.astype(out_dtype))
+
+                assert (
+                    0 < input_data.size and input_data.size <= self.macro_config.n_comp
+                ), f"{input_data.size=}, {self.macro_config.n_comp=}"
+                input_data = np.pad(
+                    input_data,
+                    (0, self.macro_config.n_comp - input_data.size),
+                    mode="constant",
+                    constant_values=0,
+                )
+                assert (
+                    input_data.shape[0] == weight_data.shape[0]
+                ), f"{input_data.shape=}, {weight_data.shape=}"
+                output_data = np.dot(
+                    input_data.astype(out_dtype), weight_data.astype(out_dtype)
+                )
 
             group_output_data.append(output_data)
         # import pdb; pdb.set_trace()
         # Save output
         n_macro_per_group = group_size
-        group_output_step = self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
-        output_offset = self.memory_space.get_base_of("internel_macro_output_reg_buffer")
+        group_output_step = (
+            self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
+        )
+        output_offset = self.memory_space.get_base_of(
+            "internel_macro_output_reg_buffer"
+        )
         for group_id in range(activation_group_num):
             output_data = group_output_data[group_id]
             output_byte_size = output_data.size * output_bw // 8
             group_output_offset = output_offset + group_id * group_output_step
-            self.memory_space.check_memory_type(group_output_offset, output_byte_size, ["rf","reg_buffer"])
+            self.memory_space.check_memory_type(
+                group_output_offset, output_byte_size, ["rf", "reg_buffer"]
+            )
 
             # Accumulate
             # import pdb; pdb.set_trace()
             if inst["accumulate"] == 1:
-                output_data_ori = self.memory_space.read_as(group_output_offset, output_byte_size, out_dtype)
+                output_data_ori = self.memory_space.read_as(
+                    group_output_offset, output_byte_size, out_dtype
+                )
                 output_data = output_data + output_data_ori
             # else:
             #     assert False
@@ -1007,23 +1112,25 @@ class Simulator:
         input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
-        assert input_bw==8, f"{input_bw=}"
-        assert output_bw==32, f"{output_bw=}"
-        assert width_bw==1, f"{width_bw=}"
-        activation_element_col_num = self.read_special_reg(SpecialReg.ACTIVATION_ELEMENT_COL_NUM)
+        assert input_bw == 8, f"{input_bw=}"
+        assert output_bw == 32, f"{output_bw=}"
+        assert width_bw == 1, f"{width_bw=}"
+        activation_element_col_num = self.read_special_reg(
+            SpecialReg.ACTIVATION_ELEMENT_COL_NUM
+        )
 
         activation_group_num = self.read_special_reg(SpecialReg.ACTIVATION_GROUP_NUM)
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
         assert self.macro_config.n_macro % group_size == 0
-        group_num =  self.macro_config.n_macro // group_size
+        group_num = self.macro_config.n_macro // group_size
         group_input_step = self.read_special_reg(SpecialReg.GROUP_INPUT_STEP)
-        assert inst.get("group", -1)==1
-        assert inst.get("group_input_mode", -1)==0
+        assert inst.get("group", -1) == 1
+        assert inst.get("group_input_mode", -1) == 0
         logging.debug(f"{group_num=}")
         # logging.debug(f"{self.macro_config.n_macro=}")
         # logging.debug(f"{self.macro_config.n_macro=}")
         value_sparsity = inst["value_sparse"]
-        assert "bit_sparse" in inst and inst["bit_sparse"]==1, str(inst)
+        assert "bit_sparse" in inst and inst["bit_sparse"] == 1, str(inst)
         meta_addr = self.read_special_reg(SpecialReg.BIT_SPARSE_META_ADDR)
 
         # Get input vector
@@ -1032,23 +1139,25 @@ class Simulator:
         group_input_data = []
         for group_id in range(activation_group_num):
             group_input_offset = input_offset + group_id * group_input_step
-            input_data = self.memory_space.read_as(group_input_offset, input_byte_size, self.get_dtype(input_bw))
+            input_data = self.memory_space.read_as(
+                group_input_offset, input_byte_size, self.get_dtype(input_bw)
+            )
             group_input_data.append(input_data)
 
         # Get weight matrix
         activate_element_row_num = input_size
         weight_data = self.macro_util.get_macro_data(
-            activate_row, 
-            8,#width_bw, 
+            activate_row,
+            8,  # width_bw,
             group_num,
-            activate_element_row_num, 
-            self.macro_config.n_vcol(8) * group_size,#activation_element_col_num,
-            activation_group_num
-        ) # shape: [compartment, group, vcolumn]
+            activate_element_row_num,
+            self.macro_config.n_vcol(8) * group_size,  # activation_element_col_num,
+            activation_group_num,
+        )  # shape: [compartment, group, vcolumn]
         logging.debug(f"{weight_data.shape=}")
         group_weight_data = []
         for group_id in range(activation_group_num):
-            _weight = weight_data[:,group_id,:]
+            _weight = weight_data[:, group_id, :]
             _weight = self.meta_util.recover_weight(meta_addr, _weight, group_num)
             group_weight_data.append(_weight)
 
@@ -1061,46 +1170,67 @@ class Simulator:
 
             # use pimset to mask weight
             assert self.pimset_mask is not None
-            assert len(self.pimset_mask) == weight_data.shape[1], f"{len(self.pimset_mask)=}, {weight_data.shape[1]=}"
-            assert self.pimset_mask.dtype==bool, f"{self.pimset_mask.dtype=}"
+            assert (
+                len(self.pimset_mask) == weight_data.shape[1]
+            ), f"{len(self.pimset_mask)=}, {weight_data.shape[1]=}"
+            assert self.pimset_mask.dtype == bool, f"{self.pimset_mask.dtype=}"
             weight_data[:, self.pimset_mask] = 0
 
-            assert input_data.ndim==1
-            assert weight_data.ndim==2, f"{weight_data.shape=}"
+            assert input_data.ndim == 1
+            assert weight_data.ndim == 2, f"{weight_data.shape=}"
             out_dtype = get_dtype_from_bitwidth(output_bw)
             if value_sparsity:
-                output_data = self._value_sparsity_compute(inst, input_data, weight_data)
+                output_data = self._value_sparsity_compute(
+                    inst, input_data, weight_data
+                )
             else:
                 for macro_id in range(group_size):
                     n_use_comp = input_data.size
                     self._stats_macro_util(macro_id, group_size, n_use_comp, width_bw)
-                
-                assert 0 < input_data.size and input_data.size <= self.macro_config.n_comp, f"{input_data.size=}, {self.macro_config.n_comp=}"
-                input_data = np.pad(input_data, (0, self.macro_config.n_comp - input_data.size), mode='constant', constant_values=0)
-                assert input_data.shape[0] == weight_data.shape[0], f"{input_data.shape=}, {weight_data.shape=}"
-                output_data = np.dot(input_data.astype(out_dtype), weight_data.astype(out_dtype))
-                
+
+                assert (
+                    0 < input_data.size and input_data.size <= self.macro_config.n_comp
+                ), f"{input_data.size=}, {self.macro_config.n_comp=}"
+                input_data = np.pad(
+                    input_data,
+                    (0, self.macro_config.n_comp - input_data.size),
+                    mode="constant",
+                    constant_values=0,
+                )
+                assert (
+                    input_data.shape[0] == weight_data.shape[0]
+                ), f"{input_data.shape=}, {weight_data.shape=}"
+                output_data = np.dot(
+                    input_data.astype(out_dtype), weight_data.astype(out_dtype)
+                )
 
             group_output_data.append(output_data)
         # import pdb; pdb.set_trace()
         # Save output
         n_macro_per_group = group_size
-        group_output_step = self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
-        output_offset = self.memory_space.get_base_of("internel_macro_output_reg_buffer")
+        group_output_step = (
+            self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
+        )
+        output_offset = self.memory_space.get_base_of(
+            "internel_macro_output_reg_buffer"
+        )
         for group_id in range(activation_group_num):
             output_data = group_output_data[group_id]
             output_byte_size = output_data.size * output_bw // 8
             group_output_offset = output_offset + group_id * group_output_step
-            self.memory_space.check_memory_type(group_output_offset, output_byte_size, ["rf","reg_buffer"])
+            self.memory_space.check_memory_type(
+                group_output_offset, output_byte_size, ["rf", "reg_buffer"]
+            )
 
             # Accumulate
             if inst["accumulate"] == 1:
-                output_data_ori = self.memory_space.read_as(group_output_offset, output_byte_size, out_dtype)
+                output_data_ori = self.memory_space.read_as(
+                    group_output_offset, output_byte_size, out_dtype
+                )
                 output_data = output_data + output_data_ori
             # else:
             #     assert False
             self.memory_space.write(output_data, group_output_offset, output_byte_size)
-
 
     def _run_pim_class_pim_output_type_inst(self, inst):
         outsum_move = inst["outsum_move"]
@@ -1108,22 +1238,28 @@ class Simulator:
         if outsum:
             self._outsum(inst)
             return
-            
+
         # elif outsum_move:
         #     _outsum_move(inst)
         #     return
 
         if outsum_move or outsum:
             assert False, "This should not happend!"
-        
+
         # out_n = self.read_general_reg(inst["rs1"])
         dst_offset = self.read_general_reg(inst["rd"])
-        
-        internel_buffer = self.memory_space.get_memory_by_name("internel_macro_output_reg_buffer")
+
+        internel_buffer = self.memory_space.get_memory_by_name(
+            "internel_macro_output_reg_buffer"
+        )
         src_offset, size = internel_buffer.offset, internel_buffer.size
 
-        self.memory_space.check_memory_type(src_offset, size, ["rf","reg_buffer","sram"])
-        self.memory_space.check_memory_type(dst_offset, size, ["rf","reg_buffer","sram"])
+        self.memory_space.check_memory_type(
+            src_offset, size, ["rf", "reg_buffer", "sram"]
+        )
+        self.memory_space.check_memory_type(
+            dst_offset, size, ["rf", "reg_buffer", "sram"]
+        )
 
         data = self.memory_space.read(src_offset, size)
         self.memory_space.write(data, dst_offset, size)
@@ -1137,7 +1273,7 @@ class Simulator:
         out_mask = self.memory_space.read_as(out_mask_addr, out_n // 8, np.int8)
         out_mask = tensor_int8_to_bits(out_mask)
         out_mask = out_mask.reshape(-1)
-        
+
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         output_byte = output_bw // 8
@@ -1146,8 +1282,10 @@ class Simulator:
         n_macro_per_group = group_size
 
         src_offset = self.memory_space.get_base_of("internel_macro_output_reg_buffer")
-        src_group_step = self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
-        
+        src_group_step = (
+            self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
+        )
+
         dst_offset = self.read_general_reg(inst["rd"])
         dst_group_step = src_group_step
         for g in range(n_group):
@@ -1155,17 +1293,21 @@ class Simulator:
             dst_group_offset = dst_offset + g * dst_group_step
             group_data_size = out_n * output_byte
 
-            data = self.memory_space.read_as(src_group_offset, group_data_size, np.int32)
+            data = self.memory_space.read_as(
+                src_group_offset, group_data_size, np.int32
+            )
             assert data.size == out_n
             for i in range(out_n):
-                if out_mask[i]==1:
-                    assert i+1 < len(out_mask)
-                    assert out_mask[i+1]==0
-                    data[i] = data[i] + data[i+1]
-            
+                if out_mask[i] == 1:
+                    assert i + 1 < len(out_mask)
+                    assert out_mask[i + 1] == 0
+                    data[i] = data[i] + data[i + 1]
+
             self.memory_space.write(data, dst_group_offset, group_data_size)
-        
-        internel_buffer = self.memory_space.get_memory_by_name("internel_macro_output_reg_buffer")
+
+        internel_buffer = self.memory_space.get_memory_by_name(
+            "internel_macro_output_reg_buffer"
+        )
         internel_buffer.clear()
 
     def _run_pim_class_pim_transfer_type_inst(self, inst):
@@ -1189,7 +1331,9 @@ class Simulator:
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         output_byte = output_bw // 8
 
-        output_mask = self.memory_space.read_as(output_mask_addr, output_num // 8, np.int8)
+        output_mask = self.memory_space.read_as(
+            output_mask_addr, output_num // 8, np.int8
+        )
         output_mask = tensor_int8_to_bits(output_mask)
         output_mask = output_mask.reshape(-1)
 
@@ -1197,14 +1341,18 @@ class Simulator:
         n_group = self.macro_config.n_macro // group_size
 
         data = self.memory_space.read_as(src_addr, output_num * output_byte, np.int32)
-        assert data.size==output_mask.size
+        assert data.size == output_mask.size
         # logging.debug(f"{data=}")
         # logging.debug(f"{output_mask=}")
-        filtered_data = data[output_mask==1]
+        filtered_data = data[output_mask == 1]
         # logging.debug(f"{filtered_data=}")
         # import pdb; pdb.set_trace()
-        assert filtered_data.size == output_mask.sum(), f"{filtered_data.size=}, {data.sum()=}"
-        self.memory_space.write(filtered_data, dst_addr, filtered_data.size * output_byte)
+        assert (
+            filtered_data.size == output_mask.sum()
+        ), f"{filtered_data.size=}, {data.sum()=}"
+        self.memory_space.write(
+            filtered_data, dst_addr, filtered_data.size * output_byte
+        )
 
     def _run_pim_class_pim_set_type_inst(self, inst):
         """
@@ -1222,9 +1370,9 @@ class Simulator:
         - 每个Macro的mask从前到后依次排布，连续存储
         - [9, 0]，10bit：reserve，保留字段
         """
-        assert inst["group_broadcast"]==1, "Only support group broadcast"
+        assert inst["group_broadcast"] == 1, "Only support group broadcast"
         mask_addr = self.read_general_reg(inst["rs2"])
-        
+
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
         vcol = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
         n_vcol_per_group = self.macro_config.n_vcol(vcol) * group_size
@@ -1240,21 +1388,20 @@ class Simulator:
         mask_data = ~mask_data
         self.pimset_mask = mask_data.copy()
 
-        
-
     def _run_debug_class_inst(self, inst):
-        if inst["type"]==0: #print
-            rs = inst['rs']
+        if inst["type"] == 0:  # print
+            rs = inst["rs"]
             val = self.read_general_reg(rs)
             self.print_record.append(val)
             logging.info(f" general_reg[{rs}] = {val}")
-        elif inst["type"]==1:
-            import pdb; pdb.set_trace()
+        elif inst["type"] == 1:
+            import pdb
+
+            pdb.set_trace()
             if self.debug_hook is not None:
                 self.debug_hook(simulator=self)
         else:
             assert False, "Not support yet."
-
 
     def _run_simd_class_vector_vector_inst(self, inst):
         """
@@ -1279,20 +1426,28 @@ class Simulator:
         output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
         output_dtype = get_dtype_from_bitwidth(output_bitwidth)
 
-        input1_data = self.memory_space.read_as(input1_addr, input1_byte_size , get_dtype_from_bitwidth(input1_bitwidth))
-        input2_data = self.memory_space.read_as(input2_addr, input2_byte_size , get_dtype_from_bitwidth(input2_bitwidth))
+        input1_data = self.memory_space.read_as(
+            input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
+        )
+        input2_data = self.memory_space.read_as(
+            input2_addr, input2_byte_size, get_dtype_from_bitwidth(input2_bitwidth)
+        )
 
         # Compute
-        if opcode==0x00:
-            assert input1_bitwidth==32
-            assert input2_bitwidth==32
-            assert output_bitwidth==32
-            output_data = input1_data.astype(output_dtype) + input2_data.astype(output_dtype)
-        elif opcode==0x02:
-            assert input1_bitwidth==8
-            assert input2_bitwidth==8
-            assert output_bitwidth==32
-            output_data = input1_data.astype(output_dtype) * input2_data.astype(output_dtype)
+        if opcode == 0x00:
+            assert input1_bitwidth == 32
+            assert input2_bitwidth == 32
+            assert output_bitwidth == 32
+            output_data = input1_data.astype(output_dtype) + input2_data.astype(
+                output_dtype
+            )
+        elif opcode == 0x02:
+            assert input1_bitwidth == 8
+            assert input2_bitwidth == 8
+            assert output_bitwidth == 32
+            output_data = input1_data.astype(output_dtype) * input2_data.astype(
+                output_dtype
+            )
         else:
             assert False, f"Not support: {opcode=}"
 
@@ -1324,11 +1479,15 @@ class Simulator:
         output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
         output_dtype = get_dtype_from_bitwidth(output_bitwidth)
 
-        input1_data = self.memory_space.read_as(input1_addr, input1_byte_size , get_dtype_from_bitwidth(input1_bitwidth))
+        input1_data = self.memory_space.read_as(
+            input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
+        )
         input2_data = np.array([input2_value], dtype=output_dtype)
 
         # Compute
-        output_data = input2_data.astype(output_dtype) + input1_data.astype(output_dtype)
+        output_data = input2_data.astype(output_dtype) + input1_data.astype(
+            output_dtype
+        )
 
         # Save output
         output_byte_size = output_data.size * output_bitwidth // 8
@@ -1338,7 +1497,9 @@ class Simulator:
 
     def _run_simd_class_quantify_inst(self, inst):
         input_addr = self.read_general_reg(inst["rs1"])
-        bias_scale_addr = self.read_special_reg(SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1)
+        bias_scale_addr = self.read_special_reg(
+            SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1
+        )
         out_zp_addr = self.read_general_reg(inst["rs2"])
         input_size = self.read_general_reg(inst["rs3"])
         output_addr = self.read_general_reg(inst["rd"])
@@ -1356,12 +1517,18 @@ class Simulator:
         input_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
         input_byte_size = input_bitwidth * input_size // 8
         self.memory_space.check_memory_type(input_addr, input_byte_size, "sram")
-        input_data = self.memory_space.read_as(input_addr, input_byte_size , get_dtype_from_bitwidth(input_bitwidth))
+        input_data = self.memory_space.read_as(
+            input_addr, input_byte_size, get_dtype_from_bitwidth(input_bitwidth)
+        )
 
         # read bias and scale
         bias_scale_byte_size = input_size * 2 * 4
-        bias_data = self.memory_space.read_as(bias_scale_addr, bias_scale_byte_size, np.int32)[0::2]
-        scale_data = self.memory_space.read_as(bias_scale_addr, bias_scale_byte_size, np.float32)[1::2]
+        bias_data = self.memory_space.read_as(
+            bias_scale_addr, bias_scale_byte_size, np.int32
+        )[0::2]
+        scale_data = self.memory_space.read_as(
+            bias_scale_addr, bias_scale_byte_size, np.float32
+        )[1::2]
 
         # read out_zp
         out_zp_byte_size = 4

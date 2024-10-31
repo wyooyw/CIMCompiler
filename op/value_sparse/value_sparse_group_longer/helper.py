@@ -1,12 +1,15 @@
-from op.helper import ValueSparseConv2dTestHelper, QuantizeHelper
+from op.helper import QuantizeHelper, ValueSparseConv2dTestHelper
+
+
 class TestHelper(ValueSparseConv2dTestHelper):
     def __init__(self, op_config):
         super().__init__(op_config)
         import numpy as np
+
         self.output_bytes = 4
         self.output_dtype = np.int32
 
-        if self.in_hw==1 and self.out_hw==1 and self.ker_size==1:
+        if self.in_hw == 1 and self.out_hw == 1 and self.ker_size == 1:
             # a special hack for efficient net
             self.n_use_group = 1
         else:
@@ -32,16 +35,18 @@ class TestHelper(ValueSparseConv2dTestHelper):
 
         context = super()._make_template_config(simulator)
         # context["RELU"] = int(self.relu)
-        context["SINGLE_OUTER_REDUCE"] = (self.mapping_reduce_to_macro==1).all()
+        context["SINGLE_OUTER_REDUCE"] = (self.mapping_reduce_to_macro == 1).all()
         context["N_USE_GROUP"] = self.n_use_group
         context["IM2COL"] = self.im2col
         if self.im2col:
             context["IM2COL_SIZE_0"] = self.input_data_im2col.shape[0]
             context["IM2COL_SIZE_1"] = self.input_data_im2col.shape[1]
             if context["IM2COL_SIZE_0"] > 1:
-                context["IM2COL_SMALL_INPUT_MEMORY"] = bool(int(os.environ.get("IM2COL_SMALL_INPUT_MEMORY")))
+                context["IM2COL_SMALL_INPUT_MEMORY"] = bool(
+                    int(os.environ.get("IM2COL_SMALL_INPUT_MEMORY"))
+                )
             else:
                 context["IM2COL_SMALL_INPUT_MEMORY"] = False
-                
+
         context["FAST_MODE"] = bool(int(os.environ.get("FAST_MODE")))
         return context

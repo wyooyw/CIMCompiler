@@ -1,9 +1,10 @@
-from enum import Enum
-import numpy as np
-import os
-import json
 import copy
+import json
 import os
+from enum import Enum
+
+import numpy as np
+
 
 class SpecialReg(Enum):
 
@@ -28,11 +29,12 @@ class SpecialReg(Enum):
     SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 = 21
     SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 = 22
 
+
 class FlatInstUtil:
     def __init__(self, general_rf, special_rf):
         self.general_rf = general_rf
         self.special_rf = special_rf
-        
+
         self.flat_general_rf = np.zeros([32], dtype=np.int32)
         self.flat_special_rf = np.zeros([32], dtype=np.int32)
         self.last_access_time = np.zeros([32], dtype=np.int32)
@@ -41,28 +43,15 @@ class FlatInstUtil:
 
         self.max_int32 = np.iinfo(np.int32).max
 
-
     def get_flat_code(self):
         return copy.deepcopy(self.flat_inst_list)
 
     def _li_general_inst(self, reg, imm):
-        return {
-            "class": 2,
-            "type": 3,
-            "opcode": 0,
-            "rd": reg,
-            "imm": imm.item()
-        }
+        return {"class": 2, "type": 3, "opcode": 0, "rd": reg, "imm": imm.item()}
 
     def _li_special_inst(self, reg, imm):
-        return {
-            "class": 2,
-            "type": 3,
-            "opcode": 1,
-            "rd": reg,
-            "imm": imm.item()
-        }
-    
+        return {"class": 2, "type": 3, "opcode": 1, "rd": reg, "imm": imm.item()}
+
     def _load_general_regs(self, inst, regs_name, idx):
         """
         通用寄存器立即数赋值指令：general-li
@@ -75,11 +64,13 @@ class FlatInstUtil:
         """
         regs = [inst[reg] for reg in regs_name]
 
-        assert type(regs)==list
+        assert type(regs) == list
         for reg in regs:
             if not self.flat_general_rf[reg] == self.general_rf[reg]:
                 self.flat_general_rf[reg] = self.general_rf[reg]
-                self.flat_inst_list.append(self._li_general_inst(reg, self.general_rf[reg]))
+                self.flat_inst_list.append(
+                    self._li_general_inst(reg, self.general_rf[reg])
+                )
 
     # def _load_general_regs(self, inst, regs_name, idx):
     #     """
@@ -98,7 +89,6 @@ class FlatInstUtil:
     #         reg = inst[reg_name]
     #         inst[reg_name] = self.general_rf[reg].item()
 
-
     # def _load_general_regs(self, inst, regs_name, idx):
     #     """
     #     通用寄存器立即数赋值指令：general-li
@@ -109,9 +99,9 @@ class FlatInstUtil:
     #     - [25, 21]，5bit：rd，通用寄存器编号，即要赋值的通用寄存器
     #     - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
     #     """
-        
+
     #     regs = [inst[reg] for reg in regs_name]
-        
+
     #     assert type(regs)==list
     #     new_regs = copy.deepcopy(regs)
     #     need_alloc_regs = []
@@ -139,22 +129,21 @@ class FlatInstUtil:
     #         self.flat_general_rf[use_reg] = need_value
     #         self.flat_inst_list.append(self._li_general_inst(use_reg, need_value))
     #         new_regs[i_reg] = use_reg
-            
+
     #     for i_reg, reg in enumerate(new_regs):
     #         self.last_access_time[reg] = idx
-        
+
     #     origin_values = [self.general_rf[reg] for reg in regs]
     #     new_values = [self.flat_general_rf[reg] for reg in new_regs]
     #     assert origin_values==new_values, f"{origin_values=}, {new_values=}"
     #     # print([self.flat_general_rf[reg] for reg in new_regs])
     #     # print(f"{inst=}")
-        
+
     #     for i_reg, reg in enumerate(regs_name):
     #         inst[reg] = new_regs[i_reg]
     #         # print(type(inst[reg]))
     #     # print(f"{inst=}")
     #     # import pdb; pdb.set_trace()
-        
 
     def _load_special_regs(self, regs):
         """
@@ -166,105 +155,108 @@ class FlatInstUtil:
         - [25, 21]，5bit：rd，专用寄存器编号，即要赋值的通用寄存器
         - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
         """
-        assert type(regs)==list
+        assert type(regs) == list
         for reg in regs:
             reg = reg.value
             if not self.flat_special_rf[reg] == self.special_rf[reg]:
                 self.flat_special_rf[reg] = self.special_rf[reg]
-                self.flat_inst_list.append(self._li_special_inst(reg, self.special_rf[reg]))
+                self.flat_inst_list.append(
+                    self._li_special_inst(reg, self.special_rf[reg])
+                )
 
     def flat_inst(self, inst, idx):
         inst = copy.deepcopy(inst)
-        if inst["class"]==0b110 and inst["type"]==0b0: # trans
+        if inst["class"] == 0b110 and inst["type"] == 0b0:  # trans
             self._flat_trans(inst, idx)
-        elif inst["class"]==0b00 and inst["type"]==0b00: # pim_compute
+        elif inst["class"] == 0b00 and inst["type"] == 0b00:  # pim_compute
             self._flat_pim_compute(inst, idx)
-        elif inst["class"]==0b00 and inst["type"]==0b01: # pim_set
+        elif inst["class"] == 0b00 and inst["type"] == 0b01:  # pim_set
             self._flat_pim_set(inst, idx)
-        elif inst["class"]==0b00 and inst["type"]==0b10: # pim_output
-            if int(os.environ.get("FAST_MODE"))==0:
+        elif inst["class"] == 0b00 and inst["type"] == 0b10:  # pim_output
+            if int(os.environ.get("FAST_MODE")) == 0:
                 self._flat_pim_output(inst, idx)
-        elif inst["class"]==0b00 and inst["type"]==0b11: # pim_transfer
-            if int(os.environ.get("FAST_MODE"))==0:
+        elif inst["class"] == 0b00 and inst["type"] == 0b11:  # pim_transfer
+            if int(os.environ.get("FAST_MODE")) == 0:
                 self._flat_pim_transfer(inst, idx)
-        elif inst["class"]==0b01: # simd
+        elif inst["class"] == 0b01:  # simd
             self._flat_simd(inst, idx)
         else:
             assert inst["class"] in [
                 0b10,  # scalar
-                0b110, # trans
+                0b110,  # trans
                 0b111,  # branch
-                -1,     #bebug
+                -1,  # bebug
             ], f"Unsupported instruction class: {inst['class']}"
 
     def _flat_trans(self, inst, idx):
         self._load_general_regs(inst, ["rs1", "rs2", "rd"], idx)
         self.flat_inst_list.append(inst)
-    
+
     def _flat_pim_compute(self, inst, idx):
         self._load_general_regs(inst, ["rs1", "rs2", "rs3"], idx)
-        self._load_special_regs([
-            SpecialReg.INPUT_BIT_WIDTH,
-            SpecialReg.OUTPUT_BIT_WIDTH,
-            SpecialReg.WEIGHT_BIT_WIDTH,
-            SpecialReg.ACTIVATION_ELEMENT_COL_NUM,
-            SpecialReg.ACTIVATION_GROUP_NUM,
-            SpecialReg.GROUP_SIZE,
-            SpecialReg.GROUP_INPUT_STEP,
-            SpecialReg.VALUE_SPARSE_MASK_ADDR,
-            SpecialReg.BIT_SPARSE_META_ADDR
-        ])
+        self._load_special_regs(
+            [
+                SpecialReg.INPUT_BIT_WIDTH,
+                SpecialReg.OUTPUT_BIT_WIDTH,
+                SpecialReg.WEIGHT_BIT_WIDTH,
+                SpecialReg.ACTIVATION_ELEMENT_COL_NUM,
+                SpecialReg.ACTIVATION_GROUP_NUM,
+                SpecialReg.GROUP_SIZE,
+                SpecialReg.GROUP_INPUT_STEP,
+                SpecialReg.VALUE_SPARSE_MASK_ADDR,
+                SpecialReg.BIT_SPARSE_META_ADDR,
+            ]
+        )
         self.flat_inst_list.append(inst)
 
     def _flat_pim_set(self, inst, idx):
         self._load_general_regs(inst, ["rs2"], idx)
-        self._load_special_regs([
-            SpecialReg.WEIGHT_BIT_WIDTH,
-            SpecialReg.GROUP_SIZE
-        ])
+        self._load_special_regs([SpecialReg.WEIGHT_BIT_WIDTH, SpecialReg.GROUP_SIZE])
         self.flat_inst_list.append(inst)
 
     def _flat_simd(self, inst, idx):
         self._load_general_regs(inst, ["rs1", "rs2", "rs3", "rd"], idx)
-        self._load_special_regs([
-            SpecialReg.SIMD_INPUT_1_BIT_WIDTH,
-            SpecialReg.SIMD_INPUT_2_BIT_WIDTH,
-            SpecialReg.SIMD_INPUT_3_BIT_WIDTH,
-            SpecialReg.SIMD_INPUT_4_BIT_WIDTH,
-            SpecialReg.SIMD_OUTPUT_BIT_WIDTH,
-            SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1,
-            SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2
-        ])
+        self._load_special_regs(
+            [
+                SpecialReg.SIMD_INPUT_1_BIT_WIDTH,
+                SpecialReg.SIMD_INPUT_2_BIT_WIDTH,
+                SpecialReg.SIMD_INPUT_3_BIT_WIDTH,
+                SpecialReg.SIMD_INPUT_4_BIT_WIDTH,
+                SpecialReg.SIMD_OUTPUT_BIT_WIDTH,
+                SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1,
+                SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2,
+            ]
+        )
         self.flat_inst_list.append(inst)
 
     def _flat_pim_output(self, inst, idx):
         self._load_general_regs(inst, ["rs1", "rs2", "rd"], idx)
-        self._load_special_regs([
-            SpecialReg.WEIGHT_BIT_WIDTH,
-            SpecialReg.OUTPUT_BIT_WIDTH,
-            SpecialReg.GROUP_SIZE,
-            SpecialReg.ACTIVATION_GROUP_NUM,
-        ])
+        self._load_special_regs(
+            [
+                SpecialReg.WEIGHT_BIT_WIDTH,
+                SpecialReg.OUTPUT_BIT_WIDTH,
+                SpecialReg.GROUP_SIZE,
+                SpecialReg.ACTIVATION_GROUP_NUM,
+            ]
+        )
         self.flat_inst_list.append(inst)
 
     def _flat_pim_transfer(self, inst, idx):
         self._load_general_regs(inst, ["rs1", "rs2", "rs3", "rs4", "rd"], idx)
-        self._load_special_regs([
-            SpecialReg.OUTPUT_BIT_WIDTH
-        ])
+        self._load_special_regs([SpecialReg.OUTPUT_BIT_WIDTH])
         self.flat_inst_list.append(inst)
 
     def dump(self, out_dir):
         file_path = os.path.join(out_dir, "flat_code.json")
         with open(file_path, "w") as f:
             f.write("[\n")
-            for i,inst in enumerate(self.flat_inst_list):
+            for i, inst in enumerate(self.flat_inst_list):
                 # print(i, inst)
                 # for key,valye in inst.items():
                 #     print(key, valye, type(valye))
                 str_inst = json.dumps(inst)
                 f.write(str_inst)
-                if i < len(self.flat_inst_list)-1:
+                if i < len(self.flat_inst_list) - 1:
                     f.write(",")
                 f.write("\n")
             f.write("]\n")

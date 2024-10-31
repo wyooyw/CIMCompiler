@@ -21,18 +21,18 @@
 // TODO: replace these macro accroding to operator config
 
 // weight
-#define WEIGHT_OUT_CHANNEL 384
+#define WEIGHT_OUT_CHANNEL 4
 
 // input
-#define INPUT_ROW 1
-#define INPUT_COL 1
-#define INPUT_CHANNEL 16
+#define INPUT_ROW 8
+#define INPUT_COL 8
+#define INPUT_CHANNEL 3
 
-#define OUTPUT_ROW 1
-#define OUTPUT_COL 1
-#define OUTPUT_CHANNEL 384
+#define OUTPUT_ROW 6
+#define OUTPUT_COL 6
+#define OUTPUT_CHANNEL 4
 
-#define KERNEL_SIZE 1
+#define KERNEL_SIZE 3
 #define PADDING 0
 #define STRIDE 1
 
@@ -43,7 +43,7 @@
 #define N_GROUP_VCOL 16
 #define N_GROUP_BCOL 128
 #define N_GROUP 4
-#define N_USE_GROUP 1
+#define N_USE_GROUP 4
 #define N_ROW 16
 #define N_COMP 16
 
@@ -52,24 +52,24 @@
 #define N_FROM 128
 #define N_TO 16
 
-#define TIME 6 // this value is filled by jinja.
+#define TIME 2 // this value is filled by jinja.
 
 #define VALUE_SPARSE_MASK_BASE_ADDR 522240
 #define BIT_SPARSE_META_BASE_ADDR 423936
 
-#define MAPPING_REDUCE_TO_MACRO_LENGTH 6
-#define MAPPING_MACRO_TO_FROM_LENGTH 6
-#define MAPPING_MACRO_TO_ROW_LENGTH 6
-#define MAPPING_FROM_TO_ROW_LENGTH 6
+#define MAPPING_REDUCE_TO_MACRO_LENGTH 1
+#define MAPPING_MACRO_TO_FROM_LENGTH 1
+#define MAPPING_MACRO_TO_ROW_LENGTH 1
+#define MAPPING_FROM_TO_ROW_LENGTH 1
 
-#define OUT_SPATIAL_TILE 6
+#define OUT_SPATIAL_TILE 1
 #define N_FILTER_PER_GROUP 64
 #define MAX_I32_CHANNEL 64
 
 
     def copy_input_to_input_buffer_for_all_group(
                         null<int8>,
-                        local_input< <1, 16>, int8, __INPUT_MEMORY__>, 
+                        local_input< <6, 72>, int8, __INPUT_MEMORY__>, 
                         use_input_buffer< <1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
                         oh<index>,
                         ow<index>,
@@ -174,7 +174,7 @@
 def main(null<int8>){
     // input, weight, mask and index will be prepared in memory image
     
-        global_input = Buffer(<1, 16>, int8, __GLOBAL__);
+        global_input = Buffer(<6, 72>, int8, __GLOBAL__);
     
     global_weight = Buffer(<TIME, N_TO, N_GROUP, N_MACRO_PER_GROUP, N_VCOL>, int8, __GLOBAL__);
 
@@ -217,8 +217,7 @@ def main(null<int8>){
     // Copy input and index into local memory
     
         
-            local_input = Buffer(<1, 16>, int8, __INPUT_MEMORY__);
-            Trans(global_input, local_input);
+            local_input = Buffer(<2, 72>, int8, __INPUT_MEMORY__);
         
     
 
@@ -348,6 +347,13 @@ def main(null<int8>){
             for ow in range(0,OUTPUT_COL,2) carry(null) {
                 
                 
+                    use_global_input = Slice(global_input,
+                        [ow, 0],
+                        [2, 72],
+                        [1, 1]
+                    );
+                    Trans(use_global_input, local_input);
+                
 
                 for oh in range(0,OUTPUT_ROW,2) carry(null) {
                 
@@ -387,7 +393,7 @@ def main(null<int8>){
                             local_input, 
                             use_input_buffer,
                             oh,
-                             ow ,
+                             0 ,
                             i_tile_in_window
                         );
                         // all 4 * 128 inputs are now in input_reg_buf.

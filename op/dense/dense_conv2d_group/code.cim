@@ -19,15 +19,15 @@
 #define SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 22
 
 // input
-#define INPUT_ROW 1
-#define INPUT_COL 1
-#define INPUT_CHANNEL 16
+#define INPUT_ROW 8
+#define INPUT_COL 8
+#define INPUT_CHANNEL 3
 
-#define OUTPUT_ROW 1
-#define OUTPUT_COL 1
-#define OUTPUT_CHANNEL 384
+#define OUTPUT_ROW 6
+#define OUTPUT_COL 6
+#define OUTPUT_CHANNEL 4
 
-#define KERNEL_SIZE 1
+#define KERNEL_SIZE 3
 #define PADDING 0
 
 #define N_MACRO_PER_GROUP 8
@@ -35,19 +35,19 @@
 #define N_VCOL 2
 #define N_GROUP_VCOL 16
 #define N_GROUP 4
-#define N_USE_GROUP 1
+#define N_USE_GROUP 4
 #define N_ROW 16
 #define N_COMP 16
 #define N_MACRO_REDUCE 256 // N_ROW * N_COMP = 64 * 16 = 1024;
 
 #define INPUT_BUFFER_SIZE_PER_GROUP 128
 
-#define OUT_SPATIAL_TILE 24
-#define OUT_REDUCE_TILE 1
+#define OUT_SPATIAL_TILE 1
+#define OUT_REDUCE_TILE 2
 
     def copy_input_to_input_buffer_for_all_group(
                         null<int8>,
-                        local_input< <1, 16>, int8, __INPUT_MEMORY__>, 
+                        local_input< <6, 72>, int8, __INPUT_MEMORY__>, 
                         use_input_buffer< <1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
                         oh<index>,
                         ow<index>,
@@ -152,7 +152,7 @@
 def main(null<int8>){
     // prepare input and weight
     
-        global_input = Buffer(<1, 16>, int8, __GLOBAL__);
+        global_input = Buffer(<6, 72>, int8, __GLOBAL__);
     
     global_weight = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __GLOBAL__);
     
@@ -162,13 +162,12 @@ def main(null<int8>){
 
     // prepare output buffers
     global_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
-    local_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, 16>, int32, __OUTPUT_MEMORY__);
+    local_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, 4>, int32, __OUTPUT_MEMORY__);
 
     // Copy input and index into local memory
     
         
-            local_input = Buffer(<1, 16>, int8, __INPUT_MEMORY__);
-            Trans(global_input, local_input);
+            local_input = Buffer(<2, 72>, int8, __INPUT_MEMORY__);
         
     
     // Trans(global_input, local_input);
@@ -244,6 +243,13 @@ def main(null<int8>){
             Save(local_spill, [0], double_buffer_id);
             for ow in range(0,OUTPUT_COL,2) carry(null) {
                 
+                    use_global_input = Slice(global_input,
+                        [ow, 0],
+                        [2, 72],
+                        [1, 1]
+                    );
+                    Trans(use_global_input, local_input);
+                
                 for oh in range(0,OUTPUT_ROW,2) carry(null) {
                     // Double buffer index
                     double_buffer_id = Load(local_spill, [0]);
@@ -273,7 +279,7 @@ def main(null<int8>){
                             local_input, 
                             use_input_buffer,
                             oh,
-                             ow ,
+                             0 ,
                             i_tile_in_window
                         );
 
@@ -282,7 +288,8 @@ def main(null<int8>){
                         row_to_activate = Load(local_spill, [1]);
                         for input_begin_in_buffer in range(0, useful_input_len, N_COMP) carry (row_to_activate){
                             
-                                input_len = N_COMP;
+                                input_end_in_buffer = Min(input_begin_in_buffer + N_COMP, useful_input_len);
+                                input_len = input_end_in_buffer - input_begin_in_buffer;
                             
                             //Print(useful_input_len);
                             //Print(row_to_activate);

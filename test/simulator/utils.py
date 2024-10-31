@@ -1,41 +1,33 @@
 class InstUtil:
     def __init__(self):
         pass
-    
-    def general_li(self,rd,imm):
-        return {
-            "class": 0b10,
-            "type": 0b11,
-            "opcode": 0b00,
-            "rd": rd,
-            "imm": imm
-        }
-    def special_li(self,rd,imm):
-        return {
-            "class": 0b10,
-            "type": 0b11,
-            "opcode": 0b01,
-            "rd": rd,
-            "imm": imm
-        }
-    def special_to_general(self,general_reg,special_reg):
+
+    def general_li(self, rd, imm):
+        return {"class": 0b10, "type": 0b11, "opcode": 0b00, "rd": rd, "imm": imm}
+
+    def special_li(self, rd, imm):
+        return {"class": 0b10, "type": 0b11, "opcode": 0b01, "rd": rd, "imm": imm}
+
+    def special_to_general(self, general_reg, special_reg):
         return {
             "class": 0b10,
             "type": 0b11,
             "opcode": 0b11,
             "rs1": general_reg,
-            "rs2": special_reg
+            "rs2": special_reg,
         }
-    def general_to_special(self,general_reg,special_reg):
+
+    def general_to_special(self, general_reg, special_reg):
         return {
             "class": 0b10,
             "type": 0b11,
             "opcode": 0b10,
             "rs1": general_reg,
-            "rs2": special_reg
+            "rs2": special_reg,
         }
-    def scalar_rr(self,rs1,rs2,rd,opcode):
-        if type(opcode)==str:
+
+    def scalar_rr(self, rs1, rs2, rd, opcode):
+        if type(opcode) == str:
             opcode = {
                 "add": 0b000,
                 "sub": 0b001,
@@ -53,31 +45,16 @@ class InstUtil:
             "opcode": opcode,
             "rs1": rs1,
             "rs2": rs2,
-            "rd": rd
+            "rd": rd,
         }
 
     def jump(self, offset):
-        return {
-            "class": 0b111,
-            "type": 0b100,
-            "offset": offset
-        }
+        return {"class": 0b111, "type": 0b100, "offset": offset}
 
     def branch(self, cmp, rs1, rs2, offset):
-        if type(cmp)==str:
-            cmp = {
-                "beq": 0b000,
-                "bne": 0b001,
-                "bgt": 0b010,
-                "blt": 0b011
-            }[cmp]
-        return {
-            "class": 0b111,
-            "type": cmp,
-            "rs1": rs1,
-            "rs2": rs2,
-            "offset": offset
-        }
+        if type(cmp) == str:
+            cmp = {"beq": 0b000, "bne": 0b001, "bgt": 0b010, "blt": 0b011}[cmp]
+        return {"class": 0b111, "type": cmp, "rs1": rs1, "rs2": rs2, "offset": offset}
 
     def trans(self, rs, rd, size, src_offset_mask=0, dst_offset_mask=0, offset=0):
         return {
@@ -88,11 +65,21 @@ class InstUtil:
             "rs1": rs,
             "rd": rd,
             "offset": offset,
-            "rs2": size
+            "rs2": size,
         }
 
     def pimcompute_value_sparse(self, accumulate, rs1, rs2, rs3, rd):
-        return self.pimcompute(1, 0, group=1, group_input_mode=0, accumulate=accumulate, rs1=rs1, rs2=rs2, rs3=rs3, rd=rd)
+        return self.pimcompute(
+            1,
+            0,
+            group=1,
+            group_input_mode=0,
+            accumulate=accumulate,
+            rs1=rs1,
+            rs2=rs2,
+            rs3=rs3,
+            rd=rd,
+        )
 
     def pimcompute_dense_single_group(self, accumulate, rs1, rs2, rs3, rd):
         return self.pimcompute_dense(1, 0, accumulate, rs1, rs2, rs3, rd)
@@ -101,9 +88,22 @@ class InstUtil:
         return self.pimcompute_dense(1, 0, accumulate, rs1, rs2, rs3, rd)
 
     def pimcompute_dense(self, group, group_input_mode, accumulate, rs1, rs2, rs3, rd):
-        return self.pimcompute(0, 0, group, group_input_mode, accumulate, rs1, rs2, rs3, rd)
-    
-    def pimcompute(self, value_sparse, bit_sparse, group, group_input_mode, accumulate, rs1, rs2, rs3, rd):
+        return self.pimcompute(
+            0, 0, group, group_input_mode, accumulate, rs1, rs2, rs3, rd
+        )
+
+    def pimcompute(
+        self,
+        value_sparse,
+        bit_sparse,
+        group,
+        group_input_mode,
+        accumulate,
+        rs1,
+        rs2,
+        rs3,
+        rd,
+    ):
         """
         pim计算：pim-compute
         指令字段划分：
@@ -129,13 +129,13 @@ class InstUtil:
             "type": 0b0,
             "value_sparse": value_sparse,
             "bit_sparse": bit_sparse,
-            "group":group,
+            "group": group,
             "group_input_mode": group_input_mode,
             "accumulate": accumulate,
             "rs1": rs1,
             "rs2": rs2,
             "rs3": rs3,
-            "rd": rd
+            "rd": rd,
         }
 
     def pim_output_dense(self, output_addr):
@@ -145,11 +145,11 @@ class InstUtil:
         return {
             "class": 0b00,
             "type": 0b10,
-            "outsum_move":outsum_move,
-            "outsum":outsum,
-            "rs1":out_n,
-            "rs2":output_mask_addr,
-            "rd": output_addr
+            "outsum_move": outsum_move,
+            "outsum": outsum,
+            "rs1": out_n,
+            "rs2": output_mask_addr,
+            "rd": output_addr,
         }
 
     def pim_transfer(self, src_addr, src_size, transfer_mask, dst_addr):
@@ -172,7 +172,7 @@ class InstUtil:
             "rs1": src_addr,
             "rs2": src_size,
             "rs3": transfer_mask,
-            "rd": dst_addr
+            "rd": dst_addr,
         }
 
     def simd_vvadd(self, rs1, rs2, rs3, rd):
@@ -216,12 +216,8 @@ class InstUtil:
             "rs1": rs1,
             "rs2": rs2,
             "rs3": rs3,
-            "rd": rd
+            "rd": rd,
         }
 
     def debug_print(self, rd):
-        return {
-            "class": -1,
-            "rd": rd
-        }
-
+        return {"class": -1, "rd": rd}
