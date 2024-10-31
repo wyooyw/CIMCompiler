@@ -62,7 +62,7 @@ Model files are not pushed yet.
 
 Operator templates are written in CIM DSL. Here are the convolution operator templates:
 
-- `Dense Conv2d`: op/dense/dense_conv2d_group/code_template.cim
-- `Value Sparse Conv2d`: op/value_sparse/value_sparse_group_longer/code_template.cim
-- `Bit Sparse Conv2d`: op/bit_sparse/bit_sparse_conv2d_group/code_template.cim
-- `Value&Bit Sparse Conv2d`: op/value_bit_sparse/value_bit_sparse_base/code_template.cim
+- `Dense Conv2d`: [op/dense/dense_conv2d_group/code_template.cim](https://github.com/wyooyw/CIMCompiler/blob/master/op/dense/dense_conv2d_group/code_template.cim)
+- `Value Sparse Conv2d`: [op/value_sparse/value_sparse_group_longer/code_template.cim](https://github.com/wyooyw/CIMCompiler/blob/master/op/value_sparse/value_sparse_group_longer/code_template.cim)
+- `Bit Sparse Conv2d`: [op/bit_sparse/bit_sparse_conv2d_group/code_template.cim](https://github.com/wyooyw/CIMCompiler/blob/master/op/bit_sparse/bit_sparse_conv2d_group/code_template.cim)
+- `Value&Bit Sparse Conv2d`: [op/value_bit_sparse/value_bit_sparse_base/code_template.cim](https://github.com/wyooyw/CIMCompiler/blob/master/op/value_bit_sparse/value_bit_sparse_base/code_template.cim)
