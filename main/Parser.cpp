@@ -460,8 +460,12 @@ MLIRGenImpl::parse_call_return_value(const boost::property_tree::ptree &ast) {
     return parse_bulitin_load(ast);
   } else if (call_func_name == "Min") {
     return parse_bulitin_min(ast);
+  } else if (call_func_name == "Max") {
+    return parse_bulitin_max(ast);
   } else if (call_func_name == "Addr") {
     return parse_bulitin_addr(ast);
+  } else if (call_func_name == "Select") {
+    return parse_bulitin_select(ast);
   }
 
   // check sign table
@@ -774,6 +778,21 @@ MLIRGenImpl::parse_bulitin_min(const boost::property_tree::ptree &ast) {
 }
 
 mlir::Value
+MLIRGenImpl::parse_bulitin_max(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_bulitin_max" << std::endl;
+  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
+
+  auto ast_lhs = safe_get_child(get_item(ast_param_list, 0), "call_param");
+  auto ast_rhs = safe_get_child(get_item(ast_param_list, 2), "call_param");
+
+  mlir::Value lhs = parse_expr(safe_get_child(get_item(ast_lhs, 0), "expr"));
+  mlir::Value rhs = parse_expr(safe_get_child(get_item(ast_rhs, 0), "expr"));
+
+  mlir::Value result = builder.create<mlir::arith::MaxSIOp>(loc, lhs, rhs);
+  return result;
+}
+
+mlir::Value
 MLIRGenImpl::parse_bulitin_addr(const boost::property_tree::ptree &ast) {
   std::cout << "parse_bulitin_addr" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
@@ -783,6 +802,23 @@ MLIRGenImpl::parse_bulitin_addr(const boost::property_tree::ptree &ast) {
   mlir::Value buf = parse_expr(safe_get_child(get_item(ast_buf, 0), "expr"));
 
   mlir::Value result = builder.create<mlir::cim::AddrOp>(loc, buf);
+  return result;
+}
+
+mlir::Value
+MLIRGenImpl::parse_bulitin_select(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_bulitin_select" << std::endl;
+  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
+
+  auto ast_cond = safe_get_child(get_item(ast_param_list, 0), "call_param");
+  auto ast_true = safe_get_child(get_item(ast_param_list, 2), "call_param");
+  auto ast_false = safe_get_child(get_item(ast_param_list, 4), "call_param");
+
+  mlir::Value cond = parse_expr(safe_get_child(get_item(ast_cond, 0), "expr"));
+  mlir::Value true_ = parse_expr(safe_get_child(get_item(ast_true, 0), "expr"));
+  mlir::Value false_ = parse_expr(safe_get_child(get_item(ast_false, 0), "expr"));
+
+  mlir::Value result = builder.create<mlir::arith::SelectOp>(loc, cond, true_, false_);
   return result;
 }
 
@@ -1067,7 +1103,21 @@ MLIRGenImpl::parse_binary_expr(const boost::property_tree::ptree &ast) {
     return builder.create<mlir::arith::DivSIOp>(loc, lhs, rhs);
   } else if (binary_op == "%") {
     return builder.create<mlir::arith::RemSIOp>(loc, lhs, rhs);
-  } else {
+  } else if (binary_op == "==") {
+    return builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::eq, lhs, rhs);
+  } else if (binary_op == "!=") {
+    return builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::ne, lhs, rhs);
+  }else if (binary_op == "<=") {
+    return builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::sle, lhs, rhs);
+  }else if (binary_op == "<<") {
+    return builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::slt, lhs, rhs);
+  }else if (binary_op == ">=") {
+    return builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::sge, lhs, rhs);
+  }else if (binary_op == ">>") {
+    return builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::sgt, lhs, rhs);
+  }else if (binary_op == "&&") {
+    return builder.create<mlir::arith::AndIOp>(loc, lhs, rhs);
+  }else {
     // raise: not support yet
     mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
                     "Not support binary_op: " + binary_op);

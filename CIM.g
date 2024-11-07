@@ -65,12 +65,22 @@ array1d: '[' expr (',' expr)* ']';
 
 MEMORY: '__'[a-zA-Z_0-9]+'__';
 DATATYPE: ('int1' | 'int8' | 'int32' | 'int64' | 'index' | 'float32') ;
-BINARY_OP: ADD | SUB | MUL | DIV | MOD;
+BINARY_OP: ADD | SUB | MUL | DIV | MOD | LE | GE | LT | GT | COND_EQ | COND_NE | AND;
 ADD : '+';
 SUB : '-';
 MUL : '*';
 DIV : '/';
 MOD : '%';
+LE : '<=';
+GE : '>=';
+LT : '<<';
+GT : '>>';
+AND : '&&';
+
+COND_EQ : '==';
+COND_NE : '!=';
+
+
 CONST: ( CONST_NEG | CONST_POS );
 CONST_NEG : '-' CONST_POS;
 CONST_POS : [0-9]+;
