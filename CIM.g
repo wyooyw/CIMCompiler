@@ -22,6 +22,7 @@ stmt: (
     stmt_assign
     | stmt_call
     | stmt_for
+    | stmt_if_else
     | stmt_return
     ) ';' ;
 stmt_assign: ID EQ expr;
@@ -32,6 +33,8 @@ for_range : for_range_1 | for_range_2 | for_range_3;
 for_range_1: 'range(' const_or_var ')';
 for_range_2: 'range(' const_or_var ',' const_or_var')';
 for_range_3: 'range(' const_or_var ',' const_or_var ',' const_or_var ')';
+
+stmt_if_else: 'if' '(' expr ')' carry '{' stmt_list '}' 'else' '{' stmt_list '}'; 
 
 carry: 'carry' '(' carry_list ')';
 carry_list: var (',' var)*;

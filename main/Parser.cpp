@@ -208,6 +208,8 @@ void MLIRGenImpl::parse_stmt(const boost::property_tree::ptree &ast) {
     parse_call_stmt(safe_get_child(ast_stmt, "stmt_call"));
   } else if (is_for_stmt(ast_stmt)) {
     parse_for_stmt(safe_get_child(ast_stmt, "stmt_for"));
+  } else if (is_if_else_stmt(ast_stmt)) {
+    parse_if_else_stmt(safe_get_child(ast_stmt, "stmt_if_else"));
   } else {
     // raise: not support yet
     mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
@@ -237,7 +239,11 @@ bool MLIRGenImpl::is_for_stmt(const boost::property_tree::ptree &ast) {
 
   return ast.count("stmt_for");
 }
+bool MLIRGenImpl::is_if_else_stmt(const boost::property_tree::ptree &ast) {
+  std::cout << "is_if_else_stmt" << std::endl;
 
+  return ast.count("stmt_if_else");
+}
 /*
     Stmt :
         stmt_assign,
@@ -326,6 +332,52 @@ void MLIRGenImpl::parse_for_stmt(const boost::property_tree::ptree &ast) {
   }
 }
 
+void MLIRGenImpl::parse_if_else_stmt(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_if_else_stmt" << std::endl;
+
+  auto ast_expr = safe_get_child(get_item(ast, 2), "expr");
+  mlir::Value cond = parse_expr(ast_expr);
+
+  auto loop_carried_names_and_variables =
+      parse_carry(safe_get_child(get_item(ast, 4), "carry"));
+  auto loop_carried_names = loop_carried_names_and_variables.first;
+  auto loop_carried_variables = loop_carried_names_and_variables.second;
+
+  mlir::scf::IfOp ifOp = builder.create<mlir::scf::IfOp>(loc, builder.getIndexType(), cond,
+                                             /*else=*/true);
+
+  // build then body
+  mlir::Block *then_body = &ifOp.getThenRegion().front();
+  block_stack.push(then_body);
+  builder.setInsertionPointToStart(then_body);
+
+  parse_stmt_list(safe_get_child(get_item(ast, 6), "stmt_list"));
+  auto yield_variables =
+      parse_carry(safe_get_child(get_item(ast, 4), "carry")).second;
+  builder.create<mlir::scf::YieldOp>(loc, yield_variables);
+
+  block_stack.pop();
+  builder.setInsertionPointToEnd(block_stack.top());
+
+  // build else body
+  mlir::Block *else_body = &ifOp.getElseRegion().front();
+  block_stack.push(else_body);
+  builder.setInsertionPointToStart(else_body);
+
+  parse_stmt_list(safe_get_child(get_item(ast, 10), "stmt_list"));
+  auto yield_variables2 =
+      parse_carry(safe_get_child(get_item(ast, 4), "carry")).second;
+  builder.create<mlir::scf::YieldOp>(loc, yield_variables2);
+
+  block_stack.pop();
+  builder.setInsertionPointToEnd(block_stack.top());
+
+  // replace carry variables with new values
+  mlir::ValueRange if_result = ifOp.getResults();
+  for (int i = 0; i < if_result.size(); i++) { // for_args[0] is iter var
+    add_to_sign_table(loop_carried_names[i], if_result[i]);
+  }
+}
 /*
  Stmt end
 */
