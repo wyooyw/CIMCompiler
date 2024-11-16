@@ -609,6 +609,39 @@ struct VVAddOpLowering : public OpRewritePattern<cim::VVAddOp> {
   }
 };
 
+struct VVMulOpLowering : public OpRewritePattern<cim::VVMulOp> {
+  using OpRewritePattern<cim::VVMulOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::VVMulOp op,
+                                PatternRewriter &rewriter) const final {
+    std::cout << "VVMulOpLowering::matchAndRewrite begin" << std::endl;
+    Value lhs = getAddrValue(op.getOperand(0), rewriter);
+    Value rhs = getAddrValue(op.getOperand(1), rewriter);
+    Value result = getAddrValue(op.getOperand(2), rewriter);
+    Value size = getLengthValue(op.getOperand(0), rewriter);
+
+    std::cout << "VVMulOpLowering::matchAndRewrite" << std::endl;
+    if (!lhs || !rhs || !result) {
+      std::cout << "VVMulOpLowering::matchAndRewrite fail" << std::endl;
+      return failure();
+    }
+    std::cout << "VVMulOpLowering::matchAndRewrite success" << std::endl;
+
+    int64_t _bitwidth_lhs = getBitWidthMemRefOperand(op.getOperand(0));
+    int64_t _bitwidth_rhs = getBitWidthMemRefOperand(op.getOperand(1));
+    int64_t _bitwidth_out = getBitWidthMemRefOperand(op.getOperand(2));
+
+    IntegerAttr bitwidth_lhs = rewriter.getI8IntegerAttr(_bitwidth_lhs);
+    IntegerAttr bitwidth_rhs = rewriter.getI8IntegerAttr(_bitwidth_rhs);
+    IntegerAttr bitwidth_out = rewriter.getI8IntegerAttr(_bitwidth_out);
+
+    rewriter.replaceOpWithNewOp<cimisa::VVMulOp>(
+        op, lhs, rhs, result, size, bitwidth_lhs, bitwidth_rhs, bitwidth_out);
+
+    return success();
+  }
+};
+
 struct QuantifyOpLowering : public OpRewritePattern<cim::QuantifyOp> {
   using OpRewritePattern<cim::QuantifyOp>::OpRewritePattern;
 
@@ -831,7 +864,7 @@ void CIMLoweringPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   patterns
       .add<TransOpLowering, CIMComputeOpLowering, LoadOpLowering,
-           StoreOpLowering, VVAddOpLowering, SpecialRegSetOpLowering,
+           StoreOpLowering, VVAddOpLowering, VVMulOpLowering, SpecialRegSetOpLowering,
            CIMOutputOpLowering, CIMOutputSumOpLowering, CIMTransferOpLowering,
            QuantifyOpLowering, AddrOpLowering, CIMSetOpLowering>(&getContext());
 
