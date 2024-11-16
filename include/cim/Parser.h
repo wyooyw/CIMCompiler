@@ -132,6 +132,7 @@ private:
   void parse_bulitin_trans(const boost::property_tree::ptree &ast);
   mlir::Value parse_bulitin_slice(const boost::property_tree::ptree &ast);
   void parse_bulitin_vvadd(const boost::property_tree::ptree &ast);
+  void parse_bulitin_vvmul(const boost::property_tree::ptree &ast);
   void parse_bulitin_quantify(const boost::property_tree::ptree &ast);
   mlir::Value parse_bulitin_buffer(const boost::property_tree::ptree &ast);
   void parse_bulitin_print(const boost::property_tree::ptree &ast);

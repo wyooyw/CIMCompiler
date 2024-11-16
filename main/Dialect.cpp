@@ -287,6 +287,12 @@ VVAddOp::fold(FoldAdaptor adaptor,
   // prefetch(memrefcast) -> prefetch
   return memref::foldMemRefCast(*this);
 }
+LogicalResult
+VVMulOp::fold(FoldAdaptor adaptor,
+              llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
 
 LogicalResult
 QuantifyOp::fold(FoldAdaptor adaptor,

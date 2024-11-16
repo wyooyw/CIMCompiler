@@ -46,6 +46,24 @@ def VVAddOp : CIMISA_Op<"vvadd"> {
   );
 }
 
+def VVMulOp : CIMISA_Op<"vvmul"> {
+  let summary = "element-wise addition operation";
+  let description = [{
+    The "mul" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$lhs_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$rhs_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$out_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$size,
+    I8Attr:$lhs_bw, // bw: bit width
+    I8Attr:$rhs_bw, 
+    I8Attr:$out_bw
+  );
+}
+
 def QuantifyOp : CIMISA_Op<"quantify"> {
   let summary = "element-wise addition operation";
   let description = [{

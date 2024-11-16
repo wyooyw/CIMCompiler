@@ -463,6 +463,61 @@ struct VVAddOpConvert : public OpRewritePattern<cimisa::VVAddOp> {
   }
 };
 
+struct VVMulOpConvert : public OpRewritePattern<cimisa::VVMulOp> {
+  using OpRewritePattern<cimisa::VVMulOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cimisa::VVMulOp op,
+                                PatternRewriter &rewriter) const final {
+    std::cout << "VVMulOpConvert::matchAndRewrite begin" << std::endl;
+
+    Value lhs_addr = op.getOperand(0);
+    Value rhs_addr = op.getOperand(1);
+    Value out_addr = op.getOperand(2);
+    Value size = op.getOperand(3);
+    std::cout << "VVMulOpConvert::matchAndRewrite 1" << std::endl;
+
+    bool change = false;
+    if (isConstant(lhs_addr)) {
+      IntegerAttr constant = getConstantInt(lhs_addr);
+      lhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), lhs_addr.getType(), constant);
+      change = true;
+    }
+    if (isConstant(rhs_addr)) {
+      IntegerAttr constant = getConstantInt(rhs_addr);
+      rhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), rhs_addr.getType(), constant);
+      change = true;
+    }
+    if (isConstant(out_addr)) {
+      IntegerAttr constant = getConstantInt(out_addr);
+      out_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), out_addr.getType(), constant);
+      change = true;
+    }
+    if (isConstant(size)) {
+      IntegerAttr constant = getConstantInt(size);
+      size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
+                                                     size.getType(), constant);
+      change = true;
+    }
+
+    if (!change) {
+      return failure();
+    }
+
+    std::cout << "VVMulOpConvert::matchAndRewrite 2" << std::endl;
+    // MemRefType memtype =
+    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
+    // memtype.getElementType();
+    rewriter.replaceOpWithNewOp<cimisa::VVMulOp>(op, lhs_addr, rhs_addr,
+                                                 out_addr, size, op.getLhsBw(),
+                                                 op.getRhsBw(), op.getOutBw());
+    std::cout << "VVMulOpConvert::matchAndRewrite finish" << std::endl;
+    return success();
+  }
+};
+
 struct CIMOutputOpConvert : public OpRewritePattern<cimisa::CIMOutputOp> {
   using OpRewritePattern<cimisa::CIMOutputOp>::OpRewritePattern;
 
@@ -674,7 +729,7 @@ void RR2RIPass::runOnOperation() {
   patterns.add<AddIOpConvert, SubIOpConvert, MulIOpConvert, DivSIOpConvert,
                RemSIOpConvert, MinSIOpConvert, StoreBaseAndOffsetOpConvert,
                LoadBaseAndOffsetOpConvert, TransOpConvert, CIMTransferOpConvert,
-               CIMComputeOpConvert, VVAddOpConvert, CIMOutputSumOpConvert,
+               CIMComputeOpConvert, VVAddOpConvert, VVMulOpConvert, CIMOutputSumOpConvert,
                QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert>(
       &getContext());
   // ForOpConvert

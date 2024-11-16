@@ -48,6 +48,24 @@ def VVAddOp : CIM_Op<"vv_add"> {
   let hasFolder = 1;
 }
 
+def VVMulOp : CIM_Op<"vv_mul"> {
+  let summary = "element-wise mul operation";
+  let description = [{
+    The "mul" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$out);
+
+  // Allow building an AddOp with from the two input operands.
+  // let builders = [
+  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
+  // ];
+
+  // let hasCanonicalizer = 1;
+  let hasFolder = 1;
+}
+
 def VSMulOp : CIM_Op<"vs_mul", [Pure]> {
   let summary = "Multiplying scalar and vector";
   let description = [{
