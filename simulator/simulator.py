@@ -317,6 +317,21 @@ class Simulator:
 
         self._read_reg_value_directly = False
 
+        self.pimset_mask = None
+    
+    def get_pimset_mask(self):
+        if self.pimset_mask is not None:
+            return self.pimset_mask
+
+        group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
+        vcol = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
+        n_vcol_per_group = self.macro_config.n_vcol(vcol) * group_size
+        return np.ones([n_vcol_per_group], dtype=bool)
+        
+    
+    def set_pimset_mask(self, mask):
+        self.pimset_mask = mask
+
     def _add_internel_macro_output_buffer(self):
         """
         This is an internal memory for doing accumulate for macro's output
@@ -511,7 +526,7 @@ class Simulator:
         - output bit width：输出向量每个元素的bit长度
         """
         opcode = inst["opcode"]
-        if opcode in [0x00, 0x02]:  # vec add
+        if opcode in [0x00, 0x02]:  # vec add / mul
             self._run_simd_class_vector_vector_inst(inst)
         elif opcode == 0b01:  # scalar add
             self._run_simd_class_scalar_vector_inst(inst)
@@ -598,6 +613,20 @@ class Simulator:
             result = value1 % value2
         elif opcode == 0b1000:  # min
             result = min(value1, value2)
+        elif opcode == 0b1001:  # max
+            result = max(value1, value2)
+        elif opcode == 0b1010:  # and
+            result = value1 & value2
+        elif opcode == 0b1011:  # or
+            result = value1 | value2
+        elif opcode == 0b1100:  # comp
+            result = value1 == value2
+        elif opcode == 0b1101:  # comp
+            result = value1 != value2
+        elif opcode == 0b1110:  # comp
+            result = value1 > value2
+        elif opcode == 0b1111:  # comp
+            result = value1 < value2
         else:
             assert False, f"Not support {opcode=}."
         self.write_general_reg(inst["rd"], result)
@@ -879,7 +908,7 @@ class Simulator:
         assert False, "Executor not support value sparse yet."
 
     def _stats_macro_util(self, macro_id, group_size, n_use_comp, width_bw):
-        pimset_mask = self.pimset_mask.reshape(group_size, -1)
+        pimset_mask = self.get_pimset_mask().reshape(group_size, -1)
         n_comp = self.macro_config.n_comp
         n_col = self.macro_config.n_bcol
 
@@ -940,7 +969,7 @@ class Simulator:
         # logging.debug(f"{weight_data.shape=}")
         # logging.debug(weight_data.reshape(self.macro_config.n_comp, -1))
         # import pdb; pdb.set_trace()
-        pimset_mask = self.pimset_mask.reshape(group_size, -1)
+        pimset_mask = self.get_pimset_mask().reshape(group_size, -1)
         n_comp = self.macro_config.n_comp
         n_col = self.macro_config.n_bcol
 
@@ -1039,12 +1068,13 @@ class Simulator:
             # logging.debug(f"{input_data=}, {weight_data=}")
 
             # use pimset to mask weight
-            assert self.pimset_mask is not None
+            pimset_mask = self.get_pimset_mask()
+            assert pimset_mask is not None
             assert (
-                len(self.pimset_mask) == weight_data.shape[1]
-            ), f"{len(self.pimset_mask)=}, {weight_data.shape[1]=}"
-            assert self.pimset_mask.dtype == bool, f"{self.pimset_mask.dtype=}"
-            weight_data[:, self.pimset_mask] = 0
+                len(pimset_mask) == weight_data.shape[1]
+            ), f"{len(pimset_mask)=}, {weight_data.shape[1]=}"
+            assert pimset_mask.dtype == bool, f"{pimset_mask.dtype=}"
+            weight_data[:, pimset_mask] = 0
             # import pdb; pdb.set_trace()
 
             assert input_data.ndim == 1
@@ -1169,12 +1199,13 @@ class Simulator:
             # logging.debug(f"{input_data=}, {weight_data=}")
 
             # use pimset to mask weight
-            assert self.pimset_mask is not None
+            pimset_mask = self.get_pimset_mask()
+            assert pimset_mask is not None
             assert (
-                len(self.pimset_mask) == weight_data.shape[1]
-            ), f"{len(self.pimset_mask)=}, {weight_data.shape[1]=}"
-            assert self.pimset_mask.dtype == bool, f"{self.pimset_mask.dtype=}"
-            weight_data[:, self.pimset_mask] = 0
+                len(pimset_mask) == weight_data.shape[1]
+            ), f"{len(pimset_mask)=}, {weight_data.shape[1]=}"
+            assert pimset_mask.dtype == bool, f"{pimset_mask.dtype=}"
+            weight_data[:, pimset_mask] = 0
 
             assert input_data.ndim == 1
             assert weight_data.ndim == 2, f"{weight_data.shape=}"
@@ -1386,7 +1417,7 @@ class Simulator:
         # import pdb; pdb.set_trace()
         mask_data = mask_data.astype(bool)
         mask_data = ~mask_data
-        self.pimset_mask = mask_data.copy()
+        self.set_pimset_mask(mask_data.copy())
 
     def _run_debug_class_inst(self, inst):
         if inst["type"] == 0:  # print
@@ -1546,3 +1577,10 @@ class Simulator:
         # import pdb; pdb.set_trace()
         self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
         self.memory_space.write(output_data, output_addr, output_byte_size)
+
+
+if __name__=="__main__":
+    config_path = (
+        "/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json"
+    )
+    cls.simulator = Simulator.from_config(cls.config_path)

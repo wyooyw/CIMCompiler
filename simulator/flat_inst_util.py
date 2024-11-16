@@ -35,9 +35,9 @@ class FlatInstUtil:
         self.general_rf = general_rf
         self.special_rf = special_rf
 
-        self.flat_general_rf = np.zeros([32], dtype=np.int32)
+        self.flat_general_rf = np.zeros([64], dtype=np.int32)
         self.flat_special_rf = np.zeros([32], dtype=np.int32)
-        self.last_access_time = np.zeros([32], dtype=np.int32)
+        self.last_access_time = np.zeros([64], dtype=np.int32)
 
         self.flat_inst_list = []
 

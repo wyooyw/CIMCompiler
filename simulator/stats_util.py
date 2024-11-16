@@ -99,7 +99,7 @@ class StatsUtil:
         if inst["type"] == 0b00:
             self.per_class_cnt["pim"]["pim_compute"] += 1
             self._record_pim_compute_duration()
-            self._record_use_col()
+            # self._record_use_col()
         elif inst["type"] == 0b01:
             self.per_class_cnt["pim"]["pim_set"] += 1
         elif inst["type"] == 0b10:
