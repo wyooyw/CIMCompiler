@@ -90,7 +90,7 @@ struct CondBranchOpConvert : public OpRewritePattern<cf::CondBranchOp> {
         rewriter.createBlock(false_block->getParent(), {}, argTypes, argLocs);
     rewriter.setInsertionPointToStart(jump_block);
     rewriter.create<cf::BranchOp>(rewriter.getUnknownLoc(), false_block,
-                                  false_block->getArguments());
+                                  jump_block->getArguments());
 
     rewriter.setInsertionPoint(op);
     rewriter.replaceOpWithNewOp<cf::CondBranchOp>(
