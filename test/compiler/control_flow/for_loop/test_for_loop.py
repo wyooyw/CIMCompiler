@@ -77,7 +77,7 @@ class TestForLoop:
             code = json.load(f)
 
         # run code in simulator
-        status, stats = self.simulator.run_code(code)
+        status, stats, _ = self.simulator.run_code(code)
         assert status == self.simulator.FINISH
 
         # check result
@@ -91,5 +91,6 @@ class TestForLoop:
 if __name__ == "__main__":
     TestForLoop.setup_class()
     test_for_loop = TestForLoop()
+    test_for_loop.setup_class()
     test_for_loop.setup_method()
-    test_for_loop.test_acc_arith()
+    test_for_loop.test_control_flow("if")
