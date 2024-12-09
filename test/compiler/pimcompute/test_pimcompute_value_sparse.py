@@ -99,7 +99,7 @@ class TestPIMComputeValueSparse:
     def setup_class(cls):
         cls.inst_util = InstUtil()
         cls.config_path = (
-            "/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json"
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json")
         )
         cls.simulator = Simulator.from_config(cls.config_path)
         cls.memory_space = cls.simulator.memory_space
@@ -248,7 +248,7 @@ class TestPIMComputeValueSparse:
         ],
     )
     def test_pim_compute(self, casename, op_config):
-        op_base_dir = os.environ.get("OP_BASE_DIR")
+        op_base_dir = os.path.join(os.environ["CIM_COMPILER_BASE"], "op")
         assert op_base_dir is not None and os.path.exists(
             op_base_dir
         ), f"{op_base_dir} not exists"
