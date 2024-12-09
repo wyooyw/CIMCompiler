@@ -16,7 +16,7 @@ cp $output_path/precompile_2_replace_macro.cim $output_path/precompile.cim
 ANTLR_HOME=${PWD}/antlr
 
 # antlr: code -> ast(json)
-mkdir .temp
+mkdir -p .temp
 java -cp $ANTLR_HOME/antlr-4.7.1-complete.jar org.antlr.v4.Tool CIM.g -o .temp
 echo "ANTLR:Generate done!"
 cp $ANTLR_HOME/AntlrToJson.java .temp/
