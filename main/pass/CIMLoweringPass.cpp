@@ -723,6 +723,31 @@ struct QuantifyOpLowering : public OpRewritePattern<cim::QuantifyOp> {
   }
 };
 
+struct ResAddQuantifyOpLowering : public OpRewritePattern<cim::ResAddQuantifyOp> {
+  using OpRewritePattern<cim::ResAddQuantifyOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::ResAddQuantifyOp op,
+                                PatternRewriter &rewriter) const final {
+    std::cout << "ResAddQuantifyOpLowering::matchAndRewrite begin" << std::endl;
+    Value input_1_addr = getAddrValue(op.getOperand(0), rewriter);
+    Value input_2_addr = getAddrValue(op.getOperand(1), rewriter);
+    Value output_addr = getAddrValue(op.getOperand(2), rewriter);
+    Value size = getLengthValue(op.getOperand(0), rewriter);
+
+    std::cout << "ResAddQuantifyOpLowering::matchAndRewrite" << std::endl;
+    if (!input_1_addr || !input_2_addr || !output_addr || !size) {
+      std::cout << "ResAddQuantifyOpLowering::matchAndRewrite fail" << std::endl;
+      return failure();
+    }
+    std::cout << "ResAddQuantifyOpLowering::matchAndRewrite success" << std::endl;
+
+    rewriter.replaceOpWithNewOp<cimisa::ResAddQuantifyOp>(
+        op, input_1_addr, input_2_addr, output_addr, size);
+
+    return success();
+  }
+};
+
 struct SpecialRegSetOpLowering : public OpRewritePattern<cim::SpecialRegSetOp> {
   using OpRewritePattern<cim::SpecialRegSetOp>::OpRewritePattern;
 
@@ -922,8 +947,8 @@ void CIMLoweringPass::runOnOperation() {
       .add<TransOpLowering, CIMComputeOpLowering, LoadOpLowering,
            StoreOpLowering, VVAddOpLowering, VVMulOpLowering, SpecialRegSetOpLowering,
            CIMOutputOpLowering, CIMOutputSumOpLowering, CIMTransferOpLowering,
-           QuantifyOpLowering, AddrOpLowering, CIMSetOpLowering>(&getContext());
-
+           QuantifyOpLowering, ResAddQuantifyOpLowering, AddrOpLowering, CIMSetOpLowering>(&getContext());
+  
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`
   // operations were not converted successfully.
