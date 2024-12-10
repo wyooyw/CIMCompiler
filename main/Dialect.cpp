@@ -253,7 +253,7 @@ bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
 }
 
 /*
-  Bulitin Functions
+  Built-in Functions
 */
 
 void ShapeOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,

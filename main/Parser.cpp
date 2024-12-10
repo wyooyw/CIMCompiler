@@ -503,21 +503,21 @@ MLIRGenImpl::parse_call_return_value(const boost::property_tree::ptree &ast) {
   std::string call_func_name = safe_get_str(get_item(ast, 0), "text");
 
   if (call_func_name == "Shape") {
-    return parse_bulitin_shape(ast);
+    return parse_builtin_shape(ast);
   } else if (call_func_name == "Slice") {
-    return parse_bulitin_slice(ast);
+    return parse_builtin_slice(ast);
   } else if (call_func_name == "Buffer") {
-    return parse_bulitin_buffer(ast);
+    return parse_builtin_buffer(ast);
   } else if (call_func_name == "Load") {
-    return parse_bulitin_load(ast);
+    return parse_builtin_load(ast);
   } else if (call_func_name == "Min") {
-    return parse_bulitin_min(ast);
+    return parse_builtin_min(ast);
   } else if (call_func_name == "Max") {
-    return parse_bulitin_max(ast);
+    return parse_builtin_max(ast);
   } else if (call_func_name == "Addr") {
-    return parse_bulitin_addr(ast);
+    return parse_builtin_addr(ast);
   } else if (call_func_name == "Select") {
-    return parse_bulitin_select(ast);
+    return parse_builtin_select(ast);
   }
 
   // check sign table
@@ -537,55 +537,55 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree &ast) {
   std::string call_func_name = safe_get_str(get_item(ast, 0), "text");
 
   if (call_func_name == "Trans") {
-    parse_bulitin_trans(ast);
+    parse_builtin_trans(ast);
     return;
   } else if (call_func_name == "VVAdd") {
-    parse_bulitin_vvadd(ast);
+    parse_builtin_vvadd(ast);
     return;
   } else if (call_func_name == "VVMul") {
-    parse_bulitin_vvmul(ast);
+    parse_builtin_vvmul(ast);
     return;
   } else if (call_func_name == "Quantify") {
-    parse_bulitin_quantify(ast);
+    parse_builtin_quantify(ast);
     return;
   } else if (call_func_name == "Print") {
-    parse_bulitin_print(ast);
+    parse_builtin_print(ast);
     return;
   } else if (call_func_name == "Debug") {
-    parse_bulitin_debug(ast);
+    parse_builtin_debug(ast);
     return;
   } else if (call_func_name == "Free") {
-    parse_bulitin_free(ast);
+    parse_builtin_free(ast);
     return;
   } else if (call_func_name == "CIMComputeDense") {
-    parse_bulitin_cimcompute_dense(ast);
+    parse_builtin_cimcompute_dense(ast);
     return;
   } else if (call_func_name == "CIMComputeValueSparse") {
-    parse_bulitin_cimcompute_value_sparse(ast);
+    parse_builtin_cimcompute_value_sparse(ast);
     return;
   } else if (call_func_name == "CIMComputeBitSparse") {
-    parse_bulitin_cimcompute_bit_sparse(ast);
+    parse_builtin_cimcompute_bit_sparse(ast);
     return;
   } else if (call_func_name == "CIMComputeValueBitSparse") {
-    parse_bulitin_cimcompute_value_bit_sparse(ast);
+    parse_builtin_cimcompute_value_bit_sparse(ast);
     return;
   } else if (call_func_name == "CIMOutput") {
-    parse_bulitin_cimoutput(ast);
+    parse_builtin_cimoutput(ast);
     return;
   } else if (call_func_name == "CIMOutputSum") {
-    parse_bulitin_cimoutput_sum(ast);
+    parse_builtin_cimoutput_sum(ast);
     return;
   } else if (call_func_name == "CIMTransfer") {
-    parse_bulitin_cimtransfer(ast);
+    parse_builtin_cimtransfer(ast);
     return;
   } else if (call_func_name == "CIMSet") {
-    parse_bulitin_cimset(ast);
+    parse_builtin_cimset(ast);
     return;
   } else if (call_func_name == "Save") {
-    parse_bulitin_save(ast);
+    parse_builtin_save(ast);
     return;
   } else if (call_func_name == "SpecialRegSet") {
-    parse_bulitin_special_reg_set(ast);
+    parse_builtin_special_reg_set(ast);
     return;
   }
 
@@ -623,12 +623,12 @@ MLIRGenImpl::parse_call_param(const boost::property_tree::ptree &ast) {
 }
 
 /*
- * Bulitin Functions Begin
+ * Builtin Functions Begin
  */
 
 mlir::Value
-MLIRGenImpl::parse_bulitin_shape(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_shape" << std::endl;
+MLIRGenImpl::parse_builtin_shape(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_shape" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_buffer = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -641,8 +641,8 @@ MLIRGenImpl::parse_bulitin_shape(const boost::property_tree::ptree &ast) {
   return builder.create<mlir::cim::ShapeOp>(loc, buffer, index);
 }
 
-void MLIRGenImpl::parse_bulitin_trans(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_trans" << std::endl;
+void MLIRGenImpl::parse_builtin_trans(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_trans" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_src = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -654,8 +654,8 @@ void MLIRGenImpl::parse_bulitin_trans(const boost::property_tree::ptree &ast) {
 }
 
 mlir::Value
-MLIRGenImpl::parse_bulitin_slice(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_slice" << std::endl;
+MLIRGenImpl::parse_builtin_slice(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_slice" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_src = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -666,25 +666,25 @@ MLIRGenImpl::parse_bulitin_slice(const boost::property_tree::ptree &ast) {
   mlir::Value src = parse_expr(safe_get_child(get_item(ast_src, 0), "expr"));
   mlir::SmallVector<mlir::Value> offsets =
       parse_array_1d(safe_get_child(get_item(ast_offsets, 0), "array1d"));
-  std::cout << "parse_bulitin_slice offsets finish" << std::endl;
+  std::cout << "parse_builtin_slice offsets finish" << std::endl;
   std::cout << offsets.size() << std::endl;
   mlir::SmallVector<mlir::Value> sizes =
       parse_array_1d(safe_get_child(get_item(ast_sizes, 0), "array1d"));
-  std::cout << "parse_bulitin_slice sizes finish" << std::endl;
+  std::cout << "parse_builtin_slice sizes finish" << std::endl;
   std::cout << sizes.size() << std::endl;
   mlir::SmallVector<mlir::Value> strides =
       parse_array_1d(safe_get_child(get_item(ast_strides, 0), "array1d"));
-  std::cout << "parse_bulitin_slice strides finish" << std::endl;
+  std::cout << "parse_builtin_slice strides finish" << std::endl;
   std::cout << strides.size() << std::endl;
   mlir::Value result = builder.create<mlir::memref::SubViewOp>(
       loc, src, cast_to_index_type(offsets), cast_to_index_type(sizes),
       cast_to_index_type(strides));
-  std::cout << "parse_bulitin_slice finish" << std::endl;
+  std::cout << "parse_builtin_slice finish" << std::endl;
   return result;
 }
 
-void MLIRGenImpl::parse_bulitin_vvadd(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_vvadd" << std::endl;
+void MLIRGenImpl::parse_builtin_vvadd(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_vvadd" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_lhs = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -697,8 +697,8 @@ void MLIRGenImpl::parse_bulitin_vvadd(const boost::property_tree::ptree &ast) {
   builder.create<mlir::cim::VVAddOp>(loc, lhs, rhs, out);
 }
 
-void MLIRGenImpl::parse_bulitin_vvmul(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_vvmul" << std::endl;
+void MLIRGenImpl::parse_builtin_vvmul(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_vvmul" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_lhs = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -711,9 +711,9 @@ void MLIRGenImpl::parse_bulitin_vvmul(const boost::property_tree::ptree &ast) {
   builder.create<mlir::cim::VVMulOp>(loc, lhs, rhs, out);
 }
 
-void MLIRGenImpl::parse_bulitin_quantify(
+void MLIRGenImpl::parse_builtin_quantify(
     const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_quantify" << std::endl;
+  std::cout << "parse_builtin_quantify" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_input = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -749,8 +749,8 @@ void MLIRGenImpl::parse_bulitin_quantify(
 }
 
 mlir::Value
-MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_buffer" << std::endl;
+MLIRGenImpl::parse_builtin_buffer(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_buffer" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   // Data type
@@ -783,8 +783,8 @@ MLIRGenImpl::parse_bulitin_buffer(const boost::property_tree::ptree &ast) {
   return alloc.getResult();
 }
 
-void MLIRGenImpl::parse_bulitin_print(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_print" << std::endl;
+void MLIRGenImpl::parse_builtin_print(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_print" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_value = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -797,13 +797,13 @@ void MLIRGenImpl::parse_bulitin_print(const boost::property_tree::ptree &ast) {
   builder.create<mlir::cim::PrintOp>(loc, value);
 }
 
-void MLIRGenImpl::parse_bulitin_debug(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_debug" << std::endl;
+void MLIRGenImpl::parse_builtin_debug(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_debug" << std::endl;
   builder.create<mlir::cim::DebugOp>(loc);
 }
 
-void MLIRGenImpl::parse_bulitin_free(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_free" << std::endl;
+void MLIRGenImpl::parse_builtin_free(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_free" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_value = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -814,8 +814,8 @@ void MLIRGenImpl::parse_bulitin_free(const boost::property_tree::ptree &ast) {
 }
 
 mlir::Value
-MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_load" << std::endl;
+MLIRGenImpl::parse_builtin_load(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_load" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_memref = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -832,8 +832,8 @@ MLIRGenImpl::parse_bulitin_load(const boost::property_tree::ptree &ast) {
 }
 
 mlir::Value
-MLIRGenImpl::parse_bulitin_min(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_min" << std::endl;
+MLIRGenImpl::parse_builtin_min(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_min" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_lhs = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -847,8 +847,8 @@ MLIRGenImpl::parse_bulitin_min(const boost::property_tree::ptree &ast) {
 }
 
 mlir::Value
-MLIRGenImpl::parse_bulitin_max(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_max" << std::endl;
+MLIRGenImpl::parse_builtin_max(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_max" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_lhs = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -862,8 +862,8 @@ MLIRGenImpl::parse_bulitin_max(const boost::property_tree::ptree &ast) {
 }
 
 mlir::Value
-MLIRGenImpl::parse_bulitin_addr(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_addr" << std::endl;
+MLIRGenImpl::parse_builtin_addr(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_addr" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_buf = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -875,8 +875,8 @@ MLIRGenImpl::parse_bulitin_addr(const boost::property_tree::ptree &ast) {
 }
 
 mlir::Value
-MLIRGenImpl::parse_bulitin_select(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_select" << std::endl;
+MLIRGenImpl::parse_builtin_select(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_select" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_cond = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -891,8 +891,8 @@ MLIRGenImpl::parse_bulitin_select(const boost::property_tree::ptree &ast) {
   return result;
 }
 
-void MLIRGenImpl::parse_bulitin_save(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_save" << std::endl;
+void MLIRGenImpl::parse_builtin_save(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_save" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_memref = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -911,30 +911,30 @@ void MLIRGenImpl::parse_bulitin_save(const boost::property_tree::ptree &ast) {
   // return result;
 }
 
-void MLIRGenImpl::parse_bulitin_cimcompute_dense(
+void MLIRGenImpl::parse_builtin_cimcompute_dense(
     const boost::property_tree::ptree &ast) {
-  parse_bulitin_cimcompute(ast, false, false);
+  parse_builtin_cimcompute(ast, false, false);
 }
 
-void MLIRGenImpl::parse_bulitin_cimcompute_value_sparse(
+void MLIRGenImpl::parse_builtin_cimcompute_value_sparse(
     const boost::property_tree::ptree &ast) {
-  parse_bulitin_cimcompute(ast, true, false);
+  parse_builtin_cimcompute(ast, true, false);
 }
 
-void MLIRGenImpl::parse_bulitin_cimcompute_bit_sparse(
+void MLIRGenImpl::parse_builtin_cimcompute_bit_sparse(
     const boost::property_tree::ptree &ast) {
-  parse_bulitin_cimcompute(ast, false, true);
+  parse_builtin_cimcompute(ast, false, true);
 }
 
-void MLIRGenImpl::parse_bulitin_cimcompute_value_bit_sparse(
+void MLIRGenImpl::parse_builtin_cimcompute_value_bit_sparse(
     const boost::property_tree::ptree &ast) {
-  parse_bulitin_cimcompute(ast, true, true);
+  parse_builtin_cimcompute(ast, true, true);
 }
 
-void MLIRGenImpl::parse_bulitin_cimcompute(
+void MLIRGenImpl::parse_builtin_cimcompute(
     const boost::property_tree::ptree &ast, bool value_sparse,
     bool bit_sparse) {
-  std::cout << "parse_bulitin_cimcompute" << std::endl;
+  std::cout << "parse_builtin_cimcompute" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_input = safe_get_child(get_item(ast_param_list, 0), "call_param");
@@ -956,9 +956,9 @@ void MLIRGenImpl::parse_bulitin_cimcompute(
                                           bit_sparse_flag);
 }
 
-void MLIRGenImpl::parse_bulitin_cimoutput(
+void MLIRGenImpl::parse_builtin_cimoutput(
     const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_cimoutput" << std::endl;
+  std::cout << "parse_builtin_cimoutput" << std::endl;
 
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
@@ -976,9 +976,9 @@ void MLIRGenImpl::parse_bulitin_cimoutput(
   builder.create<mlir::cim::CIMOutputOp>(loc, out_n, out_mask, output);
 }
 
-void MLIRGenImpl::parse_bulitin_cimoutput_sum(
+void MLIRGenImpl::parse_builtin_cimoutput_sum(
     const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_cimoutput_sum" << std::endl;
+  std::cout << "parse_builtin_cimoutput_sum" << std::endl;
 
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
@@ -997,9 +997,9 @@ void MLIRGenImpl::parse_bulitin_cimoutput_sum(
   builder.create<mlir::cim::CIMOutputSumOp>(loc, out_n, out_mask, output_addr);
 }
 
-void MLIRGenImpl::parse_bulitin_cimtransfer(
+void MLIRGenImpl::parse_builtin_cimtransfer(
     const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_cimtransfer" << std::endl;
+  std::cout << "parse_builtin_cimtransfer" << std::endl;
 
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
@@ -1024,8 +1024,8 @@ void MLIRGenImpl::parse_bulitin_cimtransfer(
                                            buffer, dst);
 }
 
-void MLIRGenImpl::parse_bulitin_cimset(const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_cimset" << std::endl;
+void MLIRGenImpl::parse_builtin_cimset(const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_cimset" << std::endl;
 
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
@@ -1036,9 +1036,9 @@ void MLIRGenImpl::parse_bulitin_cimset(const boost::property_tree::ptree &ast) {
   builder.create<mlir::cim::CIMSetOp>(loc, mask);
 }
 
-void MLIRGenImpl::parse_bulitin_special_reg_set(
+void MLIRGenImpl::parse_builtin_special_reg_set(
     const boost::property_tree::ptree &ast) {
-  std::cout << "parse_bulitin_special_reg_set" << std::endl;
+  std::cout << "parse_builtin_special_reg_set" << std::endl;
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
   auto ast_special_reg =
@@ -1054,7 +1054,7 @@ void MLIRGenImpl::parse_bulitin_special_reg_set(
 }
 
 /*
- * Bulitin Functions End
+ * Built-in Functions End
  */
 
 // mlir::Value parse_var(const boost::property_tree::ptree& ast){

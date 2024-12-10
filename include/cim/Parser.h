@@ -127,38 +127,38 @@ private:
   parse_call_param_list(const boost::property_tree::ptree &ast);
   mlir::Value parse_call_param(const boost::property_tree::ptree &ast);
 
-  // Bulitin Functions
-  mlir::Value parse_bulitin_shape(const boost::property_tree::ptree &ast);
-  void parse_bulitin_trans(const boost::property_tree::ptree &ast);
-  mlir::Value parse_bulitin_slice(const boost::property_tree::ptree &ast);
-  void parse_bulitin_vvadd(const boost::property_tree::ptree &ast);
-  void parse_bulitin_vvmul(const boost::property_tree::ptree &ast);
-  void parse_bulitin_quantify(const boost::property_tree::ptree &ast);
-  mlir::Value parse_bulitin_buffer(const boost::property_tree::ptree &ast);
-  void parse_bulitin_print(const boost::property_tree::ptree &ast);
-  void parse_bulitin_debug(const boost::property_tree::ptree &ast);
-  void parse_bulitin_free(const boost::property_tree::ptree &ast);
-  mlir::Value parse_bulitin_load(const boost::property_tree::ptree &ast);
-  mlir::Value parse_bulitin_min(const boost::property_tree::ptree &ast);
-  mlir::Value parse_bulitin_max(const boost::property_tree::ptree &ast);
-  mlir::Value parse_bulitin_addr(const boost::property_tree::ptree &ast);
-  mlir::Value parse_bulitin_select(const boost::property_tree::ptree &ast);
-  void parse_bulitin_save(const boost::property_tree::ptree &ast);
-  void parse_bulitin_cimcompute_dense(const boost::property_tree::ptree &ast);
+  // Builtin Functions
+  mlir::Value parse_builtin_shape(const boost::property_tree::ptree &ast);
+  void parse_builtin_trans(const boost::property_tree::ptree &ast);
+  mlir::Value parse_builtin_slice(const boost::property_tree::ptree &ast);
+  void parse_builtin_vvadd(const boost::property_tree::ptree &ast);
+  void parse_builtin_vvmul(const boost::property_tree::ptree &ast);
+  void parse_builtin_quantify(const boost::property_tree::ptree &ast);
+  mlir::Value parse_builtin_buffer(const boost::property_tree::ptree &ast);
+  void parse_builtin_print(const boost::property_tree::ptree &ast);
+  void parse_builtin_debug(const boost::property_tree::ptree &ast);
+  void parse_builtin_free(const boost::property_tree::ptree &ast);
+  mlir::Value parse_builtin_load(const boost::property_tree::ptree &ast);
+  mlir::Value parse_builtin_min(const boost::property_tree::ptree &ast);
+  mlir::Value parse_builtin_max(const boost::property_tree::ptree &ast);
+  mlir::Value parse_builtin_addr(const boost::property_tree::ptree &ast);
+  mlir::Value parse_builtin_select(const boost::property_tree::ptree &ast);
+  void parse_builtin_save(const boost::property_tree::ptree &ast);
+  void parse_builtin_cimcompute_dense(const boost::property_tree::ptree &ast);
   void
-  parse_bulitin_cimcompute_value_sparse(const boost::property_tree::ptree &ast);
+  parse_builtin_cimcompute_value_sparse(const boost::property_tree::ptree &ast);
   void
-  parse_bulitin_cimcompute_bit_sparse(const boost::property_tree::ptree &ast);
-  void parse_bulitin_cimcompute_value_bit_sparse(
+  parse_builtin_cimcompute_bit_sparse(const boost::property_tree::ptree &ast);
+  void parse_builtin_cimcompute_value_bit_sparse(
       const boost::property_tree::ptree &ast);
-  void parse_bulitin_cimcompute(const boost::property_tree::ptree &ast,
+  void parse_builtin_cimcompute(const boost::property_tree::ptree &ast,
                                 bool value_sparse, bool bit_sparse);
-  void parse_bulitin_cimoutput(const boost::property_tree::ptree &ast);
-  void parse_bulitin_cimoutput_sum(const boost::property_tree::ptree &ast);
-  void parse_bulitin_cimtransfer(const boost::property_tree::ptree &ast);
-  void parse_bulitin_cimset(const boost::property_tree::ptree &ast);
-  void parse_bulitin_special_reg_set(const boost::property_tree::ptree &ast);
-  // mlir::Value parse_bulitin_reshape(const boost::property_tree::ptree& ast);
+  void parse_builtin_cimoutput(const boost::property_tree::ptree &ast);
+  void parse_builtin_cimoutput_sum(const boost::property_tree::ptree &ast);
+  void parse_builtin_cimtransfer(const boost::property_tree::ptree &ast);
+  void parse_builtin_cimset(const boost::property_tree::ptree &ast);
+  void parse_builtin_special_reg_set(const boost::property_tree::ptree &ast);
+  // mlir::Value parse_builtin_reshape(const boost::property_tree::ptree& ast);
 
   // Util Functions
   mlir::SmallVector<mlir::Value>
