@@ -88,7 +88,7 @@ class Operator:
         assert result.returncode == 0
         return image
 
-    def run(self, code_dir, image):
+    def run(self, code_dir, image, predict_pimcompute_count=True):
         op_config = self.op_config
 
         # get output code
@@ -96,10 +96,13 @@ class Operator:
         with open(output_path, "r") as f:
             code = json.load(f)
 
-        # run code in simulator
-        pimcompute_count = predict_pimcompute_count_for_conv2d_dense(
-            self.macro_config, op_config, group_size=16
-        )
+        if predict_pimcompute_count:
+            # run code in simulator
+            pimcompute_count = predict_pimcompute_count_for_conv2d_dense(
+                self.macro_config, op_config, group_size=16
+            )
+        else:
+            pimcompute_count = None
         print(f"{pimcompute_count=}")
 
         status, stats, flat = self.simulator.run_code(
@@ -141,6 +144,46 @@ class Operator:
 
     def compile_and_run_from_dataflow_dir(self, df_dir, code_dir, check_result):
         assert False, "Not implemented"
+
+class ResAddQuantizeOperator(Operator):
+    def __init__(self, config_path, template_path, op_config):
+        super().__init__(config_path, template_path, op_config)
+
+    def compile_and_run_from_dataflow_dir(self, df_dir, code_dir, check_result=False):
+        input1 = np.loadtxt(os.path.join(df_dir, "input1.txt"), dtype=np.int8).reshape(-1)
+        input2 = np.loadtxt(os.path.join(df_dir, "input2.txt"), dtype=np.int8).reshape(-1)
+        scale1 = np.loadtxt(os.path.join(df_dir, "scale1.txt"), dtype=np.float32).reshape(-1)
+        scale2 = np.loadtxt(os.path.join(df_dir, "scale2.txt"), dtype=np.float32).reshape(-1)
+        golden = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8).reshape(-1)
+
+        output = self.compile_and_run(
+            code_dir, image_kwargs={
+                "input1": input1, 
+                "input2": input2,
+                "scale1": scale1, 
+                "scale2": scale2
+            }
+        )
+
+        # check result
+        if check_result:
+
+            helper_golden = self.helper._calculate_golden()
+            # correct = np.array_equal(golden, output)
+            correct_percent = (golden == output).sum() / golden.size
+            # import pdb; pdb.set_trace()
+            return output, correct_percent
+
+        return output, None
+
+    def compile_and_run(self, code_dir, image_kwargs):
+        image = self.compile(code_dir, image_kwargs)
+        return self.run(code_dir, image, predict_pimcompute_count=False)
+
+    def compile_and_run_with_mock_data(self, code_dir):
+        self.compile(code_dir)
+        output = self.run(code_dir, predict_pimcompute_count=False)
+
 
 
 class DenseConv2dOperator(Operator):

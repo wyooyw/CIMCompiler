@@ -22,6 +22,7 @@ from engine.operator_cim import (
     ValueBitSparseConv2dQuantifyOperator,
     ValueSparseConv2dOperator,
     ValueSparseConv2dQuantifyOperator,
+    ResAddQuantizeOperator,
 )
 from simulator.macro_utils import MacroConfig
 from simulator.mask_utils import MaskConfig
@@ -48,6 +49,45 @@ class OperatorTemplate:
         op_config = self.raw_layer_to_op_config(raw_layer)
         return Operator(self.config_path, self.template_path, op_config)
 
+class ResAddQuantizeTemplate(OperatorTemplate):
+    def __init__(self):
+        super().__init__(
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/resadd_quantize"),
+        )
+
+    def raw_layer_to_op_config(self, raw_layer):
+
+        in_hw = raw_layer["input_row"]
+        in_channel = raw_layer["input_channel"]
+        
+        return {
+            "in_channel": in_channel,
+            "in_hw": in_hw,
+        }
+
+    def get_operator(self, raw_layer):
+        op_config = self.raw_layer_to_op_config(raw_layer)
+        return ResAddQuantizeOperator(self.config_path, self.template_path, op_config)
+
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        """
+        """
+
+        if not raw_layer.get("type", None) == "RESADD":
+            return False
+
+        if not (
+            "input_row" in raw_layer and
+            "input_col" in raw_layer and
+            "input_channel" in raw_layer
+        ):
+            return False
+
+        if not raw_layer["input_row"] == raw_layer["input_col"]:
+            return False
+
+        return True
 
 class Conv2dTemplate(OperatorTemplate):
     def __init__(self, template_path):
@@ -465,7 +505,7 @@ class DepthWiseConv2dQuantifyTemplate(OperatorTemplate):
     def __init__(self):
         super().__init__(
             os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json"),
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/dense/dense_dwconv_group_quantify"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/depthwise_conv"),
         )
 
     def is_dense(self):

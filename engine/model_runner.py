@@ -18,11 +18,13 @@ from engine.operator_template import (  # quantify
     ValueBitSparseConv2dTemplate,
     ValueSparseConv2dQuantifyTemplate,
     ValueSparseConv2dTemplate,
+    ResAddQuantizeTemplate,
 )
 from utils.logger import get_logger
+from functools import reduce
 
 formatted_now = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-save_base_dir = "/home/wangyiou/project/cim_compiler_frontend/playground/.result"
+save_base_dir = os.path.join(os.environ["CIM_COMPILER_BASE"], ".result")
 save_base_dir = os.path.join(save_base_dir, formatted_now)
 os.makedirs(save_base_dir, exist_ok=False)
 logger = get_logger(
@@ -30,20 +32,22 @@ logger = get_logger(
 )
 
 OP_TEMPLATE_LIST = [
-    DenseConv2dTemplate(),
-    BitSparseConv2dTemplate(),
-    ValueSparseConv2dTemplate(),
-    ValueBitSparseConv2dTemplate(),
-    DenseLinearTemplate(),
-    BitSparseLinearTemplate(),
+    # DenseConv2dTemplate(),
+    # BitSparseConv2dTemplate(),
+    # ValueSparseConv2dTemplate(),
+    # ValueBitSparseConv2dTemplate(),
+    # DenseLinearTemplate(),
+    # BitSparseLinearTemplate(),
+    
     # quantify
-    # DenseConv2dQuantifyTemplate(),
-    # ValueSparseConv2dQuantifyTemplate(),
-    # BitSparseConv2dQuantifyTemplate(),
-    # ValueBitSparseConv2dQuantifyTemplate(),
-    # DenseLinearQuantifyTemplate(),
-    # BitSparseLinearQuantifyTemplate(),
-    # DepthWiseConv2dQuantifyTemplate()
+    DenseConv2dQuantifyTemplate(),
+    ValueSparseConv2dQuantifyTemplate(),
+    BitSparseConv2dQuantifyTemplate(),
+    ValueBitSparseConv2dQuantifyTemplate(),
+    DenseLinearQuantifyTemplate(),
+    BitSparseLinearQuantifyTemplate(),
+    DepthWiseConv2dQuantifyTemplate(),
+    ResAddQuantizeTemplate()
 ]
 dense_cache = dict()
 
@@ -77,6 +81,41 @@ class ModelRunner:
             model = json.load(f)
         layers = model["layers"]
         return layers
+
+    def raw_resadd_layers_from_dir(self):
+        res_add_paths = [os.path.join(self.model_path, i) for i in os.listdir(self.model_path) if i.endswith("_add")]
+        layers = []
+        for res_add_path in res_add_paths:
+            with open(os.path.join(res_add_path, "info.txt"), "r") as f:
+                info = f.read()
+    
+            """
+            info.txt is something like:
+
+            input1: shape=(1, 24, 32, 32)
+            input2: shape=(1, 24, 32, 32)
+            output: shape=(1, 24, 32, 32)
+
+            parse these shapes into list of ints
+
+            """
+
+            input_shape = info.split("input1: shape=(")[1].split(")")[0]
+            input_shape = [int(i) for i in input_shape.split(",")]
+
+            layer = {
+                "type": "RESADD",
+                "name": res_add_path.split("/")[-1],
+                "input_channel": input_shape[1],
+                "input_row": input_shape[2],
+                "input_col": input_shape[3],
+            }
+            layers.append(layer)
+        return layers
+
+    def raw_layers(self):
+        return self.raw_layers_from_json() + self.raw_resadd_layers_from_dir()
+        # return self.raw_resadd_layers_from_dir()
 
     def show_layers(self):
         for layer in self.raw_layers_from_json():
@@ -177,7 +216,7 @@ class ModelRunner:
 
         logger.info(f"Layer {raw_layer['name']} begin")
         output, check_result = op.compile_and_run_from_dataflow_dir(
-            df_dir, code_dir, check_result=False
+            df_dir, code_dir, check_result=1 - int(os.environ.get("FAST_MODE"), 0)
         )
 
         # show layer name and check result
@@ -192,7 +231,7 @@ class ModelRunner:
             run_layers_name = [run_layers_name]
         assert isinstance(run_layers_name, list)
 
-        for idx, raw_layer in enumerate(self.raw_layers_from_json()):
+        for idx, raw_layer in enumerate(self.raw_layers()):
             if idx > num_layers:
                 break
             if len(run_layers_name) > 0 and raw_layer["name"] not in run_layers_name:
@@ -278,39 +317,54 @@ if __name__ == "__main__":
     #     # run_layers_name=["22_conv"]
     # )
 
-    compile_for_model(
-        model_name="VGG19",
-        model_path_dense=[],
-        model_path_bit_sparse=[],
-        model_path_value_sparse=[],
-        model_path_value_bit_sparse=[
-            # "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGGNet_0.2_csd_th2_data_0525"
-            "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGGNet_0.4_csd_th2_data_0526"
-        ],
-        quantify=False,
-    )
+    # compile_for_model(
+    #     model_name="VGG19",
+    #     model_path_dense=[],
+    #     model_path_bit_sparse=[],
+    #     model_path_value_sparse=[],
+    #     model_path_value_bit_sparse=[
+    #         # "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGGNet_0.2_csd_th2_data_0525"
+    #         "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGGNet_0.4_csd_th2_data_0526"
+    #     ],
+    #     quantify=False,
+    # )
+    # compile_for_model(
+    #     model_name="MobileNet",
+    #     model_path_dense=[],
+    #     model_path_bit_sparse=[],
+    #     model_path_value_sparse=[],
+    #     model_path_value_bit_sparse=[
+    #         # "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.2_csd_th2_data_0516"
+    #         "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.4_csd_th2_data_0518"
+    #     ],
+    #     quantify=False,
+    #     # run_layers_name=["4_pwconv"]
+    # )
+
+    # compile_for_model(
+    #     model_name="ResNet18",
+    #     model_path_dense=[],
+    #     model_path_bit_sparse=[],
+    #     model_path_value_sparse=[],
+    #     model_path_value_bit_sparse=[
+    #         # "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet_/ResNet_0.2_csd_th2_data_0620"
+    #         "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet_/ResNet_0.4_csd_th2_data_0518"
+    #     ],
+    #     quantify=False,
+    #     # run_layers_name=["22_conv"]
+    # )
+
     compile_for_model(
         model_name="MobileNet",
-        model_path_dense=[],
-        model_path_bit_sparse=[],
+        model_path_dense=[
+            # "/cpfs/2926428ee2463e44/user/wangyiou/code/CIMCompiler/models/mobilenet/MobileNet-ori-data-0801"
+        ],
+        model_path_bit_sparse=["/cpfs/2926428ee2463e44/user/wangyiou/code/CIMCompiler/models/mobilenet/MobileNet_csd_th2_data_0801"],
         model_path_value_sparse=[],
         model_path_value_bit_sparse=[
             # "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.2_csd_th2_data_0516"
-            "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.4_csd_th2_data_0518"
+            # "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.4_csd_th2_data_0518"
         ],
-        quantify=False,
+        quantify=True,
         # run_layers_name=["4_pwconv"]
-    )
-
-    compile_for_model(
-        model_name="ResNet18",
-        model_path_dense=[],
-        model_path_bit_sparse=[],
-        model_path_value_sparse=[],
-        model_path_value_bit_sparse=[
-            # "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet_/ResNet_0.2_csd_th2_data_0620"
-            "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet_/ResNet_0.4_csd_th2_data_0518"
-        ],
-        quantify=False,
-        # run_layers_name=["22_conv"]
     )
