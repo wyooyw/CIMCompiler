@@ -1,0 +1,45 @@
+{% include 'lib/def_special_regs.cim' %}
+
+// input
+#define INPUT_SIZE {{ INPUT_SIZE }}
+
+def main(null<int8>){
+    // inputs
+    global_input_1 = Buffer(<INPUT_SIZE>, int8, __GLOBAL__);
+    global_input_2 = Buffer(<INPUT_SIZE>, int8, __GLOBAL__);
+    local_input_1 = Buffer(<INPUT_SIZE>, int8, __INPUT_MEMORY__);
+    local_input_2 = Buffer(<INPUT_SIZE>, int8, __INPUT_MEMORY__);
+    Trans(global_input_1, local_input_1);
+    Trans(global_input_2, local_input_2);
+
+    // prepare quantify buffers
+    global_bias_scale = Buffer(<4>, int32, __GLOBAL__);
+    global_out_zp = Buffer(<1>, int8, __GLOBAL__);
+    local_bias_scale = Buffer(<4>, int32, __INPUT_MEMORY__);
+    local_out_zp = Buffer(<1>, int8, __INPUT_MEMORY__);
+    Trans(global_bias_scale, local_bias_scale);
+    Trans(global_out_zp, local_out_zp);
+
+    global_output = Buffer(<INPUT_SIZE>, int8, __GLOBAL__);
+    local_output = Buffer(<INPUT_SIZE>, int8, __OUTPUT_MEMORY__);
+
+    // TODO: Add 'SPECIAL_REG_' prefix for these macro.
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8); // input 1
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8); // input 2
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 64); // bias scale
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_4_BIT_WIDTH, 8); // out zp
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8); // output
+
+    // local_input_1: rs1
+    // local_input_2: rs2
+    // local_bias_scale: extra reg 1
+    // local_out_zp: extra reg 2
+    local_bias_scale_addr = Addr(local_bias_scale);
+    SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1, local_bias_scale_addr);
+    local_out_zp_addr = Addr(local_out_zp);
+    SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2, local_out_zp_addr);
+    ResAddQuantify(local_input_1, local_input_2, local_output);
+
+    Trans(local_output, global_output);
+
+}
