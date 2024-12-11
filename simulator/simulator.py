@@ -532,6 +532,8 @@ class Simulator:
             self._run_simd_class_scalar_vector_inst(inst)
         elif opcode == 3:
             self._run_simd_class_quantify_inst(inst)
+        elif opcode == 4:
+            self._run_simd_class_resadd_quantify_inst(inst)
         else:
             assert False, f"Not support {opcode=} yet."
 
@@ -1481,7 +1483,7 @@ class Simulator:
             )
         else:
             assert False, f"Not support: {opcode=}"
-
+        # import pdb; pdb.set_trace()
         # Save output
         output_byte_size = output_data.size * output_bitwidth // 8
         # self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
@@ -1570,6 +1572,71 @@ class Simulator:
         output_data = banker_round(output_data * scale_data) + out_zp_data
         output_data = banker_round(np.clip(output_data, clip_min, clip_max))
         # output_data = banker_round(np.clip(output_data, 0, 127))
+        output_data = output_data.astype("int8")
+
+        # save back
+        output_byte_size = output_data.size
+        # import pdb; pdb.set_trace()
+        self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
+        self.memory_space.write(output_data, output_addr, output_byte_size)
+
+    def _run_simd_class_resadd_quantify_inst(self, inst):
+        input_1_addr = self.read_general_reg(inst["rs1"])
+        input_2_addr = self.read_general_reg(inst["rs2"])
+        bias_scale_addr = self.read_special_reg(
+            SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1
+        )
+        out_zp_addr = self.read_special_reg(
+            SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2
+        )
+        input_size = self.read_general_reg(inst["rs3"])
+        output_addr = self.read_general_reg(inst["rd"])
+        clip_min = -128
+        clip_max = 127
+        # print(f"{clip_min=}")
+        # print(f"{inst['relu']=}")
+        # import pdb; pdb.set_trace()
+
+        assert self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH) == 8
+        assert self.read_special_reg(SpecialReg.SIMD_INPUT_2_BIT_WIDTH) == 8
+        assert self.read_special_reg(SpecialReg.SIMD_INPUT_3_BIT_WIDTH) == 64
+        assert self.read_special_reg(SpecialReg.SIMD_INPUT_4_BIT_WIDTH) == 8
+        assert self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH) == 8
+
+        input_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
+        input_byte_size = input_bitwidth * input_size // 8
+        self.memory_space.check_memory_type(input_1_addr, input_byte_size, "sram")
+        input_1_data = self.memory_space.read_as(
+            input_1_addr, input_byte_size, get_dtype_from_bitwidth(input_bitwidth)
+        )
+
+        input_2_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_2_BIT_WIDTH)
+        input_2_byte_size = input_2_bitwidth * input_size // 8
+        self.memory_space.check_memory_type(input_2_addr, input_2_byte_size, "sram")
+        input_2_data = self.memory_space.read_as(
+            input_2_addr, input_2_byte_size, get_dtype_from_bitwidth(input_2_bitwidth)
+        )
+
+        # read bias and scale
+        bias_scale_byte_size = 4 * 4
+        bias_data = self.memory_space.read_as(
+            bias_scale_addr, bias_scale_byte_size, np.int32
+        )[0::2]
+        scale_data = self.memory_space.read_as(
+            bias_scale_addr, bias_scale_byte_size, np.float32
+        )[1::2]
+
+        # read out_zp
+        out_zp_byte_size = 4
+        out_zp_data = self.memory_space.read_as(out_zp_addr, out_zp_byte_size, np.int32)
+
+        # calculate
+        output_1_data = (input_1_data + bias_data[0]) * scale_data[0]
+        output_2_data = (input_2_data + bias_data[1]) * scale_data[1]
+        output_data = output_1_data + output_2_data
+        output_data = banker_round(output_data)
+
+        output_data = np.clip(output_data, clip_min, clip_max)
         output_data = output_data.astype("int8")
 
         # save back
