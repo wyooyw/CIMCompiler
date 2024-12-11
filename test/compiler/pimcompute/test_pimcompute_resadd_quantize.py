@@ -117,134 +117,14 @@ class TestPIMComputeValueSparse:
     @pytest.mark.parametrize(
         "casename",
         [
-            # "value_sparse/value_sparse_group_longer",
-            # "dense/dense_conv2d_group",
-            # "bit_sparse/bit_sparse_conv2d_group",
-            # "value_bit_sparse/value_bit_sparse_base",
-            # quantify
-            'dense/dense_conv2d_group_quantify' ,
-            'bit_sparse/bit_sparse_conv2d_group_quantify',
-            'value_sparse/value_sparse_group_longer_quantify' ,
-            'value_bit_sparse/value_bit_sparse_quantify'
+            'resadd_quantize'
         ],
     )
     @pytest.mark.parametrize(
         "op_config",
         [
-            {"out_channel": 4, "in_channel": 3, "ker_size": 3, "in_hw": 8, "out_hw": 6},
-            {
-                "out_channel": 16,
-                "in_channel": 3,
-                "ker_size": 3,
-                "in_hw": 8,
-                "out_hw": 6,
-            },
-            {
-                "out_channel": 32,
-                "in_channel": 16,
-                "ker_size": 3,
-                "in_hw": 8,
-                "out_hw": 6,
-            },
-            {
-                "out_channel": 64,
-                "in_channel": 16,
-                "ker_size": 3,
-                "in_hw": 8,
-                "out_hw": 6,
-            },
-            {
-                "out_channel": 16,
-                "in_channel": 384,
-                "ker_size": 3,
-                "in_hw": 4,
-                "out_hw": 2,
-            },
-            {
-                "out_channel": 384,
-                "in_channel": 16,
-                "ker_size": 3,
-                "in_hw": 8,
-                "out_hw": 6,
-            },
-            {
-                "out_channel": 256,
-                "in_channel": 96,
-                "ker_size": 3,
-                "in_hw": 8,
-                "out_hw": 6,
-            },
-            {
-                "out_channel": 256,
-                "in_channel": 384,
-                "ker_size": 3,
-                "in_hw": 4,
-                "out_hw": 2,
-            },
-            {
-                "out_channel": 32,
-                "in_channel": 16,
-                "ker_size": 3,
-                "in_hw": 8,
-                "out_hw": 4,
-                "padding": 1,
-                "stride": 2,
-            },
-            {
-                "out_channel": 64,
-                "in_channel": 16,
-                "ker_size": 3,
-                "in_hw": 8,
-                "out_hw": 4,
-                "padding": 1,
-                "stride": 2,
-            },
-            {
-                "out_channel": 16,
-                "in_channel": 384,
-                "ker_size": 3,
-                "in_hw": 4,
-                "out_hw": 2,
-                "padding": 1,
-                "stride": 2,
-            },
-            {
-                "out_channel": 384,
-                "in_channel": 16,
-                "ker_size": 3,
-                "in_hw": 8,
-                "out_hw": 4,
-                "padding": 1,
-                "stride": 2,
-            },
-            {
-                "out_channel": 32,
-                "in_channel": 16,
-                "ker_size": 1,
-                "in_hw": 1,
-                "out_hw": 1,
-            },
-            {
-                "out_channel": 64,
-                "in_channel": 16,
-                "ker_size": 1,
-                "in_hw": 1,
-                "out_hw": 1,
-            },
-            {
-                "out_channel": 16,
-                "in_channel": 384,
-                "ker_size": 1,
-                "in_hw": 1,
-                "out_hw": 1,
-            },
-            {
-                "out_channel": 384,
-                "in_channel": 16,
-                "ker_size": 1,
-                "in_hw": 1,
-                "out_hw": 1,
-            },
+            {"in_channel": 4, "in_hw": 8},
+            {"in_channel": 32, "in_hw": 32},
         ],
     )
     def test_pim_compute(self, casename, op_config):
@@ -310,12 +190,8 @@ class TestPIMComputeValueSparse:
             code = json.load(f)
 
         # run code in simulator
-
-        pimcompute_count = predict_pimcompute_count_for_conv2d_dense(
-            self.macro_config, op_config, group_size=16
-        )
         status, stats, flat = self.simulator.run_code(
-            code, total_pim_compute_count=pimcompute_count
+            code
         )
         assert status == self.simulator.FINISH
 
@@ -324,14 +200,14 @@ class TestPIMComputeValueSparse:
         stats.dump(output_folder)
         flat.dump(output_folder)
         helper.check_image(self.simulator.memory_space)
-
+        # return
         # run flat code
         flat_code = flat.get_flat_code()
         self.simulator.clear()
         self.simulator.memory_space.write(image, global_memory_base, len(image))
         # self.simulator._read_reg_value_directly = True
         status, stats, flat = self.simulator.run_code(
-            flat_code, total_pim_compute_count=pimcompute_count, record_flat=False
+            flat_code, record_flat=False
         )
         assert status == self.simulator.FINISH
         stats.dump(output_folder, prefix="flat_")
@@ -392,13 +268,9 @@ if __name__ == "__main__":
     tester = TestPIMComputeValueSparse()
     tester.setup_method()
     tester.test_pim_compute(
-        "dense/dense_conv2d_group_quantify",
+        "resadd_quantize",
         {
-            "out_channel": 128,
             "in_channel": 32,
-            "ker_size": 3,
-            "in_hw": 8,
-            "out_hw": 8,
-            "padding": 1,
+            "in_hw": 32
         },
     )

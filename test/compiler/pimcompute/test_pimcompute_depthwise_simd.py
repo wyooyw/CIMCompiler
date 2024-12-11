@@ -137,6 +137,7 @@ class TestPIMComputeValueSparse:
             {"out_channel": 16, "in_channel": 16, "ker_size": 3, "in_hw": 8, "out_hw": 8, "padding": 1},
             {"out_channel": 32, "in_channel": 32, "ker_size": 3, "in_hw": 8, "out_hw": 8, "padding": 1},
             {"out_channel": 128, "in_channel": 128, "ker_size": 3, "in_hw": 8, "out_hw": 8, "padding": 1},
+            {"out_channel": 192, "in_channel": 192, "ker_size": 3, "in_hw": 32, "out_hw": 16, "padding": 1, "stride": 2 }
         ],
     )
     def test_pim_compute(self, casename, op_config):
@@ -286,11 +287,12 @@ if __name__ == "__main__":
     tester.test_pim_compute(
         "depthwise_conv",
         {
-            "out_channel": 32,
-            "in_channel": 32,
+            "out_channel": 192,
+            "in_channel": 192,
             "ker_size": 3,
             "in_hw": 32,
-            "out_hw": 32,
+            "out_hw": 16,
             "padding": 1,
+            "stride": 2,
         },
     )
