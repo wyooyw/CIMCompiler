@@ -89,11 +89,12 @@ def main(null<int8>){
                     );
 
                     // input
-                    index_1 = oh * {{KERNEL_SIZE}};
+                    index_0 = oh * {{STRIDE}};
+                    index_1 = index_0 * {{KERNEL_SIZE}};
                     index_2 = kh * {{KERNEL_SIZE}};
                     index_3 = index_1 + index_2;
                     index_4 = index_3 + kw;
-                    Print(index_4);
+
                     use_input = Slice(local_input,
                        [index_4, 0], [1, INPUT_CHANNEL], [1,1]
                     );
