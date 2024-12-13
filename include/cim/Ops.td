@@ -124,6 +124,27 @@ def ResAddQuantifyOp : CIM_Op<"res_add_quantify"> {
   let hasFolder = 1;
 }
 
+def ResMulQuantifyOp : CIM_Op<"res_mul_quantify"> {
+  let summary = "element-wise addition operation";
+  let description = [{
+    The "add" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins 
+    AnyMemRef:$input_1, 
+    AnyMemRef:$input_2,
+    AnyMemRef:$output
+  );
+
+  // Allow building an AddOp with from the two input operands.
+  // let builders = [
+  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
+  // ];
+
+  let hasFolder = 1;
+}
+
 /////////////////////////////////
 // CIM Compute //
 /////////////////////////////////

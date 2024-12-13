@@ -14,9 +14,9 @@ def main(null<int8>){
 
     // prepare quantify buffers
     global_bias_scale = Buffer(<4>, int32, __GLOBAL__);
-    global_out_zp = Buffer(<1>, int8, __GLOBAL__);
+    global_out_zp = Buffer(<1>, int32, __GLOBAL__);
     local_bias_scale = Buffer(<4>, int32, __INPUT_MEMORY__);
-    local_out_zp = Buffer(<1>, int8, __INPUT_MEMORY__);
+    local_out_zp = Buffer(<1>, int32, __INPUT_MEMORY__);
     Trans(global_bias_scale, local_bias_scale);
     Trans(global_out_zp, local_out_zp);
 
@@ -26,8 +26,8 @@ def main(null<int8>){
     // TODO: Add 'SPECIAL_REG_' prefix for these macro.
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8); // input 1
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8); // input 2
-    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 64); // bias scale
-    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_4_BIT_WIDTH, 8); // out zp
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 128); // bias scale
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_4_BIT_WIDTH, 32); // out zp
     SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8); // output
 
     // local_input_1: rs1

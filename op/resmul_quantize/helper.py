@@ -8,8 +8,8 @@ class TestHelper:
         self.output_bytes = 1
         self.output_dtype = np.int8
 
-        # assert op_config["in_channel"] == op_config["out_channel"], f"{op_config=}"
-        self.input_size = op_config["in_channel"] * op_config["in_hw"] * op_config["in_hw"]
+        self.in_channel = op_config["in_channel"] 
+        self.in_hw = op_config["in_hw"]
 
         self.im2col = True
 
@@ -17,31 +17,23 @@ class TestHelper:
         import numpy as np
 
         input_data = np.random.randint(
-            -1, 3, size=(self.input_size), dtype=np.int8
-        )  # .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
-        # input_data = np.ones((self.input_size), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
-        # input_data = np.arange(1, self.input_size+1, dtype=np.int8)
+            -1, 3, size=(self.in_channel, self.in_hw, self.in_hw), dtype=np.int8
+        ) 
+        # input_data = np.ones((self.in_channel, self.in_hw, self.in_hw), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
+        # input_data = np.arange(1, self.in_channel*self.in_hw*self.in_hw+1, dtype=np.int8).reshape(self.in_channel, self.in_hw, self.in_hw)
         return input_data
 
     def _get_mock_input2(self):
         import numpy as np
 
         input_data = np.random.randint(
-            -1, 3, size=(self.input_size), dtype=np.int8
+            -1, 3, size=(self.in_channel,), dtype=np.int8
         ) 
         # input_data = np.ones((self.input_size), dtype=np.int8)# .reshape(self.in_hw,self.in_hw,1).repeat(self.in_channel, axis=2)
-        # input_data = np.arange(1, self.input_size+1, dtype=np.int8)
+        # input_data = np.arange(1, self.in_channel+1, dtype=np.int8).reshape(1, 1, self.in_channel)
         return input_data
 
-    def _get_mock_scale1(self):
-        import numpy as np
-
-        scale = np.random.rand(1).astype(np.float32)
-        # scale = np.ones((self.out_channel,)).astype(np.float32)
-        # scale = np.ones((1,), dtype=np.float32)
-        return scale
-
-    def _get_mock_scale2(self):
+    def _get_mock_scale(self):
         import numpy as np
 
         scale = np.random.rand(1).astype(np.float32)
@@ -53,41 +45,27 @@ class TestHelper:
         import numpy as np
 
         from utils.round import banker_round
+        
+        mul_result_1 = self.input1.astype(np.int32) * self.input2.astype(np.int32)
+        mul_result_2 = banker_round(mul_result_1 * self.scale)
+        mul_result = np.clip(mul_result_2, -128, 127).astype(np.int8)   
 
-        input1_scaled = self.input1 * self.scale1
-        input2_scaled = self.input2 * self.scale2
-        add_result_1 = input1_scaled + input2_scaled
-        add_result_2 = banker_round(add_result_1)
-        add_result = np.clip(add_result_2, -128, 127).astype(np.int8)
+        return mul_result   
 
-        return add_result
-
-    def get_image_quantify(self, simulator, scale1, scale2):
+    def get_image_quantify(self, simulator, scale):
         import numpy as np
 
         from utils.bias_scale_fuse import bias_scale_fuse
 
 
-        if scale1 is None:
-            scale1 = self._get_mock_scale1()
+        if scale is None:
+            scale = self._get_mock_scale()
 
-        if scale2 is None:
-            scale2 = self._get_mock_scale2()
+        assert scale.size==1
 
-        assert scale1.size==1
-        assert scale2.size==1
-
-        self.scale1 = scale1
-        self.scale2 = scale2
-
+        self.scale = scale
         
-        
-        bias1 = np.zeros((1,), dtype=np.int32)
-        bias2 = np.zeros((1,), dtype=np.int32)
-
-        # concat bias = bias1 + bias2
-        bias = np.concatenate([bias1, bias2], axis=0)
-        scale = np.concatenate([scale1, scale2], axis=0)
+        bias = np.zeros((1,), dtype=np.int32)
         bias_scale_data = bias_scale_fuse(bias, scale)
 
         out_zp = np.zeros((1,), dtype=np.int32)
@@ -100,8 +78,7 @@ class TestHelper:
         simulator,
         input1=None,
         input2=None,
-        scale1=None,
-        scale2=None
+        scale=None,
     ):
         import numpy as np
 
@@ -110,13 +87,20 @@ class TestHelper:
         else:
             self.input1 = input1
 
+        self.input1 = np.transpose(self.input1, (1, 2, 0))
+
         if input2 is None:
             self.input2 = self._get_mock_input2()
         else:
             self.input2 = input2
 
+        assert len(self.input2.shape) == 1
+        self.input2 = self.input2.reshape(1, 1, self.in_channel)
+
+        
+
         origin_image = bytearray(self.input1) + bytearray(self.input2)
-        quantify_image = self.get_image_quantify(simulator, scale1, scale2)
+        quantify_image = self.get_image_quantify(simulator, scale)
         
         image = origin_image + quantify_image
         print(f"{len(origin_image)=}")
@@ -126,7 +110,7 @@ class TestHelper:
         return image
 
     def _make_template_config(self, simulator):
-        context = {"INPUT_SIZE": self.input_size}
+        context = {"INPUT_CHANNEL": self.in_channel, "INPUT_COL": self.in_hw, "INPUT_ROW": self.in_hw}
         return context
 
     def fill_template(self, src_path, dst_path, simulator):
@@ -164,12 +148,12 @@ class TestHelper:
         global_offset = memory_space.get_base_of("global")
         output_offset = global_offset + self.output_offset
         output_byte_size = (
-            self.input_size * self.output_bytes
+            self.in_channel * self.in_hw * self.in_hw * self.output_bytes
         )
         output = memory_space.read_as(
             output_offset, output_byte_size, self.output_dtype
         )
-        # output = output.reshape(self.out_hw, self.out_hw, self.out_channel)
+        output = output.reshape(self.in_hw, self.in_hw, self.in_channel)
         return output
 
     def check_image(self, memory_space):

@@ -309,6 +309,13 @@ ResAddQuantifyOp::fold(FoldAdaptor adaptor,
 }
 
 LogicalResult
+ResMulQuantifyOp::fold(FoldAdaptor adaptor,
+                        llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+
+LogicalResult
 CIMOutputOp::fold(FoldAdaptor adaptor,
                   llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
   // prefetch(memrefcast) -> prefetch

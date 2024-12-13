@@ -23,6 +23,7 @@ from engine.operator_cim import (
     ValueSparseConv2dOperator,
     ValueSparseConv2dQuantifyOperator,
     ResAddQuantizeOperator,
+    ResMulQuantizeOperator,
 )
 from simulator.macro_utils import MacroConfig
 from simulator.mask_utils import MaskConfig
@@ -75,6 +76,46 @@ class ResAddQuantizeTemplate(OperatorTemplate):
         """
 
         if not raw_layer.get("type", None) == "RESADD":
+            return False
+
+        if not (
+            "input_row" in raw_layer and
+            "input_col" in raw_layer and
+            "input_channel" in raw_layer
+        ):
+            return False
+
+        if not raw_layer["input_row"] == raw_layer["input_col"]:
+            return False
+
+        return True
+
+class ResMulQuantizeTemplate(OperatorTemplate):
+    def __init__(self):
+        super().__init__(
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/resmul_quantize"),
+        )
+
+    def raw_layer_to_op_config(self, raw_layer):
+
+        in_hw = raw_layer["input_row"]
+        in_channel = raw_layer["input_channel"]
+        
+        return {
+            "in_channel": in_channel,
+            "in_hw": in_hw,
+        }
+
+    def get_operator(self, raw_layer):
+        op_config = self.raw_layer_to_op_config(raw_layer)
+        return ResMulQuantizeOperator(self.config_path, self.template_path, op_config)
+
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        """
+        """
+
+        if not raw_layer.get("type", None) == "MULT":
             return False
 
         if not (

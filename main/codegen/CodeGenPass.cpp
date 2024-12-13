@@ -457,6 +457,57 @@ static void codeGen(mlir::cimisa::ResAddQuantifyOp op,
   instr_list.push_back(inst);
 }
 
+static void codeGen(mlir::cimisa::ResMulQuantifyOp op,
+                    std::unordered_map<llvm::hash_code, int> &regmap,
+                    std::vector<Inst> &instr_list, std::set<int> &def,
+                    std::set<int> &use, std::map<int, int> &twin_reg) {
+  /*
+    SIMD计算：SIMD-compute
+    指令字段划分：
+    - [31, 30]，2bit：class，指令类别码，值为01
+    - [29, 28]，2bit：input num，input向量的个数，范围是1到4
+      - 00：1个输入向量，地址由rs1给出
+      - 01：2个输入向量，地址由rs1和rs2给出
+      - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
+      - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
+    - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
+      - 0x00：add，向量加法
+      - 0x01：add-scalar，向量和标量加法
+      - 0x02：multiply，向量逐元素乘法
+      - 0x03：quantify，量化
+      - 0x04：quantify-resadd，resadd量化
+      - 0x05：quantify-multiply，乘法量化
+    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
+    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
+    - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
+    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
+    使用的专用寄存器：
+    - input 1 bit width：输入向量1每个元素的bit长度
+    - input 2 bit width：输入向量2每个元素的bit长度
+    - input 3 bit width：输入向量3每个元素的bit长度
+    - input 4 bit width：输入向量4每个元素的bit长度
+    - output bit width：输出向量每个元素的bit长度
+  */
+  int input_1_addr = getReg(regmap, op.getOperand(0));
+  int input_2_addr = getReg(regmap, op.getOperand(1));
+  int output_addr = getReg(regmap, op.getOperand(2));
+  int size = getReg(regmap, op.getOperand(3));
+
+  use.insert(input_1_addr);
+  use.insert(input_2_addr);
+  use.insert(output_addr);
+  use.insert(size);
+
+  Inst inst = {{"class", 0b01},
+               {"input_num", 0b11},
+               {"opcode", 5},
+               {"rs1", input_1_addr},
+               {"rs2", input_2_addr},
+               {"rs3", size},
+               {"rd", output_addr}};
+  instr_list.push_back(inst);
+}
+
 /*
   PrintOp
 */
@@ -1247,6 +1298,8 @@ codeGen(std::vector<Block *> &blocks,
       } else if (auto _op = dyn_cast<mlir::cimisa::QuantifyOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
       } else if (auto _op = dyn_cast<mlir::cimisa::ResAddQuantifyOp>(op)) {
+        codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
+      } else if (auto _op = dyn_cast<mlir::cimisa::ResMulQuantifyOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
       } else {
         std::cerr << "error: unsupport operator: "

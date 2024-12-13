@@ -1,0 +1,75 @@
+#define SPECIAL_REG_INPUT_BIT_WIDTH 0
+#define SPECIAL_REG_OUTPUT_BIT_WIDTH 1
+#define SPECIAL_REG_WEIGHT_BIT_WIDTH 2
+#define SPECIAL_REG_GROUP_SIZE 3
+#define SPECIAL_REG_ACTIVATION_GROUP_NUM 4
+#define SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM 5
+#define SPECIAL_REG_GROUP_INPUT_STEP 6
+#define SPECIAL_REG_GROUP_INPUT_OFFSET_ADDR 6
+#define SPECIAL_REG_VALUE_SPARSE_MASK_ADDR 7
+#define SPECIAL_REG_BIT_SPARSE_META_ADDR 8
+
+#define SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH 16
+#define SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH 17
+#define SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH 18
+#define SPECIAL_REG_SIMD_INPUT_4_BIT_WIDTH 19
+#define SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH 20
+
+#define SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 21
+#define SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 22
+
+// input
+#define INPUT_ROW 32
+#define INPUT_COL 32
+#define INPUT_CHANNEL 32
+
+def main(null<int8>){
+    // input, weight, mask and index will be prepared in memory image
+    global_input1 = Buffer(<32, 32, 32>, int8, __GLOBAL__);
+    global_input2 = Buffer(<32>, int8, __GLOBAL__);
+    local_input1 = Buffer(<32, 32, 32>, int8, __INPUT_MEMORY__);
+    local_input2 = Buffer(<32>, int8, __INPUT_MEMORY__);
+    Trans(global_input1, local_input1);
+    Trans(global_input2, local_input2);
+
+    // prepare quantify buffers
+    global_bias_scale = Buffer(<2>, int32, __GLOBAL__);
+    global_out_zp = Buffer(<1>, int32, __GLOBAL__);
+    local_bias_scale = Buffer(<2>, int32, __INPUT_MEMORY__);
+    local_out_zp = Buffer(<1>, int32, __INPUT_MEMORY__);
+    Trans(global_bias_scale, local_bias_scale);
+    Trans(global_out_zp, local_out_zp);
+
+    global_output_i8 = Buffer(<32, 32, 32>, int8, __GLOBAL__);
+    local_output_i8 = Buffer(<32>, int8, __OUTPUT_MEMORY__);
+
+
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 64);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_4_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
+
+    for oh in range(0, INPUT_ROW) carry (null) {
+        for ow in range(0, INPUT_COL) carry (null) {
+
+            use_local_input1 = Slice(local_input1, [oh, ow, 0], [1,1,INPUT_CHANNEL], [1,1,1]);
+
+            local_bias_scale_addr = Addr(local_bias_scale);
+            SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1, local_bias_scale_addr);
+
+            local_out_zp_addr = Addr(local_out_zp);
+            SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2, local_out_zp_addr);
+            
+            // res-mul-quantify
+            
+            ResMulQuantify(use_local_input1, local_input2, local_output_i8);
+
+            // move to global memory
+            use_global_output = Slice(global_output_i8,
+                [oh, ow, 0], [1,1,INPUT_CHANNEL], [1,1,1]
+            );
+            Trans(local_output_i8, use_global_output);
+        };
+    };
+}

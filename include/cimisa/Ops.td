@@ -95,6 +95,21 @@ def ResAddQuantifyOp : CIMISA_Op<"res_add_quantify"> {
   );
 }
 
+def ResMulQuantifyOp : CIMISA_Op<"res_mul_quantify"> {
+  let summary = "element-wise addition operation";
+  let description = [{
+    The "add" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$input_1_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$input_2_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$output_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$size
+  );
+}
+
 /////////////////////////////////
 // CIM Compute //
 /////////////////////////////////

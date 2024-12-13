@@ -551,6 +551,9 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree &ast) {
   } else if (call_func_name == "ResAddQuantify") {
     parse_builtin_res_add_quantify(ast);
     return;
+  } else if (call_func_name == "ResMulQuantify") {
+    parse_builtin_res_mul_quantify(ast);
+    return;
   }  else if (call_func_name == "Print") {
     parse_builtin_print(ast);
     return;
@@ -768,6 +771,25 @@ void MLIRGenImpl::parse_builtin_res_add_quantify(
       parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
 
   builder.create<mlir::cim::ResAddQuantifyOp>(loc, input_1, input_2, output);
+}
+
+void MLIRGenImpl::parse_builtin_res_mul_quantify(
+    const boost::property_tree::ptree &ast) {
+  std::cout << "parse_builtin_res_mul_quantify" << std::endl;
+  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
+
+  auto ast_input_1 = safe_get_child(get_item(ast_param_list, 0), "call_param");
+  auto ast_input_2 = safe_get_child(get_item(ast_param_list, 2), "call_param");
+  auto ast_output = safe_get_child(get_item(ast_param_list, 4), "call_param");
+
+  mlir::Value input_1 =
+      parse_expr(safe_get_child(get_item(ast_input_1, 0), "expr"));
+  mlir::Value input_2 =
+      parse_expr(safe_get_child(get_item(ast_input_2, 0), "expr"));
+  mlir::Value output =
+      parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
+
+  builder.create<mlir::cim::ResMulQuantifyOp>(loc, input_1, input_2, output);
 }
 
 mlir::Value
