@@ -279,8 +279,32 @@ def compile_for_model(
             )
             model_runner.run_layers_cim(num_layers, run_layers_name)
 
+def parse_args():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_name", type=str, required=True)
+    parser.add_argument("--model_path_dense", type=str, required=True)
+    parser.add_argument("--model_path_bit_sparse", type=str, required=True)
+    parser.add_argument("--model_path_value_sparse", type=str, required=True)
+    parser.add_argument("--model_path_value_bit_sparse_0_6", type=str, required=True)
+    parser.add_argument("--model_path_value_bit_sparse_0_4", type=str, required=True)
+    parser.add_argument("--model_path_value_bit_sparse_0_2", type=str, required=True)
+    parser.add_argument("--quantify", type=bool, required=True)
+    return parser.parse_args()
 
 if __name__ == "__main__":
+    args = parse_args()
+    compile_for_model(
+        model_name=args.model_name,
+        model_path_dense=args.model_path_dense,
+        model_path_bit_sparse=args.model_path_bit_sparse,
+        model_path_value_sparse=args.model_path_value_sparse,
+        model_path_value_bit_sparse_0_6=args.model_path_value_bit_sparse_0_6,
+        model_path_value_bit_sparse_0_4=args.model_path_value_bit_sparse_0_4,
+        model_path_value_bit_sparse_0_2=args.model_path_value_bit_sparse_0_2,
+        quantify=args.quantify,
+    )
+    exit()
     # compile_for_model(
     #     model_name="AlexNet",
     #     model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/alexnet/AlexNet_ori_data_0525",
@@ -323,7 +347,6 @@ if __name__ == "__main__":
         model_path_value_bit_sparse_0_4 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.4_csd_th2_data_0518",
         model_path_value_bit_sparse_0_2 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.2_csd_th2_data_0516",
         quantify=True,
-        # run_layers_name=["4_pwconv"]
     )
 
     # end
