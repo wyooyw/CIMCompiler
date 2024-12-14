@@ -19,6 +19,7 @@ from engine.operator_template import (  # quantify
     ValueSparseConv2dQuantifyTemplate,
     ValueSparseConv2dTemplate,
     ResAddQuantizeTemplate,
+    ResMulQuantizeTemplate,
 )
 from utils.logger import get_logger
 from functools import reduce
@@ -47,7 +48,8 @@ OP_TEMPLATE_LIST = [
     DenseLinearQuantifyTemplate(),
     BitSparseLinearQuantifyTemplate(),
     DepthWiseConv2dQuantifyTemplate(),
-    ResAddQuantizeTemplate()
+    ResAddQuantizeTemplate(),
+    ResMulQuantizeTemplate(),
 ]
 dense_cache = dict()
 
@@ -61,6 +63,7 @@ class ModelRunner:
         is_bit_sparse=False,
         is_value_sparse=False,
         quantify=False,
+        value_sparse_rate=None
     ):
         self.model_name = model_name
         self.model_path = model_path
@@ -68,6 +71,7 @@ class ModelRunner:
         self.is_value_sparse = is_value_sparse
         self.quantify = quantify
         self.code_dir = code_dir
+        self.value_sparse_rate = value_sparse_rate
 
         logger.info(f"{model_name=}")
         logger.info(f"{model_path=}")
@@ -193,7 +197,7 @@ class ModelRunner:
             )
 
         if self.is_bit_sparse and self.is_value_sparse:
-            mode_name = "bit_value_sparse"
+            mode_name = f"bit_value_sparse_{self.value_sparse_rate}"
         elif self.is_bit_sparse:
             mode_name = "bit_sparse"
         elif self.is_value_sparse:
@@ -215,6 +219,7 @@ class ModelRunner:
         op = op_template.get_operator(raw_layer)
 
         logger.info(f"Layer {raw_layer['name']} begin")
+        logger.info(f"{mode_name=}")
         output, check_result = op.compile_and_run_from_dataflow_dir(
             df_dir, code_dir, check_result=1 - int(os.environ.get("FAST_MODE"), 0)
         )
@@ -244,18 +249,22 @@ def compile_for_model(
     model_path_dense,
     model_path_bit_sparse,
     model_path_value_sparse,
-    model_path_value_bit_sparse,
+    model_path_value_bit_sparse_0_6,
+    model_path_value_bit_sparse_0_4,
+    model_path_value_bit_sparse_0_2,
     quantify=True,
     num_layers=1000000,
     run_layers_name=None,
 ):
     plan_list = [
-        [model_path_value_bit_sparse, True, True],
-        [model_path_dense, False, False],  # bit, value
-        [model_path_bit_sparse, True, False],
-        [model_path_value_sparse, False, True],
+        [model_path_value_bit_sparse_0_6, True, True, 0.6],
+        [model_path_value_bit_sparse_0_4, True, True, 0.4],
+        [model_path_value_bit_sparse_0_2, True, True, 0.2],
+        [model_path_dense, False, False, None],  # bit, value
+        [model_path_bit_sparse, True, False, None],
+        [model_path_value_sparse, False, True, None],
     ]
-    for model_path_list, is_bit_sparse, is_value_sparse in plan_list:
+    for model_path_list, is_bit_sparse, is_value_sparse, value_sparse_rate in plan_list:
         if type(model_path_list) == str:
             model_path_list = [model_path_list]
         for model_path in model_path_list:
@@ -266,6 +275,7 @@ def compile_for_model(
                 quantify=quantify,
                 is_value_sparse=is_value_sparse,
                 is_bit_sparse=is_bit_sparse,
+                value_sparse_rate=value_sparse_rate
             )
             model_runner.run_layers_cim(num_layers, run_layers_name)
 
@@ -280,23 +290,58 @@ if __name__ == "__main__":
     #     quantify=False,
     #     # run_layers_name=["0_conv"]
     # )
+
+    # begin
     # compile_for_model(
     #     model_name="VGG19",
     #     model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGG19_ori_data_0513",
     #     model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGG19_csd_th2_data_0803",
     #     model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGGNet_0.6_data_0731",
-    #     model_path_value_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGGNet_0.6_csd_th2_data_0717",
-    #     quantify=False
-    #     # run_layers_name=["12_conv"]
+    #     model_path_value_bit_sparse_0_6 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGGNet_0.6_csd_th2_data_0717",
+    #     model_path_value_bit_sparse_0_4 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGGNet_0.4_csd_th2_data_0526",
+    #     model_path_value_bit_sparse_0_2 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/vggnet/VGGNet_0.2_csd_th2_data_0525",
+    #     quantify=True
     # )
+
+    # compile_for_model(
+    #     model_name="ResNet18",
+    #     model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet18_ori_data_0731",
+    #     model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_csd_th2_data_0619",
+    #     model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_0.6_data_0725",
+    #     model_path_value_bit_sparse_0_6 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet18/ResNet_0.6_csd_th2_data_0703",
+    #     model_path_value_bit_sparse_0_4 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet_/ResNet_0.4_csd_th2_data_0518",
+    #     model_path_value_bit_sparse_0_2 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/resnet_/ResNet_0.2_csd_th2_data_0620",
+    #     quantify = True,
+    # )
+
+    compile_for_model(
+        model_name="MobileNetV2",
+        model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet-ori-data-0801",
+        model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_csd_th2_data_0801",
+        model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.6_csd_th2_data_0518",
+        model_path_value_bit_sparse_0_6 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.6_csd_th2_data_0518",
+        model_path_value_bit_sparse_0_4 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.4_csd_th2_data_0518",
+        model_path_value_bit_sparse_0_2 = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.2_csd_th2_data_0516",
+        quantify=True,
+        # run_layers_name=["4_pwconv"]
+    )
+
+    # end
+
     # compile_for_model(
     #     model_name="EfficientNet",
     #     model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/efficientnet/EfficientNet_ori_data_0730",
     #     model_path_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/efficientnet/EfficientNet_csd_th2_0803_data",
     #     model_path_value_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/efficientnet/EfficientNet_0.6_csd_th2_0616",
-    #     model_path_value_bit_sparse = "/home/wangyiou/project/cim_compiler_frontend/playground/models/efficientnet/EfficientNet_0.6_csd_th2_0616",
-    #     quantify=False,
+    #     model_path_value_bit_sparse = [
+    #         "/home/wangyiou/project/cim_compiler_frontend/playground/models/efficientnet/EfficientNet_0.6_csd_th2_0616",
+    #     ],
+    #     quantify=True,
     # )
+
+
+
+
     # compile_for_model(
     #     model_name="MobileNetV2",
     #     model_path_dense = "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet-ori-data-0801",
@@ -354,17 +399,32 @@ if __name__ == "__main__":
     #     # run_layers_name=["22_conv"]
     # )
 
-    compile_for_model(
-        model_name="MobileNet",
-        model_path_dense=[
-            # "/cpfs/2926428ee2463e44/user/wangyiou/code/CIMCompiler/models/mobilenet/MobileNet-ori-data-0801"
-        ],
-        model_path_bit_sparse=["/cpfs/2926428ee2463e44/user/wangyiou/code/CIMCompiler/models/mobilenet/MobileNet_csd_th2_data_0801"],
-        model_path_value_sparse=[],
-        model_path_value_bit_sparse=[
-            # "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.2_csd_th2_data_0516"
-            # "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.4_csd_th2_data_0518"
-        ],
-        quantify=True,
-        # run_layers_name=["4_pwconv"]
-    )
+    # compile_for_model(
+    #     model_name="MobileNet",
+    #     model_path_dense=[
+    #         # "/cpfs/2926428ee2463e44/user/wangyiou/code/CIMCompiler/models/mobilenet/MobileNet-ori-data-0801"
+    #     ],
+    #     model_path_bit_sparse=["/cpfs/2926428ee2463e44/user/wangyiou/code/CIMCompiler/models/mobilenet/MobileNet_csd_th2_data_0801"],
+    #     model_path_value_sparse=[],
+    #     model_path_value_bit_sparse=[
+    #         # "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.2_csd_th2_data_0516"
+    #         # "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.4_csd_th2_data_0518"
+    #     ],
+    #     quantify=True,
+    #     # run_layers_name=["4_pwconv"]
+    # )
+
+    # compile_for_model(
+    #     model_name="EfficientNet",
+    #     model_path_dense=[
+    #         "/home/wangyiou/project/cim_compiler_frontend/playground/models/efficientnet/EfficientNet_ori_data_0730"
+    #     ],
+    #     model_path_bit_sparse=[],
+    #     model_path_value_sparse=[],
+    #     model_path_value_bit_sparse=[
+    #         # "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.2_csd_th2_data_0516"
+    #         # "/home/wangyiou/project/cim_compiler_frontend/playground/models/mobilenet/MobileNet_0.4_csd_th2_data_0518"
+    #     ],
+    #     quantify=True,
+    #     # run_layers_name=["4_pwconv"]
+    # )
