@@ -16,16 +16,24 @@ cp $output_path/precompile_2_replace_macro.cim $output_path/precompile.cim
 ANTLR_HOME=${PWD}/antlr
 
 # antlr: code -> ast(json)
-mkdir -p .temp
-java -cp $ANTLR_HOME/antlr-4.7.1-complete.jar org.antlr.v4.Tool CIM.g -o .temp
+cur_path=$(pwd)
+temp_path=$(mktemp -d)
+if [[ ! "$temp_path" || ! -d "$temp_path" ]]; then
+  echo "Could not create temp dir"
+  exit 1
+fi
+trap "rm -rf '$temp_path'" EXIT
+
+# mkdir -p .temp
+java -cp $ANTLR_HOME/antlr-4.7.1-complete.jar org.antlr.v4.Tool CIM.g -o $temp_path
 echo "ANTLR:Generate done!"
-cp $ANTLR_HOME/AntlrToJson.java .temp/
-javac -cp "$ANTLR_HOME/*" .temp/CIM*.java .temp/AntlrToJson.java
+cp $ANTLR_HOME/AntlrToJson.java $temp_path
+javac -cp "$ANTLR_HOME/*" $temp_path/CIM*.java $temp_path/AntlrToJson.java
 echo "ANTLR:Compile done!"
-cd .temp
+cd $temp_path
 java -cp .:$ANTLR_HOME/antlr-4.7.1-complete.jar:$ANTLR_HOME/gson-2.11.0.jar AntlrToJson $output_path/precompile.cim $output_path/ast.json
 
-cd ..
+cd $cur_path
 echo "ANTLR Down."
 
 # ast(json) -> mlir
