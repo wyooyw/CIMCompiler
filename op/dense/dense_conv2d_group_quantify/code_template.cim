@@ -39,7 +39,7 @@ def quantify(
     local_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
     local_output_i8< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__>,
     local_out_zp< <1>, int32, __INPUT_MEMORY__>,
-    local_blank< <N_GROUP_VCOL>, int32, __OUTPUT_MEMORY__>
+    local_blank< <N_GROUP_VCOL>, int32, __BLANK_MEMORY__>
     ){
     // Do quantify here
     for oh in range(0,OUTPUT_ROW) carry(null){
@@ -93,13 +93,13 @@ def main(null<int8>){
     //global_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
     global_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __GLOBAL__);
     local_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
-    local_output_for_temp_sum = Buffer(<N_GROUP_VCOL>, int32, __OUTPUT_MEMORY__);
+    local_output_for_temp_sum = Buffer(<N_GROUP_VCOL>, int32, __TEMP_SUM_MEMORY__);
     {% if SINGLE_OUTER_REDUCE == 0 %}
         local_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, N_GROUP_VCOL>, int32, __OUTPUT_MEMORY__);
     {% endif %}
 
     // a blank buffer used to clear other buffer
-    local_blank = Buffer(<N_GROUP_VCOL>, int32, __OUTPUT_MEMORY__);
+    local_blank = Buffer(<N_GROUP_VCOL>, int32, __BLANK_MEMORY__);
     
     // Copy input and index into local memory
     {% if IM2COL %}
