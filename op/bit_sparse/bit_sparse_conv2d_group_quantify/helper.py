@@ -67,7 +67,7 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
         output_size = i32_output_size + i8_output_size
 
         output_memory_size = simulator.memory_space.get_memory_by_name("output_memory").size
-        output_fill_memory = output_size <= output_memory_size
+        output_fill_memory = output_size > output_memory_size
         context["FAST_MODE_OUTPUT_FILL_MEMORY"] = context["FAST_MODE"] and output_fill_memory and context["SINGLE_OUTER_REDUCE"] == 0
         
         return context
