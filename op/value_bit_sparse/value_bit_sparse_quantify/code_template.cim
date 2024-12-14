@@ -482,7 +482,7 @@ def main(null<int8>){
     {% if FAST_MODE_OUTPUT_FILL_MEMORY %}
         use_local_output_i32 = Slice(local_output_i32,
             [0, 0, 0],
-            [OUTPUT_ROW/4, OUTPUT_COL, MAX_OUTER_SPATIEL_TILE_SIZE],
+            [OUTPUT_ROW/4, OUTPUT_COL, MAX_I32_CHANNEL],
             [1, 1, 1]
         );
         Trans(use_local_output_i32, global_output_i8);
