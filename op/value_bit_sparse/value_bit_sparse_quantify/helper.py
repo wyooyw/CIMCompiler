@@ -59,4 +59,16 @@ class TestHelper(ValueBitSparseConv2dTestHelper, QuantizeHelper):
                 context["IM2COL_SMALL_INPUT_MEMORY"] = False
 
         context["MAX_I32_CHANNEL"] = context["N_GROUP_BCOL"] // 2
+        
+        context["FAST_MODE"] = bool(int(os.environ.get("FAST_MODE")))
+        
+        # output fill memory: whether output can fill output_memory
+        i32_output_size = 4 * context["OUTPUT_ROW"] * context["OUTPUT_COL"] * context["MAX_I32_CHANNEL"]
+        i8_output_size = context["OUTPUT_ROW"] * context["OUTPUT_COL"] * context["OUTPUT_CHANNEL"]
+        output_size = i32_output_size + i8_output_size
+
+        output_memory_size = simulator.memory_space.get_memory_by_name("output_memory").size
+        output_fill_memory = output_size <= output_memory_size
+        context["FAST_MODE_OUTPUT_FILL_MEMORY"] = context["FAST_MODE"] and output_fill_memory and context["SINGLE_OUTER_REDUCE"] == 0
+        
         return context

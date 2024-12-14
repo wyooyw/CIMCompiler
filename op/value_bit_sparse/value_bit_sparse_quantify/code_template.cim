@@ -77,7 +77,11 @@ def quantify(
                 [1,1,out_channel_len],
                 [1,1,1]
             );
-            Quantify(use_i32_output, local_out_zp, use_i8_output, {{RELU}});
+            {% if FAST_MODE_OUTPUT_FILL_MEMORY %}
+                Quantify(use_i32_output, local_out_zp, use_i32_output, {{RELU}});
+            {% else %}
+                Quantify(use_i32_output, local_out_zp, use_i8_output, {{RELU}});
+            {% endif %}
 
             // Clear origin buffer
             use_blank = Slice(local_blank, [0], [out_channel_len], [1]);
@@ -475,5 +479,15 @@ def main(null<int8>){
         {% endif %}
         
     }; // end of out_channel_begin
-    Trans(local_output_i8, global_output_i8);
+    {% if FAST_MODE_OUTPUT_FILL_MEMORY %}
+        use_local_output_i32 = Slice(local_output_i32,
+            [0, 0, 0],
+            [OUTPUT_ROW/4, OUTPUT_COL, MAX_OUTER_SPATIEL_TILE_SIZE],
+            [1, 1, 1]
+        );
+        Trans(use_local_output_i32, global_output_i8);
+    {% else %}
+        Trans(local_output_i8, global_output_i8);
+    {% endif %}
+
 }
