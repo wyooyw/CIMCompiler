@@ -54,7 +54,6 @@ class TestHelper:
         """
         import numpy as np
 
-        print("apply_padding")
         input_data = np.pad(
             input_data,
             ((self.padding, self.padding), (self.padding, self.padding), (0, 0)),
@@ -208,7 +207,6 @@ class Conv2dTestHelper(TestHelper):
         """
         import numpy as np
 
-        print("apply_padding")
         input_data = np.pad(
             input_data,
             ((self.padding, self.padding), (self.padding, self.padding), (0, 0)),
@@ -319,12 +317,6 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
         converted_weight_bytes = bytearray(self.converted_weight)
         pimset_mask_bytes = bytearray(self.pimset_mask)
 
-        print(
-            f"{self.input_data.shape=}, {self.input_data.dtype=}, byte_size={len(input_data)}"
-        )
-        print(
-            f"{self.converted_weight.shape=}, {self.converted_weight.dtype=}, byte_size={len(converted_weight_bytes)}"
-        )
 
         # import pdb; pdb.set_trace()
         image = input_data + converted_weight_bytes + pimset_mask_bytes
@@ -559,22 +551,6 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         pimset_mask_bytes = bytearray(self.pimset_mask)
         out_begin_channel_bytes = bytearray(self.out_begin_channel)
 
-        print(
-            f"{self.input_data.shape=}, {self.input_data.dtype=}, byte_size={len(input_data)}"
-        )
-        print(
-            f"{self.converted_weight.shape=}, {self.converted_weight.dtype=}, byte_size={len(converted_weight_bytes)}"
-        )
-        print(f"{self.meta.shape=}, {self.meta.dtype=}, byte_size={len(meta_bytes)}")
-        print(
-            f"{self.outsum_mask.shape=}, {self.outsum_mask.dtype=}, byte_size={len(outsum_offset_bytes)}"
-        )
-        print(
-            f"{self.transfer_mask.shape=}, {self.transfer_mask.dtype=}, byte_size={len(transfer_offset_bytes)}"
-        )
-        print(
-            f"{self.out_begin_channel.shape=}, {self.out_begin_channel.dtype=}, byte_size={len(out_begin_channel_bytes)}"
-        )
 
         # import pdb; pdb.set_trace()
         image = (
@@ -767,10 +743,6 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
         self.mapping_macro_to_row = result["mapping_macro_to_row"]
         self.pimset_mask = result["pimset_mask"]
 
-        print(f"{self.mapping_reduce_to_macro=}")
-        print(f"{self.mapping_macro_to_from=}")
-        print(f"{self.mapping_from_to_row=}")
-        print(f"{self.mapping_macro_to_row=}")
 
         assert self.input_data.dtype == np.int8, f"{self.input_data.dtype=}"
         assert self.converted_weight.dtype == np.int8, f"{self.converted_weight.dtype=}"
@@ -808,25 +780,7 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
         mapping_macro_to_row_bytes = bytearray(self.mapping_macro_to_row)
         pimset_mask_bytes = bytearray(self.pimset_mask)
 
-        print(
-            f"{self.input_data.shape=}, {self.input_data.dtype=}, byte_size={len(input_data)}"
-        )
-        print(
-            f"{self.converted_weight.shape=}, {self.converted_weight.dtype=}, byte_size={len(converted_weight_bytes)}"
-        )
-        print(f"{self.mask.shape=}, {self.mask.dtype=}, byte_size={len(mask_bytes)}")
-        print(
-            f"{self.mapping_reduce_to_macro.shape=}, {self.mapping_reduce_to_macro.dtype=}, byte_size={len(mapping_reduce_to_macro_bytes)}"
-        )
-        print(
-            f"{self.mapping_macro_to_from.shape=}, {self.mapping_macro_to_from.dtype=}, byte_size={len(mapping_macro_to_from_bytes)}"
-        )
-        print(
-            f"{self.mapping_from_to_row.shape=}, {self.mapping_from_to_row.dtype=}, byte_size={len(mapping_from_to_row_bytes)}"
-        )
-        print(
-            f"{self.mapping_macro_to_row.shape=}, {self.mapping_macro_to_row.dtype=}, byte_size={len(mapping_macro_to_row_bytes)}"
-        )
+
         # import pdb; pdb.set_trace()
         image = (
             input_data
@@ -1013,10 +967,6 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
         transfer_mask = bit_sparse_result["transfer_mask"]
         pimset_mask = bit_sparse_result["pimset_mask"]
 
-        print(f"{self.mapping_reduce_to_macro=}")
-        print(f"{self.mapping_macro_to_from=}")
-        print(f"{self.mapping_from_to_row=}")
-        print(f"{self.mapping_macro_to_row=}")
 
         assert self.input_data.dtype == np.int8, f"{self.input_data.dtype=}"
         assert converted_weight.dtype == np.int8, f"{converted_weight.dtype=}"
@@ -1098,31 +1048,6 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
         transfer_offset_bytes = bytearray(transfer_mask_bits)
         pimset_offset_bytes = bytearray(pimset_mask_bits)
 
-        print(
-            f"{self.input_data.shape=}, {self.input_data.dtype=}, byte_size={len(input_data)}"
-        )
-        print(
-            f"{converted_weight.shape=}, {converted_weight.dtype=}, byte_size={len(converted_weight_bytes)}"
-        )
-        print(f"{mask.shape=}, {mask.dtype=}, byte_size={len(mask_bytes)}")
-        print(
-            f"{self.mapping_reduce_to_macro.shape=}, {self.mapping_reduce_to_macro.dtype=}, byte_size={len(mapping_reduce_to_macro_bytes)}"
-        )
-        print(
-            f"{self.mapping_macro_to_from.shape=}, {self.mapping_macro_to_from.dtype=}, byte_size={len(mapping_macro_to_from_bytes)}"
-        )
-        print(
-            f"{self.mapping_from_to_row.shape=}, {self.mapping_from_to_row.dtype=}, byte_size={len(mapping_from_to_row_bytes)}"
-        )
-        print(
-            f"{self.mapping_macro_to_row.shape=}, {self.mapping_macro_to_row.dtype=}, byte_size={len(mapping_macro_to_row_bytes)}"
-        )
-        print(f"{meta.shape=}, {meta.dtype=}, byte_size={len(meta_bytes)}")
-        print(
-            f"{outsum_mask.shape=}, {outsum_mask.dtype=}, byte_size={len(outsum_offset_bytes)}"
-        )
-        # print(f"{transfer_mask.shape=}, {transfer_mask.dtype=}, byte_size={len(transfer_offset_bytes)}")
-        # import pdb; pdb.set_trace()
         data_for_test = np.array([12345], dtype=np.int32)
         data_for_test_bytes = bytearray(data_for_test)
         image = (

@@ -209,7 +209,7 @@ def convert_bit_sparse_conv2d_weight(
         )
 
         outer_oc_idx = outer_oc // n_filter_per_group
-        print(f"f{total_outsum_mask.shape=}, {outsum_mask_per_group.shape=}")
+        # print(f"{total_outsum_mask.shape=}, {outsum_mask_per_group.shape=}")
         total_outsum_mask[outer_oc_idx, :, :] = outsum_mask_per_group
         total_transfer_mask[outer_oc_idx, :, :] = transfer_mask_per_group
         total_pimset_mask[outer_oc_idx, :, :] = pimset_mask_per_group
@@ -250,7 +250,7 @@ def convert_bit_sparse_conv2d_weight(
                     for filter_id in range(n_filter_per_macro):
                         # value_sparse_weight.shape = [time, n_to, n_macro_per_group, n_vcol]
                         # import pdb; pdb.set_trace()
-                        print(f"{value_sparse_weight.shape=}")
+                        # print(f"{value_sparse_weight.shape=}")
                         filter_weight = value_sparse_weight[
                             i_row, :, macro_id, filter_id
                         ].reshape(
@@ -437,7 +437,6 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
                 mapping_macro_to_row.append(row_in_macro)
                 macro_in_reduce += 1
                 reduce_element += from_in_macro * n_from
-            print(f"{reduce_element=},  {i_outer_reduce=}")
             # if macro_fill:
             #     break
 

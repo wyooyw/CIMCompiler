@@ -31,6 +31,9 @@
 #include <iostream>
 #include <memory>
 #include <utility>
+
+#include "common/macros.h"
+
 using namespace mlir;
 
 static bool isConstant(Value operand) {
@@ -41,7 +44,7 @@ static IntegerAttr getConstantInt(Value operand) {
   if (auto constantOp = operand.getDefiningOp<arith::ConstantOp>()) {
     return constantOp.getValue().cast<IntegerAttr>();
   } else {
-    std::cerr << "getConstantInt fail" << std::endl;
+    LOG_ERROR << "getConstantInt fail";
     std::exit(1);
     return 0;
   }
@@ -56,7 +59,7 @@ static LogicalResult rewrite_rr_to_ri(Ty &op, PatternRewriter &rewriter) {
   bool operand1_is_const = isConstant(op.getOperand(1));
 
   if (operand0_is_const && operand1_is_const) {
-    std::cerr << "This should not happend!" << std::endl;
+    LOG_ERROR << "This should not happend!";
     std::exit(1);
   } else if (operand0_is_const) {
     constant = getConstantInt(op.getOperand(0));
@@ -83,7 +86,7 @@ rewrite_rr_to_ri_non_commutative(Ty &op, PatternRewriter &rewriter) {
   bool operand1_is_const = isConstant(op.getOperand(1));
 
   if (operand0_is_const && operand1_is_const) {
-    std::cerr << "This should not happend!" << std::endl;
+    LOG_ERROR << "This should not happend!";
     std::exit(1);
   } else if (operand1_is_const) {
     constant = getConstantInt(op.getOperand(1));
@@ -104,10 +107,10 @@ struct AddIOpConvert : public OpRewritePattern<arith::AddIOp> {
 
   LogicalResult matchAndRewrite(arith::AddIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "AddIOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "AddIOpConvert::matchAndRewrite begin";
     LogicalResult result =
         rewrite_rr_to_ri<arith::AddIOp, cimisa::RIAddIOp>(op, rewriter);
-    std::cout << "AddIOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "AddIOpConvert::matchAndRewrite finish";
     return result;
   }
 };
@@ -116,11 +119,11 @@ struct SubIOpConvert : public OpRewritePattern<arith::SubIOp> {
 
   LogicalResult matchAndRewrite(arith::SubIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "SubIOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "SubIOpConvert::matchAndRewrite begin";
     LogicalResult result =
         rewrite_rr_to_ri_non_commutative<arith::SubIOp, cimisa::RISubIOp>(
             op, rewriter);
-    std::cout << "SubIOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "SubIOpConvert::matchAndRewrite finish";
     return result;
   }
 };
@@ -129,10 +132,10 @@ struct MulIOpConvert : public OpRewritePattern<arith::MulIOp> {
 
   LogicalResult matchAndRewrite(arith::MulIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "MulIOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "MulIOpConvert::matchAndRewrite begin";
     LogicalResult result =
         rewrite_rr_to_ri<arith::MulIOp, cimisa::RIMulIOp>(op, rewriter);
-    std::cout << "MulIOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "MulIOpConvert::matchAndRewrite finish";
     return result;
   }
 };
@@ -141,11 +144,11 @@ struct DivSIOpConvert : public OpRewritePattern<arith::DivSIOp> {
 
   LogicalResult matchAndRewrite(arith::DivSIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "DivSIOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "DivSIOpConvert::matchAndRewrite begin";
     LogicalResult result =
         rewrite_rr_to_ri_non_commutative<arith::DivSIOp, cimisa::RIDivSIOp>(
             op, rewriter);
-    std::cout << "DivSIOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "DivSIOpConvert::matchAndRewrite finish";
     return result;
   }
 };
@@ -154,11 +157,11 @@ struct RemSIOpConvert : public OpRewritePattern<arith::RemSIOp> {
 
   LogicalResult matchAndRewrite(arith::RemSIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "RemSIOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "RemSIOpConvert::matchAndRewrite begin";
     LogicalResult result =
         rewrite_rr_to_ri_non_commutative<arith::RemSIOp, cimisa::RIRemSIOp>(
             op, rewriter);
-    std::cout << "RemSIOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "RemSIOpConvert::matchAndRewrite finish";
     return result;
   }
 };
@@ -167,10 +170,10 @@ struct MinSIOpConvert : public OpRewritePattern<arith::MinSIOp> {
 
   LogicalResult matchAndRewrite(arith::MinSIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "MinSIOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "MinSIOpConvert::matchAndRewrite begin";
     LogicalResult result =
         rewrite_rr_to_ri<arith::MinSIOp, cimisa::RIMinSIOp>(op, rewriter);
-    std::cout << "MinSIOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "MinSIOpConvert::matchAndRewrite finish";
     return result;
   }
 };
@@ -180,7 +183,7 @@ struct TransOpConvert : public OpRewritePattern<cimisa::TransOp> {
 
   LogicalResult matchAndRewrite(cimisa::TransOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "TransOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "TransOpConvert::matchAndRewrite begin";
     IntegerAttr constant;
     Value value;
 
@@ -213,7 +216,7 @@ struct TransOpConvert : public OpRewritePattern<cimisa::TransOp> {
     }
 
     rewriter.replaceOpWithNewOp<cimisa::TransOp>(op, src_addr, dst_addr, size);
-    std::cout << "TransOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "TransOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -224,8 +227,7 @@ struct StoreBaseAndOffsetOpConvert
 
   LogicalResult matchAndRewrite(cimisa::StoreBaseAndOffsetOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "StoreBaseAndOffsetOpConvert::matchAndRewrite begin"
-              << std::endl;
+    LOG_DEBUG << "StoreBaseAndOffsetOpConvert::matchAndRewrite begin";
 
     Value base = op.getOperand(0);
     Value offset = op.getOperand(1);
@@ -249,8 +251,7 @@ struct StoreBaseAndOffsetOpConvert
     }
 
     rewriter.replaceOpWithNewOp<cimisa::StoreOp>(op, base, value, constant);
-    std::cout << "StoreBaseAndOffsetOpConvert::matchAndRewrite finish"
-              << std::endl;
+    LOG_DEBUG << "StoreBaseAndOffsetOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -261,13 +262,12 @@ struct LoadBaseAndOffsetOpConvert
 
   LogicalResult matchAndRewrite(cimisa::LoadBaseAndOffsetOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "LoadBaseAndOffsetOpConvert::matchAndRewrite begin"
-              << std::endl;
+    LOG_DEBUG << "LoadBaseAndOffsetOpConvert::matchAndRewrite begin";
 
     Value base = op.getOperand(0);
     Value offset = op.getOperand(1);
     IntegerAttr constant;
-    std::cout << "LoadBaseAndOffsetOpConvert::matchAndRewrite 1" << std::endl;
+    LOG_DEBUG << "LoadBaseAndOffsetOpConvert::matchAndRewrite 1";
     if (isConstant(base)) {
       IntegerAttr base_constant = getConstantInt(base);
       base = rewriter.create<cimisa::GeneralRegLiOp>(
@@ -281,14 +281,13 @@ struct LoadBaseAndOffsetOpConvert
       base = rewriter.create<arith::AddIOp>(op.getLoc(), base, offset);
     }
 
-    std::cout << "LoadBaseAndOffsetOpConvert::matchAndRewrite 2" << std::endl;
+    LOG_DEBUG << "LoadBaseAndOffsetOpConvert::matchAndRewrite 2";
     // MemRefType memtype =
     // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
     // memtype.getElementType();
     rewriter.replaceOpWithNewOp<cimisa::LoadOp>(op, op.getResult().getType(),
                                                 base, constant);
-    std::cout << "LoadBaseAndOffsetOpConvert::matchAndRewrite finish"
-              << std::endl;
+    LOG_DEBUG << "LoadBaseAndOffsetOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -298,14 +297,14 @@ struct CIMTransferOpConvert : public OpRewritePattern<cimisa::CIMTransferOp> {
 
   LogicalResult matchAndRewrite(cimisa::CIMTransferOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "CIMTransferOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "CIMTransferOpConvert::matchAndRewrite begin";
 
     Value src_addr = op.getOperand(0);
     Value output_number = op.getOperand(1);
     Value output_mask_addr = op.getOperand(2);
     Value buffer_addr = op.getOperand(3);
     Value dst_addr = op.getOperand(4);
-    std::cout << "CIMTransferOpConvert::matchAndRewrite 1" << std::endl;
+    LOG_DEBUG << "CIMTransferOpConvert::matchAndRewrite 1";
 
     bool change = false;
     if (isConstant(src_addr)) {
@@ -343,13 +342,13 @@ struct CIMTransferOpConvert : public OpRewritePattern<cimisa::CIMTransferOp> {
       return failure();
     }
 
-    std::cout << "CIMTransferOpConvert::matchAndRewrite 2" << std::endl;
+    LOG_DEBUG << "CIMTransferOpConvert::matchAndRewrite 2";
     // MemRefType memtype =
     // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
     // memtype.getElementType();
     rewriter.replaceOpWithNewOp<cimisa::CIMTransferOp>(
         op, src_addr, output_number, output_mask_addr, buffer_addr, dst_addr);
-    std::cout << "CIMTransferOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "CIMTransferOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -359,13 +358,13 @@ struct CIMComputeOpConvert : public OpRewritePattern<cimisa::CIMComputeOp> {
 
   LogicalResult matchAndRewrite(cimisa::CIMComputeOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "CIMComputeOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite begin";
 
     Value input_addr = op.getOperand(0);
     // Value output_addr = op.getOperand(1);
     Value row_index = op.getOperand(1);
     Value input_size = op.getOperand(2);
-    std::cout << "CIMComputeOpConvert::matchAndRewrite 1" << std::endl;
+    LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite 1";
 
     bool change = false;
     if (isConstant(input_addr)) {
@@ -396,14 +395,14 @@ struct CIMComputeOpConvert : public OpRewritePattern<cimisa::CIMComputeOp> {
       return failure();
     }
 
-    std::cout << "CIMComputeOpConvert::matchAndRewrite 2" << std::endl;
+    LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite 2";
     // MemRefType memtype =
     // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
     // memtype.getElementType();
     rewriter.replaceOpWithNewOp<cimisa::CIMComputeOp>(
         op, input_addr, row_index, input_size, op.getAccFlag(),
         op.getValueSparseFlag(), op.getBitSparseFlag());
-    std::cout << "CIMComputeOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -413,13 +412,13 @@ struct VVAddOpConvert : public OpRewritePattern<cimisa::VVAddOp> {
 
   LogicalResult matchAndRewrite(cimisa::VVAddOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "VVAddOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "VVAddOpConvert::matchAndRewrite begin";
 
     Value lhs_addr = op.getOperand(0);
     Value rhs_addr = op.getOperand(1);
     Value out_addr = op.getOperand(2);
     Value size = op.getOperand(3);
-    std::cout << "VVAddOpConvert::matchAndRewrite 1" << std::endl;
+    LOG_DEBUG << "VVAddOpConvert::matchAndRewrite 1";
 
     bool change = false;
     if (isConstant(lhs_addr)) {
@@ -451,14 +450,14 @@ struct VVAddOpConvert : public OpRewritePattern<cimisa::VVAddOp> {
       return failure();
     }
 
-    std::cout << "VVAddOpConvert::matchAndRewrite 2" << std::endl;
+    LOG_DEBUG << "VVAddOpConvert::matchAndRewrite 2";
     // MemRefType memtype =
     // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
     // memtype.getElementType();
     rewriter.replaceOpWithNewOp<cimisa::VVAddOp>(op, lhs_addr, rhs_addr,
                                                  out_addr, size, op.getLhsBw(),
                                                  op.getRhsBw(), op.getOutBw());
-    std::cout << "VVAddOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "VVAddOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -468,13 +467,13 @@ struct VVMulOpConvert : public OpRewritePattern<cimisa::VVMulOp> {
 
   LogicalResult matchAndRewrite(cimisa::VVMulOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "VVMulOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "VVMulOpConvert::matchAndRewrite begin";
 
     Value lhs_addr = op.getOperand(0);
     Value rhs_addr = op.getOperand(1);
     Value out_addr = op.getOperand(2);
     Value size = op.getOperand(3);
-    std::cout << "VVMulOpConvert::matchAndRewrite 1" << std::endl;
+    LOG_DEBUG << "VVMulOpConvert::matchAndRewrite 1";
 
     bool change = false;
     if (isConstant(lhs_addr)) {
@@ -506,14 +505,14 @@ struct VVMulOpConvert : public OpRewritePattern<cimisa::VVMulOp> {
       return failure();
     }
 
-    std::cout << "VVMulOpConvert::matchAndRewrite 2" << std::endl;
+    LOG_DEBUG << "VVMulOpConvert::matchAndRewrite 2";
     // MemRefType memtype =
     // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
     // memtype.getElementType();
     rewriter.replaceOpWithNewOp<cimisa::VVMulOp>(op, lhs_addr, rhs_addr,
                                                  out_addr, size, op.getLhsBw(),
                                                  op.getRhsBw(), op.getOutBw());
-    std::cout << "VVMulOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "VVMulOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -523,12 +522,12 @@ struct CIMOutputOpConvert : public OpRewritePattern<cimisa::CIMOutputOp> {
 
   LogicalResult matchAndRewrite(cimisa::CIMOutputOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "CIMOutputOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "CIMOutputOpConvert::matchAndRewrite begin";
 
     Value out_n = op.getOperand(0);
     Value mask_addr = op.getOperand(1);
     Value out_addr = op.getOperand(2);
-    std::cout << "CIMOutputOpConvert::matchAndRewrite 1" << std::endl;
+      LOG_DEBUG << "CIMOutputOpConvert::matchAndRewrite 1";
 
     bool change = false;
     if (isConstant(out_n)) {
@@ -554,13 +553,13 @@ struct CIMOutputOpConvert : public OpRewritePattern<cimisa::CIMOutputOp> {
       return failure();
     }
 
-    std::cout << "CIMOutputOpConvert::matchAndRewrite 2" << std::endl;
+    LOG_DEBUG << "CIMOutputOpConvert::matchAndRewrite 2";
     // MemRefType memtype =
     // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
     // memtype.getElementType();
     rewriter.replaceOpWithNewOp<cimisa::CIMOutputOp>(op, out_n, mask_addr,
                                                      out_addr);
-    std::cout << "CIMOutputOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "CIMOutputOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -570,12 +569,12 @@ struct CIMOutputSumOpConvert : public OpRewritePattern<cimisa::CIMOutputSumOp> {
 
   LogicalResult matchAndRewrite(cimisa::CIMOutputSumOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "CIMOutputSumOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "CIMOutputSumOpConvert::matchAndRewrite begin";
 
     Value out_n = op.getOperand(0);
     Value out_mask_addr = op.getOperand(1);
     Value output_addr = op.getOperand(2);
-    std::cout << "CIMOutputSumOpConvert::matchAndRewrite 1" << std::endl;
+    LOG_DEBUG << "CIMOutputSumOpConvert::matchAndRewrite 1";
 
     bool change = false;
     if (isConstant(out_n)) {
@@ -601,13 +600,13 @@ struct CIMOutputSumOpConvert : public OpRewritePattern<cimisa::CIMOutputSumOp> {
       return failure();
     }
 
-    std::cout << "CIMOutputSumOpConvert::matchAndRewrite 2" << std::endl;
+      LOG_DEBUG << "CIMOutputSumOpConvert::matchAndRewrite 2";
     // MemRefType memtype =
     // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
     // memtype.getElementType();
     rewriter.replaceOpWithNewOp<cimisa::CIMOutputSumOp>(
         op, out_n, out_mask_addr, output_addr);
-    std::cout << "CIMOutputSumOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "CIMOutputSumOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -617,14 +616,14 @@ struct QuantifyOpConvert : public OpRewritePattern<cimisa::QuantifyOp> {
 
   LogicalResult matchAndRewrite(cimisa::QuantifyOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "QuantifyOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "QuantifyOpConvert::matchAndRewrite begin";
 
     Value input_addr = op.getOperand(0);
     // Value bias_scale_addr = op.getOperand(1);
     Value out_zp_addr = op.getOperand(1);
     Value output_addr = op.getOperand(2);
     Value size = op.getOperand(3);
-    std::cout << "QuantifyOpConvert::matchAndRewrite 1" << std::endl;
+    LOG_DEBUG << "QuantifyOpConvert::matchAndRewrite 1";
 
     bool change = false;
     if (isConstant(input_addr)) {
@@ -655,13 +654,13 @@ struct QuantifyOpConvert : public OpRewritePattern<cimisa::QuantifyOp> {
       return failure();
     }
 
-    std::cout << "QuantifyOpConvert::matchAndRewrite 2" << std::endl;
+    LOG_DEBUG << "QuantifyOpConvert::matchAndRewrite 2";
     // MemRefType memtype =
     // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
     // memtype.getElementType();
     rewriter.replaceOpWithNewOp<cimisa::QuantifyOp>(
         op, input_addr, out_zp_addr, output_addr, size, op.getRelu());
-    std::cout << "QuantifyOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "QuantifyOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -670,12 +669,12 @@ struct CmpIOpConvert : public OpRewritePattern<arith::CmpIOp> {
 
   LogicalResult matchAndRewrite(arith::CmpIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "CmpIOpConvert::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "CmpIOpConvert::matchAndRewrite begin";
 
     Value operand0 = op.getOperand(0);
     Value operand1 = op.getOperand(1);
 
-    std::cout << "CmpIOpConvert::matchAndRewrite 1" << std::endl;
+    LOG_DEBUG << "CmpIOpConvert::matchAndRewrite 1";
 
     bool change = false;
     if (isConstant(operand0)) {
@@ -695,13 +694,13 @@ struct CmpIOpConvert : public OpRewritePattern<arith::CmpIOp> {
       return failure();
     }
 
-    std::cout << "CmpIOpConvert::matchAndRewrite 2" << std::endl;
+    LOG_DEBUG << "CmpIOpConvert::matchAndRewrite 2";
     // MemRefType memtype =
     // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
     // memtype.getElementType();
     rewriter.replaceOpWithNewOp<arith::CmpIOp>(op, op.getPredicate(), operand0,
                                                operand1);
-    std::cout << "CmpIOpConvert::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "CmpIOpConvert::matchAndRewrite finish";
     return success();
   }
 };
@@ -722,7 +721,7 @@ struct RR2RIPass : public PassWrapper<RR2RIPass, OperationPass<ModuleOp>> {
 void RR2RIPass::runOnOperation() {
   // The first thing to define is the conversion target. This will define the
   // final target for this lowering.
-  std::cout << "RR2RIPass::runOnOperation" << std::endl;
+  LOG_DEBUG << "RR2RIPass::runOnOperation";
   ConversionTarget target(getContext());
 
   RewritePatternSet patterns(&getContext());
@@ -736,7 +735,7 @@ void RR2RIPass::runOnOperation() {
 
   if (failed(applyPatternsAndFoldGreedily(getOperation(), std::move(patterns))))
     signalPassFailure();
-  std::cout << "RR2RIPass::runOnOperation finish!" << std::endl;
+  LOG_DEBUG << "RR2RIPass::runOnOperation finish!";
 }
 
 std::unique_ptr<Pass> mlir::cim::createRR2RIPass() {

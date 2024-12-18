@@ -31,6 +31,8 @@
 #include <iostream>
 #include <memory>
 #include <utility>
+#include "common/macros.h"
+
 using namespace mlir;
 
 // why need this namespace ?
@@ -107,7 +109,7 @@ void CastEliminationPass::runOnOperation() {
 
   if (failed(applyPatternsAndFoldGreedily(getOperation(), std::move(patterns))))
     signalPassFailure();
-  std::cout << "CIMLoweringPass::runOnOperation finish!" << std::endl;
+    LOG_DEBUG << "CIMLoweringPass::runOnOperation finish!";
 }
 
 std::unique_ptr<Pass> mlir::cim::createCastEliminationPass() {

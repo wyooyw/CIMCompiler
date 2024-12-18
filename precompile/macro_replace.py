@@ -1,5 +1,7 @@
 import argparse
+from utils.logger import get_logger
 
+logger = get_logger(__name__)
 
 def replace(macro_mapping, line):
     for key in macro_mapping.keys():
@@ -28,6 +30,6 @@ if __name__ == "__main__":
 
     with open(args.out_file, "w") as f:
         f.write("".join(new_line_list))
-    print(
+    logger.debug(
         f"Macros replaced from file \n{args.in_file}\n and saved to \n{args.out_file}"
     )

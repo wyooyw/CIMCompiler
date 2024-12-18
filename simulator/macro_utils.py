@@ -1,7 +1,9 @@
 import json
 
 from simulator.data_type import *
+from utils.logger import get_logger
 
+logger = get_logger(__name__)
 
 class MacroConfig:
     def __init__(self, n_macro, n_row, n_comp, n_bcol):
@@ -9,7 +11,7 @@ class MacroConfig:
         self.n_row = n_row
         self.n_comp = n_comp
         self.n_bcol = n_bcol
-        print(f"Macro config: {n_macro=}, {n_row=}, {n_comp=}, {n_bcol=}")
+        logger.info(f"Macro config: {n_macro=}, {n_row=}, {n_comp=}, {n_bcol=}")
 
     def n_vcol(self, bitwidth):
         assert self.n_bcol % bitwidth == 0

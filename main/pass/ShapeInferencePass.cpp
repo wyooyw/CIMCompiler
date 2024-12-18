@@ -27,6 +27,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include <iostream>
 #include <memory>
+#include "common/macros.h"
 
 #define DEBUG_TYPE "shape-inference"
 
@@ -59,7 +60,7 @@ struct ShapeInferencePass
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ShapeInferencePass)
 
   void runOnOperation() override {
-    std::cout << "run on operation" << std::endl;
+    LOG_DEBUG << "ShapeInferencePass::runOnOperation";
     auto f = getOperation();
 
     // Populate the worklist with the operations that need shape inference:

@@ -18,6 +18,7 @@
 #include "mlir/InitAllDialects.h"
 #include "mlir/Support/LogicalResult.h"
 #include <iostream>
+#include "common/macros.h"
 using namespace mlir;
 using namespace cim;
 // using namespace arith;
@@ -39,7 +40,7 @@ struct VVAddDuplicateOperand_to_VSMul : public mlir::OpRewritePattern<VVAddOp> {
   matchAndRewrite(VVAddOp op, mlir::PatternRewriter &rewriter) const override {
     // Look through the input of the current transpose.
     auto operands = op.getOperands();
-    std::cout << "VVAddDuplicateOperand_to_VSMul" << std::endl;
+    LOG_DEBUG << "VVAddDuplicateOperand_to_VSMul";
     // std::cout << "operands[0]: " << operands[0] << std::endl;
     // std::cout << "operands[1]: " << operands[1] << std::endl;
 
@@ -60,7 +61,7 @@ struct VVAddDuplicateOperand_to_VSMul : public mlir::OpRewritePattern<VVAddOp> {
 /// that they can be picked up by the Canonicalization framework.
 void VVAddOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                           MLIRContext *context) {
-  std::cout << "VVAddOp::getCanonicalizationPatterns" << std::endl;
+  LOG_DEBUG << "VVAddOp::getCanonicalizationPatterns";
   results.add<VVAddDuplicateOperand_to_VSMul>(context);
 }
 
@@ -75,7 +76,7 @@ struct ShapeToConstant : public mlir::OpRewritePattern<mlir::cim::ShapeOp> {
   mlir::LogicalResult
   matchAndRewrite(mlir::cim::ShapeOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    std::cout << "ShapeToConstant" << std::endl;
+    LOG_DEBUG << "ShapeToConstant";
     // Look through the input of the current transpose.
     auto operands = op.getOperands();
 
@@ -105,7 +106,7 @@ struct ShapeToConstant : public mlir::OpRewritePattern<mlir::cim::ShapeOp> {
 /// that they can be picked up by the Canonicalization framework.
 void ShapeOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                           MLIRContext *context) {
-  std::cout << "ShapeOp::getCanonicalizationPatterns" << std::endl;
+  LOG_DEBUG << "ShapeOp::getCanonicalizationPatterns";
   results.add<ShapeToConstant>(context);
 }
 
@@ -124,7 +125,7 @@ struct CastToNoOp : public mlir::OpRewritePattern<mlir::cim::CastOp> {
   mlir::LogicalResult
   matchAndRewrite(mlir::cim::CastOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    std::cout << "CastToNoOp" << std::endl;
+    LOG_DEBUG << "CastToNoOp";
     // Look through the input of the current transpose.
     auto operand = op.getOperand();
 
@@ -154,6 +155,6 @@ struct CastToNoOp : public mlir::OpRewritePattern<mlir::cim::CastOp> {
 
 void CastOp::getCanonicalizationPatterns(RewritePatternSet &results,
                                          MLIRContext *context) {
-  std::cout << "CastOp::getCanonicalizationPatterns" << std::endl;
+  LOG_DEBUG << "CastOp::getCanonicalizationPatterns";
   results.add<CastToNoOp>(context);
 }

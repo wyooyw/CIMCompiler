@@ -41,6 +41,7 @@
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/Operation.h"
+#include "common/macros.h"
 
 using namespace mlir;
 using namespace mlir::cim;
@@ -114,7 +115,7 @@ struct CIMInlinerInterface : public DialectInlinerInterface {
   Operation *materializeCallConversion(OpBuilder &builder, Value input,
                                        Type resultType,
                                        Location conversionLoc) const final {
-    std::cout << "materializeCallConversion" << std::endl;
+    LOG_DEBUG << "materializeCallConversion";
     return builder.create<mlir::cim::CastOp>(conversionLoc, resultType, input);
   }
 };

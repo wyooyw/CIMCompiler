@@ -27,6 +27,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include <iostream>
 #include <memory>
+#include "common/macros.h"
 
 #define DEBUG_TYPE "shape-inference"
 
@@ -61,7 +62,7 @@ static int getBitWidth(mlir::Type type) {
   } else if (type.isa<mlir::IndexType>()) {
     return 32;
   } else {
-    std::cout << "getBitWidth fail" << std::endl;
+    LOG_ERROR << "getBitWidth fail";
     std::exit(1);
     return 0;
   }
@@ -73,7 +74,7 @@ struct MemoryAddressAllocationPass
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MemoryAddressAllocationPass)
 
   void runOnOperation() override {
-    std::cout << "run on operation" << std::endl;
+    LOG_DEBUG << "run on operation";
     auto f = getOperation();
 
     // Populate the worklist with the operations that need shape inference:
@@ -86,7 +87,7 @@ struct MemoryAddressAllocationPass
         alloc_op_list.push_back(alloc_op);
       }
     });
-    std::cout << "alloc_op_list.size()=" << alloc_op_list.size() << std::endl;
+    LOG_DEBUG << "alloc_op_list.size()=" << alloc_op_list.size();
 
     std::unordered_map<std::string, int> address_table;
     for (auto iter = alloc_op_list.begin(); iter != alloc_op_list.end();
@@ -114,7 +115,7 @@ struct MemoryAddressAllocationPass
       } else if (bitwidth >= 8 && bitwidth % 8 == 0) {
         size = size * bitwidth / 8;
       } else {
-        std::cerr << "Unsupported bit width: " << bitwidth << std::endl;
+        LOG_ERROR << "Unsupported bit width: " << bitwidth;
         std::exit(1);
       }
 
