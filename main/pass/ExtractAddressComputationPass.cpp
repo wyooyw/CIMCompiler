@@ -18,6 +18,8 @@
 #include <iostream>
 #include <memory>
 
+#include "common/macros.h"
+
 using namespace mlir;
 
 namespace {
@@ -37,7 +39,7 @@ struct ExtractAddressComputationPass
 void ExtractAddressComputationPass::runOnOperation() {
   // The first thing to define is the conversion target. This will define the
   // final target for this lowering.
-  std::cout << "ExtractAddressComputationPass::runOnOperation" << std::endl;
+  LOG_DEBUG << "ExtractAddressComputationPass::runOnOperation";
   RewritePatternSet patterns(&getContext());
   memref::populateExtractAddressComputationsPatterns(patterns);
 
@@ -46,8 +48,7 @@ void ExtractAddressComputationPass::runOnOperation() {
   // operations were not converted successfully.
   if (failed(applyPatternsAndFoldGreedily(getOperation(), std::move(patterns))))
     signalPassFailure();
-  std::cout << "ExtractAddressComputationPass::runOnOperation finish!"
-            << std::endl;
+  LOG_DEBUG << "ExtractAddressComputationPass::runOnOperation finish!";
 }
 
 std::unique_ptr<Pass> mlir::cim::createExtractAddressComputationPass() {

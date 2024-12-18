@@ -26,15 +26,15 @@ trap "rm -rf '$temp_path'" EXIT
 
 # mkdir -p .temp
 java -cp $ANTLR_HOME/antlr-4.7.1-complete.jar org.antlr.v4.Tool CIM.g -o $temp_path
-echo "ANTLR:Generate done!"
+[ "$LOG_LEVEL" = "DEBUG" ] && echo "ANTLR:Generate done!"
 cp $ANTLR_HOME/AntlrToJson.java $temp_path
 javac -cp "$ANTLR_HOME/*" $temp_path/CIM*.java $temp_path/AntlrToJson.java
-echo "ANTLR:Compile done!"
+[ "$LOG_LEVEL" = "DEBUG" ] && echo "ANTLR:Compile done!"
 cd $temp_path
 java -cp .:$ANTLR_HOME/antlr-4.7.1-complete.jar:$ANTLR_HOME/gson-2.11.0.jar AntlrToJson $output_path/precompile.cim $output_path/ast.json
 
 cd $cur_path
-echo "ANTLR Down."
+[ "$LOG_LEVEL" = "DEBUG" ] && echo "ANTLR Down."
 
 # ast(json) -> mlir
 if [ "$1" == "isa" ]; then

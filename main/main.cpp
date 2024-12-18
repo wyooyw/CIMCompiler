@@ -43,6 +43,8 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
+#include <glog/logging.h>
+#include "common/macros.h"
 
 #define BOOST_NO_EXCEPTIONS
 #include <boost/throw_exception.hpp>
@@ -51,9 +53,25 @@ void boost::throw_exception(std::exception const &e) {
 }
 using namespace mlir;
 
+void debugLogIR(mlir::ModuleOp &module) {
+  std::string irString;
+  llvm::raw_string_ostream os(irString);
+  module.print(os);
+  LOG_DEBUG << "IR: " << irString << "\n\n";
+}
+
+void errorLogIR(mlir::ModuleOp &module) {
+  std::string irString;
+  llvm::raw_string_ostream os(irString);
+  module.print(os);
+  LOG_ERROR << "IR: " << irString << "\n\n";
+}
+
 int main(int argc, char **argv) {
+  google::InitGoogleLogging(argv[0]);
+
   if (argc < 4) {
-    std::cerr << "Error: Not enough arguments provided." << std::endl;
+    LOG_ERROR << "Error: Not enough arguments provided.";
     return 1;
   }
   std::string inputFilePath(argv[1]);
@@ -86,8 +104,8 @@ int main(int argc, char **argv) {
   mlir::ModuleOp module = gen_impl.parseJson(inputFilePath);
   std::vector<mlir::scf::ForOp> unrollForOps = gen_impl.getUnrollForOps();
 
-  module.dump();
-  std::cout << "\n\n\n\n" << std::endl;
+  debugLogIR(module);  
+  
 
   // unroll
   // mlir::PassManager unroll_pm(&context);
@@ -101,10 +119,6 @@ int main(int argc, char **argv) {
   //   module.dump();
   // }
 
-  // std::cout << "\n\n\n\n" << std::endl;
-
-  // return 0;
-  // return 0;
   mlir::PassManager pm(&context);
   pm.addPass(mlir::createInlinerPass());
   pm.addPass(mlir::cim::createCastEliminationPass());
@@ -119,12 +133,11 @@ int main(int argc, char **argv) {
   optPM.addPass(mlir::cim::createMemoryAddressAllocationPass());
 
   if (mlir::failed(pm.run(module))) {
-    std::cout << "Pass fail." << std::endl;
+    VLOG(0) << "Pass fail.";
   } else {
-    std::cout << "Pass success." << std::endl;
+    VLOG(3) << "Pass success.";
   }
-  module.dump();
-  std::cout << "\n\n\n\n" << std::endl;
+  debugLogIR(module);
   // return 0;
   // step3: lower
   mlir::PassManager lower_passes(&context);
@@ -133,25 +146,26 @@ int main(int argc, char **argv) {
   lower_passes.addPass(mlir::createLoopInvariantCodeMotionPass());
   lower_passes.addPass(mlir::createCanonicalizerPass());
   if (mlir::failed(lower_passes.run(module))) {
-    std::cout << "Lower Passes fail." << std::endl;
-    module.dump();
+    VLOG(0) << "Lower Passes fail.";
+    errorLogIR(module);
     return 1;
   } else {
-    std::cout << "Lower Passes success." << std::endl;
-    module.dump();
+    VLOG(3) << "Lower Passes success.";
+    debugLogIR(module);
   }
+
   //
   mlir::PassManager cse_passes(&context);
   cse_passes.addPass(mlir::cim::createCommonSubexpressionExposePass());
   mlir::OpPassManager &cse_pm = cse_passes.nest<mlir::func::FuncOp>();
   cse_pm.addPass(mlir::createCSEPass());
   if (mlir::failed(cse_passes.run(module))) {
-    std::cout << "CSE Passes fail." << std::endl;
-    module.dump();
+    VLOG(0) << "CSE Passes fail.";
+    errorLogIR(module);
     return 1;
   } else {
-    std::cout << "CSE Passes success." << std::endl;
-    module.dump();
+    VLOG(3) << "CSE Passes success.";
+    debugLogIR(module);
   }
 
   mlir::PassManager final_passes(&context);
@@ -160,40 +174,40 @@ int main(int argc, char **argv) {
   final_passes.addPass(mlir::createConvertSCFToCFPass());
   final_passes.addPass(mlir::cim::createRR2RIPass());
   if (mlir::failed(final_passes.run(module))) {
-    std::cout << "Final Passes fail." << std::endl;
-    module.dump();
+    VLOG(0) << "Final Passes fail.";
+    errorLogIR(module);
     return 1;
   } else {
-    std::cout << "Final Passes success." << std::endl;
-    module.dump();
+    VLOG(3) << "Final Passes success.";
+    debugLogIR(module);
   }
   // return 0;
 
   // step4: convert control flow
-  std::cout << "\n\n\n\n" << std::endl;
   mlir::PassManager cf_convert_passes(&context);
   cf_convert_passes.addPass(mlir::cim::createCIMBranchConvertPass());
   if (mlir::failed(cf_convert_passes.run(module))) {
-    std::cout << "CF Convert Passes fail." << std::endl;
-    module.dump();
+    VLOG(0) << "CF Convert Passes fail.";
+    errorLogIR(module);
     return 1;
   } else {
-    std::cout << "CF Convert Passes success." << std::endl;
-    module.dump();
+    VLOG(3) << "CF Convert Passes success.";
+    debugLogIR(module);
   }
 
   // step5: codegen
-  std::cout << "\n\n\n\n" << std::endl;
   mlir::PassManager codegen_passes(&context);
   mlir::OpPassManager &codegen_op_passes =
       codegen_passes.nest<mlir::func::FuncOp>();
-  std::cout << outputFilePath << std::endl;
+  // std::cout << outputFilePath << std::endl;
   codegen_op_passes.addPass(cim::createCodeGenerationPass(outputFilePath));
   if (mlir::failed(codegen_passes.run(module))) {
-    std::cout << "CodeGen Passes fail." << std::endl;
+    VLOG(0) << "CodeGen Passes fail.";
+    errorLogIR(module);
     return 1;
   } else {
-    std::cout << "CodeGen Passes success." << std::endl;
+    VLOG(3) << "CodeGen Passes success.";
+    debugLogIR(module);
   }
 
   return 0;

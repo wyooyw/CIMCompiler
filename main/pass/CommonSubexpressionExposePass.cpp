@@ -31,6 +31,8 @@
 #include <iostream>
 #include <memory>
 #include <utility>
+
+#include "common/macros.h"
 using namespace mlir;
 
 static bool isConstant(Value operand) {
@@ -41,7 +43,7 @@ static IntegerAttr getConstantInt(Value operand) {
   if (auto constantOp = operand.getDefiningOp<arith::ConstantOp>()) {
     return constantOp.getValue().cast<IntegerAttr>();
   } else {
-    std::cerr << "getConstantInt fail" << std::endl;
+    LOG_ERROR << "getConstantInt fail";
     std::exit(1);
     return 0;
   }
@@ -50,7 +52,7 @@ static int64_t getConstantIntValue(Value operand) {
   if (auto constantOp = operand.getDefiningOp<arith::ConstantIndexOp>()) {
     return constantOp.value();
   } else {
-    std::cerr << "getConstantInt fail" << std::endl;
+    LOG_ERROR << "getConstantInt fail";
     std::exit(1);
     return 0;
   }
@@ -71,7 +73,7 @@ static std::pair<mlir::Value, mlir::Value>
 getAddIntegerOperators(Value operand) {
   auto add_op = operand.getDefiningOp<arith::AddIOp>();
   if (!add_op) {
-    std::cerr << "getAddInteger fail" << std::endl;
+    LOG_ERROR << "getAddInteger fail";
     std::exit(1);
   }
   mlir::Value lhs = add_op.getOperand(0);
@@ -87,7 +89,7 @@ getAddIntegerOperators(Value operand) {
     val_const = rhs;
     val_var = lhs;
   } else {
-    std::cerr << "getAddInteger fail" << std::endl;
+    LOG_ERROR << "getAddInteger fail";
     std::exit(1);
   }
   return std::make_pair(val_var, val_const);
@@ -108,7 +110,7 @@ static std::pair<mlir::Value, mlir::Value>
 getMulIntegerOperators(Value operand) {
   auto mul_op = operand.getDefiningOp<arith::MulIOp>();
   if (!mul_op) {
-    std::cerr << "getAddInteger fail" << std::endl;
+    LOG_ERROR << "getAddInteger fail";
     std::exit(1);
   }
   mlir::Value lhs = mul_op.getOperand(0);
@@ -124,7 +126,7 @@ getMulIntegerOperators(Value operand) {
     val_const = rhs;
     val_var = lhs;
   } else {
-    std::cerr << "getAddInteger fail" << std::endl;
+    LOG_ERROR << "getAddInteger fail";
     std::exit(1);
   }
   return std::make_pair(val_var, val_const);
@@ -139,7 +141,7 @@ static LogicalResult rewrite_rr_to_ri(Ty &op, PatternRewriter &rewriter) {
   bool operand1_is_const = isConstant(op.getOperand(1));
 
   if (operand0_is_const && operand1_is_const) {
-    std::cerr << "This should not happend!" << std::endl;
+    LOG_ERROR << "This should not happend!";
     std::exit(1);
   } else if (operand0_is_const) {
     constant = getConstantInt(op.getOperand(0));
@@ -166,7 +168,7 @@ rewrite_rr_to_ri_non_commutative(Ty &op, PatternRewriter &rewriter) {
   bool operand1_is_const = isConstant(op.getOperand(1));
 
   if (operand0_is_const && operand1_is_const) {
-    std::cerr << "This should not happend!" << std::endl;
+    LOG_ERROR << "This should not happend!";
     std::exit(1);
   } else if (operand1_is_const) {
     constant = getConstantInt(op.getOperand(1));
@@ -187,7 +189,7 @@ struct AddiAddPattern : public OpRewritePattern<arith::AddIOp> {
 
   LogicalResult matchAndRewrite(arith::AddIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "AddiAddPattern::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "AddiAddPattern::matchAndRewrite begin";
     mlir::Value lhs = op.getOperand(0);
     mlir::Value rhs = op.getOperand(1);
     if (isConstant(lhs) || isConstant(rhs))
@@ -209,7 +211,7 @@ struct AddiAddPattern : public OpRewritePattern<arith::AddIOp> {
     }
     mlir::Value o1 = rewriter.create<arith::AddIOp>(op.getLoc(), v1, v2);
     rewriter.replaceOpWithNewOp<arith::AddIOp>(op, o1, c1);
-    std::cout << "AddiAddPattern::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "AddiAddPattern::matchAndRewrite finish";
     return success();
   }
 };
@@ -219,7 +221,7 @@ struct AddiMuliPattern : public OpRewritePattern<arith::MulIOp> {
 
   LogicalResult matchAndRewrite(arith::MulIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "AddiMuliPattern::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "AddiMuliPattern::matchAndRewrite begin";
     mlir::Value lhs = op.getOperand(0);
     mlir::Value rhs = op.getOperand(1);
     mlir::Value v2, c2, v1, c1;
@@ -243,7 +245,7 @@ struct AddiMuliPattern : public OpRewritePattern<arith::MulIOp> {
     mlir::Value o1 = rewriter.create<arith::MulIOp>(op.getLoc(), v1, c2);
     mlir::Value o2 = rewriter.create<arith::MulIOp>(op.getLoc(), c1, c2);
     rewriter.replaceOpWithNewOp<arith::AddIOp>(op, o1, o2);
-    std::cout << "AddiMuliPattern::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "AddiMuliPattern::matchAndRewrite finish";
     return success();
   }
 };
@@ -253,7 +255,7 @@ struct AddiAddiPattern : public OpRewritePattern<arith::AddIOp> {
 
   LogicalResult matchAndRewrite(arith::AddIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "AddiAddiPattern::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "AddiAddiPattern::matchAndRewrite begin";
     mlir::Value lhs = op.getOperand(0);
     mlir::Value rhs = op.getOperand(1);
     mlir::Value v2, c2, v1, c1;
@@ -276,7 +278,7 @@ struct AddiAddiPattern : public OpRewritePattern<arith::AddIOp> {
     }
     mlir::Value o1 = rewriter.create<arith::AddIOp>(op.getLoc(), c1, c2);
     rewriter.replaceOpWithNewOp<arith::AddIOp>(op, v1, o1);
-    std::cout << "AddiAddiPattern::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "AddiAddiPattern::matchAndRewrite finish";
     return success();
   }
 };
@@ -286,7 +288,7 @@ struct MuliDiviPattern : public OpRewritePattern<arith::DivSIOp> {
 
   LogicalResult matchAndRewrite(arith::DivSIOp op,
                                 PatternRewriter &rewriter) const final {
-    std::cout << "MuliDiviPattern::matchAndRewrite begin" << std::endl;
+    LOG_DEBUG << "MuliDiviPattern::matchAndRewrite begin";
     mlir::Value lhs = op.getOperand(0);
     mlir::Value rhs = op.getOperand(1);
     mlir::Value v2, c2, v1, c1;
@@ -317,7 +319,7 @@ struct MuliDiviPattern : public OpRewritePattern<arith::DivSIOp> {
     mlir::Value c3 =
         rewriter.create<arith::ConstantIndexOp>(op.getLoc(), mul_factor);
     rewriter.replaceOpWithNewOp<arith::MulIOp>(op, v1, c3);
-    std::cout << "MuliDiviPattern::matchAndRewrite finish" << std::endl;
+    LOG_DEBUG << "MuliDiviPattern::matchAndRewrite finish";
     return success();
   }
 };
@@ -340,7 +342,7 @@ struct CommonSubexpressionExposePass
 void CommonSubexpressionExposePass::runOnOperation() {
   // The first thing to define is the conversion target. This will define the
   // final target for this lowering.
-  std::cout << "CommonSubexpressionExposePass::runOnOperation" << std::endl;
+  LOG_DEBUG << "CommonSubexpressionExposePass::runOnOperation";
   ConversionTarget target(getContext());
 
   RewritePatternSet patterns(&getContext());
@@ -351,11 +353,10 @@ void CommonSubexpressionExposePass::runOnOperation() {
 
   if (failed(applyPatternsAndFoldGreedily(getOperation(), std::move(patterns))))
     signalPassFailure();
-  std::cout << "CommonSubexpressionExposePass::runOnOperation finish!"
-            << std::endl;
+  LOG_DEBUG << "CommonSubexpressionExposePass::runOnOperation finish!";
 }
 
 std::unique_ptr<Pass> mlir::cim::createCommonSubexpressionExposePass() {
-  std::cout << "createCommonSubexpressionExposePass" << std::endl;
+  LOG_DEBUG << "createCommonSubexpressionExposePass";
   return std::make_unique<CommonSubexpressionExposePass>();
 }

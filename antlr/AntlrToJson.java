@@ -57,8 +57,8 @@ public class AntlrToJson {
   public static void main(String[] args) {
     // system.out.println(args[0]);
     // System.out.println("args.length: " + args.length);
-    System.out.println("read cim code from " + args[0]);
-    System.out.println("write json to " + args[1]);
+    // System.out.println("read cim code from " + args[0]);
+    // System.out.println("write json to " + args[1]);
     String srcFilePath = args[0];
     String dstFilePath = args[1];
     try {

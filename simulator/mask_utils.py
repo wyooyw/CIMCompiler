@@ -3,13 +3,15 @@ import json
 import numpy as np
 
 from utils.df_layout import tensor_int8_to_bits
+from utils.logger import get_logger
 
+logger = get_logger(__name__)
 
 class MaskConfig:
     def __init__(self, n_from=128, n_to=16):
         self.n_from = n_from
         self.n_to = n_to
-        print(f"Mask config: {n_from=}, {n_to=}")
+        logger.info(f"Mask config: {n_from=}, {n_to=}")
 
     @classmethod
     def from_config(cls, config_path):

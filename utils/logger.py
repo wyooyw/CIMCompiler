@@ -1,9 +1,18 @@
 import logging
+import os
+def get_log_level_from_env():
+    log_level = os.getenv('LOG_LEVEL', 'INFO')
+    return {
+        'DEBUG': logging.DEBUG,
+        'INFO': logging.INFO,
+        'WARNING': logging.WARNING,
+        'ERROR': logging.ERROR,
+    }[log_level]
 
-
-def get_logger(name, level, output_file=None):
+def get_logger(name, output_file=None):
     # 创建日志记录器，设置日志名称
     logger = logging.getLogger(name)
+    level = get_log_level_from_env()
     logger.setLevel(level)  # 设置日志级别为DEBUG
     if output_file is not None:
         # 创建文件处理器，并指定日志文件路径
