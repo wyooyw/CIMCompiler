@@ -71,7 +71,7 @@ struct CastEliminationPass
 void CastEliminationPass::runOnOperation() {
   // The first thing to define is the conversion target. This will define the
   // final target for this lowering.
-  std::cout << "CastEliminationPass::runOnOperation" << std::endl;
+  LOG_DEBUG << "CastEliminationPass::runOnOperation";
   ConversionTarget target(getContext());
 
   // We define the specific operations, or dialects, that are legal targets for
