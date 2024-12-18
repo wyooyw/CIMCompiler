@@ -1302,6 +1302,8 @@ codeGen(std::vector<Block *> &blocks,
         codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
       } else if (auto _op = dyn_cast<mlir::cimisa::ResMulQuantifyOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
+      } else if (auto _op = dyn_cast<mlir::func::ReturnOp>(op)) {
+        // do nothing
       } else {
         std::cerr << "error: unsupport operator: "
                   << op->getName().getStringRef().str() << std::endl;
