@@ -141,6 +141,24 @@ struct MemoryAddressAllocationPass
           mlir::MemRefType::get(type.getShape(), type.getElementType(),
                                 type.getLayout(), new_memory_space);
       op.getResult().setType(new_type);
+
+
+      // get SubviewOp that use this alloc op
+      // set result of SubviewOp to new_type
+      for (mlir::OpOperand &use : op.getResult().getUses()) {
+        if (auto subview = llvm::dyn_cast<mlir::memref::SubViewOp>(use.getOwner())) {
+          // Set the result type of the SubviewOp to use the same memory space
+          mlir::MemRefType subview_type = subview.getType();
+          mlir::MemRefType new_subview_type = mlir::MemRefType::get(
+              subview_type.getShape(),
+              subview_type.getElementType(),
+              subview_type.getLayout(),
+              new_memory_space);
+          subview.getResult().setType(new_subview_type);
+        }
+      }
+
+
       address_table[memory] += size;
     }
   }
