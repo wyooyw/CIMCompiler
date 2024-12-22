@@ -155,7 +155,12 @@ def max_inst_per_layer(folder_path):
 
 
 if __name__ == "__main__":
-    stats_model(os.path.join(sys.argv[1], "bit_value_sparse"))
+    for mode in ["dense","value_sparse", "bit_sparse", "bit_value_sparse_0.6", "bit_value_sparse_0.4", "bit_value_sparse_0.2"]:
+        stats_model(os.path.join(sys.argv[1], mode))
+    # stats_model(os.path.join(sys.argv[1], "bit_value_sparse"))
+    # stats_model(os.path.join(sys.argv[1], "bit_value_sparse"))
+    # stats_model(os.path.join(sys.argv[1], "bit_value_sparse"))
+    # stats_model(os.path.join(sys.argv[1], "bit_value_sparse"))
     # stats_model_all_mode(sys.argv[1])
     # stats_macro_utilization(os.path.join(sys.argv[1], "bit_value_sparse"))
     # stats_macro_utilization(os.path.join(sys.argv[1], "bit_sparse"))
