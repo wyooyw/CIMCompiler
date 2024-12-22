@@ -195,6 +195,23 @@ class MemorySpace:
                 return
         assert False, f"can not find memory! {offset=}, {size=}, {memtype=}"
 
+    def check_memory_name(self, offset, size, memory_name):
+        """
+        check [offset, offset + size) is in one memory
+        """
+        if type(memory_name) == str:
+            memory_name = [memory_name]
+        assert type(memory_name) == list
+        for memory in self.memory_space:
+            if offset >= memory.offset and (
+                offset + size <= memory.offset + memory.size
+            ):
+                assert (
+                    memory.name in memory_name
+                ), f"require {memory_name=}, but get {memory.name=}. {offset=}, {size=}"
+                return
+        assert False, f"can not find memory! {offset=}, {size=}, {memory_name=}"
+
     def read(self, offset, size):
         memory = self.get_memory_and_check_range(offset, size)
         return memory.read(offset, size)
@@ -1040,13 +1057,16 @@ class Simulator:
         value_sparsity = inst["value_sparse"]
         # Get input vector
         input_byte_size = input_size * input_bw // 8
-        # self.memory_space.check_memory_type(input_offset, input_byte_size, "reg_buffer")
+        # print(f"{input_offset=}, {input_byte_size=}")
+
+        self.memory_space.check_memory_name(input_offset, input_byte_size, "pim_input_reg_buffer")
         group_input_data = []
         for group_id in range(activation_group_num):
             group_input_offset = input_offset + group_id * group_input_step
             input_data = self.memory_space.read_as(
                 group_input_offset, input_byte_size, self.get_dtype(input_bw)
             )
+            self.memory_space.check_memory_name(group_input_offset, input_byte_size, "pim_input_reg_buffer")
             group_input_data.append(input_data)
 
         # Get weight matrix

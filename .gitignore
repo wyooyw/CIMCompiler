@@ -4,3 +4,6 @@ build/
 .temp/
 __pycache__/
 models/
+code.cim
+*.tar.gz
+*.log

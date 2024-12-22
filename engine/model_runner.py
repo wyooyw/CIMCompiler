@@ -29,7 +29,7 @@ save_base_dir = os.path.join(os.environ["CIM_COMPILER_BASE"], ".result")
 save_base_dir = os.path.join(save_base_dir, formatted_now)
 os.makedirs(save_base_dir, exist_ok=False)
 logger = get_logger(
-    __name__, logging.DEBUG, os.path.join(save_base_dir, "model_runner.log")
+    __name__, os.path.join(save_base_dir, "model_runner.log")
 )
 
 OP_TEMPLATE_LIST = [
@@ -265,6 +265,8 @@ def compile_for_model(
         [model_path_value_sparse, False, True, None],
     ]
     for model_path_list, is_bit_sparse, is_value_sparse, value_sparse_rate in plan_list:
+        if model_path_list is None:
+            continue
         if type(model_path_list) == str:
             model_path_list = [model_path_list]
         for model_path in model_path_list:
@@ -283,12 +285,12 @@ def parse_args():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, required=True)
-    parser.add_argument("--model_path_dense", type=str, required=True)
-    parser.add_argument("--model_path_bit_sparse", type=str, required=True)
-    parser.add_argument("--model_path_value_sparse", type=str, required=True)
-    parser.add_argument("--model_path_value_bit_sparse_0_6", type=str, required=True)
-    parser.add_argument("--model_path_value_bit_sparse_0_4", type=str, required=True)
-    parser.add_argument("--model_path_value_bit_sparse_0_2", type=str, required=True)
+    parser.add_argument("--model_path_dense", type=str, default=None)
+    parser.add_argument("--model_path_bit_sparse", type=str, default=None)
+    parser.add_argument("--model_path_value_sparse", type=str, default=None)
+    parser.add_argument("--model_path_value_bit_sparse_0_6", type=str, default=None)
+    parser.add_argument("--model_path_value_bit_sparse_0_4", type=str, default=None)
+    parser.add_argument("--model_path_value_bit_sparse_0_2", type=str, default=None)
     parser.add_argument("--quantify", type=bool, required=True)
     return parser.parse_args()
 

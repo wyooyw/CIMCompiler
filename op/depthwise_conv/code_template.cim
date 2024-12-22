@@ -98,17 +98,24 @@ def main(null<int8>){
                     use_input = Slice(local_input,
                        [index_4, 0], [1, INPUT_CHANNEL], [1,1]
                     );
-                    
-                    // output
-                    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
-                    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
-                    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
-                    VVMul(use_input, use_weight, local_simd_mul_output_i32);
 
-                    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
-                    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
-                    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
-                    VVAdd(local_output_parial_sum_i32, local_simd_mul_output_i32, local_output_parial_sum_i32);
+                    {% if KERNEL_SIZE==1 %}
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
+                        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+                        VVMul(use_input, use_weight, local_output_parial_sum_i32);
+                    {% else %}
+                        // output
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
+                        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+                        VVMul(use_input, use_weight, local_simd_mul_output_i32);
+
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+                        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+                        VVAdd(local_output_parial_sum_i32, local_simd_mul_output_i32, local_output_parial_sum_i32);
+                    {% endif %}
                 };
             };
 
@@ -120,7 +127,9 @@ def main(null<int8>){
             Quantify(local_output_parial_sum_i32, local_out_zp, local_output_i8, {{RELU}});
 
             // clear
-            Trans(local_blank_i32, local_output_parial_sum_i32);
+            {% if KERNEL_SIZE >1 %}
+                Trans(local_blank_i32, local_output_parial_sum_i32);
+            {% endif %}
             
             // move to global memory
             use_global_output = Slice(global_output_i8,

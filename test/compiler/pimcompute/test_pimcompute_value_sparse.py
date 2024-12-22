@@ -299,9 +299,9 @@ class TestPIMComputeValueSparse:
 
         # run compiler
         cmd = f"bash compile.sh isa {input_path} {output_folder} {self.config_path}"
-        result = subprocess.run(cmd.split(" "), capture_output=True, text=True)
-        print("输出:", result.stdout)
-        print("错误:", result.stderr)
+        result = subprocess.run(cmd.split(" "), text=True)
+        # print("输出:", result.stdout)
+        # print("错误:", result.stderr)
         assert result.returncode == 0
         # return
         # get output code
