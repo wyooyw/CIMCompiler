@@ -36,6 +36,8 @@
 #include <sstream>
 #include <string>
 
+#include "common/macros.h"
+
 #define DEBUG_TYPE "shape-inference"
 
 #define SPECIAL_REG_INPUT_BIT_WIDTH 0
@@ -987,10 +989,10 @@ static void block_dfs(Block *block, std::vector<Block *> &blocks,
 }
 
 static std::vector<Block *> getBlockList(mlir::func::FuncOp func) {
-  std::cout << "getBlockList begin" << std::endl;
+  LOG_DEBUG << "getBlockList begin";
   auto regions = func->getRegions();
   if (regions.size() > 1) {
-    std::cout << "regions.size()" << regions.size() << std::endl;
+    LOG_ERROR << "regions.size()" << regions.size();
     std::exit(1);
   }
   Region &region = regions.front();
@@ -1042,8 +1044,7 @@ static std::vector<Block *> getBlockList(mlir::func::FuncOp func) {
         }
       }
       if (!find) {
-        std::cout << "can't find block with no false-dest predecessor"
-                  << std::endl;
+        LOG_ERROR << "can't find block with no false-dest predecessor";
         std::exit(1);
       }
       block_cnt++;
@@ -1069,7 +1070,7 @@ static std::vector<Block *> getBlockList(mlir::func::FuncOp func) {
     //   }
     // }
   }
-  std::cout << "getBlockList end" << std::endl;
+  LOG_DEBUG << "getBlockList end";
   return blocks;
 }
 
@@ -1301,6 +1302,8 @@ codeGen(std::vector<Block *> &blocks,
         codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
       } else if (auto _op = dyn_cast<mlir::cimisa::ResMulQuantifyOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
+      } else if (auto _op = dyn_cast<mlir::func::ReturnOp>(op)) {
+        // do nothing
       } else {
         std::cerr << "error: unsupport operator: "
                   << op->getName().getStringRef().str() << std::endl;
@@ -1327,8 +1330,7 @@ mapValueAsRegister(mlir::Value &value,
   if (!mapping.count(hash_code)) {
     mapping[hash_code] = reg_cnt++;
   } else {
-    std::cout << "register already allocted! " << mapping[hash_code]
-              << std::endl;
+    LOG_DEBUG << "register already allocted! " << mapping[hash_code];
   }
 }
 
@@ -1346,7 +1348,7 @@ static void _getRegisterMappingAliasBetweenBasicBlock(
     mlir::func::FuncOp func, std::unordered_map<llvm::hash_code, int> &mapping,
     int &reg_cnt) {
   auto regions = func->getRegions();
-  std::cout << "regions.size()" << regions.size() << std::endl;
+  LOG_DEBUG << "regions.size()" << regions.size();
   for (Region &region : regions) {
     // for each block
     for (Block &block : region.getBlocks()) {
@@ -1367,9 +1369,8 @@ static void _getRegisterMappingAliasBetweenBasicBlock(
                 alias_values.push_back(caller_operand);
               });
         }
-        std::cout << "reg = " << reg_cnt
-                  << ", alias_values.size() = " << alias_values.size()
-                  << std::endl;
+        LOG_DEBUG << "reg = " << reg_cnt
+                  << ", alias_values.size() = " << alias_values.size();
         // map all alias to same
         for (mlir::Value &alias : alias_values) {
           int _reg_cnt = reg_cnt;
@@ -1460,8 +1461,8 @@ static void _getRegisterMappingForBlockArgs(
   for (BlockWithLifeTime &block_with_lifetime_obj : block_with_lifetime) {
     Block *block = block_with_lifetime_obj.block;
     auto block_arguments = block->getArguments();
-    std::cout << "block->lifetime = " << block_with_lifetime_obj.lifetime
-              << "num args: " << block_arguments.size() << std::endl;
+    LOG_DEBUG << "block->lifetime = " << block_with_lifetime_obj.lifetime
+              << ", num args: " << block_arguments.size();
     for (int arg_i = 0; arg_i < block_arguments.size(); arg_i++) {
       BlockArgument block_arg = block_arguments[arg_i];
       mlir::Value block_arg_val = llvm::cast<mlir::Value>(block_arg);
@@ -1472,8 +1473,8 @@ static void _getRegisterMappingForBlockArgs(
         mapValueAsRegister(block_arg_val, special_reg_mapping, special_reg);
       }
       mapValueAsRegister(block_arg_val, mapping, reg_cnt);
-      std::cout << "    block arg: logical reg: " << reg_cnt - 1
-                << ", special reg: " << special_reg << std::endl;
+      LOG_DEBUG << "    block arg: logical reg: " << reg_cnt - 1
+                << ", special reg: " << special_reg;
     }
   }
 
@@ -1543,7 +1544,7 @@ _getRegisterMappingGeneral(mlir::func::FuncOp func,
       mapResultAsRegister<mlir::cimisa::LoadOp>(_op, mapping, reg_cnt);
     }
   });
-  std::cout << "_getRegisterMappingGeneral finish" << std::endl;
+  LOG_DEBUG << "_getRegisterMappingGeneral finish";
 }
 static std::pair<std::unordered_map<llvm::hash_code, int>,
                  std::unordered_map<llvm::hash_code, int>>
@@ -1560,9 +1561,9 @@ getRegisterMapping(mlir::func::FuncOp func) {
   // _getRegisterMappingAliasBetweenBasicBlock(func, mapping, reg_cnt);
   _getRegisterMappingForBlockArgs(func, mapping, block_args_special_reg_map,
                                   reg_cnt);
-  std::cout << "_getRegisterMappingForBlockArgs:" << reg_cnt << std::endl;
+  LOG_DEBUG << "_getRegisterMappingForBlockArgs:" << reg_cnt;
   _getRegisterMappingGeneral(func, mapping, reg_cnt);
-  std::cout << "getRegisterMapping finish" << std::endl;
+  LOG_DEBUG << "getRegisterMapping finish";
   return std::make_pair(mapping, block_args_special_reg_map);
 }
 
@@ -1597,8 +1598,8 @@ static void fillJumpBranchOffset(mlir::func::FuncOp func,
       int current_line = jump2line[op];
       int offset = target_line - current_line;
       instr_list[current_line]["offset"] = offset;
-      std::cout << "[jump]set offset in line " << current_line << " to "
-                << offset << std::endl;
+      LOG_DEBUG << "[jump]set offset in line " << current_line << " to "
+                << offset;
     } else if (auto _op = dyn_cast<mlir::cf::CondBranchOp>(op)) {
       Block *dest_block = _op.getTrueDest();
       if (!block2line.count(dest_block)) {
@@ -1613,8 +1614,8 @@ static void fillJumpBranchOffset(mlir::func::FuncOp func,
       int current_line = jump2line[op];
       int offset = target_line - current_line;
       instr_list[current_line]["offset"] = offset;
-      std::cout << "[condbranch]set offset in line " << current_line << " to "
-                << offset << std::endl;
+      LOG_DEBUG << "[condbranch]set offset in line " << current_line << " to "
+                << offset;
     }
   });
 }
@@ -1758,8 +1759,7 @@ static std::pair<int, int> get_twin_physical_reg(
   for (int i = 0; i < temp_save.size(); i++) {
     physical_regs.push(temp_save[i]);
   }
-  std::cout << "get_twin_physical_reg: " << twin.first << " " << twin.second
-            << std::endl;
+  LOG_DEBUG << "get_twin_physical_reg: " << twin.first << " " << twin.second;
   return twin;
 }
 
@@ -1770,7 +1770,7 @@ static void mappingRegisterLogicalToPhysical(
 
   // show twin_reg
   for (const auto &[key, value] : twin_reg) {
-    std::cout << "twin_reg: " << key << " -> " << value << std::endl;
+    LOG_DEBUG << "twin_reg: " << key << " -> " << value;
   }
   std::map<int, int> two_way_twin_reg;
   for (const auto &[key, value] : twin_reg) {
@@ -1807,13 +1807,13 @@ static void mappingRegisterLogicalToPhysical(
         set_logical_regs.insert(reg_id);
       }
     }
-    std::cout << std::endl;
+    LOG_DEBUG << std::endl;
   }
   for (const auto &[block, regs] : in) {
     for (auto reg_id : regs) {
       if (!(logic_reg_life_begin.count(reg_id) &&
             logic_reg_life_end.count(reg_id))) {
-        std::cerr << "error: reg_id not in logic_reg_life_begin" << std::endl;
+        LOG_ERROR << "error: reg_id not in logic_reg_life_begin";
         std::exit(1);
       }
       int old_begin = logic_reg_life_begin[reg_id];
@@ -1891,15 +1891,15 @@ static void mappingRegisterLogicalToPhysical(
       }
     }
   }
-  std::cout << "max_physical_reg_used: " << max_physical_reg_used << std::endl;
+  LOG_DEBUG << "max_physical_reg_used: " << max_physical_reg_used;
   for (int logical_reg_id : logical_regs) {
-    std::cout << "logical_reg: " << logical_reg_id << " -> physical_reg: "
-              << logical_to_physical_mapping[logical_reg_id] << std::endl;
+    LOG_DEBUG << "logical_reg: " << logical_reg_id << " -> physical_reg: "
+              << logical_to_physical_mapping[logical_reg_id];
   }
   for (int logical_reg_id : logical_regs) {
-    std::cout << "logical_reg:" << logical_reg_id
-              << " begin: " << logic_reg_life_begin[logical_reg_id]
-              << " end: " << logic_reg_life_end[logical_reg_id] << std::endl;
+    LOG_DEBUG << "logical_reg:" << logical_reg_id << " begin: "
+              << logic_reg_life_begin[logical_reg_id] << " end: "
+              << logic_reg_life_end[logical_reg_id];
   }
   // return;
   // Step 3: replace logical register to physical register
@@ -1936,13 +1936,13 @@ struct CodeGenerationPass
   std::string outputFilePath;
 
   void runOnOperation() override {
-    std::cout << "run on operation" << std::endl;
-    std::cout << "code generation pass!" << std::endl;
+    LOG_DEBUG << "run on operation";
+    LOG_DEBUG << "code generation pass!";
     auto f = getOperation();
     if (f.getName() != "main") {
       return;
     }
-    std::cout << "code generation pass, run on main!" << std::endl;
+    LOG_DEBUG << "code generation pass, run on main!";
 
     std::pair<std::unordered_map<llvm::hash_code, int>,
               std::unordered_map<llvm::hash_code, int>>
@@ -1950,7 +1950,7 @@ struct CodeGenerationPass
     std::unordered_map<llvm::hash_code, int> regmap = regmaps.first;
     std::unordered_map<llvm::hash_code, int> block_args_special_reg_map =
         regmaps.second;
-    std::cout << "getRegisterMapping finish!" << std::endl;
+    LOG_DEBUG << "getRegisterMapping finish!";
 
     std::vector<Inst> instr_list;
     std::map<Block *, int> block2line;
@@ -1962,15 +1962,15 @@ struct CodeGenerationPass
     std::vector<Block *> blocks = getBlockList(f);
     codeGen(blocks, regmap, block_args_special_reg_map, instr_list, block2line,
             block2line_end, jump2line, def, use, twin_reg);
-    std::cout << "codegen finish!" << std::endl;
+    LOG_DEBUG << "codegen finish!";
 
     fillJumpBranchOffset(f, instr_list, block2line, jump2line);
-    std::cout << "fill jump offset finish!" << std::endl;
+    LOG_DEBUG << "fill jump offset finish!";
 
     std::map<Block *, std::set<int>> in;
     std::map<Block *, std::set<int>> out;
     liveVariableAnalysis(blocks, def, use, in, out);
-    std::cout << "live variable analysis finish!" << std::endl;
+    LOG_DEBUG << "live variable analysis finish!";
 
     mappingRegisterLogicalToPhysical(instr_list, in, out, block2line,
                                      block2line_end, twin_reg);
@@ -1992,7 +1992,7 @@ struct CodeGenerationPass
       // 关闭文件
       file.close();
     }
-    std::cout << "Generated code was saved to " << outputFilePath << std::endl;
+    LOG_DEBUG << "Generated code was saved to " << outputFilePath;
   }
 };
 } // namespace

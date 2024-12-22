@@ -59,3 +59,4 @@ add_subdirectory(include)
 # add_subdirectory(standalone-translate)
 
 add_subdirectory(main)
+add_subdirectory(thirdparty/glog)

@@ -1,4 +1,7 @@
 import argparse
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Remove comments from a file")
@@ -14,6 +17,6 @@ if __name__ == "__main__":
             new_line_list.append(line)
     with open(args.out_file, "w") as f:
         f.write("".join(new_line_list))
-    print(
+    logger.debug(
         f"Comments removed from file \n{args.in_file}\n and saved to \n{args.out_file}"
     )

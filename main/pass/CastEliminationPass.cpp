@@ -31,6 +31,8 @@
 #include <iostream>
 #include <memory>
 #include <utility>
+#include "common/macros.h"
+
 using namespace mlir;
 
 // why need this namespace ?
@@ -69,7 +71,7 @@ struct CastEliminationPass
 void CastEliminationPass::runOnOperation() {
   // The first thing to define is the conversion target. This will define the
   // final target for this lowering.
-  std::cout << "CastEliminationPass::runOnOperation" << std::endl;
+  LOG_DEBUG << "CastEliminationPass::runOnOperation";
   ConversionTarget target(getContext());
 
   // We define the specific operations, or dialects, that are legal targets for
@@ -107,7 +109,7 @@ void CastEliminationPass::runOnOperation() {
 
   if (failed(applyPatternsAndFoldGreedily(getOperation(), std::move(patterns))))
     signalPassFailure();
-  std::cout << "CIMLoweringPass::runOnOperation finish!" << std::endl;
+    LOG_DEBUG << "CIMLoweringPass::runOnOperation finish!";
 }
 
 std::unique_ptr<Pass> mlir::cim::createCastEliminationPass() {

@@ -77,7 +77,6 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
         """
         import numpy as np
 
-        print("apply_padding")
         input_data = np.pad(
             input_data,
             ((0, 0), (self.padding, self.padding), (self.padding, self.padding)),

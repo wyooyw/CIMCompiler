@@ -32,6 +32,9 @@
 #include <iostream>
 #include <memory>
 #include <utility>
+
+#include "common/macros.h"
+
 using namespace mlir;
 
 namespace {
@@ -96,7 +99,7 @@ struct CondBranchOpConvert : public OpRewritePattern<cf::CondBranchOp> {
     rewriter.replaceOpWithNewOp<cf::CondBranchOp>(
         op, op.getCondition(), op.getTrueDest(), op.getTrueOperands(),
         jump_block, op.getFalseOperands());
-    std::cout << "CondBranchOpConvert::matchAndRewrite finish!" << std::endl;
+    LOG_DEBUG << "CondBranchOpConvert::matchAndRewrite finish!";
     return success();
   }
 };
@@ -114,7 +117,7 @@ struct CIMBranchConvertPass
 } // namespace
 
 void CIMBranchConvertPass::runOnOperation() {
-  std::cout << "CIMBranchConvertPass::runOnOperation" << std::endl;
+  LOG_DEBUG << "CIMBranchConvertPass::runOnOperation";
   RewritePatternSet patterns(&getContext());
   patterns.add<CondBranchOpConvert>(&getContext());
 
@@ -122,7 +125,7 @@ void CIMBranchConvertPass::runOnOperation() {
           applyPatternsAndFoldGreedily(getOperation(), std::move(patterns)))) {
     signalPassFailure();
   }
-  std::cout << "CIMBranchConvertPass::runOnOperation finish!" << std::endl;
+  LOG_DEBUG << "CIMBranchConvertPass::runOnOperation finish!";
 }
 
 std::unique_ptr<Pass> mlir::cim::createCIMBranchConvertPass() {
