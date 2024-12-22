@@ -94,7 +94,7 @@ class ResMulQuantizeTemplate(OperatorTemplate):
     def __init__(self):
         super().__init__(
             os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json"),
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/resmul_quantize"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/depthwise_conv"),
         )
 
     def raw_layer_to_op_config(self, raw_layer):
@@ -103,8 +103,13 @@ class ResMulQuantizeTemplate(OperatorTemplate):
         in_channel = raw_layer["input_channel"]
         
         return {
+            "out_channel": in_channel,
             "in_channel": in_channel,
+            "ker_size": 1,
             "in_hw": in_hw,
+            "out_hw": in_hw,
+            "padding": 0,
+            "stride": 1,
         }
 
     def get_operator(self, raw_layer):

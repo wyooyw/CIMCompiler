@@ -196,29 +196,51 @@ class ResMulQuantizeOperator(Operator):
         )
         input2 = np.loadtxt(os.path.join(df_dir, "input2.txt"), dtype=np.int8).reshape(
             self.op_config["in_channel"],
+            1,
+            1
         )
         scale = np.loadtxt(os.path.join(df_dir, "scale.txt"), dtype=np.float32).reshape(-1)
-        golden = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8).reshape(
+        scale = scale.repeat(self.op_config["in_channel"], axis=0)
+        bias = np.array([0], dtype=np.int32)
+        bias = bias.repeat(self.op_config["in_channel"], axis=0)
+        
+        out_zp = np.loadtxt(os.path.join(df_dir, "qo.zero_point.txt"), dtype=np.int32).reshape(1)
+
+        golden_i8 = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8).reshape(
             self.op_config["in_channel"],
             self.op_config["in_hw"],
             self.op_config["in_hw"],
         )
-        golden = np.transpose(golden, (1, 2, 0))
+        golden_i8 = np.transpose(golden_i8, (1, 2, 0))
+
+        relu = (golden_i8 >= 0).all()
 
         output = self.compile_and_run(
-            code_dir, image_kwargs={
-                "input1": input1, 
-                "input2": input2,
-                "scale": scale
-            }
+            code_dir, 
+            # image_kwargs={
+            #     "input1": input1, 
+            #     "input2": input2,
+            #     "scale": scale
+            # },
+            image_kwargs={
+                "input": input1,
+                "weight": input2,
+                "bias": bias,
+                "scale": scale,
+                "out_zp": out_zp,
+                "relu": relu,
+            },
         )
+
+        
 
         # check result
         if check_result:
 
             helper_golden = self.helper._calculate_golden()
             # correct = np.array_equal(golden, output)
-            correct_percent = (golden == output).sum() / golden.size
+            correct_percent = (golden_i8 == output).sum() / golden_i8.size
+
             return output, correct_percent
 
         return output, None
@@ -1177,6 +1199,7 @@ class DepthWiseConv2dQuantifyOperator(Operator):
             correct_percent = (golden_i8 == output_i8).sum() / golden_i8.size
             # import pdb; pdb.set_trace()
             # assert correct
+            
             return output_i8, correct_percent
 
         return output_i8, None
