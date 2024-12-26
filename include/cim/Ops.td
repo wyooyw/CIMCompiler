@@ -44,7 +44,7 @@ def VVAddOp : CIM_Op<"vv_add"> {
   //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
   // ];
 
-  let hasCanonicalizer = 1;
+  //let hasCanonicalizer = 1;
   let hasFolder = 1;
 }
 
@@ -66,19 +66,52 @@ def VVMulOp : CIM_Op<"vv_mul"> {
   let hasFolder = 1;
 }
 
-def VSMulOp : CIM_Op<"vs_mul", [Pure]> {
-  let summary = "Multiplying scalar and vector";
+def VSMulOp : CIM_Op<"vs_mul"> {
+  let summary = "element-wise mul operation";
   let description = [{
-    Multiplying scalars and vectors.
+    The "mul" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
   }];
 
-  let arguments = (ins I32Tensor:$vec, I32:$scalar);
-  let results = (outs I32Tensor);
+  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$out);
 
   // Allow building an AddOp with from the two input operands.
-  let builders = [
-    OpBuilder<(ins "Value":$vec, "Value":$scalar)>
-  ];
+  // let builders = [
+  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
+  // ];
+
+  // let hasCanonicalizer = 1;
+  let hasFolder = 1;
+}
+
+def VVMaxOp : CIM_Op<"vv_max"> {
+  let summary = "element-wise max operation";
+  let description = [{
+    The "max" operation performs element-wise max between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$out);
+
+  // Allow building an AddOp with from the two input operands.
+  // let builders = [
+  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
+  // ];
+
+  // let hasCanonicalizer = 1;
+  let hasFolder = 1;
+}
+
+def VFloorOp : CIM_Op<"vfloor"> {
+  let summary = "element-wise floor operation";
+  let description = [{
+    The "floor" operation performs element-wise floor between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins AnyMemRef:$input, AnyMemRef:$output);
+
+  let hasFolder = 1;
 }
 
 def QuantifyOp : CIM_Op<"quantify"> {

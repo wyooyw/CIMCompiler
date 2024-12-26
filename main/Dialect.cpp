@@ -214,23 +214,6 @@ void mlir::registerCIMInlinerInterface(DialectRegistry &registry) {
 //   state.addOperands({lhs, rhs, result});
 // }
 
-void VSMulOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                    mlir::Value vec, mlir::Value scalar) {
-  auto type = vec.getType().cast<RankedTensorType>();
-  if (type) {
-    auto shape = type.getShape();
-    auto element_type = builder.getI32Type();
-    auto encoding = type.getEncoding();
-    RankedTensorType::Builder _builder =
-        RankedTensorType::Builder(shape, element_type, encoding);
-    RankedTensorType newTensorType = RankedTensorType(_builder);
-    state.addTypes(newTensorType);
-  } else {
-    state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
-  }
-  // state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
-  state.addOperands({vec, scalar});
-}
 
 //===----------------------------------------------------------------------===//
 // CIMComputeOp
@@ -290,6 +273,24 @@ VVAddOp::fold(FoldAdaptor adaptor,
 }
 LogicalResult
 VVMulOp::fold(FoldAdaptor adaptor,
+              llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+LogicalResult
+VSMulOp::fold(FoldAdaptor adaptor,
+              llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+LogicalResult
+VVMaxOp::fold(FoldAdaptor adaptor,
+              llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+LogicalResult
+VFloorOp::fold(FoldAdaptor adaptor,
               llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
   // prefetch(memrefcast) -> prefetch
   return memref::foldMemRefCast(*this);

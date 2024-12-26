@@ -517,6 +517,164 @@ struct VVMulOpConvert : public OpRewritePattern<cimisa::VVMulOp> {
   }
 };
 
+struct VSMulOpConvert : public OpRewritePattern<cimisa::VSMulOp> {
+  using OpRewritePattern<cimisa::VSMulOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cimisa::VSMulOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "VSMulOpConvert::matchAndRewrite begin";
+
+    Value lhs_addr = op.getOperand(0);
+    Value rhs_addr = op.getOperand(1);
+    Value out_addr = op.getOperand(2);
+    Value size = op.getOperand(3);
+    LOG_DEBUG << "VSMulOpConvert::matchAndRewrite 1";
+
+    bool change = false;
+    if (isConstant(lhs_addr)) {
+      IntegerAttr constant = getConstantInt(lhs_addr);
+      lhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), lhs_addr.getType(), constant);
+      change = true;
+    }
+    if (isConstant(rhs_addr)) {
+      IntegerAttr constant = getConstantInt(rhs_addr);
+      rhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), rhs_addr.getType(), constant);
+      change = true;
+    }
+    if (isConstant(out_addr)) {
+      IntegerAttr constant = getConstantInt(out_addr);
+      out_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), out_addr.getType(), constant);
+      change = true;
+    }
+    if (isConstant(size)) {
+      IntegerAttr constant = getConstantInt(size);
+      size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
+                                                     size.getType(), constant);
+      change = true;
+    }
+
+    if (!change) {
+      return failure();
+    }
+
+    LOG_DEBUG << "VSMulOpConvert::matchAndRewrite 2";
+    // MemRefType memtype =
+    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
+    // memtype.getElementType();
+    rewriter.replaceOpWithNewOp<cimisa::VSMulOp>(op, lhs_addr, rhs_addr,
+                                                 out_addr, size, op.getLhsBw(),
+                                                 op.getRhsBw(), op.getOutBw());
+    LOG_DEBUG << "VSMulOpConvert::matchAndRewrite finish";
+    return success();
+  }
+};
+
+struct VVMaxOpConvert : public OpRewritePattern<cimisa::VVMaxOp> {
+  using OpRewritePattern<cimisa::VVMaxOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cimisa::VVMaxOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "VVMaxOpConvert::matchAndRewrite begin";
+
+    Value lhs_addr = op.getOperand(0);
+    Value rhs_addr = op.getOperand(1);
+    Value out_addr = op.getOperand(2);
+    Value size = op.getOperand(3);
+    LOG_DEBUG << "VVMaxOpConvert::matchAndRewrite 1";
+
+    bool change = false;
+    if (isConstant(lhs_addr)) {
+      IntegerAttr constant = getConstantInt(lhs_addr);
+      lhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), lhs_addr.getType(), constant);
+      change = true;
+    }
+    if (isConstant(rhs_addr)) {
+      IntegerAttr constant = getConstantInt(rhs_addr);
+      rhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), rhs_addr.getType(), constant);
+      change = true;
+    }
+    if (isConstant(out_addr)) {
+      IntegerAttr constant = getConstantInt(out_addr);
+      out_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), out_addr.getType(), constant);
+      change = true;
+    }
+    if (isConstant(size)) {
+      IntegerAttr constant = getConstantInt(size);
+      size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
+                                                     size.getType(), constant);
+      change = true;
+    }
+
+    if (!change) {
+      return failure();
+    }
+
+    LOG_DEBUG << "VVMaxOpConvert::matchAndRewrite 2";
+    // MemRefType memtype =
+    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
+    // memtype.getElementType();
+    rewriter.replaceOpWithNewOp<cimisa::VVMaxOp>(op, lhs_addr, rhs_addr,
+                                                 out_addr, size, op.getLhsBw(),
+                                                 op.getRhsBw(), op.getOutBw());
+    LOG_DEBUG << "VVMaxOpConvert::matchAndRewrite finish";
+    return success();
+  }
+};
+
+struct VFloorOpConvert : public OpRewritePattern<cimisa::VFloorOp> {
+  using OpRewritePattern<cimisa::VFloorOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cimisa::VFloorOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "VFloorOpConvert::matchAndRewrite begin";
+
+    Value input_addr = op.getOperand(0);
+    Value output_addr = op.getOperand(1);
+    Value size = op.getOperand(2);
+    LOG_DEBUG << "VFloorOpConvert::matchAndRewrite 1";
+
+    bool change = false;
+    if (isConstant(input_addr)) {
+      IntegerAttr constant = getConstantInt(input_addr);
+      input_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), input_addr.getType(), constant);
+      change = true;
+    }
+    if (isConstant(output_addr)) {
+      IntegerAttr constant = getConstantInt(output_addr);
+      output_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+          op.getLoc(), output_addr.getType(), constant);
+      change = true;
+    } 
+    if (isConstant(size)) {
+      IntegerAttr constant = getConstantInt(size);
+      size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
+                                                     size.getType(), constant);
+      change = true;
+    }
+
+    if (!change) {
+      return failure();
+    }
+
+    LOG_DEBUG << "VFloorOpConvert::matchAndRewrite 2";
+    // MemRefType memtype =
+    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
+    // memtype.getElementType();
+    rewriter.replaceOpWithNewOp<cimisa::VFloorOp>(op, input_addr, output_addr,
+                                                 size, op.getInputBw(),
+                                                 op.getOutputBw());
+    LOG_DEBUG << "VFloorOpConvert::matchAndRewrite finish";
+    return success();
+  }
+};
+
 struct CIMOutputOpConvert : public OpRewritePattern<cimisa::CIMOutputOp> {
   using OpRewritePattern<cimisa::CIMOutputOp>::OpRewritePattern;
 
@@ -729,7 +887,7 @@ void RR2RIPass::runOnOperation() {
                RemSIOpConvert, MinSIOpConvert, StoreBaseAndOffsetOpConvert,
                LoadBaseAndOffsetOpConvert, TransOpConvert, CIMTransferOpConvert,
                CIMComputeOpConvert, VVAddOpConvert, VVMulOpConvert, CIMOutputSumOpConvert,
-               QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert>(
+               QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert, VFloorOpConvert>(
       &getContext());
   // ForOpConvert
 

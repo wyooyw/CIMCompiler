@@ -700,6 +700,102 @@ struct VVMulOpLowering : public OpRewritePattern<cim::VVMulOp> {
   }
 };
 
+struct VSMulOpLowering : public OpRewritePattern<cim::VSMulOp> {
+  using OpRewritePattern<cim::VSMulOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::VSMulOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "VSMulOpLowering::matchAndRewrite begin";
+    Value lhs = getAddrValue(op.getOperand(0), rewriter);
+    Value rhs = getAddrValue(op.getOperand(1), rewriter);
+    Value result = getAddrValue(op.getOperand(2), rewriter);
+    Value size = getLengthValue(op.getOperand(0), rewriter);
+
+    LOG_DEBUG << "VSMulOpLowering::matchAndRewrite";
+    if (!lhs || !rhs || !result) {
+      LOG_ERROR << "VSMulOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+    LOG_DEBUG << "VSMulOpLowering::matchAndRewrite success";
+
+    int64_t _bitwidth_lhs = getBitWidthMemRefOperand(op.getOperand(0));
+    int64_t _bitwidth_rhs = getBitWidthMemRefOperand(op.getOperand(1));
+    int64_t _bitwidth_out = getBitWidthMemRefOperand(op.getOperand(2));
+
+    IntegerAttr bitwidth_lhs = rewriter.getI8IntegerAttr(_bitwidth_lhs);
+    IntegerAttr bitwidth_rhs = rewriter.getI8IntegerAttr(_bitwidth_rhs);
+    IntegerAttr bitwidth_out = rewriter.getI8IntegerAttr(_bitwidth_out);
+
+    rewriter.replaceOpWithNewOp<cimisa::VSMulOp>(
+        op, lhs, rhs, result, size, bitwidth_lhs, bitwidth_rhs, bitwidth_out);
+
+    return success();
+  }
+};
+
+struct VVMaxOpLowering : public OpRewritePattern<cim::VVMaxOp> {
+  using OpRewritePattern<cim::VVMaxOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::VVMaxOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "VVMaxOpLowering::matchAndRewrite begin";
+    Value lhs = getAddrValue(op.getOperand(0), rewriter);
+    Value rhs = getAddrValue(op.getOperand(1), rewriter);
+    Value result = getAddrValue(op.getOperand(2), rewriter);
+    Value size = getLengthValue(op.getOperand(0), rewriter);
+
+    LOG_DEBUG << "VVMaxOpLowering::matchAndRewrite";
+    if (!lhs || !rhs || !result) {
+      LOG_ERROR << "VVMaxOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+    LOG_DEBUG << "VVMaxOpLowering::matchAndRewrite success";
+
+    int64_t _bitwidth_lhs = getBitWidthMemRefOperand(op.getOperand(0));
+    int64_t _bitwidth_rhs = getBitWidthMemRefOperand(op.getOperand(1));
+    int64_t _bitwidth_out = getBitWidthMemRefOperand(op.getOperand(2));
+
+    IntegerAttr bitwidth_lhs = rewriter.getI8IntegerAttr(_bitwidth_lhs);
+    IntegerAttr bitwidth_rhs = rewriter.getI8IntegerAttr(_bitwidth_rhs);
+    IntegerAttr bitwidth_out = rewriter.getI8IntegerAttr(_bitwidth_out);
+
+    rewriter.replaceOpWithNewOp<cimisa::VVMaxOp>(
+        op, lhs, rhs, result, size, bitwidth_lhs, bitwidth_rhs, bitwidth_out);
+
+    return success();
+  }
+};
+
+struct VFloorOpLowering : public OpRewritePattern<cim::VFloorOp> {
+  using OpRewritePattern<cim::VFloorOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::VFloorOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "VFloorOpLowering::matchAndRewrite begin";
+    Value input_addr = getAddrValue(op.getOperand(0), rewriter);
+    Value output_addr = getAddrValue(op.getOperand(1), rewriter);
+    Value size = getLengthValue(op.getOperand(0), rewriter);
+
+    LOG_DEBUG << "VFloorOpLowering::matchAndRewrite";
+    if (!input_addr || !output_addr || !size) {
+      LOG_ERROR << "VFloorOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+    LOG_DEBUG << "VVMaxOpLowering::matchAndRewrite success";
+
+    int64_t _bitwidth_input = getBitWidthMemRefOperand(op.getOperand(0));
+    int64_t _bitwidth_output = getBitWidthMemRefOperand(op.getOperand(1));
+
+    IntegerAttr bitwidth_input = rewriter.getI8IntegerAttr(_bitwidth_input);
+    IntegerAttr bitwidth_output = rewriter.getI8IntegerAttr(_bitwidth_output);
+
+    rewriter.replaceOpWithNewOp<cimisa::VFloorOp>(
+        op, input_addr, output_addr, size, bitwidth_input, bitwidth_output);
+
+    return success();
+  }
+};
+
 struct QuantifyOpLowering : public OpRewritePattern<cim::QuantifyOp> {
   using OpRewritePattern<cim::QuantifyOp>::OpRewritePattern;
 
@@ -970,7 +1066,7 @@ void CIMLoweringPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   patterns
       .add<TransOpLowering, CIMComputeOpLowering, LoadOpLowering,
-           StoreOpLowering, VVAddOpLowering, VVMulOpLowering, SpecialRegSetOpLowering,
+           StoreOpLowering, VVAddOpLowering, VVMulOpLowering, VSMulOpLowering, VVMaxOpLowering, VFloorOpLowering, SpecialRegSetOpLowering,
            CIMOutputOpLowering, CIMOutputSumOpLowering, CIMTransferOpLowering,
            QuantifyOpLowering, ResAddQuantifyOpLowering, ResMulQuantifyOpLowering, AddrOpLowering, CIMSetOpLowering>(&getContext());
   

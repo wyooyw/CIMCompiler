@@ -1,0 +1,41 @@
+{% include 'lib/def_special_regs.cim' %}
+
+// input
+#define INPUT_ROW {{ INPUT_ROW }}
+#define INPUT_COL {{ INPUT_COL }}
+#define INPUT_CHANNEL {{ INPUT_CHANNEL }}
+
+def main(null<int8>){
+    global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
+    global_output = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
+
+    local_input = Buffer(<INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+    local_output = Buffer(<INPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
+    local_zeros = Buffer(<INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
+
+    for ih in range(INPUT_ROW) carry (null) {
+        for iw in range(INPUT_COL) carry (null) {
+            // do max pooling
+            use_global_input = Slice(global_input,
+                [ih, iw, 0],
+                [1, 1, INPUT_CHANNEL],
+                [1, 1, 1]
+            );
+            Trans(use_global_input, local_input);
+
+            VVMax(local_input, local_zeros, local_output);
+
+            // move to global memory
+            use_global_output = Slice(global_output,
+                [ih, iw, 0],
+                [1, 1, INPUT_CHANNEL],
+                [1, 1, 1]
+            );
+            Trans(local_output, use_global_output);
+        };
+    };
+}

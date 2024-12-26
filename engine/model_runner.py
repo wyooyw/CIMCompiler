@@ -20,6 +20,10 @@ from engine.operator_template import (  # quantify
     ValueSparseConv2dTemplate,
     ResAddQuantizeTemplate,
     ResMulQuantizeTemplate,
+
+    ReLUTemplate,
+    MaxPoolingTemplate,
+    AvgPoolingQuantizeTemplate,
 )
 from utils.logger import get_logger
 from functools import reduce
@@ -50,6 +54,9 @@ OP_TEMPLATE_LIST = [
     DepthWiseConv2dQuantifyTemplate(),
     ResAddQuantizeTemplate(),
     ResMulQuantizeTemplate(),
+    ReLUTemplate(),
+    MaxPoolingTemplate(),
+    AvgPoolingQuantizeTemplate(),
 ]
 dense_cache = dict()
 

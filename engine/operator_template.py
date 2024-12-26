@@ -24,6 +24,9 @@ from engine.operator_cim import (
     ValueSparseConv2dQuantifyOperator,
     ResAddQuantizeOperator,
     ResMulQuantizeOperator,
+    ReLUOperator,
+    MaxPoolingOperator,
+    AvgPoolingQuantizeOperator,
 )
 from simulator.macro_utils import MacroConfig
 from simulator.mask_utils import MaskConfig
@@ -131,6 +134,98 @@ class ResMulQuantizeTemplate(OperatorTemplate):
             return False
 
         if not raw_layer["input_row"] == raw_layer["input_col"]:
+            return False
+
+        return True
+
+
+class ReLUTemplate(OperatorTemplate):
+    def __init__(self):
+        super().__init__(
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/relu"),
+        )
+
+    def raw_layer_to_op_config(self, raw_layer):
+        return {
+            "in_channel": raw_layer["input_channel"],
+            "in_hw": raw_layer["input_row"],
+        }
+
+    def get_operator(self, raw_layer):  
+        op_config = self.raw_layer_to_op_config(raw_layer)
+        return ReLUOperator(self.config_path, self.template_path, op_config)
+
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        """
+        """
+
+        if not raw_layer.get("type", None) == "RELU":
+            return False
+
+        return True
+
+class MaxPoolingTemplate(OperatorTemplate):
+    def __init__(self):
+        super().__init__(
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/max_pooling"),
+        )
+
+    def raw_layer_to_op_config(self, raw_layer):
+        return {
+            "in_channel": raw_layer["input_channel"],
+            "in_hw": raw_layer["input_row"],
+            "out_hw": raw_layer["input_row"] // raw_layer["weight_row"],
+            "ker_size": raw_layer["weight_row"],
+        }
+
+    def get_operator(self, raw_layer):  
+        op_config = self.raw_layer_to_op_config(raw_layer)
+        return MaxPoolingOperator(self.config_path, self.template_path, op_config)
+
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        """
+        """
+
+        if not (
+            raw_layer.get("type", None) == "POOLING" and
+            raw_layer.get("pooling_type", None) == "MAX"
+        ):
+            return False
+
+        return True
+
+class AvgPoolingQuantizeTemplate(OperatorTemplate):
+    def __init__(self):
+        super().__init__(
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/avg_pooling"),
+        )
+
+    def raw_layer_to_op_config(self, raw_layer):
+        return {
+            "in_channel": raw_layer["input_channel"],
+            "in_hw": raw_layer["input_row"],
+            "out_hw": raw_layer["input_row"] // raw_layer["weight_row"],
+            "ker_size": raw_layer["weight_row"],
+        }
+
+    def get_operator(self, raw_layer):  
+        op_config = self.raw_layer_to_op_config(raw_layer)
+        return AvgPoolingQuantizeOperator(self.config_path, self.template_path, op_config)
+
+    def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
+        """
+        """
+
+        if not (
+            raw_layer.get("type", None) == "POOLING" and
+            raw_layer.get("pooling_type", None) == "MEAN"
+        ):
+            return False
+
+        if not quantify:
             return False
 
         return True

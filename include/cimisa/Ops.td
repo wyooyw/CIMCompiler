@@ -64,6 +64,58 @@ def VVMulOp : CIMISA_Op<"vvmul"> {
   );
 }
 
+def VSMulOp : CIMISA_Op<"vsmul"> {
+  let summary = "element-wise addition operation";
+  let description = [{
+    The "mul" operation performs element-wise addition between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$lhs_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$rhs_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$out_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$size,
+    I8Attr:$lhs_bw, // bw: bit width
+    I8Attr:$rhs_bw, 
+    I8Attr:$out_bw
+  );
+}
+
+def VVMaxOp : CIMISA_Op<"vv_max"> {
+  let summary = "element-wise max operation";
+  let description = [{
+    The "max" operation performs element-wise max between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$lhs_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$rhs_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$out_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$size,
+    I8Attr:$lhs_bw, // bw: bit width
+    I8Attr:$rhs_bw, 
+    I8Attr:$out_bw
+  );
+}
+
+def VFloorOp : CIMISA_Op<"vfloor"> {
+  let summary = "element-wise floor operation";
+  let description = [{
+    The "floor" operation performs element-wise floor between two tensors.
+    The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins 
+    AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
+    AnyTypeOf<[AnyInteger, Index]>:$output_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$size,
+    I8Attr:$input_bw, // bw: bit width
+    I8Attr:$output_bw
+  );
+}
+
 def QuantifyOp : CIMISA_Op<"quantify"> {
   let summary = "element-wise addition operation";
   let description = [{

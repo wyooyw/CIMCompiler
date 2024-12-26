@@ -1,0 +1,73 @@
+{% include 'lib/def_special_regs.cim' %}
+
+// input
+#define INPUT_ROW {{ INPUT_ROW }}
+#define INPUT_COL {{ INPUT_COL }}
+#define INPUT_CHANNEL {{ INPUT_CHANNEL }}
+
+#define OUTPUT_ROW {{ OUTPUT_ROW }}
+#define OUTPUT_COL {{ OUTPUT_COL }}
+
+#define KERNEL_SIZE {{ KERNEL_SIZE }}
+
+def main(null<int8>){
+    global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
+    global_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
+
+    local_input = Buffer(<KERNEL_SIZE, KERNEL_SIZE, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+    local_output = Buffer(<INPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
+
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
+
+    for oh in range(OUTPUT_ROW) carry (null) {
+        for ow in range(OUTPUT_COL) carry (null) {
+            // copy input to local
+            for kh in range(KERNEL_SIZE) carry (null) {
+                ih = oh * KERNEL_SIZE;
+                iw = ow * KERNEL_SIZE;
+                use_global_input = Slice(global_input,
+                    [ih + kh, iw, 0],
+                    [1, KERNEL_SIZE, INPUT_CHANNEL],
+                    [1, 1, 1]
+                );
+
+                use_local_input = Slice(local_input,
+                    [kh, 0, 0],
+                    [1, KERNEL_SIZE, INPUT_CHANNEL],
+                    [1, 1, 1]
+                );
+                Trans(use_global_input, use_local_input);
+            };
+
+            
+            // do max pooling
+            use_local_input = Slice(local_input,
+                [0, 0, 0],
+                [1, 1, INPUT_CHANNEL],
+                [1, 1, 1]
+            );
+            Trans(use_local_input, local_output);
+
+            for kh in range(KERNEL_SIZE) carry (null) {
+                for kw in range(KERNEL_SIZE) carry (null) {
+                    use_local_input = Slice(local_input,
+                        [kh, kw, 0],
+                        [1, 1, INPUT_CHANNEL],
+                        [1, 1, 1]
+                    );
+                    VVMax(use_local_input, local_output, local_output);
+                };
+            };
+
+            // move to global memory
+            use_global_output = Slice(global_output,
+                [oh, ow, 0],
+                [1, 1, INPUT_CHANNEL],
+                [1, 1, 1]
+            );
+            Trans(local_output, use_global_output);
+        };
+    };
+}

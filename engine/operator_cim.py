@@ -253,6 +253,139 @@ class ResMulQuantizeOperator(Operator):
         self.compile(code_dir)
         output = self.run(code_dir, predict_pimcompute_count=False)
 
+class ReLUOperator(Operator):
+    def __init__(self, config_path, template_path, op_config):
+        super().__init__(config_path, template_path, op_config)
+
+    def compile_and_run_from_dataflow_dir(self, df_dir, code_dir, check_result=False):
+        input_ = np.loadtxt(os.path.join(df_dir, "input.txt"), dtype=np.int8).reshape(
+            self.op_config["in_channel"],
+            self.op_config["in_hw"],
+            self.op_config["in_hw"],
+        )
+        
+        golden = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8).reshape(
+            self.op_config["in_channel"],
+            self.op_config["in_hw"],
+            self.op_config["in_hw"],
+        )
+        golden = np.transpose(golden, (1, 2, 0))
+
+        output = self.compile_and_run(
+            code_dir, 
+            image_kwargs={
+                "input_": input_,
+            },
+        )
+        # check result
+        if check_result:
+
+            helper_golden = self.helper._calculate_golden()
+            # correct = np.array_equal(golden, output)
+            correct_percent = (golden == output).sum() / golden.size
+
+            return output, correct_percent
+
+        return output, None
+
+    def compile_and_run(self, code_dir, image_kwargs):
+        image = self.compile(code_dir, image_kwargs)
+        return self.run(code_dir, image, predict_pimcompute_count=False)
+
+    def compile_and_run_with_mock_data(self, code_dir):
+        self.compile(code_dir)
+        output = self.run(code_dir, predict_pimcompute_count=False)
+
+class MaxPoolingOperator(Operator):
+    def __init__(self, config_path, template_path, op_config):
+        super().__init__(config_path, template_path, op_config)
+
+    def compile_and_run_from_dataflow_dir(self, df_dir, code_dir, check_result=False):
+        input_ = np.loadtxt(os.path.join(df_dir, "input.txt"), dtype=np.int8).reshape(
+            self.op_config["in_channel"],
+            self.op_config["in_hw"],
+            self.op_config["in_hw"],
+        )
+        
+        golden = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8).reshape(
+            self.op_config["in_channel"],
+            self.op_config["out_hw"],
+            self.op_config["out_hw"],
+        )
+        golden = np.transpose(golden, (1, 2, 0))
+
+        output = self.compile_and_run(
+            code_dir, 
+            image_kwargs={
+                "input_": input_,
+            },
+        )
+        # check result
+        if check_result:
+
+            helper_golden = self.helper._calculate_golden()
+            # correct = np.array_equal(golden, output)
+            correct_percent = (golden == output).sum() / golden.size
+
+            return output, correct_percent
+
+        return output, None
+
+    def compile_and_run(self, code_dir, image_kwargs):
+        image = self.compile(code_dir, image_kwargs)
+        return self.run(code_dir, image, predict_pimcompute_count=False)
+
+    def compile_and_run_with_mock_data(self, code_dir):
+        self.compile(code_dir)
+        output = self.run(code_dir, predict_pimcompute_count=False)
+
+class AvgPoolingQuantizeOperator(Operator):
+    def __init__(self, config_path, template_path, op_config):
+        super().__init__(config_path, template_path, op_config)
+
+    def compile_and_run_from_dataflow_dir(self, df_dir, code_dir, check_result=False):
+        input_ = np.loadtxt(os.path.join(df_dir, "input.txt"), dtype=np.int8).reshape(
+            self.op_config["in_channel"],
+            self.op_config["in_hw"],
+            self.op_config["in_hw"],
+        )
+        scale = np.loadtxt(os.path.join(df_dir, "scale.txt"), dtype=np.float32).reshape(-1)
+        out_zp = np.loadtxt(os.path.join(df_dir, "qo.zero_point.txt"), dtype=np.int32).reshape(1)
+        
+        golden = np.loadtxt(os.path.join(df_dir, "output.txt"), dtype=np.int8).reshape(
+            self.op_config["in_channel"],
+            self.op_config["out_hw"],
+            self.op_config["out_hw"],
+        )
+        golden = np.transpose(golden, (1, 2, 0))
+
+        output = self.compile_and_run(
+            code_dir, 
+            image_kwargs={
+                "input_": input_,
+                "scale": scale,
+                "out_zp": out_zp,
+            },
+        )
+        # check result
+        if check_result:
+
+            helper_golden = self.helper._calculate_golden()
+            # correct = np.array_equal(golden, output)
+            correct_percent = (golden == output).sum() / golden.size
+
+            return output, correct_percent
+
+        return output, None
+
+    def compile_and_run(self, code_dir, image_kwargs):
+        image = self.compile(code_dir, image_kwargs)
+        return self.run(code_dir, image, predict_pimcompute_count=False)
+
+    def compile_and_run_with_mock_data(self, code_dir):
+        self.compile(code_dir)
+        output = self.run(code_dir, predict_pimcompute_count=False)
+        
 class DenseConv2dOperator(Operator):
     def __init__(self, config_path, template_path, op_config):
         super().__init__(config_path, template_path, op_config)

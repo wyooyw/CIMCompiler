@@ -28,42 +28,42 @@ using namespace cim;
 // #include "ToyCombine.inc"
 // } // namespace
 
-struct VVAddDuplicateOperand_to_VSMul : public mlir::OpRewritePattern<VVAddOp> {
-  /// We register this pattern to match every cim.vv_add in the IR.
-  /// The "benefit" is used by the framework to order the patterns and process
-  /// them in order of profitability.
-  VVAddDuplicateOperand_to_VSMul(mlir::MLIRContext *context)
-      : OpRewritePattern<VVAddOp>(context, /*benefit=*/1) {}
+// struct VVAddDuplicateOperand_to_VSMul : public mlir::OpRewritePattern<VVAddOp> {
+//   /// We register this pattern to match every cim.vv_add in the IR.
+//   /// The "benefit" is used by the framework to order the patterns and process
+//   /// them in order of profitability.
+//   VVAddDuplicateOperand_to_VSMul(mlir::MLIRContext *context)
+//       : OpRewritePattern<VVAddOp>(context, /*benefit=*/1) {}
 
-  /// This method attempts to match a pattern and rewrite it.
-  mlir::LogicalResult
-  matchAndRewrite(VVAddOp op, mlir::PatternRewriter &rewriter) const override {
-    // Look through the input of the current transpose.
-    auto operands = op.getOperands();
-    LOG_DEBUG << "VVAddDuplicateOperand_to_VSMul";
-    // std::cout << "operands[0]: " << operands[0] << std::endl;
-    // std::cout << "operands[1]: " << operands[1] << std::endl;
+//   /// This method attempts to match a pattern and rewrite it.
+//   mlir::LogicalResult
+//   matchAndRewrite(VVAddOp op, mlir::PatternRewriter &rewriter) const override {
+//     // Look through the input of the current transpose.
+//     auto operands = op.getOperands();
+//     LOG_DEBUG << "VVAddDuplicateOperand_to_VSMul";
+//     // std::cout << "operands[0]: " << operands[0] << std::endl;
+//     // std::cout << "operands[1]: " << operands[1] << std::endl;
 
-    if (operands[0] != operands[1]) {
-      return failure();
-    }
+//     if (operands[0] != operands[1]) {
+//       return failure();
+//     }
 
-    // Otherwise, we replace VVAddOp to VSMulOp. Use the rewriter.
-    mlir::Value factor =
-        rewriter.create<mlir::arith::ConstantIntOp>(op.getLoc(), 2, 32);
-    auto vs_mul = rewriter.create<VSMulOp>(op.getLoc(), operands[0], factor);
-    rewriter.replaceOp(op, {vs_mul.getResult()});
-    return success();
-  }
-};
+//     // Otherwise, we replace VVAddOp to VSMulOp. Use the rewriter.
+//     mlir::Value factor =
+//         rewriter.create<mlir::arith::ConstantIntOp>(op.getLoc(), 2, 32);
+//     auto vs_mul = rewriter.create<VSMulOp>(op.getLoc(), operands[0], factor);
+//     rewriter.replaceOp(op, {vs_mul.getResult()});
+//     return success();
+//   }
+// };
 
-/// Register our patterns as "canonicalization" patterns on the TransposeOp so
-/// that they can be picked up by the Canonicalization framework.
-void VVAddOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                          MLIRContext *context) {
-  LOG_DEBUG << "VVAddOp::getCanonicalizationPatterns";
-  results.add<VVAddDuplicateOperand_to_VSMul>(context);
-}
+// /// Register our patterns as "canonicalization" patterns on the TransposeOp so
+// /// that they can be picked up by the Canonicalization framework.
+// void VVAddOp::getCanonicalizationPatterns(RewritePatternSet &results,
+//                                           MLIRContext *context) {
+//   LOG_DEBUG << "VVAddOp::getCanonicalizationPatterns";
+//   results.add<VVAddDuplicateOperand_to_VSMul>(context);
+// }
 
 struct ShapeToConstant : public mlir::OpRewritePattern<mlir::cim::ShapeOp> {
   /// We register this pattern to match every cim.vv_add in the IR.
@@ -115,13 +115,11 @@ void ShapeOp::getCanonicalizationPatterns(RewritePatternSet &results,
 */
 
 struct CastToNoOp : public mlir::OpRewritePattern<mlir::cim::CastOp> {
-  /// We register this pattern to match every cim.vv_add in the IR.
-  /// The "benefit" is used by the framework to order the patterns and process
-  /// them in order of profitability.
+
   CastToNoOp(mlir::MLIRContext *context)
       : OpRewritePattern<mlir::cim::CastOp>(context, /*benefit=*/1) {}
 
-  /// This method attempts to match a pattern and rewrite it.
+  // This method attempts to match a pattern and rewrite it.
   mlir::LogicalResult
   matchAndRewrite(mlir::cim::CastOp op,
                   mlir::PatternRewriter &rewriter) const override {
