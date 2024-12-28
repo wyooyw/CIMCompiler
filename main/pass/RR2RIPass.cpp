@@ -675,6 +675,26 @@ struct VFloorOpConvert : public OpRewritePattern<cimisa::VFloorOp> {
   }
 };
 
+struct SpecialRegAssignOpConvert : public OpRewritePattern<cimisa::SpecialRegAssignOp> {
+  using OpRewritePattern<cimisa::SpecialRegAssignOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cimisa::SpecialRegAssignOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "SpecialRegAssignOpConvert::matchAndRewrite begin";
+
+    Value value = op.getOperand();
+    LOG_DEBUG << "SpecialRegAssignOpConvert::matchAndRewrite 1";
+
+    if (isConstant(value)) {
+      IntegerAttr constant = rewriter.getI32IntegerAttr(getConstantInt(value).getInt());
+      IntegerAttr special_reg = rewriter.getI32IntegerAttr(op.getSpecialReg());
+      rewriter.replaceOpWithNewOp<cimisa::SpecialRegLiOp>(op, special_reg, constant);
+      return success();
+    }
+    return failure();
+  }
+};
+
 struct CIMOutputOpConvert : public OpRewritePattern<cimisa::CIMOutputOp> {
   using OpRewritePattern<cimisa::CIMOutputOp>::OpRewritePattern;
 
@@ -887,7 +907,8 @@ void RR2RIPass::runOnOperation() {
                RemSIOpConvert, MinSIOpConvert, StoreBaseAndOffsetOpConvert,
                LoadBaseAndOffsetOpConvert, TransOpConvert, CIMTransferOpConvert,
                CIMComputeOpConvert, VVAddOpConvert, VVMulOpConvert, CIMOutputSumOpConvert,
-               QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert, VFloorOpConvert>(
+               QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert, VFloorOpConvert,
+               SpecialRegAssignOpConvert>(
       &getContext());
   // ForOpConvert
 

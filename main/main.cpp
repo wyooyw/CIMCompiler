@@ -103,11 +103,14 @@ int main(int argc, char **argv) {
   MLIRGenImpl gen_impl(context);
   mlir::ModuleOp module = gen_impl.parseJson(inputFilePath);
 
+  debugLogIR(module);  
+
   if (failed(verify(module))) {
     LOG_ERROR << "Module verification failed";
     errorLogIR(module);
     return 1;
   }
+  // return 0;
   // std::vector<mlir::scf::ForOp> unrollForOps = gen_impl.getUnrollForOps();
   debugLogIR(module);  
   
@@ -157,7 +160,7 @@ int main(int argc, char **argv) {
     VLOG(3) << "Lower Passes success.";
     debugLogIR(module);
   }
-
+  // return 0;
   //
   mlir::PassManager cse_passes(&context);
   cse_passes.addPass(mlir::cim::createCommonSubexpressionExposePass());
@@ -185,6 +188,7 @@ int main(int argc, char **argv) {
     VLOG(3) << "Final Passes success.";
     debugLogIR(module);
   }
+  // return 0;
   // return 0;
 
   // step4: convert control flow

@@ -243,6 +243,13 @@ CopyOp::fold(FoldAdaptor adaptor,
 }
 
 LogicalResult
+SIMDOp::fold(FoldAdaptor adaptor,
+             llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  // prefetch(memrefcast) -> prefetch
+  return memref::foldMemRefCast(*this);
+}
+
+LogicalResult
 CIMComputeOp::fold(FoldAdaptor adaptor,
                    llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
   // prefetch(memrefcast) -> prefetch

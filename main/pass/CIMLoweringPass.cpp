@@ -308,6 +308,27 @@ static Value getLengthValue(Value operand, PatternRewriter &rewriter) {
   }
 }
 
+static Value getShapeValue(Value operand, int index, PatternRewriter &rewriter) {
+  if (auto allocOp = operand.getDefiningOp<memref::AllocOp>()) {
+
+    llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
+    mlir::Value shape_i =
+        rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[index]);
+    return shape_i;
+  } else if (auto subViewOp = operand.getDefiningOp<memref::SubViewOp>()) {
+    SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
+    if (Value shape_i = getValue(shapes[index], rewriter)) {
+      return shape_i;
+    } else {
+      return nullptr;
+    }
+  } else {
+    LOG_ERROR << "getSizeValue fail";
+    std::exit(1);
+    return nullptr;
+  }
+}
+
 static Value getSizeValue(Value operand, PatternRewriter &rewriter) {
   if (auto allocOp = operand.getDefiningOp<memref::AllocOp>()) {
 
@@ -796,6 +817,73 @@ struct VFloorOpLowering : public OpRewritePattern<cim::VFloorOp> {
   }
 };
 
+struct SIMDOpLowering : public OpRewritePattern<cim::SIMDOp> {
+  using OpRewritePattern<cim::SIMDOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::SIMDOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "SIMDOpLowering::matchAndRewrite begin";
+    int SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 = 21;
+    int SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 = 22;
+
+    int num_operands = op.getNumOperands();
+    int num_inputs = num_operands - 2;
+    if (num_inputs > 4){
+      LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+
+    IntegerAttr op_id_ = getConstantInt(op.getOperand(0));
+    IntegerAttr op_id = rewriter.getI32IntegerAttr(op_id_.getInt());
+    if (!op_id) {
+      LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+
+    Value size = getLengthValue(op.getOperand(1), rewriter);
+    if (!size) {
+      LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+
+    llvm::SmallVector<Value, 2> inputs_addr;
+    for (int i = 0; i < num_inputs; i++) {
+      int operand_id = i + 1;
+      Value addr = getAddrValue(op.getOperand(operand_id), rewriter);
+      if (!addr) {
+        LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
+        return failure();
+      }
+      if (i <= 1){
+        inputs_addr.push_back(addr);
+      }else if(i == 2){
+        IntegerAttr special_reg = rewriter.getI32IntegerAttr(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1);
+        rewriter.create<cimisa::SpecialRegAssignOp>(rewriter.getUnknownLoc(), special_reg, addr);
+      }else if(i == 3){
+        IntegerAttr special_reg = rewriter.getI32IntegerAttr(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2);
+        rewriter.create<cimisa::SpecialRegAssignOp>(rewriter.getUnknownLoc(), special_reg, addr);
+      }else{
+        LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
+        return failure();
+      }
+    }
+
+    Value output_addr = getAddrValue(op.getOperand(num_operands - 1), rewriter);
+    if (!output_addr) {
+      LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+
+
+    LOG_DEBUG << "SIMDOpLowering::matchAndRewrite";
+
+    IntegerAttr num_inputs_attr = rewriter.getI32IntegerAttr(num_inputs);
+    rewriter.replaceOpWithNewOp<cimisa::SIMDOp>(op, op_id, num_inputs_attr, inputs_addr, output_addr, size);
+
+    return success();
+  }
+};
+
 struct QuantifyOpLowering : public OpRewritePattern<cim::QuantifyOp> {
   using OpRewritePattern<cim::QuantifyOp>::OpRewritePattern;
 
@@ -1020,6 +1108,32 @@ struct AddrOpLowering : public OpRewritePattern<cim::AddrOp> {
     return success();
   }
 };
+
+struct ShapeOpLowering : public OpRewritePattern<cim::ShapeOp> {
+  using OpRewritePattern<cim::ShapeOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::ShapeOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "ShapeOpLowering::matchAndRewrite begin";
+    // Value input = getAddrValue(op.getOperand(0), rewriter);
+    IntegerAttr indexAttr = getConstantInt(op.getOperand(1));
+    int64_t index = indexAttr.getInt();
+    Value shape_i = getShapeValue(op.getOperand(0), index, rewriter);
+
+    LOG_DEBUG << "ShapeOpLowering::matchAndRewrite";
+    if (!shape_i) {
+      LOG_ERROR << "ShapeOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+    LOG_DEBUG << "ShapeOpLowering::matchAndRewrite success";
+
+
+    // replace ShapeOp with shape_i
+    rewriter.replaceOp(op, {shape_i});
+
+    return success();
+  }
+};
 } // namespace
 
 namespace {
@@ -1068,7 +1182,8 @@ void CIMLoweringPass::runOnOperation() {
       .add<TransOpLowering, CIMComputeOpLowering, LoadOpLowering,
            StoreOpLowering, VVAddOpLowering, VVMulOpLowering, VSMulOpLowering, VVMaxOpLowering, VFloorOpLowering, SpecialRegSetOpLowering,
            CIMOutputOpLowering, CIMOutputSumOpLowering, CIMTransferOpLowering,
-           QuantifyOpLowering, ResAddQuantifyOpLowering, ResMulQuantifyOpLowering, AddrOpLowering, CIMSetOpLowering>(&getContext());
+           QuantifyOpLowering, ResAddQuantifyOpLowering, ResMulQuantifyOpLowering, AddrOpLowering, CIMSetOpLowering, ShapeOpLowering,
+           SIMDOpLowering>(&getContext());
   
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`

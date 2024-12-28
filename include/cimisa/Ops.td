@@ -116,6 +116,21 @@ def VFloorOp : CIMISA_Op<"vfloor"> {
   );
 }
 
+def SIMDOp : CIMISA_Op<"simd"> {
+  let summary = "simd";
+  let description = [{
+    simd
+  }];
+
+  let arguments = (ins 
+    I32Attr:$op_code,
+    I32Attr:$num_inputs,
+    Variadic<AnyTypeOf<[AnyInteger, Index]>>:$inputs_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$output_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$size
+  );
+}
+
 def QuantifyOp : CIMISA_Op<"quantify"> {
   let summary = "element-wise addition operation";
   let description = [{

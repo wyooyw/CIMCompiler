@@ -555,7 +555,10 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree &ast) {
   } else if (call_func_name == "VFloor") {
     parse_builtin_vfloor(ast);
     return;
-  } else if (call_func_name == "Quantify") {
+  } else if (call_func_name == "SIMD") {
+    parse_builtin_simd(ast);
+    return;
+  }else if (call_func_name == "Quantify") {
     parse_builtin_quantify(ast);
     return;
   } else if (call_func_name == "ResAddQuantify") {
@@ -786,6 +789,26 @@ void MLIRGenImpl::parse_builtin_vfloor(const boost::property_tree::ptree &ast) {
   mlir::Value in = parse_expr(safe_get_child(get_item(ast_in, 0), "expr"));
   mlir::Value out = parse_expr(safe_get_child(get_item(ast_out, 0), "expr"));
   builder.create<mlir::cim::VFloorOp>(loc, in, out);
+}
+
+void MLIRGenImpl::parse_builtin_simd(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_builtin_simd";
+  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
+  
+  
+  int num_param = (ast_param_list.size() + 1) / 2;
+  auto ast_op_id = safe_get_child(get_item(ast_param_list, 0), "call_param");
+  mlir::Value op_id = parse_expr(safe_get_child(get_item(ast_op_id, 0), "expr"));
+
+  mlir::SmallVector<mlir::Value> operands;
+  for (int i = 1; i < num_param - 1; i++) {
+    auto ast_operand = safe_get_child(get_item(ast_param_list, 2 * i), "call_param");
+    operands.push_back(parse_expr(safe_get_child(get_item(ast_operand, 0), "expr")));
+  }
+  auto ast_output = safe_get_child(get_item(ast_param_list, 2 * (num_param - 1)), "call_param");
+  mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
+
+  builder.create<mlir::cim::SIMDOp>(loc, op_id, operands, output);
 }
 
 void MLIRGenImpl::parse_builtin_quantify(

@@ -352,4 +352,19 @@ def CIMSetOp : CIM_Op<"cim_set"> {
   let hasFolder = 1;
 }
 
+def SIMDOp : CIM_Op<"simd"> {
+  let summary = "simd";
+  let description = [{
+    simd
+  }];
+
+  let arguments = (ins 
+    Index:$op_id,
+    Variadic<AnyMemRef>:$inputs,
+    AnyMemRef:$output
+  );
+
+  let hasFolder = 1;
+}
+
 #endif // CIM_OPS

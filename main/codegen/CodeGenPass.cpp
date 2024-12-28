@@ -432,6 +432,34 @@ static void codeGen(mlir::cimisa::VFloorOp op,
   instr_list.push_back(inst);
 }
 
+static void codeGen(mlir::cimisa::SIMDOp op,
+                    std::unordered_map<llvm::hash_code, int> &regmap,
+                    std::vector<Inst> &instr_list, std::set<int> &def,
+                    std::set<int> &use) {
+
+  int opcode = static_cast<int>(op.getOpCode());
+  int numInputs = static_cast<int>(op.getNumInputs());
+
+  int num_operands = op.getNumOperands();
+  int in1_reg = getReg(regmap, op.getOperand(0));
+  int out_reg = getReg(regmap, op.getOperand(num_operands - 2));
+  int size_reg = getReg(regmap, op.getOperand(num_operands - 1));
+  use.insert(in1_reg);
+  use.insert(out_reg);
+  use.insert(size_reg);
+
+  int in2_reg = 0;
+  if (numInputs > 1) {
+    in2_reg = getReg(regmap, op.getOperand(1));
+    use.insert(in2_reg);
+  }
+
+  Inst inst = {{"class", 0b01}, {"input_num", numInputs - 1}, {"opcode", opcode},
+               {"rs1", in1_reg},    {"rs2", in2_reg},        {"rs3", size_reg},
+               {"rd", out_reg}};
+  instr_list.push_back(inst);
+}
+
 static void codeGen(mlir::cimisa::QuantifyOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     std::vector<Inst> &instr_list, std::set<int> &def,
@@ -1352,6 +1380,8 @@ codeGen(std::vector<Block *> &blocks,
       } else if (auto _op = dyn_cast<mlir::cimisa::VVMaxOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::VFloorOp>(op)) {
+        codeGen(_op, regmap, instr_list, _write, _read);
+      } else if (auto _op = dyn_cast<mlir::cimisa::SIMDOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read);
