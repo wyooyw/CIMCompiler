@@ -37,7 +37,11 @@ def VVAddOp : CIM_Op<"vv_add"> {
     The shapes of the tensor operands are expected to match.
   }];
 
-  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$out);
+  let arguments = (ins 
+    AnyRankedOrUnrankedMemRef:$lhs, 
+    AnyRankedOrUnrankedMemRef:$rhs, 
+    AnyRankedOrUnrankedMemRef:$out
+  );
 
   // Allow building an AddOp with from the two input operands.
   // let builders = [

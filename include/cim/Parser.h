@@ -86,6 +86,8 @@ private:
   mlir::Attribute parse_device(std::string device);
   mlir::MemRefType
   parse_param_type_tensor(const boost::property_tree::ptree &ast);
+  mlir::UnrankedMemRefType
+  parse_param_type_unranked_tensor(const boost::property_tree::ptree &ast);
   mlir::Type parse_param_type_scalar(const boost::property_tree::ptree &ast);
   mlir::Type parse_param_type(const boost::property_tree::ptree &ast);
   std::pair<mlir::Type, std::string>
