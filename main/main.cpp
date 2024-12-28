@@ -102,8 +102,13 @@ int main(int argc, char **argv) {
 
   MLIRGenImpl gen_impl(context);
   mlir::ModuleOp module = gen_impl.parseJson(inputFilePath);
-  std::vector<mlir::scf::ForOp> unrollForOps = gen_impl.getUnrollForOps();
 
+  if (failed(verify(module))) {
+    LOG_ERROR << "Module verification failed";
+    errorLogIR(module);
+    return 1;
+  }
+  // std::vector<mlir::scf::ForOp> unrollForOps = gen_impl.getUnrollForOps();
   debugLogIR(module);  
   
 
@@ -121,7 +126,6 @@ int main(int argc, char **argv) {
 
   mlir::PassManager pm(&context);
   pm.addPass(mlir::createInlinerPass());
-  pm.addPass(mlir::cim::createCastEliminationPass());
   pm.addPass(mlir::createCanonicalizerPass());
   // pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
   mlir::OpPassManager &optPM = pm.nest<mlir::func::FuncOp>();
