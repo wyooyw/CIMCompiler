@@ -6,7 +6,6 @@ include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "mlir/Interfaces/CastInterfaces.td"
 include "cim/ShapeInferenceInterface.td"
 
 
@@ -37,7 +36,11 @@ def VVAddOp : CIM_Op<"vv_add"> {
     The shapes of the tensor operands are expected to match.
   }];
 
-  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$out);
+  let arguments = (ins 
+    AnyRankedOrUnrankedMemRef:$lhs, 
+    AnyRankedOrUnrankedMemRef:$rhs, 
+    AnyRankedOrUnrankedMemRef:$out
+  );
 
   // Allow building an AddOp with from the two input operands.
   // let builders = [
@@ -202,26 +205,6 @@ def CIMComputeOp : CIM_Op<"cim_compute"> {
 /////////////////////////////////
 // Other Operator //
 /////////////////////////////////
-
-def CastOp : CIM_Op<"cast", [
-    DeclareOpInterfaceMethods<CastOpInterface>,
-    Pure,
-    SameOperandsAndResultShape]
-  > {
-  let summary = "shape cast operation";
-  let description = [{
-    The "cast" operation converts a tensor from one type to an equivalent type
-    without changing any data elements. The source and destination types
-    must both be tensor types with the same element type. If both are ranked,
-    then shape is required to match. The operation is invalid if converting
-    to a mismatching constant dimension.
-  }];
-
-  let arguments = (ins AnyMemRef:$input);
-  let results = (outs AnyMemRef:$output);
-
-  let hasCanonicalizer = 1;
-}
 
 def ShapeOp : CIM_Op<"shape", [Pure]> {
   let summary = "get shape of a tensor";

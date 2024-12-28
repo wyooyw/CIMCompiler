@@ -607,10 +607,31 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree &ast) {
 
   // check sign table
   mlir::func::FuncOp func = get_func_from_sign_table(call_func_name);
-
   llvm::SmallVector<mlir::Value> param_list = parse_call_param_list(
       safe_get_child(get_item(ast, 2), "call_param_list"));
-  mlir::func::CallOp call =
+
+  auto fnType = func.getFunctionType();
+  for (unsigned i = 0, e = fnType.getNumInputs(); i != e; ++i) {
+    auto paramType = fnType.getInput(i);
+    auto callType = param_list[i].getType();
+    if (paramType != callType) {
+      // cast param_list[i] to paramType
+      // check if paramType is a memref type
+      if (paramType.isa<mlir::MemRefType>() 
+      || paramType.isa<mlir::UnrankedMemRefType>()) {
+        param_list[i] = builder.create<mlir::memref::CastOp>(loc, paramType, param_list[i]);
+      } else {
+        // raise: not support yet
+        std::string message;
+        llvm::raw_string_ostream os(message);
+        os << "param type mismatch: " << paramType << " vs " << callType << "\n";
+        std::cerr << os.str();
+        std::exit(1);
+      }
+    }
+  }
+  
+  auto call =
       builder.create<mlir::func::CallOp>(loc, func, param_list);
   LOG_DEBUG << "parse_call finish";
   return;
@@ -1441,10 +1462,38 @@ MLIRGenImpl::parse_param_type_tensor(const boost::property_tree::ptree &ast) {
   // device
   auto device = parse_device(safe_get_str(get_item(ast, 5), "text"));
 
-  // build the type
+  std::vector<int64_t> unknown_strides(shape.size(), mlir::ShapedType::kDynamic);
   mlir::MemRefType type =
-      mlir::MemRefType::get(llvm::ArrayRef<int64_t>(shape), datatype,
-                            mlir::MemRefLayoutAttrInterface(), device);
+      mlir::MemRefType::get(llvm::ArrayRef<int64_t>(shape), 
+                            datatype,
+                            mlir::StridedLayoutAttr::get(
+                              builder.getContext(), 
+                              mlir::ShapedType::kDynamic,  // unknown offset
+                              llvm::ArrayRef<int64_t>(unknown_strides)  // unknown strides
+                            ),
+                            device);
+
+  return type;
+}
+
+mlir::UnrankedMemRefType
+MLIRGenImpl::parse_param_type_unranked_tensor(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_param_type_unranked_tensor";
+
+  // shape
+  // auto param_type_shape = safe_get_child(get_item(ast, 1), "param_type_shape");
+  // auto shape = parse_shape(param_type_shape);
+
+  // datatype
+  auto datatype = parse_datatype(safe_get_str(get_item(ast, 1), "text"));
+
+  // device
+  auto device = parse_device(safe_get_str(get_item(ast, 3), "text"));
+
+  // build the type
+  mlir::UnrankedMemRefType type =
+      mlir::UnrankedMemRefType::get(datatype, device);
+
   return type;
 }
 
@@ -1465,6 +1514,9 @@ MLIRGenImpl::parse_param_type(const boost::property_tree::ptree &ast) {
   if (ast_param_type.count("param_type_tensor")) {
     return parse_param_type_tensor(
         safe_get_child(ast_param_type, "param_type_tensor"));
+  } else if (ast_param_type.count("param_type_unranked_tensor")) {
+    return parse_param_type_unranked_tensor(
+        safe_get_child(ast_param_type, "param_type_unranked_tensor"));
   } else if (ast_param_type.count("param_type_scalar")) {
     return parse_param_type_scalar(
         safe_get_child(ast_param_type, "param_type_scalar"));
@@ -1514,7 +1566,7 @@ bool MLIRGenImpl::is_tensor_args(const boost::property_tree::ptree &ast) {
     return false;
   auto func_param = safe_get_child(ast, "func_param");
   auto param_type = safe_get_child(get_item(func_param, 1), "param_type");
-  return get_item(param_type, 0).count("param_type_tensor");
+  return get_item(param_type, 0).count("param_type_tensor") || get_item(param_type, 0).count("param_type_unranked_tensor");
 }
 
 bool MLIRGenImpl::is_scalar_args(const boost::property_tree::ptree &ast) {

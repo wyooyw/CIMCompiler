@@ -116,7 +116,7 @@ struct CIMInlinerInterface : public DialectInlinerInterface {
                                        Type resultType,
                                        Location conversionLoc) const final {
     LOG_DEBUG << "materializeCallConversion";
-    return builder.create<mlir::cim::CastOp>(conversionLoc, resultType, input);
+    return builder.create<mlir::memref::CastOp>(conversionLoc, resultType, input);
   }
 };
 
@@ -219,22 +219,6 @@ void mlir::registerCIMInlinerInterface(DialectRegistry &registry) {
 // CIMComputeOp
 //===----------------------------------------------------------------------===//
 
-//===----------------------------------------------------------------------===//
-// CastOp
-//===----------------------------------------------------------------------===//
-
-bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
-  return true;
-  if (inputs.size() != 1 || outputs.size() != 1)
-    return false;
-  // The inputs must be Tensors with the same element type.
-  TensorType input = inputs.front().dyn_cast<TensorType>();
-  TensorType output = outputs.front().dyn_cast<TensorType>();
-  if (!input || !output || input.getElementType() != output.getElementType())
-    return false;
-  // The shape is required to match if both types are ranked.
-  return !input.hasRank() || !output.hasRank() || input == output;
-}
 
 /*
   Built-in Functions

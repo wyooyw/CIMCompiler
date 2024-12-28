@@ -10,8 +10,9 @@ func_body: stmt_list;
 // 
 func_param: param_name param_type;
 param_name: ID;
-param_type: param_type_tensor | param_type_scalar;
+param_type: param_type_tensor | param_type_unranked_tensor | param_type_scalar;
 param_type_tensor: '<' param_type_shape ',' DATATYPE ',' MEMORY '>';
+param_type_unranked_tensor: '<' DATATYPE ',' MEMORY '>';
 param_type_shape: const_array1d;
 
 param_type_scalar: '<' DATATYPE '>';
