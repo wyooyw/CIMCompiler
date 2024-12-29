@@ -407,271 +407,23 @@ struct CIMComputeOpConvert : public OpRewritePattern<cimisa::CIMComputeOp> {
   }
 };
 
-struct VVAddOpConvert : public OpRewritePattern<cimisa::VVAddOp> {
-  using OpRewritePattern<cimisa::VVAddOp>::OpRewritePattern;
+struct SpecialRegAssignOpConvert : public OpRewritePattern<cimisa::SpecialRegAssignOp> {
+  using OpRewritePattern<cimisa::SpecialRegAssignOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(cimisa::VVAddOp op,
+  LogicalResult matchAndRewrite(cimisa::SpecialRegAssignOp op,
                                 PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "VVAddOpConvert::matchAndRewrite begin";
+    LOG_DEBUG << "SpecialRegAssignOpConvert::matchAndRewrite begin";
 
-    Value lhs_addr = op.getOperand(0);
-    Value rhs_addr = op.getOperand(1);
-    Value out_addr = op.getOperand(2);
-    Value size = op.getOperand(3);
-    LOG_DEBUG << "VVAddOpConvert::matchAndRewrite 1";
+    Value value = op.getOperand();
+    LOG_DEBUG << "SpecialRegAssignOpConvert::matchAndRewrite 1";
 
-    bool change = false;
-    if (isConstant(lhs_addr)) {
-      IntegerAttr constant = getConstantInt(lhs_addr);
-      lhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), lhs_addr.getType(), constant);
-      change = true;
+    if (isConstant(value)) {
+      IntegerAttr constant = rewriter.getI32IntegerAttr(getConstantInt(value).getInt());
+      IntegerAttr special_reg = rewriter.getI32IntegerAttr(op.getSpecialReg());
+      rewriter.replaceOpWithNewOp<cimisa::SpecialRegLiOp>(op, special_reg, constant);
+      return success();
     }
-    if (isConstant(rhs_addr)) {
-      IntegerAttr constant = getConstantInt(rhs_addr);
-      rhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), rhs_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(out_addr)) {
-      IntegerAttr constant = getConstantInt(out_addr);
-      out_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), out_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(size)) {
-      IntegerAttr constant = getConstantInt(size);
-      size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
-                                                     size.getType(), constant);
-      change = true;
-    }
-
-    if (!change) {
-      return failure();
-    }
-
-    LOG_DEBUG << "VVAddOpConvert::matchAndRewrite 2";
-    // MemRefType memtype =
-    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
-    // memtype.getElementType();
-    rewriter.replaceOpWithNewOp<cimisa::VVAddOp>(op, lhs_addr, rhs_addr,
-                                                 out_addr, size, op.getLhsBw(),
-                                                 op.getRhsBw(), op.getOutBw());
-    LOG_DEBUG << "VVAddOpConvert::matchAndRewrite finish";
-    return success();
-  }
-};
-
-struct VVMulOpConvert : public OpRewritePattern<cimisa::VVMulOp> {
-  using OpRewritePattern<cimisa::VVMulOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cimisa::VVMulOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "VVMulOpConvert::matchAndRewrite begin";
-
-    Value lhs_addr = op.getOperand(0);
-    Value rhs_addr = op.getOperand(1);
-    Value out_addr = op.getOperand(2);
-    Value size = op.getOperand(3);
-    LOG_DEBUG << "VVMulOpConvert::matchAndRewrite 1";
-
-    bool change = false;
-    if (isConstant(lhs_addr)) {
-      IntegerAttr constant = getConstantInt(lhs_addr);
-      lhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), lhs_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(rhs_addr)) {
-      IntegerAttr constant = getConstantInt(rhs_addr);
-      rhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), rhs_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(out_addr)) {
-      IntegerAttr constant = getConstantInt(out_addr);
-      out_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), out_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(size)) {
-      IntegerAttr constant = getConstantInt(size);
-      size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
-                                                     size.getType(), constant);
-      change = true;
-    }
-
-    if (!change) {
-      return failure();
-    }
-
-    LOG_DEBUG << "VVMulOpConvert::matchAndRewrite 2";
-    // MemRefType memtype =
-    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
-    // memtype.getElementType();
-    rewriter.replaceOpWithNewOp<cimisa::VVMulOp>(op, lhs_addr, rhs_addr,
-                                                 out_addr, size, op.getLhsBw(),
-                                                 op.getRhsBw(), op.getOutBw());
-    LOG_DEBUG << "VVMulOpConvert::matchAndRewrite finish";
-    return success();
-  }
-};
-
-struct VSMulOpConvert : public OpRewritePattern<cimisa::VSMulOp> {
-  using OpRewritePattern<cimisa::VSMulOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cimisa::VSMulOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "VSMulOpConvert::matchAndRewrite begin";
-
-    Value lhs_addr = op.getOperand(0);
-    Value rhs_addr = op.getOperand(1);
-    Value out_addr = op.getOperand(2);
-    Value size = op.getOperand(3);
-    LOG_DEBUG << "VSMulOpConvert::matchAndRewrite 1";
-
-    bool change = false;
-    if (isConstant(lhs_addr)) {
-      IntegerAttr constant = getConstantInt(lhs_addr);
-      lhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), lhs_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(rhs_addr)) {
-      IntegerAttr constant = getConstantInt(rhs_addr);
-      rhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), rhs_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(out_addr)) {
-      IntegerAttr constant = getConstantInt(out_addr);
-      out_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), out_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(size)) {
-      IntegerAttr constant = getConstantInt(size);
-      size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
-                                                     size.getType(), constant);
-      change = true;
-    }
-
-    if (!change) {
-      return failure();
-    }
-
-    LOG_DEBUG << "VSMulOpConvert::matchAndRewrite 2";
-    // MemRefType memtype =
-    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
-    // memtype.getElementType();
-    rewriter.replaceOpWithNewOp<cimisa::VSMulOp>(op, lhs_addr, rhs_addr,
-                                                 out_addr, size, op.getLhsBw(),
-                                                 op.getRhsBw(), op.getOutBw());
-    LOG_DEBUG << "VSMulOpConvert::matchAndRewrite finish";
-    return success();
-  }
-};
-
-struct VVMaxOpConvert : public OpRewritePattern<cimisa::VVMaxOp> {
-  using OpRewritePattern<cimisa::VVMaxOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cimisa::VVMaxOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "VVMaxOpConvert::matchAndRewrite begin";
-
-    Value lhs_addr = op.getOperand(0);
-    Value rhs_addr = op.getOperand(1);
-    Value out_addr = op.getOperand(2);
-    Value size = op.getOperand(3);
-    LOG_DEBUG << "VVMaxOpConvert::matchAndRewrite 1";
-
-    bool change = false;
-    if (isConstant(lhs_addr)) {
-      IntegerAttr constant = getConstantInt(lhs_addr);
-      lhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), lhs_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(rhs_addr)) {
-      IntegerAttr constant = getConstantInt(rhs_addr);
-      rhs_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), rhs_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(out_addr)) {
-      IntegerAttr constant = getConstantInt(out_addr);
-      out_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), out_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(size)) {
-      IntegerAttr constant = getConstantInt(size);
-      size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
-                                                     size.getType(), constant);
-      change = true;
-    }
-
-    if (!change) {
-      return failure();
-    }
-
-    LOG_DEBUG << "VVMaxOpConvert::matchAndRewrite 2";
-    // MemRefType memtype =
-    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
-    // memtype.getElementType();
-    rewriter.replaceOpWithNewOp<cimisa::VVMaxOp>(op, lhs_addr, rhs_addr,
-                                                 out_addr, size, op.getLhsBw(),
-                                                 op.getRhsBw(), op.getOutBw());
-    LOG_DEBUG << "VVMaxOpConvert::matchAndRewrite finish";
-    return success();
-  }
-};
-
-struct VFloorOpConvert : public OpRewritePattern<cimisa::VFloorOp> {
-  using OpRewritePattern<cimisa::VFloorOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cimisa::VFloorOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "VFloorOpConvert::matchAndRewrite begin";
-
-    Value input_addr = op.getOperand(0);
-    Value output_addr = op.getOperand(1);
-    Value size = op.getOperand(2);
-    LOG_DEBUG << "VFloorOpConvert::matchAndRewrite 1";
-
-    bool change = false;
-    if (isConstant(input_addr)) {
-      IntegerAttr constant = getConstantInt(input_addr);
-      input_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), input_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(output_addr)) {
-      IntegerAttr constant = getConstantInt(output_addr);
-      output_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), output_addr.getType(), constant);
-      change = true;
-    } 
-    if (isConstant(size)) {
-      IntegerAttr constant = getConstantInt(size);
-      size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
-                                                     size.getType(), constant);
-      change = true;
-    }
-
-    if (!change) {
-      return failure();
-    }
-
-    LOG_DEBUG << "VFloorOpConvert::matchAndRewrite 2";
-    // MemRefType memtype =
-    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
-    // memtype.getElementType();
-    rewriter.replaceOpWithNewOp<cimisa::VFloorOp>(op, input_addr, output_addr,
-                                                 size, op.getInputBw(),
-                                                 op.getOutputBw());
-    LOG_DEBUG << "VFloorOpConvert::matchAndRewrite finish";
-    return success();
+    return failure();
   }
 };
 
@@ -769,59 +521,6 @@ struct CIMOutputSumOpConvert : public OpRewritePattern<cimisa::CIMOutputSumOp> {
   }
 };
 
-struct QuantifyOpConvert : public OpRewritePattern<cimisa::QuantifyOp> {
-  using OpRewritePattern<cimisa::QuantifyOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cimisa::QuantifyOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "QuantifyOpConvert::matchAndRewrite begin";
-
-    Value input_addr = op.getOperand(0);
-    // Value bias_scale_addr = op.getOperand(1);
-    Value out_zp_addr = op.getOperand(1);
-    Value output_addr = op.getOperand(2);
-    Value size = op.getOperand(3);
-    LOG_DEBUG << "QuantifyOpConvert::matchAndRewrite 1";
-
-    bool change = false;
-    if (isConstant(input_addr)) {
-      IntegerAttr constant = getConstantInt(input_addr);
-      input_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), input_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(out_zp_addr)) {
-      IntegerAttr constant = getConstantInt(out_zp_addr);
-      out_zp_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), out_zp_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(output_addr)) {
-      IntegerAttr constant = getConstantInt(output_addr);
-      output_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), output_addr.getType(), constant);
-      change = true;
-    }
-    if (isConstant(size)) {
-      IntegerAttr constant = getConstantInt(size);
-      size = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
-                                                     size.getType(), constant);
-      change = true;
-    }
-    if (!change) {
-      return failure();
-    }
-
-    LOG_DEBUG << "QuantifyOpConvert::matchAndRewrite 2";
-    // MemRefType memtype =
-    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
-    // memtype.getElementType();
-    rewriter.replaceOpWithNewOp<cimisa::QuantifyOp>(
-        op, input_addr, out_zp_addr, output_addr, size, op.getRelu());
-    LOG_DEBUG << "QuantifyOpConvert::matchAndRewrite finish";
-    return success();
-  }
-};
 struct CmpIOpConvert : public OpRewritePattern<arith::CmpIOp> {
   using OpRewritePattern<arith::CmpIOp>::OpRewritePattern;
 
@@ -886,8 +585,9 @@ void RR2RIPass::runOnOperation() {
   patterns.add<AddIOpConvert, SubIOpConvert, MulIOpConvert, DivSIOpConvert,
                RemSIOpConvert, MinSIOpConvert, StoreBaseAndOffsetOpConvert,
                LoadBaseAndOffsetOpConvert, TransOpConvert, CIMTransferOpConvert,
-               CIMComputeOpConvert, VVAddOpConvert, VVMulOpConvert, CIMOutputSumOpConvert,
-               QuantifyOpConvert, CmpIOpConvert, CIMOutputOpConvert, VFloorOpConvert>(
+               CIMComputeOpConvert, CIMOutputSumOpConvert,
+               CmpIOpConvert, CIMOutputOpConvert, 
+               SpecialRegAssignOpConvert>(
       &getContext());
   // ForOpConvert
 

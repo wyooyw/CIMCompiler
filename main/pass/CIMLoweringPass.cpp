@@ -308,6 +308,27 @@ static Value getLengthValue(Value operand, PatternRewriter &rewriter) {
   }
 }
 
+static Value getShapeValue(Value operand, int index, PatternRewriter &rewriter) {
+  if (auto allocOp = operand.getDefiningOp<memref::AllocOp>()) {
+
+    llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
+    mlir::Value shape_i =
+        rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[index]);
+    return shape_i;
+  } else if (auto subViewOp = operand.getDefiningOp<memref::SubViewOp>()) {
+    SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
+    if (Value shape_i = getValue(shapes[index], rewriter)) {
+      return shape_i;
+    } else {
+      return nullptr;
+    }
+  } else {
+    LOG_ERROR << "getSizeValue fail";
+    std::exit(1);
+    return nullptr;
+  }
+}
+
 static Value getSizeValue(Value operand, PatternRewriter &rewriter) {
   if (auto allocOp = operand.getDefiningOp<memref::AllocOp>()) {
 
@@ -634,238 +655,68 @@ struct CIMComputeOpLowering : public OpRewritePattern<cim::CIMComputeOp> {
   }
 };
 
-struct VVAddOpLowering : public OpRewritePattern<cim::VVAddOp> {
-  using OpRewritePattern<cim::VVAddOp>::OpRewritePattern;
+struct SIMDOpLowering : public OpRewritePattern<cim::SIMDOp> {
+  using OpRewritePattern<cim::SIMDOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(cim::VVAddOp op,
+  LogicalResult matchAndRewrite(cim::SIMDOp op,
                                 PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "VVAddOpLowering::matchAndRewrite begin";
-    Value lhs = getAddrValue(op.getOperand(0), rewriter);
-    Value rhs = getAddrValue(op.getOperand(1), rewriter);
-    Value result = getAddrValue(op.getOperand(2), rewriter);
-    Value size = getLengthValue(op.getOperand(0), rewriter);
+    LOG_DEBUG << "SIMDOpLowering::matchAndRewrite begin";
+    int SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 = 21;
+    int SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 = 22;
 
-    LOG_DEBUG << "VVAddOpLowering::matchAndRewrite";
-    if (!lhs || !rhs || !result) {
-      LOG_ERROR << "VVAddOpLowering::matchAndRewrite fail";
+    int num_operands = op.getNumOperands();
+    int num_inputs = num_operands - 2;
+    if (num_inputs > 4){
+      LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
       return failure();
     }
-    LOG_DEBUG << "VVAddOpLowering::matchAndRewrite success";
 
-    int64_t _bitwidth_lhs = getBitWidthMemRefOperand(op.getOperand(0));
-    int64_t _bitwidth_rhs = getBitWidthMemRefOperand(op.getOperand(1));
-    int64_t _bitwidth_out = getBitWidthMemRefOperand(op.getOperand(2));
-
-    IntegerAttr bitwidth_lhs = rewriter.getI8IntegerAttr(_bitwidth_lhs);
-    IntegerAttr bitwidth_rhs = rewriter.getI8IntegerAttr(_bitwidth_rhs);
-    IntegerAttr bitwidth_out = rewriter.getI8IntegerAttr(_bitwidth_out);
-
-    rewriter.replaceOpWithNewOp<cimisa::VVAddOp>(
-        op, lhs, rhs, result, size, bitwidth_lhs, bitwidth_rhs, bitwidth_out);
-
-    return success();
-  }
-};
-
-struct VVMulOpLowering : public OpRewritePattern<cim::VVMulOp> {
-  using OpRewritePattern<cim::VVMulOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cim::VVMulOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "VVMulOpLowering::matchAndRewrite begin";
-    Value lhs = getAddrValue(op.getOperand(0), rewriter);
-    Value rhs = getAddrValue(op.getOperand(1), rewriter);
-    Value result = getAddrValue(op.getOperand(2), rewriter);
-    Value size = getLengthValue(op.getOperand(0), rewriter);
-
-    LOG_DEBUG << "VVMulOpLowering::matchAndRewrite";
-    if (!lhs || !rhs || !result) {
-      LOG_ERROR << "VVMulOpLowering::matchAndRewrite fail";
+    IntegerAttr op_id_ = getConstantInt(op.getOperand(0));
+    IntegerAttr op_id = rewriter.getI32IntegerAttr(op_id_.getInt());
+    if (!op_id) {
+      LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
       return failure();
     }
-    LOG_DEBUG << "VVMulOpLowering::matchAndRewrite success";
 
-    int64_t _bitwidth_lhs = getBitWidthMemRefOperand(op.getOperand(0));
-    int64_t _bitwidth_rhs = getBitWidthMemRefOperand(op.getOperand(1));
-    int64_t _bitwidth_out = getBitWidthMemRefOperand(op.getOperand(2));
-
-    IntegerAttr bitwidth_lhs = rewriter.getI8IntegerAttr(_bitwidth_lhs);
-    IntegerAttr bitwidth_rhs = rewriter.getI8IntegerAttr(_bitwidth_rhs);
-    IntegerAttr bitwidth_out = rewriter.getI8IntegerAttr(_bitwidth_out);
-
-    rewriter.replaceOpWithNewOp<cimisa::VVMulOp>(
-        op, lhs, rhs, result, size, bitwidth_lhs, bitwidth_rhs, bitwidth_out);
-
-    return success();
-  }
-};
-
-struct VSMulOpLowering : public OpRewritePattern<cim::VSMulOp> {
-  using OpRewritePattern<cim::VSMulOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cim::VSMulOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "VSMulOpLowering::matchAndRewrite begin";
-    Value lhs = getAddrValue(op.getOperand(0), rewriter);
-    Value rhs = getAddrValue(op.getOperand(1), rewriter);
-    Value result = getAddrValue(op.getOperand(2), rewriter);
-    Value size = getLengthValue(op.getOperand(0), rewriter);
-
-    LOG_DEBUG << "VSMulOpLowering::matchAndRewrite";
-    if (!lhs || !rhs || !result) {
-      LOG_ERROR << "VSMulOpLowering::matchAndRewrite fail";
+    Value size = getLengthValue(op.getOperand(1), rewriter);
+    if (!size) {
+      LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
       return failure();
     }
-    LOG_DEBUG << "VSMulOpLowering::matchAndRewrite success";
 
-    int64_t _bitwidth_lhs = getBitWidthMemRefOperand(op.getOperand(0));
-    int64_t _bitwidth_rhs = getBitWidthMemRefOperand(op.getOperand(1));
-    int64_t _bitwidth_out = getBitWidthMemRefOperand(op.getOperand(2));
+    llvm::SmallVector<Value, 2> inputs_addr;
+    for (int i = 0; i < num_inputs; i++) {
+      int operand_id = i + 1;
+      Value addr = getAddrValue(op.getOperand(operand_id), rewriter);
+      if (!addr) {
+        LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
+        return failure();
+      }
+      if (i <= 1){
+        inputs_addr.push_back(addr);
+      }else if(i == 2){
+        IntegerAttr special_reg = rewriter.getI32IntegerAttr(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1);
+        rewriter.create<cimisa::SpecialRegAssignOp>(rewriter.getUnknownLoc(), special_reg, addr);
+      }else if(i == 3){
+        IntegerAttr special_reg = rewriter.getI32IntegerAttr(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2);
+        rewriter.create<cimisa::SpecialRegAssignOp>(rewriter.getUnknownLoc(), special_reg, addr);
+      }else{
+        LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
+        return failure();
+      }
+    }
 
-    IntegerAttr bitwidth_lhs = rewriter.getI8IntegerAttr(_bitwidth_lhs);
-    IntegerAttr bitwidth_rhs = rewriter.getI8IntegerAttr(_bitwidth_rhs);
-    IntegerAttr bitwidth_out = rewriter.getI8IntegerAttr(_bitwidth_out);
-
-    rewriter.replaceOpWithNewOp<cimisa::VSMulOp>(
-        op, lhs, rhs, result, size, bitwidth_lhs, bitwidth_rhs, bitwidth_out);
-
-    return success();
-  }
-};
-
-struct VVMaxOpLowering : public OpRewritePattern<cim::VVMaxOp> {
-  using OpRewritePattern<cim::VVMaxOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cim::VVMaxOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "VVMaxOpLowering::matchAndRewrite begin";
-    Value lhs = getAddrValue(op.getOperand(0), rewriter);
-    Value rhs = getAddrValue(op.getOperand(1), rewriter);
-    Value result = getAddrValue(op.getOperand(2), rewriter);
-    Value size = getLengthValue(op.getOperand(0), rewriter);
-
-    LOG_DEBUG << "VVMaxOpLowering::matchAndRewrite";
-    if (!lhs || !rhs || !result) {
-      LOG_ERROR << "VVMaxOpLowering::matchAndRewrite fail";
+    Value output_addr = getAddrValue(op.getOperand(num_operands - 1), rewriter);
+    if (!output_addr) {
+      LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
       return failure();
     }
-    LOG_DEBUG << "VVMaxOpLowering::matchAndRewrite success";
 
-    int64_t _bitwidth_lhs = getBitWidthMemRefOperand(op.getOperand(0));
-    int64_t _bitwidth_rhs = getBitWidthMemRefOperand(op.getOperand(1));
-    int64_t _bitwidth_out = getBitWidthMemRefOperand(op.getOperand(2));
 
-    IntegerAttr bitwidth_lhs = rewriter.getI8IntegerAttr(_bitwidth_lhs);
-    IntegerAttr bitwidth_rhs = rewriter.getI8IntegerAttr(_bitwidth_rhs);
-    IntegerAttr bitwidth_out = rewriter.getI8IntegerAttr(_bitwidth_out);
+    LOG_DEBUG << "SIMDOpLowering::matchAndRewrite";
 
-    rewriter.replaceOpWithNewOp<cimisa::VVMaxOp>(
-        op, lhs, rhs, result, size, bitwidth_lhs, bitwidth_rhs, bitwidth_out);
-
-    return success();
-  }
-};
-
-struct VFloorOpLowering : public OpRewritePattern<cim::VFloorOp> {
-  using OpRewritePattern<cim::VFloorOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cim::VFloorOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "VFloorOpLowering::matchAndRewrite begin";
-    Value input_addr = getAddrValue(op.getOperand(0), rewriter);
-    Value output_addr = getAddrValue(op.getOperand(1), rewriter);
-    Value size = getLengthValue(op.getOperand(0), rewriter);
-
-    LOG_DEBUG << "VFloorOpLowering::matchAndRewrite";
-    if (!input_addr || !output_addr || !size) {
-      LOG_ERROR << "VFloorOpLowering::matchAndRewrite fail";
-      return failure();
-    }
-    LOG_DEBUG << "VVMaxOpLowering::matchAndRewrite success";
-
-    int64_t _bitwidth_input = getBitWidthMemRefOperand(op.getOperand(0));
-    int64_t _bitwidth_output = getBitWidthMemRefOperand(op.getOperand(1));
-
-    IntegerAttr bitwidth_input = rewriter.getI8IntegerAttr(_bitwidth_input);
-    IntegerAttr bitwidth_output = rewriter.getI8IntegerAttr(_bitwidth_output);
-
-    rewriter.replaceOpWithNewOp<cimisa::VFloorOp>(
-        op, input_addr, output_addr, size, bitwidth_input, bitwidth_output);
-
-    return success();
-  }
-};
-
-struct QuantifyOpLowering : public OpRewritePattern<cim::QuantifyOp> {
-  using OpRewritePattern<cim::QuantifyOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cim::QuantifyOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "QuantifyOpLowering::matchAndRewrite begin";
-    Value input_addr = getAddrValue(op.getOperand(0), rewriter);
-    Value out_zp_addr = getAddrValue(op.getOperand(1), rewriter);
-    Value output_addr = getAddrValue(op.getOperand(2), rewriter);
-    Value size = getLengthValue(op.getOperand(0), rewriter);
-
-    LOG_DEBUG << "QuantifyOpLowering::matchAndRewrite";
-    if (!input_addr || !out_zp_addr || !output_addr || !size) {
-      LOG_ERROR << "QuantifyOpLowering::matchAndRewrite fail";
-      return failure();
-    }
-    LOG_DEBUG << "QuantifyOpLowering::matchAndRewrite success";
-
-    rewriter.replaceOpWithNewOp<cimisa::QuantifyOp>(
-        op, input_addr, out_zp_addr, output_addr, size, op.getRelu());
-
-    return success();
-  }
-};
-
-struct ResAddQuantifyOpLowering : public OpRewritePattern<cim::ResAddQuantifyOp> {
-  using OpRewritePattern<cim::ResAddQuantifyOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cim::ResAddQuantifyOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "ResAddQuantifyOpLowering::matchAndRewrite begin";
-    Value input_1_addr = getAddrValue(op.getOperand(0), rewriter);
-    Value input_2_addr = getAddrValue(op.getOperand(1), rewriter);
-    Value output_addr = getAddrValue(op.getOperand(2), rewriter);
-    Value size = getLengthValue(op.getOperand(0), rewriter);
-
-    LOG_DEBUG << "ResAddQuantifyOpLowering::matchAndRewrite";
-    if (!input_1_addr || !input_2_addr || !output_addr || !size) {
-      LOG_ERROR << "ResAddQuantifyOpLowering::matchAndRewrite fail";
-      return failure();
-    }
-    LOG_DEBUG << "ResAddQuantifyOpLowering::matchAndRewrite success";
-
-    rewriter.replaceOpWithNewOp<cimisa::ResAddQuantifyOp>(
-        op, input_1_addr, input_2_addr, output_addr, size);
-
-    return success();
-  }
-};
-
-struct ResMulQuantifyOpLowering : public OpRewritePattern<cim::ResMulQuantifyOp> {
-  using OpRewritePattern<cim::ResMulQuantifyOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(cim::ResMulQuantifyOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "ResMulQuantifyOpLowering::matchAndRewrite begin";
-    Value input_1_addr = getAddrValue(op.getOperand(0), rewriter);
-    Value input_2_addr = getAddrValue(op.getOperand(1), rewriter);
-    Value output_addr = getAddrValue(op.getOperand(2), rewriter);
-    Value size = getLengthValue(op.getOperand(0), rewriter);
-
-    LOG_DEBUG << "ResMulQuantifyOpLowering::matchAndRewrite";
-    if (!input_1_addr || !input_2_addr || !output_addr || !size) {
-      LOG_ERROR << "ResMulQuantifyOpLowering::matchAndRewrite fail";
-      return failure();
-    }
-    LOG_DEBUG << "ResMulQuantifyOpLowering::matchAndRewrite success";
-
-    rewriter.replaceOpWithNewOp<cimisa::ResMulQuantifyOp>(
-        op, input_1_addr, input_2_addr, output_addr, size);
+    IntegerAttr num_inputs_attr = rewriter.getI32IntegerAttr(num_inputs);
+    rewriter.replaceOpWithNewOp<cimisa::SIMDOp>(op, op_id, num_inputs_attr, inputs_addr, output_addr, size);
 
     return success();
   }
@@ -1020,6 +871,32 @@ struct AddrOpLowering : public OpRewritePattern<cim::AddrOp> {
     return success();
   }
 };
+
+struct ShapeOpLowering : public OpRewritePattern<cim::ShapeOp> {
+  using OpRewritePattern<cim::ShapeOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::ShapeOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "ShapeOpLowering::matchAndRewrite begin";
+    // Value input = getAddrValue(op.getOperand(0), rewriter);
+    IntegerAttr indexAttr = getConstantInt(op.getOperand(1));
+    int64_t index = indexAttr.getInt();
+    Value shape_i = getShapeValue(op.getOperand(0), index, rewriter);
+
+    LOG_DEBUG << "ShapeOpLowering::matchAndRewrite";
+    if (!shape_i) {
+      LOG_ERROR << "ShapeOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+    LOG_DEBUG << "ShapeOpLowering::matchAndRewrite success";
+
+
+    // replace ShapeOp with shape_i
+    rewriter.replaceOp(op, {shape_i});
+
+    return success();
+  }
+};
 } // namespace
 
 namespace {
@@ -1066,9 +943,10 @@ void CIMLoweringPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   patterns
       .add<TransOpLowering, CIMComputeOpLowering, LoadOpLowering,
-           StoreOpLowering, VVAddOpLowering, VVMulOpLowering, VSMulOpLowering, VVMaxOpLowering, VFloorOpLowering, SpecialRegSetOpLowering,
+           StoreOpLowering, SpecialRegSetOpLowering,
            CIMOutputOpLowering, CIMOutputSumOpLowering, CIMTransferOpLowering,
-           QuantifyOpLowering, ResAddQuantifyOpLowering, ResMulQuantifyOpLowering, AddrOpLowering, CIMSetOpLowering>(&getContext());
+           AddrOpLowering, CIMSetOpLowering, ShapeOpLowering,
+           SIMDOpLowering>(&getContext());
   
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`

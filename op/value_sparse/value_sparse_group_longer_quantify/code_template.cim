@@ -1,6 +1,6 @@
 {% include 'lib/def_special_regs.cim' %}
-
-// TODO: replace these macro accroding to operator config
+{% include 'lib/simd.cim' %}
+{% include 'lib/quantize.cim' %}
 
 // weight
 #define WEIGHT_OUT_CHANNEL {{ OUTPUT_CHANNEL }}
@@ -46,38 +46,6 @@
 {% else %}
     {% include 'lib/input_loader.cim' %}
 {% endif %}
-
-def quantify(
-    null<int8>,
-    out_channel_begin<index>,
-    out_channel_len<index>,
-    local_output_i32< <OUTPUT_ROW, OUTPUT_COL, N_GROUP_VCOL>, int32, __OUTPUT_MEMORY__>,
-    local_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
-    local_output_i8< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__>,
-    local_out_zp< <1>, int32, __INPUT_MEMORY__>,
-    local_blank< <N_GROUP_VCOL>, int32, __BLANK_MEMORY__>
-    ){
-    // Do quantify here
-    for oh in range(0,OUTPUT_ROW) carry(null){
-        for ow in range(0,OUTPUT_COL) carry(null){
-            use_i32_output = Slice(local_output_i32,
-                [oh,ow,0],
-                [1,1,out_channel_len],
-                [1,1,1]
-            );
-            use_i8_output = Slice(local_output_i8,
-                [oh,ow,out_channel_begin],
-                [1,1,out_channel_len],
-                [1,1,1]
-            );
-            Quantify(use_i32_output, local_out_zp, use_i8_output, {{RELU}});
-
-            // Clear origin buffer
-            use_blank = Slice(local_blank, [0], [out_channel_len], [1]);
-            Trans(use_blank, use_i32_output);
-        };
-    };
-}
 
 def main(null<int8>){
     // input, weight, mask and index will be prepared in memory image
@@ -205,8 +173,6 @@ def main(null<int8>){
             [out_channel_len, 2],
             [1, 1]
         );
-        use_bias_scale_addr = Addr(use_bias_scale);
-        SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1, use_bias_scale_addr);
 
         macro_to_from_begin = Load(local_spill, [0]);
         macro_to_from_size = Load(mapping_reduce_to_macro, [i_reduce_to_macro]);
@@ -359,14 +325,15 @@ def main(null<int8>){
                                 [1,1,out_channel_len],
                                 [1,1,1]
                             );
-                            Quantify(use_local_output_for_temp_sum, local_out_zp, use_i8_output, {{RELU}});
+                            SIMD(QUANTIZE, use_local_output_for_temp_sum, use_bias_scale, local_out_zp, use_i8_output);
+
                         {% else %}
                             use_local_output_i32 = Slice(local_output_i32, 
                                 [oh+delta_h, ow+delta_w, 0], 
                                 [1, 1, out_channel_len], 
                                 [1, 1, 1]
                             );
-                            VVAdd(use_local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
+                            SIMD(VVADD, use_local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
                         {% endif %}
                     {% endfor %}
                 };

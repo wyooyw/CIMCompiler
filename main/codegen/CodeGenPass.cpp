@@ -253,343 +253,31 @@ static void codeGenRI(Ty op, std::unordered_map<llvm::hash_code, int> &regmap,
   instr_list.push_back(inst);
 }
 
-/*
-  SIMD
-  VVAdd, VVMul, VSAdd, Quantify, QuantifyResAdd, QuantifyMultiply
-*/
-
-static void codeGen(mlir::cimisa::VVAddOp op,
+static void codeGen(mlir::cimisa::SIMDOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     std::vector<Inst> &instr_list, std::set<int> &def,
                     std::set<int> &use) {
-  /*
-    SIMD计算：SIMD-compute
-    指令字段划分：
-    - [31, 30]，2bit：class，指令类别码，值为01
-    - [29, 28]，2bit：input num，input向量的个数，范围是1到4
-      - 00：1个输入向量，地址由rs1给出
-      - 01：2个输入向量，地址由rs1和rs2给出
-      - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
-      - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
-    - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
-      - 0x00：add，向量加法
-      - 0x01：add-scalar，向量和标量加法
-      - 0x02：multiply，向量逐元素乘法
-      - 0x03：quantify，量化
-      - 0x04：quantify-resadd，resadd量化
-      - 0x05：quantify-multiply，乘法量化
-    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
-    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
-    - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
-    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
-    使用的专用寄存器：
-    - input 1 bit width：输入向量1每个元素的bit长度
-    - input 2 bit width：输入向量2每个元素的bit长度
-    - input 3 bit width：输入向量3每个元素的bit长度
-    - input 4 bit width：输入向量4每个元素的bit长度
-    - output bit width：输出向量每个元素的bit长度
-  */
-  int lhs = getReg(regmap, op.getOperand(0));
-  int rhs = getReg(regmap, op.getOperand(1));
-  int rd = getReg(regmap, op.getOperand(2));
-  int size = getReg(regmap, op.getOperand(3));
-  use.insert(lhs);
-  use.insert(rhs);
-  use.insert(rd);
-  use.insert(size);
 
-  Inst inst = {{"class", 0b01}, {"input_num", 0b01}, {"opcode", 0b00},
-               {"rs1", lhs},    {"rs2", rhs},        {"rs3", size},
-               {"rd", rd}};
-  instr_list.push_back(inst);
-}
+  int opcode = static_cast<int>(op.getOpCode());
+  int numInputs = static_cast<int>(op.getNumInputs());
 
-static void codeGen(mlir::cimisa::VVMulOp op,
-                    std::unordered_map<llvm::hash_code, int> &regmap,
-                    std::vector<Inst> &instr_list, std::set<int> &def,
-                    std::set<int> &use) {
-  /*
-    SIMD计算：SIMD-compute
-    指令字段划分：
-    - [31, 30]，2bit：class，指令类别码，值为01
-    - [29, 28]，2bit：input num，input向量的个数，范围是1到4
-      - 00：1个输入向量，地址由rs1给出
-      - 01：2个输入向量，地址由rs1和rs2给出
-      - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
-      - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
-    - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
-      - 0x00：add，向量加法
-      - 0x01：add-scalar，向量和标量加法
-      - 0x02：multiply，向量逐元素乘法
-      - 0x03：quantify，量化
-      - 0x04：quantify-resadd，resadd量化
-      - 0x05：quantify-multiply，乘法量化
-    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
-    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
-    - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
-    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
-    使用的专用寄存器：
-    - input 1 bit width：输入向量1每个元素的bit长度
-    - input 2 bit width：输入向量2每个元素的bit长度
-    - input 3 bit width：输入向量3每个元素的bit长度
-    - input 4 bit width：输入向量4每个元素的bit长度
-    - output bit width：输出向量每个元素的bit长度
-  */
-  int lhs = getReg(regmap, op.getOperand(0));
-  int rhs = getReg(regmap, op.getOperand(1));
-  int rd = getReg(regmap, op.getOperand(2));
-  int size = getReg(regmap, op.getOperand(3));
-  use.insert(lhs);
-  use.insert(rhs);
-  use.insert(rd);
-  use.insert(size);
+  int num_operands = op.getNumOperands();
+  int in1_reg = getReg(regmap, op.getOperand(0));
+  int out_reg = getReg(regmap, op.getOperand(num_operands - 2));
+  int size_reg = getReg(regmap, op.getOperand(num_operands - 1));
+  use.insert(in1_reg);
+  use.insert(out_reg);
+  use.insert(size_reg);
 
-  Inst inst = {{"class", 0b01}, {"input_num", 0b01}, {"opcode", 0b10},
-               {"rs1", lhs},    {"rs2", rhs},        {"rs3", size},
-               {"rd", rd}};
-  instr_list.push_back(inst);
-}
+  int in2_reg = 0;
+  if (numInputs > 1) {
+    in2_reg = getReg(regmap, op.getOperand(1));
+    use.insert(in2_reg);
+  }
 
-static void codeGen(mlir::cimisa::VSMulOp op,
-                    std::unordered_map<llvm::hash_code, int> &regmap,
-                    std::vector<Inst> &instr_list, std::set<int> &def,
-                    std::set<int> &use) {
-  int lhs = getReg(regmap, op.getOperand(0));
-  int rhs = getReg(regmap, op.getOperand(1));
-  int rd = getReg(regmap, op.getOperand(2));
-  int size = getReg(regmap, op.getOperand(3));
-  use.insert(lhs);
-  use.insert(rhs);
-  use.insert(rd);
-  use.insert(size);
-
-  Inst inst = {{"class", 0b01}, {"input_num", 0b01}, {"opcode", 7},
-               {"rs1", lhs},    {"rs2", rhs},        {"rs3", size},
-               {"rd", rd}};
-  instr_list.push_back(inst);
-}
-
-static void codeGen(mlir::cimisa::VVMaxOp op,
-                    std::unordered_map<llvm::hash_code, int> &regmap,
-                    std::vector<Inst> &instr_list, std::set<int> &def,
-                    std::set<int> &use) {
-  /*
-    SIMD计算：SIMD-compute
-    指令字段划分：
-    - [31, 30]，2bit：class，指令类别码，值为01
-    - [29, 28]，2bit：input num，input向量的个数，范围是1到4
-      - 00：1个输入向量，地址由rs1给出
-      - 01：2个输入向量，地址由rs1和rs2给出
-      - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
-      - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
-    - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
-      - 0x00：add，向量加法
-      - 0x01：add-scalar，向量和标量加法
-      - 0x02：multiply，向量逐元素乘法
-      - 0x03：quantify，量化
-      - 0x04：quantify-resadd，resadd量化
-      - 0x05：quantify-multiply，乘法量化
-    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
-    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
-    - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
-    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
-    使用的专用寄存器：
-    - input 1 bit width：输入向量1每个元素的bit长度
-    - input 2 bit width：输入向量2每个元素的bit长度
-    - input 3 bit width：输入向量3每个元素的bit长度
-    - input 4 bit width：输入向量4每个元素的bit长度
-    - output bit width：输出向量每个元素的bit长度
-  */
-  int lhs = getReg(regmap, op.getOperand(0));
-  int rhs = getReg(regmap, op.getOperand(1));
-  int rd = getReg(regmap, op.getOperand(2));
-  int size = getReg(regmap, op.getOperand(3));
-  use.insert(lhs);
-  use.insert(rhs);
-  use.insert(rd);
-  use.insert(size);
-
-  Inst inst = {{"class", 0b01}, {"input_num", 1}, {"opcode", 6},
-               {"rs1", lhs},    {"rs2", rhs},        {"rs3", size},
-               {"rd", rd}};
-  instr_list.push_back(inst);
-}
-
-static void codeGen(mlir::cimisa::VFloorOp op,
-                    std::unordered_map<llvm::hash_code, int> &regmap,
-                    std::vector<Inst> &instr_list, std::set<int> &def,
-                    std::set<int> &use) {
-  int input_addr = getReg(regmap, op.getOperand(0));
-  int output_addr = getReg(regmap, op.getOperand(1));
-  int size = getReg(regmap, op.getOperand(2));
-  use.insert(input_addr);
-  use.insert(output_addr);
-  use.insert(size);
-
-  Inst inst = {{"class", 0b01}, {"input_num", 0}, {"opcode", 8},
-               {"rs1", input_addr}, {"rs2", input_addr},  {"rs3", size},
-               {"rd", output_addr}};
-  instr_list.push_back(inst);
-}
-
-static void codeGen(mlir::cimisa::QuantifyOp op,
-                    std::unordered_map<llvm::hash_code, int> &regmap,
-                    std::vector<Inst> &instr_list, std::set<int> &def,
-                    std::set<int> &use, std::map<int, int> &twin_reg) {
-  /*
-    SIMD计算：SIMD-compute
-    指令字段划分：
-    - [31, 30]，2bit：class，指令类别码，值为01
-    - [29, 28]，2bit：input num，input向量的个数，范围是1到4
-      - 00：1个输入向量，地址由rs1给出
-      - 01：2个输入向量，地址由rs1和rs2给出
-      - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
-      - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
-    - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
-      - 0x00：add，向量加法
-      - 0x01：add-scalar，向量和标量加法
-      - 0x02：multiply，向量逐元素乘法
-      - 0x03：quantify，量化
-      - 0x04：quantify-resadd，resadd量化
-      - 0x05：quantify-multiply，乘法量化
-    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
-    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
-    - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
-    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
-    使用的专用寄存器：
-    - input 1 bit width：输入向量1每个元素的bit长度
-    - input 2 bit width：输入向量2每个元素的bit长度
-    - input 3 bit width：输入向量3每个元素的bit长度
-    - input 4 bit width：输入向量4每个元素的bit长度
-    - output bit width：输出向量每个元素的bit长度
-  */
-  int input_addr = getReg(regmap, op.getOperand(0));
-  // int bias_scale_addr = getReg(regmap, op.getOperand(1));
-  int out_zp_addr = getReg(regmap, op.getOperand(1));
-  int output_addr = getReg(regmap, op.getOperand(2));
-  int size = getReg(regmap, op.getOperand(3));
-  bool relu = op.getRelu();
-
-  use.insert(input_addr);
-  // use.insert(bias_scale_addr);
-  use.insert(out_zp_addr);
-  use.insert(output_addr);
-  use.insert(size);
-
-  Inst inst = {{"class", 0b01},
-               {"input_num", 0b10},
-               {"opcode", 3},
-               {"rs1", input_addr},
-               // {"rs1_1", bias_scale_addr},
-               {"rs2", out_zp_addr},
-               {"rs3", size},
-               {"rd", output_addr},
-               {"relu", relu}};
-  instr_list.push_back(inst);
-
-  // twin_reg[input_addr] = bias_scale_addr;
-  // twin_reg[bias_scale_addr] = input_addr;
-}
-
-static void codeGen(mlir::cimisa::ResAddQuantifyOp op,
-                    std::unordered_map<llvm::hash_code, int> &regmap,
-                    std::vector<Inst> &instr_list, std::set<int> &def,
-                    std::set<int> &use, std::map<int, int> &twin_reg) {
-  /*
-    SIMD计算：SIMD-compute
-    指令字段划分：
-    - [31, 30]，2bit：class，指令类别码，值为01
-    - [29, 28]，2bit：input num，input向量的个数，范围是1到4
-      - 00：1个输入向量，地址由rs1给出
-      - 01：2个输入向量，地址由rs1和rs2给出
-      - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
-      - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
-    - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
-      - 0x00：add，向量加法
-      - 0x01：add-scalar，向量和标量加法
-      - 0x02：multiply，向量逐元素乘法
-      - 0x03：quantify，量化
-      - 0x04：quantify-resadd，resadd量化
-      - 0x05：quantify-multiply，乘法量化
-    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
-    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
-    - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
-    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
-    使用的专用寄存器：
-    - input 1 bit width：输入向量1每个元素的bit长度
-    - input 2 bit width：输入向量2每个元素的bit长度
-    - input 3 bit width：输入向量3每个元素的bit长度
-    - input 4 bit width：输入向量4每个元素的bit长度
-    - output bit width：输出向量每个元素的bit长度
-  */
-  int input_1_addr = getReg(regmap, op.getOperand(0));
-  int input_2_addr = getReg(regmap, op.getOperand(1));
-  int output_addr = getReg(regmap, op.getOperand(2));
-  int size = getReg(regmap, op.getOperand(3));
-
-  use.insert(input_1_addr);
-  use.insert(input_2_addr);
-  use.insert(output_addr);
-  use.insert(size);
-
-  Inst inst = {{"class", 0b01},
-               {"input_num", 0b11},
-               {"opcode", 4},
-               {"rs1", input_1_addr},
-               {"rs2", input_2_addr},
-               {"rs3", size},
-               {"rd", output_addr}};
-  instr_list.push_back(inst);
-}
-
-static void codeGen(mlir::cimisa::ResMulQuantifyOp op,
-                    std::unordered_map<llvm::hash_code, int> &regmap,
-                    std::vector<Inst> &instr_list, std::set<int> &def,
-                    std::set<int> &use, std::map<int, int> &twin_reg) {
-  /*
-    SIMD计算：SIMD-compute
-    指令字段划分：
-    - [31, 30]，2bit：class，指令类别码，值为01
-    - [29, 28]，2bit：input num，input向量的个数，范围是1到4
-      - 00：1个输入向量，地址由rs1给出
-      - 01：2个输入向量，地址由rs1和rs2给出
-      - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
-      - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
-    - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
-      - 0x00：add，向量加法
-      - 0x01：add-scalar，向量和标量加法
-      - 0x02：multiply，向量逐元素乘法
-      - 0x03：quantify，量化
-      - 0x04：quantify-resadd，resadd量化
-      - 0x05：quantify-multiply，乘法量化
-    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
-    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
-    - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
-    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
-    使用的专用寄存器：
-    - input 1 bit width：输入向量1每个元素的bit长度
-    - input 2 bit width：输入向量2每个元素的bit长度
-    - input 3 bit width：输入向量3每个元素的bit长度
-    - input 4 bit width：输入向量4每个元素的bit长度
-    - output bit width：输出向量每个元素的bit长度
-  */
-  int input_1_addr = getReg(regmap, op.getOperand(0));
-  int input_2_addr = getReg(regmap, op.getOperand(1));
-  int output_addr = getReg(regmap, op.getOperand(2));
-  int size = getReg(regmap, op.getOperand(3));
-
-  use.insert(input_1_addr);
-  use.insert(input_2_addr);
-  use.insert(output_addr);
-  use.insert(size);
-
-  Inst inst = {{"class", 0b01},
-               {"input_num", 0b11},
-               {"opcode", 5},
-               {"rs1", input_1_addr},
-               {"rs2", input_2_addr},
-               {"rs3", size},
-               {"rd", output_addr}};
+  Inst inst = {{"class", 0b01}, {"input_num", numInputs - 1}, {"opcode", opcode},
+               {"rs1", in1_reg},    {"rs2", in2_reg},        {"rs3", size_reg},
+               {"rd", out_reg}};
   instr_list.push_back(inst);
 }
 
@@ -1342,16 +1030,7 @@ codeGen(std::vector<Block *> &blocks,
       } else if (auto _op = dyn_cast<mlir::cimisa::RIMinSIOp>(op)) {
         codeGenRI<mlir::cimisa::RIMinSIOp>(_op, regmap, instr_list, _write,
                                            _read);
-
-      } else if (auto _op = dyn_cast<mlir::cimisa::VVAddOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read);
-      } else if (auto _op = dyn_cast<mlir::cimisa::VVMulOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read);
-      } else if (auto _op = dyn_cast<mlir::cimisa::VSMulOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read);
-      } else if (auto _op = dyn_cast<mlir::cimisa::VVMaxOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read);
-      } else if (auto _op = dyn_cast<mlir::cimisa::VFloorOp>(op)) {
+      } else if (auto _op = dyn_cast<mlir::cimisa::SIMDOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read);
@@ -1384,13 +1063,6 @@ codeGen(std::vector<Block *> &blocks,
         codeGen(_op, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::SpecialRegAssignOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read);
-
-      } else if (auto _op = dyn_cast<mlir::cimisa::QuantifyOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
-      } else if (auto _op = dyn_cast<mlir::cimisa::ResAddQuantifyOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
-      } else if (auto _op = dyn_cast<mlir::cimisa::ResMulQuantifyOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read, twin_reg);
       } else if (auto _op = dyn_cast<mlir::func::ReturnOp>(op)) {
         // do nothing
       } else {

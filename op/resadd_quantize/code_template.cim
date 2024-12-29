@@ -1,4 +1,5 @@
 {% include 'lib/def_special_regs.cim' %}
+{% include 'lib/simd.cim' %}
 
 // input
 #define INPUT_SIZE {{ INPUT_SIZE }}
@@ -34,12 +35,7 @@ def main(null<int8>){
     // local_input_2: rs2
     // local_bias_scale: extra reg 1
     // local_out_zp: extra reg 2
-    local_bias_scale_addr = Addr(local_bias_scale);
-    SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1, local_bias_scale_addr);
-    local_out_zp_addr = Addr(local_out_zp);
-    SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2, local_out_zp_addr);
-    ResAddQuantify(local_input_1, local_input_2, local_output);
-
+    SIMD(RESADD_QUANTIZE, local_input_1, local_input_2, local_bias_scale, local_out_zp, local_output);
     Trans(local_output, global_output);
 
 }

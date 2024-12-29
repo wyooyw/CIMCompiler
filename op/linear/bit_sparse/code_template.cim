@@ -1,5 +1,5 @@
 {% include 'lib/def_special_regs.cim' %}
-
+{% include 'lib/simd.cim' %}
 // input
 #define INPUT_ROW {{ INPUT_ROW }}
 #define INPUT_COL {{ INPUT_COL }}
@@ -300,7 +300,7 @@ def main(null<int8>){
             // Step 3: Prepare input
             use_input_buffer = Slice(pim_input_reg_buffer, 
                 [double_buffer_id, 0, 0], 
-                [1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP], 
+                [1, 1, INPUT_BUFFER_SIZE_PER_GROUP], 
                 [1,1,1]
             );
 
@@ -399,7 +399,7 @@ def main(null<int8>){
                 [1, 1, out_channel_len], 
                 [1, 1, 1]
             );
-            VVAdd(use_local_output_for_temp_sum, use_local_output, use_local_output);
+            SIMD(VVADD, use_local_output_for_temp_sum, use_local_output, use_local_output);
         };
 
         use_local_output_i32 = Slice(local_output_i32, 

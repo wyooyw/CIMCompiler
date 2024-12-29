@@ -1,4 +1,5 @@
 {% include 'lib/def_special_regs.cim' %}
+{% include 'lib/simd.cim' %}
 
 #define INPUT_ROW {{ INPUT_ROW }}
 #define INPUT_COL {{ INPUT_COL }}
@@ -24,8 +25,6 @@ def main(null<int8>){
     Trans(global_bias_scale, local_bias_scale);
     Trans(global_out_zp, local_out_zp);
 
-    use_bias_scale_addr = Addr(local_bias_scale);
-    SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1, use_bias_scale_addr);
     
     global_output = Buffer(<{{OUTPUT_ROW}}, {{OUTPUT_COL}}, {{INPUT_CHANNEL}}>, int8, __GLOBAL__);
     local_output_32 = Buffer(<{{INPUT_CHANNEL}}>, int32, __OUTPUT_MEMORY__);
@@ -70,22 +69,21 @@ def main(null<int8>){
                         [1, 1, INPUT_CHANNEL],
                         [1, 1, 1]
                     );
-                    VVAdd(use_local_input, local_output_32, local_output_32);
+                    SIMD(VVADD, use_local_input, local_output_32, local_output_32);
                 };
             };
 
             SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
             SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
             SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
-            VSMul(local_output_32, local_mul_factor, local_output_32);
-            VFloor(local_output_32, local_output_32);
+            SIMD(VSMUL, local_output_32, local_mul_factor, local_output_32);
+            SIMD(VFLOOR, local_output_32, local_output_32);
 
             SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
             SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);
             SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
             SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
-            Quantify(local_output_32, local_out_zp, local_output_8, 0);
-
+            SIMD(QUANTIZE, local_output_32, local_bias_scale, local_out_zp, local_output_8);
             // move to global memory
             use_global_output = Slice(global_output,
                 [oh, ow, 0],
