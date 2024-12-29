@@ -50,8 +50,16 @@ expr:
     | binary_expr;
 unary_expr: 
     call
-    | const_or_var;
+    | const_or_var
+    | buffer_slice ;
 binary_expr: unary_expr BINARY_OP unary_expr;
+
+// Slice
+buffer_slice: var '[' slice_list ']';
+slice_list: slice? (',' slice)*;
+slice: slice_offset ':' slice_end;
+slice_offset: expr;
+slice_end: expr;
 
 // Call
 call: ID '(' call_param_list ')';
