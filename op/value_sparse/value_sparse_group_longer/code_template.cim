@@ -47,7 +47,7 @@
     {% include 'lib/input_loader.cim' %}
 {% endif %}
 
-def main(null<int8>){
+def main(){
     // input, weight, mask and index will be prepared in memory image
     {% if IM2COL %}
         global_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __GLOBAL__);
@@ -135,7 +135,7 @@ def main(null<int8>){
     Save(local_spill, [5], from_to_row_begin);
     // @unroll
     for i_reduce_to_macro in range(0, MAPPING_REDUCE_TO_MACRO_LENGTH) 
-        carry (null){
+        carry (){
 
         out_channel_begin = i_reduce_to_macro * N_GROUP_VCOL;
         out_channel_end = Min(WEIGHT_OUT_CHANNEL, out_channel_begin + N_GROUP_VCOL);
@@ -155,7 +155,7 @@ def main(null<int8>){
         macro_to_from_end = macro_to_from_begin + macro_to_from_size;
         begin_tile_in_window = 0;
         for i_macro_to_from in range(macro_to_from_begin, macro_to_from_end) 
-            carry (null, begin_tile_in_window){
+            carry (begin_tile_in_window){
             
             row_size = Load(mapping_macro_to_row, [i_macro_to_from]); // how many 16 in a macro(i.e. how many row to use)
             from_to_row_size = Load(mapping_macro_to_from, [i_macro_to_from]); // how many 128 in a macro
@@ -203,7 +203,7 @@ def main(null<int8>){
             // So, the 'step' of oh and ow is 2.
             double_buffer_id = 1;
             Save(local_spill,[6],double_buffer_id);
-            for ow in range(0,OUTPUT_COL,2) carry(null) {
+            for ow in range(0,OUTPUT_COL,2) carry() {
                 
                 {% if IM2COL_SMALL_INPUT_MEMORY %}
                     use_global_input = Slice(global_input,
@@ -214,7 +214,7 @@ def main(null<int8>){
                     Trans(use_global_input, local_input);
                 {% endif %}
 
-                for oh in range(0,OUTPUT_ROW,2) carry(null) {
+                for oh in range(0,OUTPUT_ROW,2) carry() {
                     // Double buffer index
                     double_buffer_id = Load(local_spill,[6]);
                     double_buffer_id = 1 - double_buffer_id;
@@ -242,7 +242,7 @@ def main(null<int8>){
                         i_rel_from_to_row = i_from_to_row - from_to_row_begin;
                         tt_ = i_rel_from_to_row * N_FROM;
                         i_tile_in_window = begin_tile_in_window + tt_;
-                        copy_input_to_input_buffer_for_all_group(null,
+                        copy_input_to_input_buffer_for_all_group(
                             local_input, 
                             use_input_buffer,
                             oh,
@@ -330,8 +330,8 @@ def main(null<int8>){
         {% else %}
             out_channel_begin = Load(local_spill, [7]);
             out_channel_len = Load(local_spill, [8]);
-            for oh in range(OUTPUT_ROW) carry (null){
-                for ow in range(OUTPUT_COL) carry (null){
+            for oh in range(OUTPUT_ROW) carry (){
+                for ow in range(OUTPUT_COL) carry (){
                     use_local_output_i32 = Slice(local_output_i32, 
                         [oh, ow, 0], 
                         [1, 1, out_channel_len], 
@@ -352,5 +352,5 @@ def main(null<int8>){
     }; // end of out_channel_begin
     // Trans(local_output_i8, global_output_i8);
     // Trans(local_output, global_output);
-    //Debug(null);
+
 }

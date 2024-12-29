@@ -1,5 +1,4 @@
 def quantify(
-    null<int8>,
     out_channel_begin<index>,
     out_channel_len<index>,
     local_output_i32< <-1, -1, -1>, int32, __OUTPUT_MEMORY__>,
@@ -11,8 +10,8 @@ def quantify(
     output_row = Shape(local_output_i32, 0);
     output_col = Shape(local_output_i32, 1);
     // Do quantify here
-    for oh in range(0,output_row) carry(null){
-        for ow in range(0,output_col) carry(null){
+    for oh in range(0,output_row) carry(){
+        for ow in range(0,output_col) carry(){
             use_i32_output = Slice(local_output_i32,
                 [oh,ow,0],
                 [1,1,out_channel_len],

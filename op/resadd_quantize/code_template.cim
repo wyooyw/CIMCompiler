@@ -4,7 +4,7 @@
 // input
 #define INPUT_SIZE {{ INPUT_SIZE }}
 
-def main(null<int8>){
+def main(){
     // inputs
     global_input_1 = Buffer(<INPUT_SIZE>, int8, __GLOBAL__);
     global_input_2 = Buffer(<INPUT_SIZE>, int8, __GLOBAL__);

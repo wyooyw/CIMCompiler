@@ -28,7 +28,7 @@
 
 #define WINDOW_SIZE {{WINDOW_SIZE}}
 
-def main(null<int8>){
+def main(){
     // input, weight, mask and index will be prepared in memory image
     global_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}, INPUT_CHANNEL>, int8, __GLOBAL__);
     global_weight = Buffer(<KERNEL_SIZE, KERNEL_SIZE, OUTPUT_CHANNEL>, int8, __GLOBAL__);
@@ -71,16 +71,16 @@ def main(null<int8>){
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
     SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
 
-    for ow in range(0, OUTPUT_COL) carry (null) {
+    for ow in range(0, OUTPUT_COL) carry () {
 
         use_global_input = Slice(global_input, 
             [ow, 0, 0], [1, {{IM2COL_SIZE_1}}, INPUT_CHANNEL], [1,1,1]
         );
         Trans(use_global_input, local_input);
 
-        for oh in range(0, OUTPUT_ROW) carry (null) {
-            for kh in range(0, KERNEL_SIZE) carry (null) {
-                for kw in range(0, KERNEL_SIZE) carry (null) {
+        for oh in range(0, OUTPUT_ROW) carry () {
+            for kh in range(0, KERNEL_SIZE) carry () {
+                for kw in range(0, KERNEL_SIZE) carry () {
 
                     // weight
                     use_weight = Slice(local_weight,

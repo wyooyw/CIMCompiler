@@ -1,5 +1,4 @@
 def copy_input_to_input_buffer_for_all_group(
-                        null<int8>,
                         local_input< <-1, {{IM2COL_SIZE_1}}>, int8, __INPUT_MEMORY__>, 
                         use_input_buffer< <1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
                         oh<index>,
