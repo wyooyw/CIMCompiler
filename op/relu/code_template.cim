@@ -20,21 +20,13 @@ def main(){
     for ih in range(INPUT_ROW) carry () {
         for iw in range(INPUT_COL) carry () {
             // do max pooling
-            use_global_input = Slice(global_input,
-                [ih, iw, 0],
-                [1, 1, INPUT_CHANNEL],
-                [1, 1, 1]
-            );
+            use_global_input = global_input[ih:ih + 1, iw:iw + 1, 0:INPUT_CHANNEL];
             Trans(use_global_input, local_input);
 
             SIMD(VVMAX, local_input, local_zeros, local_output);
 
             // move to global memory
-            use_global_output = Slice(global_output,
-                [ih, iw, 0],
-                [1, 1, INPUT_CHANNEL],
-                [1, 1, 1]
-            );
+            use_global_output = global_output[ih:ih + 1, iw:iw + 1, 0:INPUT_CHANNEL];
             Trans(local_output, use_global_output);
         };
     };

@@ -27,7 +27,6 @@
 #define N_ROW {{ N_ROW }}
 #define N_COMP {{ N_COMP }}
 
-
 #define INPUT_BUFFER_SIZE_PER_GROUP {{ INPUT_BUFFER_SIZE_PER_GROUP }}
 #define N_FROM {{ N_FROM }}
 #define N_TO {{ N_TO }}
@@ -106,7 +105,6 @@ def main(){
         Trans(global_input, local_input);
     {% endif %}
 
-
     // Prepare memory's that will be used
     
     // PIM input reg buffer, it is a double-buffer. Each group use 128 byte, total 4 groups.
@@ -161,18 +159,10 @@ def main(){
         Save(local_spill, [7], out_channel_begin);
         Save(local_spill, [8], out_channel_len);
 
-        use_pimset_mask = Slice(local_pimset_mask,
-            [i_reduce_to_macro, 0],
-            [1, N_GROUP_VCOL],
-            [1, 1]
-        );
+        use_pimset_mask = local_pimset_mask[i_reduce_to_macro:i_reduce_to_macro+1, 0:N_GROUP_VCOL];
         CIMSet(use_pimset_mask);
 
-        use_bias_scale = Slice(local_bias_scale,
-            [out_channel_begin, 0],
-            [out_channel_len, 2],
-            [1, 1]
-        );
+        use_bias_scale = local_bias_scale[out_channel_begin:out_channel_begin+out_channel_len, 0:2];
 
         macro_to_from_begin = Load(local_spill, [0]);
         macro_to_from_size = Load(mapping_reduce_to_macro, [i_reduce_to_macro]);
@@ -187,34 +177,28 @@ def main(){
             // Step 1: Prepare weight
             // notice that weight.shape = <TIME, N_TO, N_GROUP, N_MACRO_PER_GROUP, N_VCOL>
             row_abs_begin = Load(local_spill, [1]);
-            use_weight = Slice(global_weight, 
-                        [row_abs_begin, 0, 0, 0, 0],                                // offsets
-                        [row_size, N_TO, N_GROUP, N_MACRO_PER_GROUP, N_VCOL],   // sizes
-                        [1,1,1,1,1]                                                     // strides
-                        );
-            use_macros = Slice(macros,
-                [0, 0, 0, 0],
-                [row_size, N_COMP, N_GROUP, N_GROUP_VCOL],
-                [1,1,1,1]
-            );
+            use_weight = global_weight[row_abs_begin:row_abs_begin+row_size, 
+                                       0:N_TO, 
+                                       0:N_GROUP, 
+                                       0:N_MACRO_PER_GROUP, 
+                                       0:N_VCOL];
+            use_macros = macros[0:row_size, 
+                                0:N_COMP, 
+                                0:N_GROUP, 
+                                0:N_GROUP_VCOL];
             Trans(use_weight, use_macros);
 
             // Step 2: Prepare mask
             // global_mask.shape = <TIME, N_FROM, N_MACRO_PER_GROUP>
-            use_global_mask = Slice(global_mask, 
-                [row_abs_begin, 0, 0],
-                [row_size, N_FROM, N_MACRO_PER_GROUP],
-                [1, 1, 1]
-            );
+            use_global_mask = global_mask[row_abs_begin:row_abs_begin+row_size,
+                                          0:N_FROM,
+                                          0:N_MACRO_PER_GROUP];
             // buffer_mask.shape = <FROM_OVER_TO, N_FROM, N_MACRO_PER_GROUP>
             // TODO: It will be error when weight_time_size > FROM_OVER_TO. Check this later.
-            use_buffer_mask = Slice(buffer_mask,
-                [0, 0, 0],
-                [row_size, N_FROM, N_MACRO_PER_GROUP],
-                [1, 1, 1]
-            );
+            use_buffer_mask = buffer_mask[0:row_size,
+                                          0:N_FROM,
+                                          0:N_MACRO_PER_GROUP];
             Trans(use_global_mask, use_buffer_mask);
-
 
             // begin_tile_in_window
             t_ = KERNEL_SIZE * KERNEL_SIZE;
@@ -230,11 +214,7 @@ def main(){
                 for ow in range(0,OUTPUT_COL,2) carry() {
                 
                 {% if IM2COL_SMALL_INPUT_MEMORY %}
-                    use_global_input = Slice(global_input,
-                        [ow, 0],
-                        [2, {{IM2COL_SIZE_1}}],
-                        [1, 1]
-                    );
+                    use_global_input = global_input[ow:ow+2, 0:{{IM2COL_SIZE_1}}];
                     Trans(use_global_input, local_input);
                 {% endif %}
 
@@ -245,11 +225,9 @@ def main(){
                     Save(local_spill,[6],double_buffer_id);
 
                     // Step 3: Prepare input
-                    use_input_buffer = Slice(pim_input_reg_buffer, 
-                        [double_buffer_id, 0, 0], 
-                        [1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP], 
-                        [1,1,1]
-                    );
+                    use_input_buffer = pim_input_reg_buffer[double_buffer_id:double_buffer_id+1, 
+                                                            0:N_GROUP, 
+                                                            0:INPUT_BUFFER_SIZE_PER_GROUP];
                     
                     // iter over a sliding window : KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL
                     
@@ -286,11 +264,10 @@ def main(){
                             // give mask addr to special register
                             SpecialRegSet(SPECIAL_REG_VALUE_SPARSE_MASK_ADDR, sparse_mask_addr);
                             // activate macro
-                            activate_macro = Slice(use_macros,
-                                [i_compute, 0, 0, 0],
-                                [1,  N_COMP, N_GROUP, N_GROUP_VCOL],
-                                [1,1,1,1]
-                            );
+                            activate_macro = use_macros[i_compute:i_compute+1,
+                                                        0:N_COMP,
+                                                        0:N_GROUP,
+                                                        0:N_GROUP_VCOL];
                             //Print(sparse_mask_addr);
                             //Debug();
                             CIMComputeValueSparse(use_input_buffer, activate_macro);
@@ -309,30 +286,29 @@ def main(){
 
                     out_channel_begin = Load(local_spill, [7]);
                     out_channel_len = Load(local_spill, [8]);
-                    use_local_output_for_temp_sum = Slice(local_output_for_temp_sum, [0], [out_channel_len], [1]);
+                    use_local_output_for_temp_sum = local_output_for_temp_sum[0:out_channel_len];
                     // TODO: unroll this loop
                     {% for group_i in range(N_USE_GROUP) %}
-                        output_buffer_group_i = Slice(pim_output_reg_buffer, [{{group_i}} * N_GROUP_VCOL], [out_channel_len], [1]);
+                        t2 = {{group_i}} * N_GROUP_VCOL;
+                        output_buffer_group_i = pim_output_reg_buffer[t2:t2+out_channel_len];
                         delta_h = {{group_i}} / 2;
                         delta_w = {{group_i}} % 2;
                         Trans(output_buffer_group_i, use_local_output_for_temp_sum);
 
                         // if SINGLE_OUTER_REDUCE==1, we do quantify inside oh and ow loop, to turn i32 to i8 immediately for saving memory.
                         // else, we add result to i32 output, and do quantize when the partial sum finish compute.
+                        oh_ = oh + delta_h;
+                        ow_ = ow + delta_w;
                         {% if SINGLE_OUTER_REDUCE == 1 %}
-                            use_i8_output = Slice(local_output_i8,
-                                [oh+delta_h, ow+delta_w, out_channel_begin],
-                                [1,1,out_channel_len],
-                                [1,1,1]
-                            );
+                            use_i8_output = local_output_i8[oh_:oh_+1,
+                                                            ow_:ow_+1,
+                                                            out_channel_begin:out_channel_begin+out_channel_len];
                             SIMD(QUANTIZE, use_local_output_for_temp_sum, use_bias_scale, local_out_zp, use_i8_output);
 
                         {% else %}
-                            use_local_output_i32 = Slice(local_output_i32, 
-                                [oh+delta_h, ow+delta_w, 0], 
-                                [1, 1, out_channel_len], 
-                                [1, 1, 1]
-                            );
+                            use_local_output_i32 = local_output_i32[oh_:oh_+1, 
+                                                                    ow_:ow_+1, 
+                                                                    0:out_channel_len];
                             SIMD(VVADD, use_local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
                         {% endif %}
                     {% endfor %}

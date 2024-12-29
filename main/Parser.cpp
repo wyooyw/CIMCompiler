@@ -1114,6 +1114,56 @@ bool MLIRGenImpl::is_call(const boost::property_tree::ptree &ast) {
   return ast.count("call");
 }
 
+
+mlir::Value MLIRGenImpl::parse_buffer_slice(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_buffer_slice";
+  auto ast_var = safe_get_child(get_item(ast, 0), "var");
+  auto var = parse_var(ast_var);
+
+  auto ast_slice_list = safe_get_child(get_item(ast, 2), "slice_list");
+  auto offsets_sizes_strides = parse_slice_list(ast_slice_list);
+
+  mlir::SmallVector<mlir::Value> offsets = std::get<0>(offsets_sizes_strides);
+  mlir::SmallVector<mlir::Value> sizes = std::get<1>(offsets_sizes_strides);
+  mlir::SmallVector<mlir::Value> strides = std::get<2>(offsets_sizes_strides);
+
+  mlir::Value buffer = builder.create<mlir::memref::SubViewOp>(loc, var, offsets, sizes, strides);
+  return buffer;
+}
+
+std::tuple<mlir::SmallVector<mlir::Value>, mlir::SmallVector<mlir::Value>, mlir::SmallVector<mlir::Value>>
+MLIRGenImpl::parse_slice_list(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_slice_list";
+  mlir::SmallVector<mlir::Value> offsets;
+  mlir::SmallVector<mlir::Value> sizes;
+  mlir::SmallVector<mlir::Value> strides;
+  // iter over ast
+  for (const auto &pair : ast) {
+    if (is_slice(pair.second)) {
+      auto ast_slice = safe_get_child(pair.second, "slice");
+      auto ast_slice_offset = safe_get_child(get_item(ast_slice, 0), "slice_offset");
+      auto ast_slice_end = safe_get_child(get_item(ast_slice, 2), "slice_end");
+      
+      auto slice_offset_value = parse_expr(safe_get_child(get_item(ast_slice_offset, 0), "expr"));
+      auto slice_end_value = parse_expr(safe_get_child(get_item(ast_slice_end, 0), "expr"));
+      auto slice_len_value = builder.create<mlir::arith::SubIOp>(loc, slice_end_value, slice_offset_value);
+      
+      offsets.push_back(slice_offset_value);
+      sizes.push_back(slice_len_value);
+      strides.push_back(builder.create<mlir::arith::ConstantIndexOp>(loc, 1));
+    }
+  }
+  return std::make_tuple(offsets, sizes, strides);
+}
+
+bool MLIRGenImpl::is_buffer_slice(const boost::property_tree::ptree &ast) {
+  return ast.count("buffer_slice");
+}
+
+bool MLIRGenImpl::is_slice(const boost::property_tree::ptree &ast) {
+  return ast.count("slice");
+}
+
 mlir::Value
 MLIRGenImpl::parse_unary_expr(const boost::property_tree::ptree &ast) {
   /*
@@ -1125,6 +1175,8 @@ MLIRGenImpl::parse_unary_expr(const boost::property_tree::ptree &ast) {
     return parse_const_or_var(safe_get_child(unary_expr, "const_or_var"));
   } else if (is_call(unary_expr)) {
     return parse_call_return_value(safe_get_child(unary_expr, "call"));
+  } else if (is_buffer_slice(unary_expr)) {
+    return parse_buffer_slice(safe_get_child(unary_expr, "buffer_slice"));
   } else {
     // raise: not support yet
     mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),

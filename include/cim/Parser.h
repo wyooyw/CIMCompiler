@@ -163,6 +163,13 @@ private:
   // Util Functions
   mlir::SmallVector<mlir::Value>
   cast_to_index_type(mlir::SmallVector<mlir::Value> _index);
+
+  // Slice
+  mlir::Value parse_buffer_slice(const boost::property_tree::ptree &ast);
+  std::tuple<mlir::SmallVector<mlir::Value>, mlir::SmallVector<mlir::Value>, mlir::SmallVector<mlir::Value>>
+  parse_slice_list(const boost::property_tree::ptree &ast);
+  bool is_buffer_slice(const boost::property_tree::ptree &ast);
+  bool is_slice(const boost::property_tree::ptree &ast);
 };
 
 #endif // MLIRGENIMPL_H

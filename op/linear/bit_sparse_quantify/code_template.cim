@@ -51,11 +51,7 @@ def copy_input_to_input_buffer_icgt128( // input channel greater than 128
     row_id = oh + ker_row_id;
     col_id = ow + ker_col_id;
     channel_id = i % INPUT_CHANNEL;
-    use_local_input = Slice(local_input,
-        [row_id, col_id, channel_id],
-        [1, 1, INPUT_BUFFER_SIZE_PER_GROUP],
-        [1, 1, 1]
-    );
+    use_local_input = local_input[row_id:row_id+1, col_id:col_id+1, channel_id:channel_id+INPUT_BUFFER_SIZE_PER_GROUP];
     Trans(use_local_input, group_use_input_buffer);
 }
 
@@ -66,11 +62,7 @@ def copy_input_to_input_buffer_iclt128( // input channel less than 128
                         ow<index>,
                         i<index> 
 ){
-    use_local_input = Slice(local_input,
-           [0, 0, 0],
-           [1, 1, INPUT_CHANNEL],
-           [1, 1, 1]
-    );
+    use_local_input = local_input[0:1, 0:1, 0:INPUT_CHANNEL];
     
     // copy one pixel one time
     num_pixel_per_buffer = INPUT_BUFFER_SIZE_PER_GROUP / INPUT_CHANNEL;
@@ -87,18 +79,10 @@ def copy_input_to_input_buffer_iclt128( // input channel less than 128
         ker_col_id = ker_pixel_id % KERNEL_SIZE;
         row_id = oh + ker_row_id;
         col_id = ow + ker_col_id;
-        use_local_input = Slice(local_input,
-            [row_id, col_id, 0],
-            [1, 1, INPUT_CHANNEL],
-            [1, 1, 1]
-        );
+        use_local_input = local_input[row_id:row_id+1, col_id:col_id+1, 0:INPUT_CHANNEL];
 
         input_buffer_addr_begin = pixel_delta * INPUT_CHANNEL;
-        use_input_buffer = Slice(group_use_input_buffer,
-            [0,0,input_buffer_addr_begin],
-            [1,1,INPUT_CHANNEL],
-            [1,1,1]
-        );
+        use_input_buffer = group_use_input_buffer[0:1, 0:1, input_buffer_addr_begin:input_buffer_addr_begin+INPUT_CHANNEL];
         Trans(use_local_input, use_input_buffer);
         
     };
@@ -137,17 +121,11 @@ def copy_input_to_input_buffer_general(
         //Print(in_pixel_len);
         oh = oh * {{STRIDE}};
         ow = ow * {{STRIDE}};
-        use_local_input = Slice(local_input,
-            [oh + ker_h, ow + ker_w, in_pixel_begin],
-            [1, 1, in_pixel_len], 
-            [1, 1, 1]
-        );
+        oh_ = oh + ker_h;
+        ow_ = ow + ker_w;
+        use_local_input = local_input[oh_:oh_ + 1, ow_:ow_ + 1, in_pixel_begin:in_pixel_begin + in_pixel_len];
 
-        use_input_buffer = Slice(group_use_input_buffer,
-            [0, 0, buf_begin],
-            [1, 1, in_pixel_len],
-            [1, 1, 1]
-        );
+        use_input_buffer = group_use_input_buffer[0:1, 0:1, buf_begin:buf_begin + in_pixel_len];
         Trans(use_local_input, use_input_buffer);
 
         buf_begin = buf_begin + in_pixel_len;
@@ -173,16 +151,8 @@ def quantify(
     local_out_zp< <1>, int32, __INPUT_MEMORY__>
     ){
     // Do quantify here
-    use_i32_output = Slice(local_output_i32,
-        [0,0,out_channel_begin],
-        [1,1,out_channel_len],
-        [1,1,1]
-    );
-    use_i8_output = Slice(local_output_i8,
-        [0,0,out_channel_begin],
-        [1,1,out_channel_len],
-        [1,1,1]
-    );
+    use_i32_output = local_output_i32[0:1, 0:1, out_channel_begin:out_channel_begin + out_channel_len];
+    use_i8_output = local_output_i8[0:1, 0:1, out_channel_begin:out_channel_begin + out_channel_len];
     // Quantify(use_i32_output, local_out_zp, use_i8_output, {{RELU}});
     SIMD(QUANTIZE, use_i32_output, use_bias_scale, local_out_zp, use_i8_output);
 }
@@ -270,18 +240,10 @@ def main(){
         //Print(out_channel_begin);
         // Print(out_channel_end);
 
-        use_pimset_mask = Slice(local_pimset_mask,
-            [out_tile_i, 0],
-            [1, N_GROUP_BCOL],
-            [1, 1]
-        );
+        use_pimset_mask = local_pimset_mask[out_tile_i:out_tile_i+1, 0:N_GROUP_BCOL];
         CIMSet(use_pimset_mask);
 
-        use_bias_scale = Slice(local_bias_scale,
-            [out_channel_begin, 0],
-            [out_channel_len, 2],
-            [1, 1]
-        );
+        use_bias_scale = local_bias_scale[out_channel_begin:out_channel_begin+out_channel_len, 0:2];
 
         inner_reduce_tile_size = N_ROW;
 
@@ -294,31 +256,15 @@ def main(){
             for cp_weight_rel_row in range(out_reduce_len) carry (){
                 cp_weight_row = cp_weight_rel_row + out_reduce_begin;
                 for cp_weight_comp  in range(N_COMP) carry (){
-                    use_weight = Slice(global_weight,
-                        [out_tile_i, cp_weight_row, cp_weight_comp, 0, 0],              // offsets
-                        [1, 1, 1, 1, N_GROUP_VCOL],   // sizes
-                        [1,1,1,1,1]                                           // strides
-                    );
-                    use_macros = Slice(macros,
-                        [cp_weight_rel_row, cp_weight_comp, 0, 0],
-                        [1, 1, 1, N_GROUP_VCOL],
-                        [1,1,1,1]
-                    );
+                    use_weight = global_weight[out_tile_i:out_tile_i+1, cp_weight_row:cp_weight_row+1, cp_weight_comp:cp_weight_comp+1, 0:1, 0:N_GROUP_VCOL];
+                    use_macros = macros[cp_weight_rel_row:cp_weight_rel_row+1, cp_weight_comp:cp_weight_comp+1, 0:1, 0:N_GROUP_VCOL];
                     Trans(use_weight, use_macros);
                 };
             };
-            use_macros = Slice(macros,
-                [0, 0, 0, 0],
-                [out_reduce_len, N_COMP, N_GROUP, N_GROUP_VCOL],
-                [1,1,1,1]
-            );
+            use_macros = macros[0:out_reduce_len, 0:N_COMP, 0:N_GROUP, 0:N_GROUP_VCOL];
 
             // save meta
-            use_meta = Slice(global_meta,
-                [out_tile_i, out_reduce_begin, 0, 0, 0],
-                [1, out_reduce_len, N_COMP, N_GROUP_BCOL, 3],
-                [1, 1, 1, 1, 1]
-            );
+            use_meta = global_meta[out_tile_i:out_tile_i+1, out_reduce_begin:out_reduce_begin+out_reduce_len, 0:N_COMP, 0:N_GROUP_BCOL, 0:3];
  
             Trans(use_meta, pim_meta_data_reg_buffer);
 
@@ -334,11 +280,7 @@ def main(){
             // Save(local_spill, [0], double_buffer_id);
 
             // Step 3: Prepare input
-            use_input_buffer = Slice(pim_input_reg_buffer, 
-                [double_buffer_id, 0, 0], 
-                [1, 1, INPUT_BUFFER_SIZE_PER_GROUP], 
-                [1,1,1]
-            );
+            use_input_buffer = pim_input_reg_buffer[double_buffer_id:double_buffer_id+1, 0:1, 0:INPUT_BUFFER_SIZE_PER_GROUP];
 
             meta_addr = BIT_SPARSE_META_BASE_ADDR;
             t_ = N_COMP * N_GROUP_BCOL;
@@ -380,17 +322,9 @@ def main(){
                     //Print(useful_input_len);
                     //Print(row_to_activate);
                     // activate macro
-                    activate_macro = Slice(use_macros,
-                        [row_to_activate, 0, 0, 0],
-                        [1,  N_COMP, 1, N_GROUP_VCOL],
-                        [1,1,1,1]
-                    );
+                    activate_macro = use_macros[row_to_activate:row_to_activate+1, 0:N_COMP, 0:1, 0:N_GROUP_VCOL];
                     // this is an uncontinous subview!!!
-                    compute_use_input_buffer = Slice(use_input_buffer,
-                        [0, 0, input_begin_in_buffer],
-                        [1, 1, input_len],
-                        [1, 1, 1]
-                    );
+                    compute_use_input_buffer = use_input_buffer[0:1, 0:1, input_begin_in_buffer:input_begin_in_buffer+input_len];
                     // Print(meta_addr);
                     SpecialRegSet(SPECIAL_REG_BIT_SPARSE_META_ADDR, meta_addr);
 
@@ -401,26 +335,15 @@ def main(){
                 };
                 // Save(local_spill, [1], row_to_activate);
             };
-            use_outsum_mask = Slice(local_outsum_mask,
-                [out_tile_i, 0],
-                [1, N_GROUP_BCOL],
-                [1, 1]
-            );
-            use_transfer_mask = Slice(local_transfer_mask,
-                [out_tile_i, 0],
-                [1, N_GROUP_BCOL],
-                [1, 1]
-            );
-            use_local_output_for_temp_sum = Slice(local_output_for_temp_sum,
-                [0], [out_channel_len], [1]
-            );
+            use_outsum_mask = local_outsum_mask[out_tile_i:out_tile_i+1, 0:N_GROUP_BCOL];
+            use_transfer_mask = local_transfer_mask[out_tile_i:out_tile_i+1, 0:N_GROUP_BCOL];
+            use_local_output_for_temp_sum = local_output_for_temp_sum[0:out_channel_len];
 
             CIMOutputSum(N_GROUP_BCOL, use_outsum_mask, pim_output_reg_buffer);
 
             group_i = 0;
-            output_buffer_group_i = Slice(pim_output_reg_buffer, 
-                [group_i * N_GROUP_BCOL], [N_GROUP_BCOL], [1]
-            );
+            t_ = group_i * N_GROUP_BCOL;
+            output_buffer_group_i = pim_output_reg_buffer[t_:t_+N_GROUP_BCOL];
 
             CIMTransfer(
                 output_buffer_group_i,      // src addr
@@ -430,11 +353,7 @@ def main(){
                 use_local_output_for_temp_sum   // dst addr
             );
             
-            use_local_output = Slice(local_output, 
-                [0, 0, out_channel_begin], 
-                [1, 1, out_channel_len], 
-                [1, 1, 1]
-            );
+            use_local_output = local_output[0:1, 0:1, out_channel_begin:out_channel_begin+out_channel_len];
             SIMD(VVADD, use_local_output_for_temp_sum, use_local_output, use_local_output);
         };
 

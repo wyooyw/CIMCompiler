@@ -9,11 +9,8 @@ def copy_input_to_input_buffer_for_all_group(
     sliding_window_size = t_0 * INPUT_CHANNEL;
     trans_input_len = Min(INPUT_BUFFER_SIZE_PER_GROUP, sliding_window_size - i);
     {% for g in range(N_GROUP) %}
-        group_input_buffer = Slice(use_input_buffer, 
-            [0,{{g}},0],
-            [1,1,trans_input_len],
-            [1,1,1]
-        );
+        group_input_buffer = use_input_buffer[0:1, {{g}}:{{g}} + 1, 0:trans_input_len];
+
         delta_oh = {{g}} / 2;
         group_oh = oh + delta_oh;
         group_ih = group_oh * {{STRIDE}};
@@ -24,11 +21,7 @@ def copy_input_to_input_buffer_for_all_group(
         t_1 =  KERNEL_SIZE * INPUT_CHANNEL;
         t_2 = group_ih * t_1;
         im2col_begin = t_2 + i;
-        group_im2col_input = Slice(local_input,
-            [group_ow, im2col_begin],
-            [1, trans_input_len],
-            [1, 1]
-        );
+        group_im2col_input = local_input[group_ow:group_ow + 1, im2col_begin:im2col_begin + trans_input_len];
         Trans(group_im2col_input, group_input_buffer);
     {% endfor %}
 }
