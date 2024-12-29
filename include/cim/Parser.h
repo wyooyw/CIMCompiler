@@ -133,15 +133,7 @@ private:
   mlir::Value parse_builtin_shape(const boost::property_tree::ptree &ast);
   void parse_builtin_trans(const boost::property_tree::ptree &ast);
   mlir::Value parse_builtin_slice(const boost::property_tree::ptree &ast);
-  void parse_builtin_vvadd(const boost::property_tree::ptree &ast);
-  void parse_builtin_vvmul(const boost::property_tree::ptree &ast);
-  void parse_builtin_vsmul(const boost::property_tree::ptree &ast);
-  void parse_builtin_vvmax(const boost::property_tree::ptree &ast);
-  void parse_builtin_vfloor(const boost::property_tree::ptree &ast);
   void parse_builtin_simd(const boost::property_tree::ptree &ast);
-  void parse_builtin_quantify(const boost::property_tree::ptree &ast);
-  void parse_builtin_res_add_quantify(const boost::property_tree::ptree &ast);
-  void parse_builtin_res_mul_quantify(const boost::property_tree::ptree &ast);
   mlir::Value parse_builtin_buffer(const boost::property_tree::ptree &ast);
   void parse_builtin_print(const boost::property_tree::ptree &ast);
   void parse_builtin_debug(const boost::property_tree::ptree &ast);

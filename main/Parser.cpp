@@ -540,32 +540,8 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree &ast) {
   if (call_func_name == "Trans") {
     parse_builtin_trans(ast);
     return;
-  } else if (call_func_name == "VVAdd") {
-    parse_builtin_vvadd(ast);
-    return;
-  } else if (call_func_name == "VVMul") {
-    parse_builtin_vvmul(ast);
-    return;
-  } else if (call_func_name == "VSMul") {
-    parse_builtin_vsmul(ast);
-    return;
-  } else if (call_func_name == "VVMax") {
-    parse_builtin_vvmax(ast);
-    return;
-  } else if (call_func_name == "VFloor") {
-    parse_builtin_vfloor(ast);
-    return;
   } else if (call_func_name == "SIMD") {
     parse_builtin_simd(ast);
-    return;
-  }else if (call_func_name == "Quantify") {
-    parse_builtin_quantify(ast);
-    return;
-  } else if (call_func_name == "ResAddQuantify") {
-    parse_builtin_res_add_quantify(ast);
-    return;
-  } else if (call_func_name == "ResMulQuantify") {
-    parse_builtin_res_mul_quantify(ast);
     return;
   }  else if (call_func_name == "Print") {
     parse_builtin_print(ast);
@@ -723,73 +699,6 @@ MLIRGenImpl::parse_builtin_slice(const boost::property_tree::ptree &ast) {
   return result;
 }
 
-void MLIRGenImpl::parse_builtin_vvadd(const boost::property_tree::ptree &ast) {
-  LOG_DEBUG << "parse_builtin_vvadd";
-  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
-
-  auto ast_lhs = safe_get_child(get_item(ast_param_list, 0), "call_param");
-  auto ast_rhs = safe_get_child(get_item(ast_param_list, 2), "call_param");
-  auto ast_out = safe_get_child(get_item(ast_param_list, 4), "call_param");
-
-  mlir::Value lhs = parse_expr(safe_get_child(get_item(ast_lhs, 0), "expr"));
-  mlir::Value rhs = parse_expr(safe_get_child(get_item(ast_rhs, 0), "expr"));
-  mlir::Value out = parse_expr(safe_get_child(get_item(ast_out, 0), "expr"));
-  builder.create<mlir::cim::VVAddOp>(loc, lhs, rhs, out);
-}
-
-void MLIRGenImpl::parse_builtin_vvmul(const boost::property_tree::ptree &ast) {
-  LOG_DEBUG << "parse_builtin_vvmul";
-  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
-
-  auto ast_lhs = safe_get_child(get_item(ast_param_list, 0), "call_param");
-  auto ast_rhs = safe_get_child(get_item(ast_param_list, 2), "call_param");
-  auto ast_out = safe_get_child(get_item(ast_param_list, 4), "call_param");
-
-  mlir::Value lhs = parse_expr(safe_get_child(get_item(ast_lhs, 0), "expr"));
-  mlir::Value rhs = parse_expr(safe_get_child(get_item(ast_rhs, 0), "expr"));
-  mlir::Value out = parse_expr(safe_get_child(get_item(ast_out, 0), "expr"));
-  builder.create<mlir::cim::VVMulOp>(loc, lhs, rhs, out);
-}
-
-void MLIRGenImpl::parse_builtin_vsmul(const boost::property_tree::ptree &ast) {
-  LOG_DEBUG << "parse_builtin_vsmul";
-  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
-
-  auto ast_lhs = safe_get_child(get_item(ast_param_list, 0), "call_param");
-  auto ast_rhs = safe_get_child(get_item(ast_param_list, 2), "call_param");
-  auto ast_out = safe_get_child(get_item(ast_param_list, 4), "call_param");
-
-  mlir::Value lhs = parse_expr(safe_get_child(get_item(ast_lhs, 0), "expr"));
-  mlir::Value rhs = parse_expr(safe_get_child(get_item(ast_rhs, 0), "expr"));
-  mlir::Value out = parse_expr(safe_get_child(get_item(ast_out, 0), "expr"));
-  builder.create<mlir::cim::VSMulOp>(loc, lhs, rhs, out);
-}
-
-void MLIRGenImpl::parse_builtin_vvmax(const boost::property_tree::ptree &ast) {
-  LOG_DEBUG << "parse_builtin_vvmax";
-  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
-
-  auto ast_lhs = safe_get_child(get_item(ast_param_list, 0), "call_param");
-  auto ast_rhs = safe_get_child(get_item(ast_param_list, 2), "call_param");
-  auto ast_out = safe_get_child(get_item(ast_param_list, 4), "call_param");
-
-  mlir::Value lhs = parse_expr(safe_get_child(get_item(ast_lhs, 0), "expr"));
-  mlir::Value rhs = parse_expr(safe_get_child(get_item(ast_rhs, 0), "expr"));
-  mlir::Value out = parse_expr(safe_get_child(get_item(ast_out, 0), "expr"));
-  builder.create<mlir::cim::VVMaxOp>(loc, lhs, rhs, out);
-}
-
-void MLIRGenImpl::parse_builtin_vfloor(const boost::property_tree::ptree &ast) {
-  LOG_DEBUG << "parse_builtin_vfloor";
-  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
-
-  auto ast_in = safe_get_child(get_item(ast_param_list, 0), "call_param");
-  auto ast_out = safe_get_child(get_item(ast_param_list, 4), "call_param");
-
-  mlir::Value in = parse_expr(safe_get_child(get_item(ast_in, 0), "expr"));
-  mlir::Value out = parse_expr(safe_get_child(get_item(ast_out, 0), "expr"));
-  builder.create<mlir::cim::VFloorOp>(loc, in, out);
-}
 
 void MLIRGenImpl::parse_builtin_simd(const boost::property_tree::ptree &ast) {
   LOG_DEBUG << "parse_builtin_simd";
@@ -809,81 +718,6 @@ void MLIRGenImpl::parse_builtin_simd(const boost::property_tree::ptree &ast) {
   mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
 
   builder.create<mlir::cim::SIMDOp>(loc, op_id, operands, output);
-}
-
-void MLIRGenImpl::parse_builtin_quantify(
-    const boost::property_tree::ptree &ast) {
-  LOG_DEBUG << "parse_builtin_quantify";
-  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
-
-  auto ast_input = safe_get_child(get_item(ast_param_list, 0), "call_param");
-  // auto ast_bias_scale = safe_get_child(get_item(ast_param_list,2),
-  // "call_param");
-  auto ast_out_zp = safe_get_child(get_item(ast_param_list, 2), "call_param");
-  auto ast_output = safe_get_child(get_item(ast_param_list, 4), "call_param");
-  auto ast_relu = safe_get_child(get_item(ast_param_list, 6), "call_param");
-
-  mlir::Value input =
-      parse_expr(safe_get_child(get_item(ast_input, 0), "expr"));
-  // mlir::Value bias_scale = parse_expr(safe_get_child(get_item(ast_bias_scale,
-  // 0), "expr"));
-  mlir::Value out_zp =
-      parse_expr(safe_get_child(get_item(ast_out_zp, 0), "expr"));
-  mlir::Value output =
-      parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
-  mlir::Value relu = parse_expr(safe_get_child(get_item(ast_relu, 0), "expr"));
-
-  // extract relu's value
-  mlir::arith::ConstantOp relu_const_op =
-      relu.getDefiningOp<mlir::arith::ConstantOp>();
-  if (!relu_const_op) {
-    // raise: not support yet
-    std::cerr << "relu should be constant" << std::endl;
-    std::exit(1);
-  }
-  int relu_const = relu_const_op.getValue().cast<mlir::IntegerAttr>().getInt();
-  mlir::IntegerAttr relu_flag =
-      mlir::IntegerAttr::get(builder.getIntegerType(1), relu_const > 0);
-
-  builder.create<mlir::cim::QuantifyOp>(loc, input, out_zp, output, relu_const);
-}
-
-void MLIRGenImpl::parse_builtin_res_add_quantify(
-    const boost::property_tree::ptree &ast) {
-  LOG_DEBUG << "parse_builtin_res_add_quantify";
-  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
-
-  auto ast_input_1 = safe_get_child(get_item(ast_param_list, 0), "call_param");
-  auto ast_input_2 = safe_get_child(get_item(ast_param_list, 2), "call_param");
-  auto ast_output = safe_get_child(get_item(ast_param_list, 4), "call_param");
-
-  mlir::Value input_1 =
-      parse_expr(safe_get_child(get_item(ast_input_1, 0), "expr"));
-  mlir::Value input_2 =
-      parse_expr(safe_get_child(get_item(ast_input_2, 0), "expr"));
-  mlir::Value output =
-      parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
-
-  builder.create<mlir::cim::ResAddQuantifyOp>(loc, input_1, input_2, output);
-}
-
-void MLIRGenImpl::parse_builtin_res_mul_quantify(
-    const boost::property_tree::ptree &ast) {
-  LOG_DEBUG << "parse_builtin_res_mul_quantify";
-  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
-
-  auto ast_input_1 = safe_get_child(get_item(ast_param_list, 0), "call_param");
-  auto ast_input_2 = safe_get_child(get_item(ast_param_list, 2), "call_param");
-  auto ast_output = safe_get_child(get_item(ast_param_list, 4), "call_param");
-
-  mlir::Value input_1 =
-      parse_expr(safe_get_child(get_item(ast_input_1, 0), "expr"));
-  mlir::Value input_2 =
-      parse_expr(safe_get_child(get_item(ast_input_2, 0), "expr"));
-  mlir::Value output =
-      parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
-
-  builder.create<mlir::cim::ResMulQuantifyOp>(loc, input_1, input_2, output);
 }
 
 mlir::Value

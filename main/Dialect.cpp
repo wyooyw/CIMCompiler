@@ -167,59 +167,6 @@ void mlir::registerCIMInlinerInterface(DialectRegistry &registry) {
   });
 }
 
-//===----------------------------------------------------------------------===//
-// CIM Operations
-//===----------------------------------------------------------------------===//
-
-//===----------------------------------------------------------------------===//
-// VecAddOp
-//===----------------------------------------------------------------------===//
-
-// void VVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-//                   mlir::Value lhs, mlir::Value rhs) {
-//   // same shape
-//   auto type = lhs.getType().cast<RankedTensorType>();
-//   if(type){
-//     auto shape = type.getShape();
-//     auto element_type = builder.getI32Type();
-//     auto encoding = type.getEncoding();
-//     RankedTensorType::Builder _builder =
-//         RankedTensorType::Builder(shape, element_type, encoding);
-//     RankedTensorType newTensorType = RankedTensorType(_builder);
-//     state.addTypes(newTensorType);
-//   }else{
-//     state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
-//   }
-
-//   state.addOperands({lhs, rhs});
-// }
-
-// void BufVVAddOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-//                   mlir::Value lhs, mlir::Value rhs, mlir::Value result) {
-// same shape
-// auto type = lhs.getType().cast<RankedTensorType>();
-// if(type){
-//   auto shape = type.getShape();
-//   auto element_type = builder.getI32Type();
-//   auto encoding = type.getEncoding();
-//   RankedTensorType::Builder _builder =
-//       RankedTensorType::Builder(shape, element_type, encoding);
-//   RankedTensorType newTensorType = RankedTensorType(_builder);
-//   state.addTypes(newTensorType);
-// }else{
-//   state.addTypes(UnrankedTensorType::get(builder.getI32Type()));
-// }
-// auto output_type = llvm::cast<MemRefType>(lhs.getType());
-// state.addTypes(output_type);
-//   state.addOperands({lhs, rhs, result});
-// }
-
-
-//===----------------------------------------------------------------------===//
-// CIMComputeOp
-//===----------------------------------------------------------------------===//
-
-
 /*
   Built-in Functions
 */
@@ -252,58 +199,6 @@ SIMDOp::fold(FoldAdaptor adaptor,
 LogicalResult
 CIMComputeOp::fold(FoldAdaptor adaptor,
                    llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
-  // prefetch(memrefcast) -> prefetch
-  return memref::foldMemRefCast(*this);
-}
-
-LogicalResult
-VVAddOp::fold(FoldAdaptor adaptor,
-              llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
-  // prefetch(memrefcast) -> prefetch
-  return memref::foldMemRefCast(*this);
-}
-LogicalResult
-VVMulOp::fold(FoldAdaptor adaptor,
-              llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
-  // prefetch(memrefcast) -> prefetch
-  return memref::foldMemRefCast(*this);
-}
-LogicalResult
-VSMulOp::fold(FoldAdaptor adaptor,
-              llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
-  // prefetch(memrefcast) -> prefetch
-  return memref::foldMemRefCast(*this);
-}
-LogicalResult
-VVMaxOp::fold(FoldAdaptor adaptor,
-              llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
-  // prefetch(memrefcast) -> prefetch
-  return memref::foldMemRefCast(*this);
-}
-LogicalResult
-VFloorOp::fold(FoldAdaptor adaptor,
-              llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
-  // prefetch(memrefcast) -> prefetch
-  return memref::foldMemRefCast(*this);
-}
-
-LogicalResult
-QuantifyOp::fold(FoldAdaptor adaptor,
-                 llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
-  // prefetch(memrefcast) -> prefetch
-  return memref::foldMemRefCast(*this);
-}
-
-LogicalResult
-ResAddQuantifyOp::fold(FoldAdaptor adaptor,
-                        llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
-  // prefetch(memrefcast) -> prefetch
-  return memref::foldMemRefCast(*this);
-}
-
-LogicalResult
-ResMulQuantifyOp::fold(FoldAdaptor adaptor,
-                        llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
   // prefetch(memrefcast) -> prefetch
   return memref::foldMemRefCast(*this);
 }

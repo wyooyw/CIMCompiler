@@ -29,154 +29,17 @@ class CIM_Op<string mnemonic, list<Trait> traits = []> :
 // Vector Compute //
 /////////////////////////////////
 
-def VVAddOp : CIM_Op<"vv_add"> {
-  let summary = "element-wise addition operation";
+def SIMDOp : CIM_Op<"simd"> {
+  let summary = "simd";
   let description = [{
-    The "add" operation performs element-wise addition between two tensors.
-    The shapes of the tensor operands are expected to match.
+    simd
   }];
 
   let arguments = (ins 
-    AnyRankedOrUnrankedMemRef:$lhs, 
-    AnyRankedOrUnrankedMemRef:$rhs, 
-    AnyRankedOrUnrankedMemRef:$out
-  );
-
-  // Allow building an AddOp with from the two input operands.
-  // let builders = [
-  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
-  // ];
-
-  //let hasCanonicalizer = 1;
-  let hasFolder = 1;
-}
-
-def VVMulOp : CIM_Op<"vv_mul"> {
-  let summary = "element-wise mul operation";
-  let description = [{
-    The "mul" operation performs element-wise addition between two tensors.
-    The shapes of the tensor operands are expected to match.
-  }];
-
-  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$out);
-
-  // Allow building an AddOp with from the two input operands.
-  // let builders = [
-  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
-  // ];
-
-  // let hasCanonicalizer = 1;
-  let hasFolder = 1;
-}
-
-def VSMulOp : CIM_Op<"vs_mul"> {
-  let summary = "element-wise mul operation";
-  let description = [{
-    The "mul" operation performs element-wise addition between two tensors.
-    The shapes of the tensor operands are expected to match.
-  }];
-
-  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$out);
-
-  // Allow building an AddOp with from the two input operands.
-  // let builders = [
-  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
-  // ];
-
-  // let hasCanonicalizer = 1;
-  let hasFolder = 1;
-}
-
-def VVMaxOp : CIM_Op<"vv_max"> {
-  let summary = "element-wise max operation";
-  let description = [{
-    The "max" operation performs element-wise max between two tensors.
-    The shapes of the tensor operands are expected to match.
-  }];
-
-  let arguments = (ins AnyMemRef:$lhs, AnyMemRef:$rhs, AnyMemRef:$out);
-
-  // Allow building an AddOp with from the two input operands.
-  // let builders = [
-  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
-  // ];
-
-  // let hasCanonicalizer = 1;
-  let hasFolder = 1;
-}
-
-def VFloorOp : CIM_Op<"vfloor"> {
-  let summary = "element-wise floor operation";
-  let description = [{
-    The "floor" operation performs element-wise floor between two tensors.
-    The shapes of the tensor operands are expected to match.
-  }];
-
-  let arguments = (ins AnyMemRef:$input, AnyMemRef:$output);
-
-  let hasFolder = 1;
-}
-
-def QuantifyOp : CIM_Op<"quantify"> {
-  let summary = "element-wise addition operation";
-  let description = [{
-    The "add" operation performs element-wise addition between two tensors.
-    The shapes of the tensor operands are expected to match.
-  }];
-
-  let arguments = (ins 
-    AnyMemRef:$input, 
-    AnyMemRef:$output_zp,
-    AnyMemRef:$output,
-    I1Attr:$relu
-  );
-
-  // Allow building an AddOp with from the two input operands.
-  // let builders = [
-  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
-  // ];
-
-  let hasFolder = 1;
-}
-
-def ResAddQuantifyOp : CIM_Op<"res_add_quantify"> {
-  let summary = "element-wise addition operation";
-  let description = [{
-    The "add" operation performs element-wise addition between two tensors.
-    The shapes of the tensor operands are expected to match.
-  }];
-
-  let arguments = (ins 
-    AnyMemRef:$input_1, 
-    AnyMemRef:$input_2,
+    Index:$op_id,
+    Variadic<AnyMemRef>:$inputs,
     AnyMemRef:$output
   );
-
-  // Allow building an AddOp with from the two input operands.
-  // let builders = [
-  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
-  // ];
-
-  let hasFolder = 1;
-}
-
-def ResMulQuantifyOp : CIM_Op<"res_mul_quantify"> {
-  let summary = "element-wise addition operation";
-  let description = [{
-    The "add" operation performs element-wise addition between two tensors.
-    The shapes of the tensor operands are expected to match.
-  }];
-
-  let arguments = (ins 
-    AnyMemRef:$input_1, 
-    AnyMemRef:$input_2,
-    AnyMemRef:$output
-  );
-
-  // Allow building an AddOp with from the two input operands.
-  // let builders = [
-  //  OpBuilder<(ins "Value":$lhs, "Value":$rhs, "Value":$out)>
-  // ];
 
   let hasFolder = 1;
 }
@@ -352,19 +215,6 @@ def CIMSetOp : CIM_Op<"cim_set"> {
   let hasFolder = 1;
 }
 
-def SIMDOp : CIM_Op<"simd"> {
-  let summary = "simd";
-  let description = [{
-    simd
-  }];
 
-  let arguments = (ins 
-    Index:$op_id,
-    Variadic<AnyMemRef>:$inputs,
-    AnyMemRef:$output
-  );
-
-  let hasFolder = 1;
-}
 
 #endif // CIM_OPS
