@@ -1,4 +1,5 @@
 {% include 'lib/def_special_regs.cim' %}
+{% include 'lib/simd.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}
@@ -267,7 +268,7 @@ def main(null<int8>){
             // Step 3: Prepare input
             use_input_buffer = Slice(pim_input_reg_buffer, 
                 [double_buffer_id, 0, 0], 
-                [1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP], 
+                [1, 1, INPUT_BUFFER_SIZE_PER_GROUP], 
                 [1,1,1]
             );
             // iter over a sliding window : KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL
@@ -321,7 +322,7 @@ def main(null<int8>){
             Trans(output_buffer_group_i, local_output_for_temp_sum);
             channel_offset_ = N_GROUP_VCOL * group_i;
             local_output_group_i = Slice(local_output_i32, [0, 0, 0], [1, 1, N_GROUP_VCOL], [1,1,1]);
-            VVAdd(local_output_for_temp_sum, local_output_group_i, local_output_group_i);
+            SIMD(VVADD, local_output_for_temp_sum, local_output_group_i, local_output_group_i);
 
         };
         

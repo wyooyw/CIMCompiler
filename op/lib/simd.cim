@@ -1,0 +1,7 @@
+#define VVADD 0
+#define VVMUL 2
+#define RESADD_QUANTIZE 4
+#define QUANTIZE 3
+#define VVMAX 6
+#define VSMUL 7
+#define VFLOOR 8

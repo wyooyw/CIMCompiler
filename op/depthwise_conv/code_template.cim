@@ -1,4 +1,6 @@
 {% include 'lib/def_special_regs.cim' %}
+{% include 'lib/simd.cim' %}
+{% include 'lib/quantize.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}
@@ -76,9 +78,6 @@ def main(null<int8>){
         );
         Trans(use_global_input, local_input);
 
-        use_bias_scale_addr = Addr(local_bias_scale);
-        SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1, use_bias_scale_addr);
-
         for oh in range(0, OUTPUT_ROW) carry (null) {
             for kh in range(0, KERNEL_SIZE) carry (null) {
                 for kw in range(0, KERNEL_SIZE) carry (null) {
@@ -103,18 +102,18 @@ def main(null<int8>){
                         SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
                         SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
                         SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
-                        VVMul(use_input, use_weight, local_output_parial_sum_i32);
+                        SIMD(VVMUL, use_input, use_weight, local_output_parial_sum_i32);
                     {% else %}
                         // output
                         SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
                         SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
                         SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
-                        VVMul(use_input, use_weight, local_simd_mul_output_i32);
+                        SIMD(VVMUL, use_input, use_weight, local_simd_mul_output_i32);
 
                         SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
                         SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
                         SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
-                        VVAdd(local_output_parial_sum_i32, local_simd_mul_output_i32, local_output_parial_sum_i32);
+                        SIMD(VVADD, local_output_parial_sum_i32, local_simd_mul_output_i32, local_output_parial_sum_i32);
                     {% endif %}
                 };
             };
@@ -124,8 +123,8 @@ def main(null<int8>){
             SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);
             SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
             SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
-            Quantify(local_output_parial_sum_i32, local_out_zp, local_output_i8, {{RELU}});
-
+            SIMD(QUANTIZE, local_output_parial_sum_i32, local_bias_scale, local_out_zp, local_output_i8);
+            
             // clear
             {% if KERNEL_SIZE >1 %}
                 Trans(local_blank_i32, local_output_parial_sum_i32);

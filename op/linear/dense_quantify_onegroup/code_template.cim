@@ -1,4 +1,5 @@
 {% include 'lib/def_special_regs.cim' %}
+{% include 'lib/simd.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}
@@ -169,7 +170,7 @@ def quantify(
     out_channel_begin<index>,
     out_channel_len<index>,
     local_output_i32< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__>,
-    local_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
+    use_bias_scale< <OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__>,
     local_output_i8< <OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__>,
     local_out_zp< <1>, int32, __INPUT_MEMORY__>
     ){
@@ -184,8 +185,8 @@ def quantify(
         [1,1,out_channel_len],
         [1,1,1]
     );
-    Quantify(use_i32_output, local_out_zp, use_i8_output, {{RELU}});
-
+    // Quantify(use_i32_output, local_out_zp, use_i8_output, {{RELU}});
+    SIMD(QUANTIZE, use_i32_output, use_bias_scale, local_out_zp, use_i8_output);
 }
 
 def main(null<int8>){
@@ -262,8 +263,6 @@ def main(null<int8>){
             [out_channel_len, 2],
             [1, 1]
         );
-        use_bias_scale_addr = Addr(use_bias_scale);
-        SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1, use_bias_scale_addr);
 
         inner_reduce_tile_size = N_ROW;
         for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (null){
@@ -308,7 +307,7 @@ def main(null<int8>){
             // Step 3: Prepare input
             use_input_buffer = Slice(pim_input_reg_buffer, 
                 [double_buffer_id, 0, 0], 
-                [1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP], 
+                [1, 1, INPUT_BUFFER_SIZE_PER_GROUP], 
                 [1,1,1]
             );
             // iter over a sliding window : KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL
@@ -362,7 +361,7 @@ def main(null<int8>){
             Trans(output_buffer_group_i, local_output_for_temp_sum);
             channel_offset_ = N_GROUP_VCOL * group_i;
             local_output_group_i = Slice(local_output, [0, 0, out_channel_begin + channel_offset_], [1, 1, N_GROUP_VCOL], [1,1,1]);
-            VVAdd(local_output_for_temp_sum, local_output_group_i, local_output_group_i);
+            SIMD(VVADD, local_output_for_temp_sum, local_output_group_i, local_output_group_i);
 
         };
         SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
@@ -374,7 +373,7 @@ def main(null<int8>){
             out_channel_begin,
             out_channel_len,
             local_output,
-            local_bias_scale,
+            use_bias_scale,
             local_output_i8,
             local_out_zp
         );

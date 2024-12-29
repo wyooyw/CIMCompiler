@@ -1,5 +1,5 @@
 {% include 'lib/def_special_regs.cim' %}
-
+{% include 'lib/simd.cim' %}
 // input
 #define INPUT_ROW {{ INPUT_ROW }}
 #define INPUT_COL {{ INPUT_COL }}
@@ -57,7 +57,7 @@ def main(null<int8>){
                         [1, 1, INPUT_CHANNEL],
                         [1, 1, 1]
                     );
-                    VVMax(use_local_input, local_output, local_output);
+                    SIMD(VVMAX, use_local_input, local_output, local_output);
                 };
             };
 

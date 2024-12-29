@@ -1,6 +1,5 @@
 {% include 'lib/def_special_regs.cim' %}
-
-// TODO: replace these macro accroding to operator config
+{% include 'lib/simd.cim' %}
 
 // weight
 #define WEIGHT_OUT_CHANNEL {{ OUTPUT_CHANNEL }}
@@ -365,7 +364,7 @@ def main(null<int8>){
                         {% if SINGLE_OUTER_REDUCE == 1 %}
                             Trans(use_local_output_for_temp_sum, use_local_output_i32);
                         {% else %}
-                            VVAdd(use_local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
+                            SIMD(VVADD, use_local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
                         {% endif %}
                     };
                 };
