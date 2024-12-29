@@ -73,9 +73,7 @@ def main(){
 
     for ow in range(0, OUTPUT_COL) carry () {
 
-        use_global_input = Slice(global_input, 
-            [ow, 0, 0], [1, {{IM2COL_SIZE_1}}, INPUT_CHANNEL], [1,1,1]
-        );
+        use_global_input = global_input[ow:ow+1, 0:{{IM2COL_SIZE_1}}, 0:INPUT_CHANNEL];
         Trans(use_global_input, local_input);
 
         for oh in range(0, OUTPUT_ROW) carry () {
@@ -83,9 +81,7 @@ def main(){
                 for kw in range(0, KERNEL_SIZE) carry () {
 
                     // weight
-                    use_weight = Slice(local_weight,
-                        [kh, kw, 0], [1,1,OUTPUT_CHANNEL], [1,1,1]
-                    );
+                    use_weight = local_weight[kh:kh+1, kw:kw+1, 0:OUTPUT_CHANNEL];
 
                     // input
                     index_0 = oh * {{STRIDE}};
@@ -94,9 +90,7 @@ def main(){
                     index_3 = index_1 + index_2;
                     index_4 = index_3 + kw;
 
-                    use_input = Slice(local_input,
-                       [index_4, 0], [1, INPUT_CHANNEL], [1,1]
-                    );
+                    use_input = local_input[index_4:index_4+1, 0:INPUT_CHANNEL];
 
                     {% if KERNEL_SIZE==1 %}
                         SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
@@ -131,9 +125,7 @@ def main(){
             {% endif %}
             
             // move to global memory
-            use_global_output = Slice(global_output_i8,
-                [oh, ow, 0], [1,1,OUTPUT_CHANNEL], [1,1,1]
-            );
+            use_global_output = global_output_i8[oh:oh+1, ow:ow+1, 0:OUTPUT_CHANNEL];
             Trans(local_output_i8, use_global_output);
         };
     };

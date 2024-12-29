@@ -27,46 +27,26 @@ def main(){
             for kh in range(KERNEL_SIZE) carry () {
                 ih = oh * KERNEL_SIZE;
                 iw = ow * KERNEL_SIZE;
-                use_global_input = Slice(global_input,
-                    [ih + kh, iw, 0],
-                    [1, KERNEL_SIZE, INPUT_CHANNEL],
-                    [1, 1, 1]
-                );
+                ih_ = ih + kh;
+                use_global_input = global_input[ih_:ih_ + 1, iw:iw + KERNEL_SIZE, 0:INPUT_CHANNEL];
 
-                use_local_input = Slice(local_input,
-                    [kh, 0, 0],
-                    [1, KERNEL_SIZE, INPUT_CHANNEL],
-                    [1, 1, 1]
-                );
+                use_local_input = local_input[kh:kh + 1, 0:KERNEL_SIZE, 0:INPUT_CHANNEL];
                 Trans(use_global_input, use_local_input);
             };
 
-            
             // do max pooling
-            use_local_input = Slice(local_input,
-                [0, 0, 0],
-                [1, 1, INPUT_CHANNEL],
-                [1, 1, 1]
-            );
+            use_local_input = local_input[0:1, 0:1, 0:INPUT_CHANNEL];
             Trans(use_local_input, local_output);
 
             for kh in range(KERNEL_SIZE) carry () {
                 for kw in range(KERNEL_SIZE) carry () {
-                    use_local_input = Slice(local_input,
-                        [kh, kw, 0],
-                        [1, 1, INPUT_CHANNEL],
-                        [1, 1, 1]
-                    );
+                    use_local_input = local_input[kh:kh + 1, kw:kw + 1, 0:INPUT_CHANNEL];
                     SIMD(VVMAX, use_local_input, local_output, local_output);
                 };
             };
 
             // move to global memory
-            use_global_output = Slice(global_output,
-                [oh, ow, 0],
-                [1, 1, INPUT_CHANNEL],
-                [1, 1, 1]
-            );
+            use_global_output = global_output[oh:oh + 1, ow:ow + 1, 0:INPUT_CHANNEL];
             Trans(local_output, use_global_output);
         };
     };

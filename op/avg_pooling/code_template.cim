@@ -25,14 +25,11 @@ def main(){
     Trans(global_bias_scale, local_bias_scale);
     Trans(global_out_zp, local_out_zp);
 
-    
     global_output = Buffer(<{{OUTPUT_ROW}}, {{OUTPUT_COL}}, {{INPUT_CHANNEL}}>, int8, __GLOBAL__);
     local_output_32 = Buffer(<{{INPUT_CHANNEL}}>, int32, __OUTPUT_MEMORY__);
     local_output_8 = Buffer(<{{INPUT_CHANNEL}}>, int8, __OUTPUT_MEMORY__);
 
     local_blank = Buffer(<{{INPUT_CHANNEL}}>, int32, __OUTPUT_MEMORY__);
-
-    
 
     for oh in range(OUTPUT_ROW) carry () {
         for ow in range(OUTPUT_COL) carry () {
@@ -40,11 +37,9 @@ def main(){
             for kh in range(KERNEL_SIZE) carry () {
                 ih = oh * KERNEL_SIZE;
                 iw = ow * KERNEL_SIZE;
-                use_global_input = Slice(global_input,
-                    [ih + kh, iw, 0],
-                    [1, KERNEL_SIZE, INPUT_CHANNEL],
-                    [1, 1, 1]
-                );
+                // Split the addition into two operations
+                ih_ = ih + kh;
+                use_global_input = global_input[ih_:ih_ + 1, iw:iw + KERNEL_SIZE, 0:INPUT_CHANNEL];
 
                 use_local_input = Slice(local_input,
                     [kh, 0, 0],
@@ -54,7 +49,6 @@ def main(){
                 Trans(use_global_input, use_local_input);
             };
 
-            
             // do avg pooling
             Trans(local_blank, local_output_32);
 
@@ -64,11 +58,7 @@ def main(){
 
             for kh in range(KERNEL_SIZE) carry () {
                 for kw in range(KERNEL_SIZE) carry () {
-                    use_local_input = Slice(local_input,
-                        [kh, kw, 0],
-                        [1, 1, INPUT_CHANNEL],
-                        [1, 1, 1]
-                    );
+                    use_local_input = local_input[kh:kh + 1, kw:kw + 1, 0:INPUT_CHANNEL];
                     SIMD(VVADD, use_local_input, local_output_32, local_output_32);
                 };
             };
@@ -85,11 +75,7 @@ def main(){
             SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
             SIMD(QUANTIZE, local_output_32, local_bias_scale, local_out_zp, local_output_8);
             // move to global memory
-            use_global_output = Slice(global_output,
-                [oh, ow, 0],
-                [1, 1, INPUT_CHANNEL],
-                [1, 1, 1]
-            );
+            use_global_output = global_output[oh:oh + 1, ow:ow + 1, 0:INPUT_CHANNEL];
             Trans(local_output_8, use_global_output);
         };
     };

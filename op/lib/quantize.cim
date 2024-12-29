@@ -12,16 +12,9 @@ def quantify(
     // Do quantify here
     for oh in range(0,output_row) carry(){
         for ow in range(0,output_col) carry(){
-            use_i32_output = Slice(local_output_i32,
-                [oh,ow,0],
-                [1,1,out_channel_len],
-                [1,1,1]
-            );
-            use_bias_scale = Slice(local_bias_scale,
-                [out_channel_begin, 0],
-                [out_channel_len, 2],
-                [1, 1]
-            );
+            use_i32_output = local_output_i32[oh:oh + 1, ow:ow + 1, 0:out_channel_len];
+            use_bias_scale = local_bias_scale[out_channel_begin:out_channel_begin + out_channel_len, 0:2];
+            use_i8_output = local_output_i8[oh:oh + 1, ow:ow + 1, out_channel_begin:out_channel_begin + out_channel_len];
             use_i8_output = Slice(local_output_i8,
                 [oh,ow,out_channel_begin],
                 [1,1,out_channel_len],
@@ -44,7 +37,7 @@ def quantify(
             {% endif %}
 
             // Clear origin buffer
-            use_blank = Slice(local_blank, [0], [out_channel_len], [1]);
+            use_blank = local_blank[0:out_channel_len];
             Trans(use_blank, use_i32_output);
         };
     };
