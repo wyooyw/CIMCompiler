@@ -3,6 +3,9 @@ import os
 from collections import defaultdict
 from enum import Enum
 
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 class InstClass(Enum):
     PIM_CLASS = 0  # 0b00
@@ -123,6 +126,12 @@ class StatsUtil:
             self.per_class_cnt["simd"]["quantify-resadd"] += 1
         elif inst["opcode"] == 5:
             self.per_class_cnt["simd"]["quantify-multiply"] += 1
+        elif inst["opcode"] == 6:
+            self.per_class_cnt["simd"]["max"] += 1
+        elif inst["opcode"] == 7:
+            self.per_class_cnt["simd"]["mul-scalar"] += 1
+        elif inst["opcode"] == 8:
+            self.per_class_cnt["simd"]["floor"] += 1
         else:
             assert False, f"Unknown simd opcode: {inst['opcode']}"
 
@@ -186,13 +195,13 @@ class StatsUtil:
         save_json_path = os.path.join(save_path, f"{prefix}stats_for_optimize.json")
         with open(save_json_path, "w") as f:
             json.dump(save_data, f, indent=2)
-        print(f"Stats for optimize saved to {save_json_path}")
+        # print(f"Stats for optimize saved to {save_json_path}")
 
         save_data = {"total": self.total_inst_cnt, **self.per_class_cnt}
         save_json_path = os.path.join(save_path, f"{prefix}stats.json")
         with open(save_json_path, "w") as f:
             json.dump(save_data, f, indent=2)
-        print(f"Stats saved to {save_json_path}")
+        # print(f"Stats saved to {save_json_path}")
 
         # save_json_path = os.path.join(save_path, f"{prefix}regs.json")
         # with open(save_json_path, "w") as f:
@@ -209,7 +218,7 @@ class StatsUtil:
         save_json_path = os.path.join(save_path, f"{prefix}pimset.json")
         with open(save_json_path, "w") as f:
             json.dump(pimset_data, f, indent=2)
-        print(f"PIMSet data saved to {save_json_path}")
+        # print(f"PIMSet data saved to {save_json_path}")
 
         assert (
             len(self._macro_comp_use)
@@ -240,4 +249,6 @@ class StatsUtil:
         save_json_path = os.path.join(save_path, f"{prefix}macro_ultilization.json")
         with open(save_json_path, "w") as f:
             json.dump(cell_ultilization_data, f, indent=2)
-        print(f"Cell ultilization data saved to {save_json_path}")
+        # print(f"Cell ultilization data saved to {save_json_path}")
+
+        logger.info(f"Stats files save to {save_path}")
