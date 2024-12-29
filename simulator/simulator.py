@@ -451,7 +451,7 @@ class Simulator:
 
             cnt += 1
 
-        print(f"{self.pimcompute_cnt=}, {total_pim_compute_count=}")
+        # print(f"{self.pimcompute_cnt=}, {total_pim_compute_count=}")
         self.pbar.close()
 
         if pc == len(code):
@@ -543,9 +543,9 @@ class Simulator:
         - output bit width：输出向量每个元素的bit长度
         """
         opcode = inst["opcode"]
-        if opcode in [0x00, 0x02]:  # vec add / mul
+        if opcode in [0x00, 0x02, 6]:  # vec add / mul
             self._run_simd_class_vector_vector_inst(inst)
-        elif opcode == 0b01:  # scalar add
+        elif opcode in [0b01, 7]:  # scalar add
             self._run_simd_class_scalar_vector_inst(inst)
         elif opcode == 3:
             self._run_simd_class_quantify_inst(inst)
@@ -553,6 +553,8 @@ class Simulator:
             self._run_simd_class_resadd_quantify_inst(inst)
         elif opcode == 5:
             self._run_simd_class_resmul_quantify_inst(inst)
+        elif opcode == 8:
+            self._run_simd_class_floor_inst(inst)
         else:
             assert False, f"Not support {opcode=} yet."
 
@@ -1463,6 +1465,7 @@ class Simulator:
         support: 1.vec add; 2.vec mul
         """
         opcode = inst["opcode"]
+        assert inst["input_num"] == 1
 
         # Prepare input
         input_size = self.read_general_reg(inst["rs3"])
@@ -1490,7 +1493,7 @@ class Simulator:
 
         # Compute
         if opcode == 0x00:
-            assert input1_bitwidth == 32
+            assert input1_bitwidth in [8,32]
             assert input2_bitwidth == 32
             assert output_bitwidth == 32
             output_data = input1_data.astype(output_dtype) + input2_data.astype(
@@ -1503,6 +1506,13 @@ class Simulator:
             output_data = input1_data.astype(output_dtype) * input2_data.astype(
                 output_dtype
             )
+        elif opcode == 6 :
+            # vvmax
+            assert input1_bitwidth == 8
+            assert input2_bitwidth == 8
+            assert output_bitwidth == 8
+            output_data = np.maximum(input1_data, input2_data)
+
         else:
             assert False, f"Not support: {opcode=}"
         # import pdb; pdb.set_trace()
@@ -1517,6 +1527,7 @@ class Simulator:
         support: scalar-vec add
         """
         opcode = inst["opcode"]
+        assert inst["input_num"] == 1
 
         # Prepare input
         input_size = self.read_general_reg(inst["rs3"])
@@ -1526,23 +1537,45 @@ class Simulator:
         input1_byte_size = input1_bitwidth * input_size // 8
         self.memory_space.check_memory_type(input1_addr, input1_byte_size, "sram")
 
-        input2_value = self.read_general_reg(inst["rs2"])
+        input2_addr = self.read_general_reg(inst["rs2"])
         input2_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_2_BIT_WIDTH)
+        input2_byte_size = input2_bitwidth // 8
+        self.memory_space.check_memory_type(input2_addr, input2_byte_size, "sram")
         input2_dtype = get_dtype_from_bitwidth(input2_bitwidth)
 
         output_addr = self.read_general_reg(inst["rd"])
         output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
         output_dtype = get_dtype_from_bitwidth(output_bitwidth)
 
-        input1_data = self.memory_space.read_as(
-            input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
-        )
-        input2_data = np.array([input2_value], dtype=output_dtype)
+        if opcode==1:
 
-        # Compute
-        output_data = input2_data.astype(output_dtype) + input1_data.astype(
-            output_dtype
-        )
+            input1_data = self.memory_space.read_as(
+                input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
+            )
+            input2_data = np.array([input2_value], dtype=output_dtype)
+
+            # Compute
+            output_data = input2_data.astype(output_dtype) + input1_data.astype(
+                output_dtype
+            )
+
+        elif opcode==7:
+            # vsmul
+            assert input1_bitwidth == 32
+            assert input2_bitwidth == 32
+            assert output_bitwidth == 32
+            input1_data = self.memory_space.read_as(
+                input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
+            )
+            input2_data = self.memory_space.read_as(
+                input2_addr, input2_byte_size, np.float32
+            )
+
+            # Compute
+            output_data = (input1_data * input2_data).astype(np.float32)
+
+        else:
+            assert False, f"Not support: {opcode=}"
 
         # Save output
         output_byte_size = output_data.size * output_bitwidth // 8
@@ -1550,15 +1583,30 @@ class Simulator:
 
         self.memory_space.write(output_data, output_addr, output_byte_size)
 
+    def _run_simd_class_floor_inst(self, inst):
+        assert inst["input_num"] == 0
+
+        input_addr = self.read_general_reg(inst["rs1"])
+        output_addr = self.read_general_reg(inst["rd"])
+        input_size = self.read_general_reg(inst["rs3"])
+        input_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
+        input_byte_size = input_bitwidth * input_size // 8
+        self.memory_space.check_memory_type(input_addr, input_byte_size, "sram")
+        input_data = self.memory_space.read_as(input_addr, input_byte_size, np.float32)
+        output_data = np.floor(input_data).astype(np.int32)
+        output_byte_size = output_data.size * 32 // 8
+        self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
+        self.memory_space.write(output_data, output_addr, output_byte_size)
+
     def _run_simd_class_quantify_inst(self, inst):
         input_addr = self.read_general_reg(inst["rs1"])
-        bias_scale_addr = self.read_special_reg(
+        bias_scale_addr = self.read_general_reg(inst["rs2"])
+        out_zp_addr = self.read_special_reg(
             SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1
         )
-        out_zp_addr = self.read_general_reg(inst["rs2"])
         input_size = self.read_general_reg(inst["rs3"])
         output_addr = self.read_general_reg(inst["rd"])
-        clip_min = 0 if inst["relu"] else -128
+        clip_min = 0 if "relu" in inst and inst["relu"] else -128
         clip_max = 127
         # print(f"{clip_min=}")
         # print(f"{inst['relu']=}")
