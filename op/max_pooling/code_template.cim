@@ -10,7 +10,7 @@
 
 #define KERNEL_SIZE {{ KERNEL_SIZE }}
 
-def main(null<int8>){
+def main(){
     global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
     global_output = Buffer(<OUTPUT_ROW, OUTPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
 
@@ -21,10 +21,10 @@ def main(null<int8>){
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
     SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
 
-    for oh in range(OUTPUT_ROW) carry (null) {
-        for ow in range(OUTPUT_COL) carry (null) {
+    for oh in range(OUTPUT_ROW) carry () {
+        for ow in range(OUTPUT_COL) carry () {
             // copy input to local
-            for kh in range(KERNEL_SIZE) carry (null) {
+            for kh in range(KERNEL_SIZE) carry () {
                 ih = oh * KERNEL_SIZE;
                 iw = ow * KERNEL_SIZE;
                 use_global_input = Slice(global_input,
@@ -50,8 +50,8 @@ def main(null<int8>){
             );
             Trans(use_local_input, local_output);
 
-            for kh in range(KERNEL_SIZE) carry (null) {
-                for kw in range(KERNEL_SIZE) carry (null) {
+            for kh in range(KERNEL_SIZE) carry () {
+                for kw in range(KERNEL_SIZE) carry () {
                     use_local_input = Slice(local_input,
                         [kh, kw, 0],
                         [1, 1, INPUT_CHANNEL],

@@ -5,7 +5,7 @@
 #define INPUT_COL {{ INPUT_COL }}
 #define INPUT_CHANNEL {{ INPUT_CHANNEL }}
 
-def main(null<int8>){
+def main(){
     global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
     global_output = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
 
@@ -17,8 +17,8 @@ def main(null<int8>){
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
     SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
 
-    for ih in range(INPUT_ROW) carry (null) {
-        for iw in range(INPUT_COL) carry (null) {
+    for ih in range(INPUT_ROW) carry () {
+        for iw in range(INPUT_COL) carry () {
             // do max pooling
             use_global_input = Slice(global_input,
                 [ih, iw, 0],

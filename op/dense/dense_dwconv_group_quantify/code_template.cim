@@ -33,7 +33,7 @@
 {% endif %}
 
 
-def main(null<int8>){
+def main(){
     // input, weight, mask and index will be prepared in memory image
     {% if IM2COL %}
         global_input = Buffer(<INPUT_CHANNEL, {{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __GLOBAL__);
@@ -97,7 +97,7 @@ def main(null<int8>){
 
     CIMSet(local_pimset_mask); // this should after set SPECIAL_REG_WEIGHT_BIT_WIDTH
 
-    for out_channel_begin in range(0, OUTPUT_CHANNEL) carry (null) {
+    for out_channel_begin in range(0, OUTPUT_CHANNEL) carry () {
 
         {% if IM2COL %}
             use_global_input = Slice(global_input, 
@@ -146,7 +146,7 @@ def main(null<int8>){
                     [1, N_GROUP, INPUT_BUFFER_SIZE_PER_GROUP], 
                     [1,1,1]
                 );
-                copy_input_to_input_buffer_dw(null,
+                copy_input_to_input_buffer_dw(
                     local_input,
                     use_input_buffer,
                     oh,
@@ -172,7 +172,7 @@ def main(null<int8>){
                 CIMOutput(N_GROUP_VCOL, 0, pim_output_reg_buffer);
 
                 // TODO: unroll this loop
-                for group_i in range(4) carry (null){
+                for group_i in range(4) carry (){
                     output_buffer_group_i = Slice(pim_output_reg_buffer, [group_i * N_GROUP_VCOL], [1], [1]);
                     delta_h = group_i / 2;
                     delta_w = group_i % 2;

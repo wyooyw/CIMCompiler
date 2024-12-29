@@ -321,16 +321,30 @@ void MLIRGenImpl::parse_for_stmt(const boost::property_tree::ptree &ast) {
   // yield
   auto yield_variables =
       parse_carry(safe_get_child(get_item(ast, tag + 4), "carry")).second;
-  builder.create<mlir::scf::YieldOp>(loc, yield_variables);
+  if (yield_variables.size() > 0) {
+    builder.create<mlir::scf::YieldOp>(loc, yield_variables);
+  }
 
   block_stack.pop();
-  builder.setInsertionPointToEnd(block_stack.top());
+  if (block_stack.top()->mightHaveTerminator()){
+    if (auto yieldOp = mlir::dyn_cast_or_null<mlir::scf::YieldOp>(block_stack.top()->getTerminator())){
+      builder.setInsertionPoint(yieldOp);
+    }else{
+      builder.setInsertionPointToEnd(block_stack.top());
+    }
+  } else {
+    builder.setInsertionPointToEnd(block_stack.top());
+  }
+  // builder.setInsertionPointToEnd(block_stack.top());
 
   // replace carry variables with new values
   mlir::ValueRange for_result = for_op.getResults();
+  LOG_DEBUG << "for_result size: " << for_result.size();
   for (int i = 0; i < for_result.size(); i++) { // for_args[0] is iter var
     add_to_sign_table(loop_carried_names[i], for_result[i]);
   }
+
+
 }
 
 void MLIRGenImpl::parse_if_else_stmt(const boost::property_tree::ptree &ast) {
@@ -414,7 +428,7 @@ MLIRGenImpl::parse_carry_list(const boost::property_tree::ptree &ast) {
     }
   }
   // mlir::ValueRange carry_list(vec_carry_list);
-  LOG_DEBUG << "parse_carry_list finish";
+  LOG_DEBUG << "parse_carry_list finish " << var_name_list.size() << ", " << vec_carry_list.size();
   return make_pair(var_name_list, vec_carry_list);
 }
 

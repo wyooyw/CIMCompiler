@@ -4,7 +4,7 @@ program: define_function+;
 
 // Function
 define_function:'def' ID '(' func_param_list ')' '{' func_body '}';
-func_param_list: func_param (',' func_param)*;
+func_param_list: func_param? (',' func_param)*;
 func_body: stmt_list;
 
 // 
@@ -38,7 +38,7 @@ for_range_3: 'range(' const_or_var ',' const_or_var ',' const_or_var ')';
 stmt_if_else: 'if' '(' expr ')' carry '{' stmt_list '}' 'else' '{' stmt_list '}'; 
 
 carry: 'carry' '(' carry_list ')';
-carry_list: var (',' var)*;
+carry_list: var? (',' var)*;
 
 stmt_return: 'return' ID;
 
@@ -55,7 +55,7 @@ binary_expr: unary_expr BINARY_OP unary_expr;
 
 // Call
 call: ID '(' call_param_list ')';
-call_param_list: call_param (',' call_param)*;
+call_param_list: call_param? (',' call_param)*;
 call_param: datatype | memory | const_array1d | array1d | expr;
 datatype: DATATYPE;
 memory: MEMORY;

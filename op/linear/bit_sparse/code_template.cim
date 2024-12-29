@@ -33,7 +33,6 @@
 #define OUT_CHANNEL_BEGIN_LEN {{ OUT_CHANNEL_BEGIN_LEN }}
 
 def copy_input_to_input_buffer_icgt128( // input channel greater than 128
-                        null<int8>,
                         local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
                         group_use_input_buffer< <1, 1, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
                         oh<index>,
@@ -60,7 +59,6 @@ def copy_input_to_input_buffer_icgt128( // input channel greater than 128
 }
 
 def copy_input_to_input_buffer_iclt128( // input channel less than 128
-                        null<int8>,
                         local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
                         group_use_input_buffer< <1, 1, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
                         oh<index>,
@@ -81,7 +79,7 @@ def copy_input_to_input_buffer_iclt128( // input channel less than 128
     ker_pixel_end = Min(ker_pixel_begin + num_pixel_per_buffer, num_pixel_per_window);
 
     // TODO: unroll this loop
-    for ker_pixel_id in range(ker_pixel_begin, ker_pixel_end) carry(null){
+    for ker_pixel_id in range(ker_pixel_begin, ker_pixel_end) carry(){
         pixel_delta = ker_pixel_id - ker_pixel_begin;
 
         ker_row_id = ker_pixel_id / KERNEL_SIZE;
@@ -106,7 +104,6 @@ def copy_input_to_input_buffer_iclt128( // input channel less than 128
 }
 
 def copy_input_to_input_buffer_general(
-    null<int8>,
     local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
     group_use_input_buffer< <1, 1, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
     oh<index>,
@@ -137,7 +134,6 @@ def copy_input_to_input_buffer_general(
         //Print(in_pixel_begin);
         //Print(in_pixel_end);
         //Print(in_pixel_len);
-        //Debug(null);
         oh = oh * {{STRIDE}};
         ow = ow * {{STRIDE}};
         use_local_input = Slice(local_input,
@@ -158,17 +154,16 @@ def copy_input_to_input_buffer_general(
 }
 
 def copy_input_to_input_buffer(
-    null<int8>,
     local_input< <INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__>, 
     group_use_input_buffer< <1, 1, INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__>,
     oh<index>,
     ow<index>,
     i<index> 
 ){
-    copy_input_to_input_buffer_general(null, local_input, group_use_input_buffer, oh, ow, i);
+    copy_input_to_input_buffer_general(local_input, group_use_input_buffer, oh, ow, i);
 }
 
-def main(null<int8>){
+def main(){
     // input, weight, mask and index will be prepared in memory image
     global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
     global_weight = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __GLOBAL__);
@@ -232,13 +227,12 @@ def main(null<int8>){
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
     SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
     
-    for out_tile_i in range(0, OUT_SPATIAL_TILE) carry (null) {
+    for out_tile_i in range(0, OUT_SPATIAL_TILE) carry () {
         out_channel_begin = Load(local_out_channel_begin, [out_tile_i]);
         out_channel_end = Load(local_out_channel_begin, [out_tile_i + 1]);
         out_channel_len = out_channel_end - out_channel_begin;
         //Print(out_channel_begin);
         // Print(out_channel_end);
-        // Debug(null);
 
         use_pimset_mask = Slice(local_pimset_mask,
             [out_tile_i, 0],
@@ -249,15 +243,15 @@ def main(null<int8>){
 
         inner_reduce_tile_size = N_ROW;
 
-        for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (null){
+        for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (){
             out_reduce_end = Min(out_reduce_begin + inner_reduce_tile_size, OUT_REDUCE_TILE);
             out_reduce_len = out_reduce_end - out_reduce_begin;
 
             // Step 1: Prepare weight
             // notice that weight.shape = <TIME, N_TO, N_GROUP, N_MACRO_PER_GROUP, N_VCOL>
-            for cp_weight_rel_row in range(out_reduce_len) carry (null){
+            for cp_weight_rel_row in range(out_reduce_len) carry (){
                 cp_weight_row = cp_weight_rel_row + out_reduce_begin;
-                for cp_weight_comp  in range(N_COMP) carry (null){
+                for cp_weight_comp  in range(N_COMP) carry (){
                     use_weight = Slice(global_weight,
                         [out_tile_i, cp_weight_row, cp_weight_comp, 0, 0],              // offsets
                         [1, 1, 1, 1, N_GROUP_VCOL],   // sizes
@@ -323,7 +317,7 @@ def main(null<int8>){
             //Debug();
             for i_tile_in_window in range(begin_tile_in_window, end_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP) 
                 carry(row_to_activate, meta_addr){
-                copy_input_to_input_buffer(null,
+                copy_input_to_input_buffer(
                     local_input, 
                     use_input_buffer,
                     0,

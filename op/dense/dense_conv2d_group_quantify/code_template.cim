@@ -35,7 +35,7 @@
 {% endif %}
 
 
-def main(null<int8>){
+def main(){
     // prepare input and weight
     {% if IM2COL %}
         global_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __GLOBAL__);
@@ -117,7 +117,7 @@ def main(null<int8>){
     {% endif %}
 
     // out_channel_outer_tile_size = OUTPUT_CHANNEL/N_GROUP_VCOL;
-    for out_channel_begin in range(0, OUTPUT_CHANNEL, N_GROUP_VCOL) carry (null) {
+    for out_channel_begin in range(0, OUTPUT_CHANNEL, N_GROUP_VCOL) carry () {
         out_channel_end = Min(out_channel_begin + N_GROUP_VCOL, OUTPUT_CHANNEL);
         out_channel_len = out_channel_end - out_channel_begin;
         out_tile_i = out_channel_begin / N_GROUP_VCOL;
@@ -130,7 +130,7 @@ def main(null<int8>){
         CIMSet(use_pimset_mask);
 
         inner_reduce_tile_size = N_ROW;
-        for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (null){
+        for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (){
 
             out_reduce_end = Min(out_reduce_begin + inner_reduce_tile_size, OUT_REDUCE_TILE);
             out_reduce_len = out_reduce_end - out_reduce_begin;
@@ -154,7 +154,7 @@ def main(null<int8>){
             // So, the 'step' of oh and ow is 2.
             double_buffer_id = 1;
             Save(local_spill, [0], double_buffer_id);
-            for ow in range(0,OUTPUT_COL,2) carry(null) {
+            for ow in range(0,OUTPUT_COL,2) carry() {
                 {% if IM2COL_SMALL_INPUT_MEMORY %}
                     use_global_input = Slice(global_input,
                         [ow, 0],
@@ -163,7 +163,7 @@ def main(null<int8>){
                     );
                     Trans(use_global_input, local_input);
                 {% endif %}
-                for oh in range(0,OUTPUT_ROW,2) carry(null) {
+                for oh in range(0,OUTPUT_ROW,2) carry() {
                     // Double buffer index
                     double_buffer_id = Load(local_spill, [0]);
                     double_buffer_id = 1 - double_buffer_id;
@@ -187,8 +187,8 @@ def main(null<int8>){
                     //Print(begin_tile_in_window);
                     //Print(end_tile_in_window);
                     //Debug();
-                    for i_tile_in_window in range(begin_tile_in_window, end_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP) carry(null){
-                        copy_input_to_input_buffer_for_all_group(null,
+                    for i_tile_in_window in range(begin_tile_in_window, end_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP) carry(){
+                        copy_input_to_input_buffer_for_all_group(
                             local_input, 
                             use_input_buffer,
                             oh,
@@ -229,7 +229,7 @@ def main(null<int8>){
                     CIMOutput(N_GROUP_VCOL, 0, pim_output_reg_buffer);
 
                     // TODO: unroll this loop
-                    for group_i in range(N_USE_GROUP) carry (null){
+                    for group_i in range(N_USE_GROUP) carry (){
                         output_buffer_group_i = Slice(pim_output_reg_buffer, [group_i * N_GROUP_VCOL], [out_channel_len], [1]);
                         use_local_output_for_temp_sum = Slice(local_output_for_temp_sum, [0], [out_channel_len], [1]);
                         Trans(output_buffer_group_i, use_local_output_for_temp_sum);
@@ -270,7 +270,7 @@ def main(null<int8>){
             SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
             SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
             // Do quantify here
-            quantify(null,
+            quantify(
                 out_channel_begin,
                 out_channel_len,
                 local_output_i32,
