@@ -6,7 +6,8 @@ import os
 def show_diff(data1, data2):
     print(f"{len(data1)==len(data2)}")
     for line_idx, (code1, code2) in enumerate(zip(data1, data2)):
-        print(f"{line_idx=}\n\t{code1=}\n\t{code2=}")
+        if code1 != code2:
+            print(f"{line_idx=}\n\t{code1=}\n\t{code2=}")
 
 def _test_parser_dumper(
         parser1, 
@@ -41,17 +42,18 @@ def test_individual_parser_dumper(parser_class, dumper_class, path):
     parser = parser_class()
     dumper = dumper_class()
     this_dir = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(this_dir, "case1", path)
+    for case_name in ["case1", "case2"]:
+        path = os.path.join(this_dir, case_name, path)
 
-    with open(path, 'r') as file:
-        if path.endswith("asm"):
-            data = [line.strip() for line in file.readlines()]
-        else:
-            data = json.load(file)
+        with open(path, 'r') as file:
+            if path.endswith("asm"):
+                data = [line.strip() for line in file.readlines()]
+            else:
+                data = json.load(file)
 
-    instructions = parser.parse(data)
-    data2 = dumper.dump(instructions)
-    assert data == data2
+        instructions = parser.parse(data)
+        data2 = dumper.dump(instructions)
+        assert data == data2
 
 def test_all_parsers_dumpers():
     parser_classes = [LegacyParser, AsmParser, CIMFlowParser]
@@ -64,12 +66,13 @@ def test_all_parsers_dumpers():
 
     for i in range(n_class):
         for j in range(n_class):
-            parser1 = parser_classes[i]()
-            parser2 = parser_classes[j]()
-            dumper1 = dumper_classes[i]()
-            dumper2 = dumper_classes[j]()
-            path = os.path.join(this_dir, "case1", case_paths[i])
-            _test_parser_dumper(parser1, dumper1, parser2, dumper2, path)
+            for c in ["case1", "case2"]:
+                parser1 = parser_classes[i]()
+                parser2 = parser_classes[j]()
+                dumper1 = dumper_classes[i]()
+                dumper2 = dumper_classes[j]()
+                path = os.path.join(this_dir, c, case_paths[i])
+                _test_parser_dumper(parser1, dumper1, parser2, dumper2, path)
 
 if __name__=="__main__":
     test_all_parsers_dumpers()
