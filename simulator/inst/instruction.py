@@ -80,3 +80,28 @@ class BranchInst:
 class JumpInst:
     offset: int
 
+@dataclass
+class CIMComputeInst:
+    reg_input_addr: int
+    reg_input_size: int
+    reg_activate_row: int
+    flag_accumulate: int
+    flag_value_sparse: int
+    flag_bit_sparse: int
+    flag_group: int
+    flag_group_input_mode: int
+
+@dataclass
+class CIMConfigInst:
+    reg_single_group_id: int
+    reg_mask_addr: int
+    flag_group_broadcast: int
+
+@dataclass
+class CIMOutputInst:
+    reg_out_n: int
+    reg_out_mask_addr: int
+    reg_out_addr: int
+    flag_outsum: int
+    flag_outsum_move: int
+

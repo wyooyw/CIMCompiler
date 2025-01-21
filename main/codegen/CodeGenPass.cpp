@@ -459,12 +459,13 @@ static void codeGen(mlir::cimisa::CIMComputeOp op,
     static_cast<int>(op.getValueSparseFlag()),
     static_cast<int>(op.getBitSparseFlag()),
     1,
-    0,
+    0
   );
   instr_list.push_back(inst);
 }
 
 static void codeGen(mlir::cimisa::CIMOutputOp op,
+                    InstructionWriter &writer,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     std::vector<Inst> &instr_list, std::set<int> &def,
                     std::set<int> &use) {
@@ -477,14 +478,22 @@ static void codeGen(mlir::cimisa::CIMOutputOp op,
   use.insert(out_n);
   use.insert(out_mask_addr);
   use.insert(output_addr_reg);
-  Inst inst = {
-      {"class", 0b00}, {"type", 0b10}, {"outsum_move", 0},      {"outsum", 0},
-      {"rs1", out_n},  {"rs2", 0},     {"rd", output_addr_reg},
-  };
+  // Inst inst = {
+  //     {"class", 0b00}, {"type", 0b10}, {"outsum_move", 0},      {"outsum", 0},
+  //     {"rs1", out_n},  {"rs2", 0},     {"rd", output_addr_reg},
+  // };
+  Inst inst = writer.getCIMOutputInst(
+    /*reg_out_n=*/ out_n,
+    /*reg_out_mask_addr=*/ out_mask_addr,
+    /*reg_out_addr=*/ output_addr_reg,
+    /*flag_outsum=*/ 0,
+    /*flag_outsum_move=*/ 0
+  );
   instr_list.push_back(inst);
 }
 
 static void codeGen(mlir::cimisa::CIMOutputSumOp op,
+                    InstructionWriter &writer,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     std::vector<Inst> &instr_list, std::set<int> &def,
                     std::set<int> &use) {
@@ -497,11 +506,18 @@ static void codeGen(mlir::cimisa::CIMOutputSumOp op,
   use.insert(out_n);
   use.insert(out_mask_addr);
   use.insert(output_addr_reg);
-  Inst inst = {
-      {"class", 0b00},         {"type", 0b10}, {"outsum_move", 0},
-      {"outsum", 1},           {"rs1", out_n}, {"rs2", out_mask_addr},
-      {"rd", output_addr_reg},
-  };
+  // Inst inst = {
+  //     {"class", 0b00},         {"type", 0b10}, {"outsum_move", 0},
+  //     {"outsum", 1},           {"rs1", out_n}, {"rs2", out_mask_addr},
+  //     {"rd", output_addr_reg},
+  // };
+  Inst inst = writer.getCIMOutputInst(
+    /*reg_out_n=*/ out_n,
+    /*reg_out_mask_addr=*/ out_mask_addr,
+    /*reg_out_addr=*/ output_addr_reg,
+    /*flag_outsum=*/ 1,
+    /*flag_outsum_move=*/ 0
+  );
   instr_list.push_back(inst);
 }
 
@@ -536,6 +552,7 @@ src_addr,
 }
 
 static void codeGen(mlir::cimisa::CIMSetOp op,
+                    InstructionWriter &writer,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     std::vector<Inst> &instr_list, std::set<int> &def,
                     std::set<int> &use) {
@@ -558,11 +575,11 @@ static void codeGen(mlir::cimisa::CIMSetOp op,
   */
   int mask_addr = getReg(regmap, op.getOperand());
   use.insert(mask_addr);
-  Inst inst = {{"class", 0b00},
-               {"type", 0b01},
-               {"group_broadcast", 1},
-               {"rs1", 0},
-               {"rs2", mask_addr}};
+  Inst inst = writer.getCIMSetInst(
+    /*reg_single_group_id=*/ 0, 
+    /*reg_mask_addr=*/ mask_addr, 
+    /*flag_group_broadcast=*/ 1
+  );
   instr_list.push_back(inst);
 }
 
@@ -1012,13 +1029,13 @@ codeGen(std::vector<Block *> &blocks,
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)) {
         codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMOutputOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read);
+        codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMOutputSumOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read);
+        codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMTransferOp>(op)) {
         codeGen(_op, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMSetOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read);
+        codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::TransOp>(op)) {
         codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::LoadOp>(op)) {

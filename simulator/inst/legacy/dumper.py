@@ -134,6 +134,37 @@ class LegacyDumper:
                 "type": 0b100,
                 "offset": inst.offset
             }
+        elif isinstance(inst, CIMComputeInst):
+            return {
+                "class": 0b00,
+                "type": 0b0,
+                "value_sparse": inst.flag_value_sparse,
+                "bit_sparse": inst.flag_bit_sparse,
+                "group": inst.flag_group,
+                "group_input_mode": inst.flag_group_input_mode,
+                "accumulate": inst.flag_accumulate,
+                "rs1": inst.reg_input_addr,
+                "rs2": inst.reg_input_size,
+                "rs3": inst.reg_activate_row
+            }
+        elif isinstance(inst, CIMConfigInst):
+            return {
+                "class": 0b00,
+                "type": 0b01,
+                "group_broadcast": inst.flag_group_broadcast,
+                "rs1": inst.reg_single_group_id,
+                "rs2": inst.reg_mask_addr
+            }
+        elif isinstance(inst, CIMOutputInst):
+            return {
+                "class": 0b00,
+                "type": 0b10,
+                "outsum_move": inst.flag_outsum_move,
+                "outsum": inst.flag_outsum,
+                "rs1": inst.reg_out_n,
+                "rs2": inst.reg_out_mask_addr,
+                "rd": inst.reg_out_addr
+            }
         else:
             raise ValueError(f"Unknown instruction type: {type(inst)}")
         

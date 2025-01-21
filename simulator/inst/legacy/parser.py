@@ -30,6 +30,8 @@ class LegacyParser:
             return self._parse_trans_class_inst(inst)
         elif class_ == 0b111:
             return self._parse_control_class_inst(inst)
+        elif class_ == 0b00:
+            return self._parse_cim_class_inst(inst)
         else:
             raise ValueError(f"Unknown instruction class: {class_}")
     
@@ -121,6 +123,36 @@ class LegacyParser:
             )
         else:
             raise ValueError(f"Unknown control instruction type: {type_}")
+
+    def _parse_cim_class_inst(self, inst):
+        type_ = inst.get("type", None)
+        if type_ == 0b0:
+            return CIMComputeInst(
+                reg_input_addr=inst["rs1"],
+                reg_input_size=inst["rs2"],
+                reg_activate_row=inst["rs3"],
+                flag_accumulate=inst["accumulate"],
+                flag_value_sparse=inst["value_sparse"],
+                flag_bit_sparse=inst["bit_sparse"],
+                flag_group=inst["group"],
+                flag_group_input_mode=inst["group_input_mode"]
+            )
+        elif type_ == 0b01:
+            return CIMConfigInst(
+                reg_single_group_id=inst["rs1"],
+                reg_mask_addr=inst["rs2"],
+                flag_group_broadcast=inst["group_broadcast"]
+            )
+        elif type_ == 0b10:
+            return CIMOutputInst(
+                reg_out_n=inst["rs1"],
+                reg_out_mask_addr=inst["rs2"],
+                reg_out_addr=inst["rd"],
+                flag_outsum=inst["outsum"],
+                flag_outsum_move=inst["outsum_move"]
+            )
+        else:
+            raise ValueError(f"Unknown CIM instruction type: {type_}")
 
 if __name__ == "__main__":
     parser = LegacyParser()

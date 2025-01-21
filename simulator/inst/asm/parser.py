@@ -5,6 +5,7 @@ from simulator.inst.asm.op_name_mapping import (
     mapping_name_to_simd_funct,
     mapping_name_to_branch_compare
 )
+import re
 
 class AsmParser:
     def __init__(self):
@@ -30,8 +31,9 @@ class AsmParser:
         op_name = parts[0]
         args = parts[1] if len(parts) > 1 else ""
 
-        # Split args by comma and strip spaces
-        args = [arg.strip() for arg in args.split(',')]
+        # Split args by comma or parentheses and strip spaces
+        args = re.split(r'[(),]', args)
+        args = [arg.strip() for arg in args if arg.strip()]
 
         if op_name == "G_LI":
             reg, value = map(int, args)
@@ -45,6 +47,12 @@ class AsmParser:
         elif op_name == "SG_MOV":
             reg_special, reg_general = map(int, args)
             return SpecialToGeneralAssignInst(reg_general=reg_general, reg_special=reg_special)
+        elif op_name == "SC_LD":
+            reg_value, offset, reg_addr  = map(int, args)
+            return LoadInst(reg_addr=reg_addr, reg_value=reg_value, offset=offset)
+        elif op_name == "SC_ST":
+            reg_value, offset, reg_addr = map(int, args)
+            return StoreInst(reg_addr=reg_addr, reg_value=reg_value, offset=offset)
         elif op_name.startswith("SC_") and not op_name.endswith("I"):
             reg_out, reg_lhs, reg_rhs = map(int, args)
             opcode = self._name_to_arith_funct(op_name)
@@ -82,6 +90,15 @@ class AsmParser:
         elif op_name == "JMP":
             offset = int(args[0])
             return JumpInst(offset=offset)
+        elif op_name == "CIM_MVM":
+            reg_input_addr, reg_input_size, reg_activate_row, flag_value_sparse, flag_bit_sparse, flag_group, flag_group_input_mode, flag_accumulate = map(int, args)
+            return CIMComputeInst(reg_input_addr=reg_input_addr, reg_input_size=reg_input_size, reg_activate_row=reg_activate_row, flag_value_sparse=flag_value_sparse, flag_bit_sparse=flag_bit_sparse, flag_group=flag_group, flag_group_input_mode=flag_group_input_mode, flag_accumulate=flag_accumulate)
+        elif op_name == "CIM_CFG":
+            reg_single_group_id, reg_mask_addr, flag_group_broadcast = map(int, args)
+            return CIMConfigInst(reg_single_group_id=reg_single_group_id, reg_mask_addr=reg_mask_addr, flag_group_broadcast=flag_group_broadcast)
+        elif op_name == "CIM_OUT":
+            reg_out_n, reg_out_mask_addr, reg_out_addr, flag_outsum, flag_outsum_move = map(int, args)
+            return CIMOutputInst(reg_out_n=reg_out_n, reg_out_mask_addr=reg_out_mask_addr, reg_out_addr=reg_out_addr, flag_outsum=flag_outsum, flag_outsum_move=flag_outsum_move)
         else:
             raise ValueError(f"Unknown instruction name: {op_name}")
 

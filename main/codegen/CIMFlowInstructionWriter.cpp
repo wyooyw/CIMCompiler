@@ -133,6 +133,26 @@ Inst CIMFlowInstructionWriter::getCIMComputeInst(int reg_input_addr, int reg_inp
     };
 }
 
+Inst CIMFlowInstructionWriter::getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) {
+    return {
+        {"opcode", 0b000100},
+        {"rs", reg_single_group_id}, 
+        {"rt", reg_mask_addr},
+        {"GRP_B", flag_group_broadcast}
+    };
+}
+
+Inst CIMFlowInstructionWriter::getCIMOutputInst(int reg_out_n, int reg_out_mask_addr, int reg_out_addr, int flag_outsum, int flag_outsum_move ) {
+    return {
+        {"opcode", 0b001000},
+        {"rs", reg_out_n}, 
+        {"rt", reg_out_mask_addr},
+        {"rd", reg_out_addr},
+        {"OSUM", flag_outsum},
+        {"OSUM_MOV", flag_outsum_move}
+    };
+}
+
 void CIMFlowInstructionWriter::setJumpOffset(Inst &inst, int offset) {
     inst["imm"] = offset;
 }

@@ -108,6 +108,31 @@ class CIMFlowParser:
                 reg_special=inst["rs"],
                 reg_general=inst["rd"]
             )
+        elif opcode == 0b000000:
+            return CIMComputeInst(
+                reg_input_addr=inst["rs"],
+                reg_input_size=inst["rt"],
+                reg_activate_row=inst["re"],
+                flag_value_sparse=inst["SP_V"],
+                flag_bit_sparse=inst["SP_B"],
+                flag_group=inst["GRP"],
+                flag_group_input_mode=inst["GRP_I"],
+                flag_accumulate=inst["ACC"]
+            )
+        elif opcode == 0b000100:
+            return CIMConfigInst(
+                reg_single_group_id=inst["rs"],
+                reg_mask_addr=inst["rt"],
+                flag_group_broadcast=inst["GRP_B"]
+            )
+        elif opcode == 0b001000:
+            return CIMOutputInst(
+                reg_out_n=inst["rs"],
+                reg_out_mask_addr=inst["rt"],
+                reg_out_addr=inst["rd"],
+                flag_outsum=inst["OSUM"],
+                flag_outsum_move=inst["OSUM_MOV"]
+            )
         else:
             raise ValueError(f"Unknown opcode: {opcode}")
         

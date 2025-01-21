@@ -193,3 +193,25 @@ Inst LegacyInstructionWriter::getCIMComputeInst(int reg_input_addr, int reg_inpu
         {"rs3", reg_activate_row}, 
     };
 }
+
+Inst LegacyInstructionWriter::getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) {
+    return {
+        {"class", 0b00}, 
+        {"type", 0b01}, 
+        {"group_broadcast", flag_group_broadcast}, 
+        {"rs1", reg_single_group_id}, 
+        {"rs2", reg_mask_addr}
+    };
+}
+
+Inst LegacyInstructionWriter::getCIMOutputInst(int reg_out_n, int reg_out_mask_addr, int reg_out_addr, int flag_outsum, int flag_outsum_move ) {
+    return {
+        {"class", 0b00}, 
+        {"type", 0b10}, 
+        {"outsum_move", flag_outsum_move}, 
+        {"outsum", flag_outsum}, 
+        {"rs1", reg_out_n}, 
+        {"rs2", reg_out_mask_addr}, 
+        {"rd", reg_out_addr}
+    };
+}

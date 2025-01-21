@@ -75,6 +75,12 @@ class AsmDumper:
             return f"{op_name} {inst.reg_lhs}, {inst.reg_rhs}, {inst.offset}"
         elif isinstance(inst, JumpInst):
             return f"JMP {inst.offset}"
+        elif isinstance(inst, CIMComputeInst):
+            return f"CIM_MVM {inst.reg_input_addr}, {inst.reg_input_size}, {inst.reg_activate_row}, {inst.flag_value_sparse}, {inst.flag_bit_sparse}, {inst.flag_group}, {inst.flag_group_input_mode}, {inst.flag_accumulate}"
+        elif isinstance(inst, CIMConfigInst):
+            return f"CIM_CFG {inst.reg_single_group_id}, {inst.reg_mask_addr}, {inst.flag_group_broadcast}"
+        elif isinstance(inst, CIMOutputInst):
+            return f"CIM_OUT {inst.reg_out_n}, {inst.reg_out_mask_addr}, {inst.reg_out_addr}, {inst.flag_outsum}, {inst.flag_outsum_move}"
         else:
             raise ValueError(f"Unknown instruction type: {type(inst)}")
         

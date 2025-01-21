@@ -114,6 +114,34 @@ class CIMFlowDumper:
                 "rs": inst.reg_special,
                 "rd": inst.reg_general
             }
+        elif isinstance(inst, CIMComputeInst):
+            return {
+                "opcode": 0b000000,
+                "rs": inst.reg_input_addr,
+                "rt": inst.reg_input_size,
+                "re": inst.reg_activate_row,
+                "SP_V": inst.flag_value_sparse,
+                "SP_B": inst.flag_bit_sparse,
+                "GRP": inst.flag_group,
+                "GRP_I": inst.flag_group_input_mode,
+                "ACC": inst.flag_accumulate
+            }
+        elif isinstance(inst, CIMConfigInst):
+            return {
+                "opcode": 0b000100,
+                "rs": inst.reg_single_group_id,
+                "rt": inst.reg_mask_addr,
+                "GRP_B": inst.flag_group_broadcast
+            }
+        elif isinstance(inst, CIMOutputInst):
+            return {
+                "opcode": 0b001000,
+                "rs": inst.reg_out_n,
+                "rt": inst.reg_out_mask_addr,
+                "rd": inst.reg_out_addr,
+                "OSUM": inst.flag_outsum,
+                "OSUM_MOV": inst.flag_outsum_move
+            }
         else:
             raise ValueError(f"Unknown instruction type: {type(inst)}")
         
