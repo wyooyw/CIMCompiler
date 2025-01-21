@@ -8,7 +8,7 @@ def show_diff(data1, data2):
     for line_idx, (code1, code2) in enumerate(zip(data1, data2)):
         print(f"{line_idx=}\n\t{code1=}\n\t{code2=}")
 
-def test_parser_dumper(
+def _test_parser_dumper(
         parser1, 
         dumper1, 
         parser2, 
@@ -32,6 +32,27 @@ def test_parser_dumper(
         exit()
     assert original_data == final_data, "Mismatch between original and final data"
 
+@pytest.mark.parametrize("parser_class, dumper_class, path", [
+    (LegacyParser, LegacyDumper, "legacy"),
+    (CIMFlowParser, CIMFlowDumper, "cimflow"),
+    (AsmParser, AsmDumper, "asm"),
+])
+def test_individual_parser_dumper(parser_class, dumper_class, path):
+    parser = parser_class()
+    dumper = dumper_class()
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(this_dir, "case1", path)
+
+    with open(path, 'r') as file:
+        if path.endswith("asm"):
+            data = [line.strip() for line in file.readlines()]
+        else:
+            data = json.load(file)
+
+    instructions = parser.parse(data)
+    data2 = dumper.dump(instructions)
+    assert data == data2
+
 def test_all_parsers_dumpers():
     parser_classes = [LegacyParser, AsmParser, CIMFlowParser]
     dumper_classes = [LegacyDumper, AsmDumper, CIMFlowDumper]
@@ -48,52 +69,7 @@ def test_all_parsers_dumpers():
             dumper1 = dumper_classes[i]()
             dumper2 = dumper_classes[j]()
             path = os.path.join(this_dir, "case1", case_paths[i])
-            test_parser_dumper(parser1, dumper1, parser2, dumper2, path)
-    
-def test_legacy_parser_dumper(path):
-    parser = LegacyParser()
-    dumper = LegacyDumper()
-
-    with open(path, 'r') as file:
-        data = json.load(file)
-
-    instructions = parser.parse(data)
-    data2 = dumper.dump(instructions)
-    assert data==data2
-
-def test_cimflow_parser_dumper(path):
-    parser = CIMFlowParser()
-    dumper = CIMFlowDumper()
-
-    with open(path, 'r') as file:
-        data = json.load(file)
-
-    instructions = parser.parse(data)
-    data2 = dumper.dump(instructions)
-    assert data==data2
-
-def test_asm_parser_dumper(path):
-    parser = AsmParser()
-    dumper = AsmDumper()
-
-    data = []
-    with open(path, 'r') as file:
-        for line in file.readlines():
-            data.append(line.strip())
-
-    instructions = parser.parse(data)
-    data2 = dumper.dump(instructions)
-    assert data==data2
+            _test_parser_dumper(parser1, dumper1, parser2, dumper2, path)
 
 if __name__=="__main__":
     test_all_parsers_dumpers()
-    # this_dir = os.path.dirname(os.path.abspath(__file__))
-    # test_legacy_parser_dumper(os.path.join(this_dir, "case1/legacy"))
-    # test_asm_parser_dumper(os.path.join(this_dir, "case1/asm"))
-    # test_cimflow_parser_dumper(os.path.join(this_dir, "case1/cimflow"))
-    # test_legacy_asm_parser_dumper(os.path.join(this_dir, "case1/legacy"))
-    # parser = LegacyParser()
-    # dumper = CIMFlowDumper()
-    
-    # insts = parser.parse_file("/home/wangyiou/project/cim_compiler_frontend/playground/test/inst/case1/legacy")
-    # dumper.dump_to_file(insts, "/home/wangyiou/project/cim_compiler_frontend/playground/test/inst/case1/cimflow")
