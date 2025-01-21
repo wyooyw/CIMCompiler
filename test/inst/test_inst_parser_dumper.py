@@ -1,10 +1,5 @@
 import pytest
-from simulator.inst.legacy.parser import LegacyParser
-from simulator.inst.legacy.dumper import LegacyDumper
-from simulator.inst.asm.parser import AsmParser
-from simulator.inst.asm.dumper import AsmDumper
-from simulator.inst.cimflow.parser import CIMFlowParser
-from simulator.inst.cimflow.dumper import CIMFlowDumper
+from simulator.inst import *
 import json
 import os
 
