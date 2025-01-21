@@ -59,12 +59,14 @@ class CIMFlowDumper:
                 "funct": inst.opcode
             }
         elif isinstance(inst, TransInst):
+            assert inst.flag_src_offset in [0, 1]
+            assert inst.flag_dst_offset in [0, 1]
             return {
-                "opcode": 0b110000,
+                "opcode": 0b110000 + (inst.flag_src_offset << 1) + inst.flag_dst_offset,
                 "rs": inst.reg_in,
                 "rt": inst.reg_size,
                 "rd": inst.reg_out,
-                "imm": 0b0
+                "imm": inst.offset
             }
         elif isinstance(inst, LoadInst):
             return {

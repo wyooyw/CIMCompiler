@@ -48,6 +48,9 @@ class TransInst:
     reg_in: int
     reg_out: int
     reg_size: int
+    flag_src_offset: int
+    flag_dst_offset: int
+    offset: int
 
 @dataclass
 class LoadInst:

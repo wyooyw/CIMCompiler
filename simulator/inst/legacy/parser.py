@@ -104,7 +104,10 @@ class LegacyParser:
         return TransInst(
             reg_in=inst["rs1"],
             reg_out=inst["rd"],
-            reg_size=inst["rs2"]
+            reg_size=inst["rs2"],
+            flag_src_offset=inst["source_offset_mask"],
+            flag_dst_offset=inst["destination_offset_mask"],
+            offset=inst["offset"]
         )
 
     def _parse_control_class_inst(self, inst):

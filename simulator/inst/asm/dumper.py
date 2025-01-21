@@ -61,7 +61,7 @@ class AsmDumper:
             op_name = self._simd_funct_to_name(inst.opcode)
             return f"{op_name} {inst.reg_out}, {inst.reg_in1}, {inst.reg_in2}, {inst.reg_size}, {inst.input_num}"
         elif isinstance(inst, TransInst):
-            return f"MEM_CPY {inst.reg_out}, {inst.reg_in}, {inst.reg_size}"
+            return f"MEM_CPY {inst.reg_out}, {inst.reg_in}, {inst.reg_size}, {inst.flag_src_offset}, {inst.flag_dst_offset}, {inst.offset}"
         elif isinstance(inst, LoadInst):
             return f"SC_LD {inst.reg_value}, {inst.offset}({inst.reg_addr})"
         elif isinstance(inst, StoreInst):

@@ -84,11 +84,11 @@ class LegacyDumper:
             return {
                 "class": 0b110,
                 "type": 0b0,
-                "source_offset_mask": 0b0,
-                "destination_offset_mask": 0b0,
+                "source_offset_mask": inst.flag_src_offset,
+                "destination_offset_mask": inst.flag_dst_offset,
                 "rs1": inst.reg_in,
                 "rd": inst.reg_out,
-                "offset": 0b0,
+                "offset": inst.offset,
                 "rs2": inst.reg_size
             }
         elif isinstance(inst, LoadInst):

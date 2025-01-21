@@ -66,8 +66,8 @@ class AsmParser:
             opcode = self._name_to_simd_funct(op_name)
             return SIMDInst(opcode=opcode, reg_in1=reg_in1, reg_in2=reg_in2, reg_size=reg_size, reg_out=reg_out, input_num=input_num)
         elif op_name == "MEM_CPY":
-            reg_out, reg_in, reg_size = map(int, args)
-            return TransInst(reg_out=reg_out, reg_in=reg_in, reg_size=reg_size)
+            reg_out, reg_in, reg_size, flag_src_offset, flag_dst_offset, offset = map(int, args)
+            return TransInst(reg_out=reg_out, reg_in=reg_in, reg_size=reg_size, flag_src_offset=flag_src_offset, flag_dst_offset=flag_dst_offset, offset=offset)
         elif op_name == "SC_LD":
             reg_value, offset_reg_addr = args
             reg_value = int(reg_value)

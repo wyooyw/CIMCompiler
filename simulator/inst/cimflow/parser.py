@@ -62,11 +62,17 @@ class CIMFlowParser:
                 reg_out=inst["rd"],
                 input_num=input_num
             )
-        elif opcode == 0b110000:
+        elif (opcode & 0b111100) == 0b110000:
+            flag_src_offset = (opcode & 0b10) >> 1
+            flag_dst_offset = (opcode & 0b1)
+            # print(inst)
             return TransInst(
                 reg_in=inst["rs"],
                 reg_size=inst["rt"],
-                reg_out=inst["rd"]
+                reg_out=inst["rd"],
+                flag_src_offset=flag_src_offset,
+                flag_dst_offset=flag_dst_offset,
+                offset=inst["imm"]
             )
         elif opcode == 0b101000:
             return LoadInst(
