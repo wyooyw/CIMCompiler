@@ -7,8 +7,10 @@ from precompile import remove_comments, detect_and_replace_macros
 import shutil
 import tempfile
 import glob
-
 from utils.logger import get_logger
+
+from simulator.simulator import Memory, MemorySpace, Simulator, SpecialReg
+
 
 logger = get_logger("cli/cim_compiler")
 
@@ -29,10 +31,9 @@ def run_convert(args):
     dumper.dump_to_file(data, args.dst_file)
     print(f"Convert from \n{args.src_type}: {args.src_file}\nto \n{args.dst_type}: {args.dst_file}")
 
-def to_abs_path(path):
-    cwd = os.getcwd()
+def to_abs_path(path, parent=os.getcwd()):
     if not os.path.isabs(path):
-        return os.path.join(cwd, path)
+        return os.path.join(parent, path)
     return path
 
 def run_compile(args):
@@ -93,6 +94,73 @@ def run_compile(args):
     ], check=True)
     logger.info(f"Compile done. Output in {output_path}")
 
+def run_simulate(args):
+    # update args
+    args.output_dir = to_abs_path(args.output_dir)
+    
+    if args.save_unrolled_code and args.unrolled_code_format is None:
+        args.unrolled_code_format = args.code_format
+
+    if args.save_stats and args.stats_dir is None:
+        args.stats_dir = args.output_dir
+
+    if args.save_unrolled_code:
+        args.unrolled_code_file = to_abs_path(args.unrolled_code_file, parent=args.output_dir)
+
+    code_file = to_abs_path(args.code_file)
+    data_file = to_abs_path(args.data_file)
+    output_dir = to_abs_path(args.output_dir)
+    config_file = to_abs_path(args.config_file)
+
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # read code
+    parser = {
+        "legacy": LegacyParser,
+        "asm": AsmParser,
+        "cimflow": CIMFlowParser
+    }[args.code_format]()
+    _, code = parser.parse_file(code_file)
+        
+    # read data
+    with open(data_file, "rb") as file:
+        data = file.read()
+    data = bytearray(data)
+
+    if args.predict_cimcompute_count == -1:
+        pimcompute_count = None
+    else:
+        pimcompute_count = args.predict_cimcompute_count
+
+    simulator = Simulator.from_config(config_file)
+
+    # load data to global memory
+    # TODO: support load data into other memory space
+    global_memory_base = simulator.memory_space.get_base_of("global")
+    simulator.memory_space.write(data, global_memory_base, len(data))
+
+    # run code
+    status, stats, flat = simulator.run_code(
+        code, total_pim_compute_count=pimcompute_count
+    )
+    if status != simulator.FINISH:
+        raise ValueError(f"Simulator failed: {status=}")
+    if args.save_stats:
+        stats.dump(args.stats_dir)
+    if args.save_unrolled_code:
+        flat_code = flat.get_flat_code()
+        dumper = {
+            "legacy": LegacyDumper,
+            "asm": AsmDumper,
+            "cimflow": CIMFlowDumper
+        }[args.unrolled_code_format]()
+        dumper.dump_to_file(flat_code, args.unrolled_code_file)
+
+    # get image of global memory
+    # TODO: support get image from other memory space
+    output_image = simulator.memory_space.get_memory_by_name("global").read_all()
+    with open(os.path.join(output_dir, "image.bin"), "wb") as f:
+        f.write(output_image)
 
 def main():
     args = parse_args()
@@ -100,6 +168,8 @@ def main():
         run_convert(args)
     elif args.command == "compile":
         run_compile(args)
+    elif args.command == "simulate":
+        run_simulate(args)
     else:
         raise ValueError(f"Invalid command: {args.command}")
 
