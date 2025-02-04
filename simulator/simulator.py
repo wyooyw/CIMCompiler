@@ -15,6 +15,8 @@ from simulator.meta_utils import MetaUtil
 from simulator.stats_util import StatsUtil
 from utils.df_layout import tensor_int8_to_bits
 from utils.round import banker_round
+from simulator.inst.instruction import *
+from simulator.inst import LegacyParser, CIMFlowParser
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -420,28 +422,15 @@ class Simulator:
         self.pimcompute_cnt = 0
         self.stats_util = StatsUtil()
         self.flat_inst_util = FlatInstUtil(self.general_rf, self.special_rf)
+        
         while pc < len(code) and cnt < self.safe_time:
             inst = code[pc]
             self.stats_util.record(inst)
-            self.stats_util.record_reg_status(pc + 1, cnt, self.general_rf)
+            # self.stats_util.record_reg_status(pc + 1, cnt, self.general_rf)
             if record_flat:
                 self.flat_inst_util.flat_inst(inst, cnt)
 
-            inst_class = inst["class"]
-            if inst_class == InstClass.PIM_CLASS.value:
-                self._run_pim_class_inst(inst)
-            elif inst_class == InstClass.SIMD_CLASS.value:
-                self._run_simd_class_inst(inst)
-            elif inst_class == InstClass.SCALAR_CLASS.value:
-                self._run_scalar_class_inst(inst)
-            elif inst_class == InstClass.TRANS_CLASS.value:
-                self._run_trans_class_inst(inst)
-            elif inst_class == InstClass.CTR_CLASS.value:
-                self._run_control_class_inst(inst)
-            elif inst_class == InstClass.DEBUG_CLASS.value:
-                self._run_debug_class_inst(inst)
-            else:
-                assert False, f"Not support {inst_class=}"
+            self._run_inst(inst)
 
             if self.jump_offset is not None:
                 pc += self.jump_offset
@@ -501,48 +490,48 @@ class Simulator:
     Classes
     """
 
-    def _run_pim_class_inst(self, inst):
-        inst_type = inst["type"]
-        if inst_type == PIMInstType.PIM_COMPUTE.value:
+    def _run_inst(self, inst):
+        # CIM
+        if isinstance(inst, CIMComputeInst):
             self._run_pim_class_pim_compute_type_inst(inst)
-        elif inst_type == PIMInstType.PIM_OUTPUT.value:
-            self._run_pim_class_pim_output_type_inst(inst)
-        elif inst_type == PIMInstType.PIM_TRANSFER.value:
-            self._run_pim_class_pim_transfer_type_inst(inst)
-        elif inst_type == PIMInstType.PIM_SET.value:
+        elif isinstance(inst, CIMConfigInst):
             self._run_pim_class_pim_set_type_inst(inst)
+        elif isinstance(inst, CIMOutputInst):
+            self._run_pim_class_pim_output_type_inst(inst)
+        elif isinstance(inst, CIMTransferInst):
+            self._run_pim_class_pim_transfer_type_inst(inst)
+
+        # SIMD
+        elif isinstance(inst, SIMDInst):
+            self._run_simd_class_inst(inst)
+
+        # Scalar
+        elif isinstance(inst, ArithInst):
+            self._run_scalar_class_rr_type_inst(inst)
+        elif isinstance(inst, RIInst):
+            self._run_scalar_class_ri_type_inst(inst)
+        elif isinstance(inst, LoadInst) or isinstance(inst, StoreInst):
+            self._run_scalar_class_load_store_type_inst(inst)
+        elif isinstance(inst, GeneralLiInst) or isinstance(inst, SpecialLiInst):
+            self._run_scalar_class_other_type_li_inst(inst)
+        elif isinstance(inst, GeneralToSpecialAssignInst) or isinstance(inst, SpecialToGeneralAssignInst):
+            self._run_scalar_class_other_type_special_general_assign_inst(inst)
+
+        # Trans
+        elif isinstance(inst, TransInst):
+            self._run_trans_class_trans_type_inst(inst)
+
+        # Control
+        elif isinstance(inst, BranchInst):
+            self._run_control_class_br_type_inst(inst)
+        elif isinstance(inst, JumpInst):
+            self._run_control_class_jump_type_inst(inst)
+
         else:
-            assert False, f"Not support"
+            assert False, f"Not support {inst=}"
 
     def _run_simd_class_inst(self, inst):
-        """
-        SIMD计算：SIMD-compute
-        指令字段划分：
-        - [31, 30]，2bit：class，指令类别码，值为01
-        - [29, 28]，2bit：input num，input向量的个数，范围是1到4
-            - 00：1个输入向量，地址由rs1给出
-            - 01：2个输入向量，地址由rs1和rs2给出
-            - 10：3个输入向量，地址由rs1，rs1+1，rs2给出
-            - 11：4个输入向量，地址由rs1，rs1+1，rs2，rs2+1给出
-        - [27, 20]，8bit：opcode，操作类别码，表示具体计算的类型
-            - 0x00：add，向量加法
-            - 0x01：add-scalar，向量和标量加法
-            - 0x02：multiply，向量逐元素乘法
-            - 0x03：quantify，量化
-            - 0x04：quantify-resadd，resadd量化
-            - 0x05：quantify-multiply，乘法量化
-        - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址1
-        - [14, 10]，5bit：rs2，通用寄存器2，表示input向量起始地址2
-        - [9, 5]，5bit：rs3，通用寄存器3，表示input向量长度
-        - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
-        使用的专用寄存器：
-        - input 1 bit width：输入向量1每个元素的bit长度
-        - input 2 bit width：输入向量2每个元素的bit长度
-        - input 3 bit width：输入向量3每个元素的bit长度
-        - input 4 bit width：输入向量4每个元素的bit长度
-        - output bit width：输出向量每个元素的bit长度
-        """
-        opcode = inst["opcode"]
+        opcode = inst.opcode
         if opcode in [0x00, 0x02, 6]:  # vec add / mul
             self._run_simd_class_vector_vector_inst(inst)
         elif opcode in [0b01, 7]:  # scalar add
@@ -558,66 +547,14 @@ class Simulator:
         else:
             assert False, f"Not support {opcode=} yet."
 
-    def _run_scalar_class_inst(self, inst):
-        inst_type = inst["type"]
-        # import pdb; pdb.set_trace()
-        if inst_type == ScalarInstType.RR.value:
-            self._run_scalar_class_rr_type_inst(inst)
-        elif inst_type == ScalarInstType.RI.value:
-            self._run_scalar_class_ri_type_inst(inst)
-        elif inst_type == ScalarInstType.LOAD_STORE.value:
-            self._run_scalar_class_load_store_type_inst(inst)
-        elif inst_type == ScalarInstType.OTHER.value:
-            self._run_scalar_class_other_type_inst(inst)
-        else:
-            assert False, f"Not support"
-
-    def _run_control_class_inst(self, inst):
-        inst_type = inst["type"]
-        if inst_type in [
-            ControlInstType.EQ_BR.value,
-            ControlInstType.NE_BR.value,
-            ControlInstType.GT_BR.value,
-            ControlInstType.LT_BR.value,
-        ]:
-            self._run_control_class_br_type_inst(inst)
-        elif inst_type == ControlInstType.JUMP.value:
-            self._run_control_class_jump_type_inst(inst)
-        else:
-            assert False, f"Not support"
-
-    def _run_trans_class_inst(self, inst):
-        inst_type = inst["type"]
-        if inst_type == TransInstType.TRANS.value:
-            self._run_trans_class_trans_type_inst(inst)
-        else:
-            assert False, f"Not support"
-
     """
     Types
     """
 
     def _run_scalar_class_rr_type_inst(self, inst):
-        """
-        - [31, 30]，2bit：class，指令类别码，值为10
-        - [29, 28]，2bit：type，指令类型码，值为00
-        - [27, 26]，2bit：reserve，保留字段
-        - [25, 21]，5bit：rs1，通用寄存器1，表示运算数1的值
-        - [20, 16]，5bit：rs2，通用寄存器2，表示运算数2的值
-        - [15, 11]，5bit：rd，通用寄存器3，即运算结果写回的寄存器
-        - [10, 3]，8bit：reserve，保留字段
-        - [2, 0]，3bit：opcode，操作类别码，表示具体计算的类型
-        - 000：add，整型加法
-        - 001：sub，整型减法
-        - 010：mul，整型乘法，结果寄存器仅保留低32位
-        - 011：div，整型除法，结果寄存器仅保留商
-        - 100：sll，逻辑左移
-        - 101：srl，逻辑右移
-        - 110：sra，算数右移
-        """
-        value1 = self.read_general_reg(inst["rs1"])
-        value2 = self.read_general_reg(inst["rs2"])
-        opcode = inst["opcode"]
+        value1 = self.read_general_reg(inst.reg_lhs)
+        value2 = self.read_general_reg(inst.reg_rhs)
+        opcode = inst.opcode
         if opcode == 0b000:  # add
             result = value1 + value2
         elif opcode == 0b001:  # sub
@@ -652,25 +589,12 @@ class Simulator:
             result = value1 < value2
         else:
             assert False, f"Not support {opcode=}."
-        self.write_general_reg(inst["rd"], result)
+        self.write_general_reg(inst.reg_out, result)
 
     def _run_scalar_class_ri_type_inst(self, inst):
-        """
-        R-I型整数运算指令：scalar-RI
-        指令字段划分：
-        - [31, 30]，2bit：class，指令类别码，值为10
-        - [29, 28]，2bit：type，指令类型码，值为01
-        - [27, 26]，2bit：opcode，操作类别码，表示具体计算的类型
-        - 00：addi，整型立即数加法
-        - 01：muli，整型立即数乘法，结果寄存器仅保留低32位
-        - 10：lui，高16位立即数赋值
-        - [25, 21]，5bit：rs，通用寄存器1，表示运算数1的值
-        - [20, 16]，5bit：rd，通用寄存器2，即运算结果写回的寄存器
-        - [15, 0]，16bit：imm，立即数，表示运算数2的值
-        """
-        value = self.read_general_reg(inst["rs"])
-        imm = inst["imm"]
-        opcode = inst["opcode"]
+        value = self.read_general_reg(inst.reg_in)
+        imm = inst.imm
+        opcode = inst.opcode
         if opcode == 0b000:  # add
             result = value + imm
         elif opcode == 0b001:  # sub
@@ -685,53 +609,28 @@ class Simulator:
             result = min(value, imm)
         else:
             assert False, f"Not support {opcode=}."
-        self.write_general_reg(inst["rd"], result)
+        self.write_general_reg(inst.reg_out, result)
 
     def _run_scalar_class_load_store_type_inst(self, inst):
-        """
-        Load/Store指令：scalar-SL
-        指令字段划分：
-        - [31, 30]，2bit：class，指令类别码，值为10
-        - [29, 28]，2bit：type，指令类型码，值为10
-        - [27, 26]，2bit：opcode，操作类别码，表示具体操作的类型
-        - 00：本地存储load至寄存器
-        - 01：寄存器值store至本地存储
-        - 10：全局存储load至寄存器
-        - 11：寄存器值store至全局存储
-        - [25, 21]，5bit：rs1，通用寄存器1，即寻址的基址寄存器base
-        - [20, 16]，5bit：rs2，通用寄存器2，即存储load/store值的寄存器
-        - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
-        - 地址计算公式：$rs + offset
-        """
-        opcode = inst["opcode"]
-        if opcode == 0b00:  # load
 
-            addr = self.read_general_reg(inst["rs1"])
-            offset = inst["offset"]
+        if isinstance(inst, LoadInst):  # load
+
+            addr = self.read_general_reg(inst.reg_addr)
+            offset = inst.offset
             addr += offset
             value = self.memory_space.read_as(addr, 4, np.int32).item()
-            self.write_general_reg(inst["rs2"], value)
+            self.write_general_reg(inst.reg_value, value)
 
-        elif opcode == 0b01:  # store
+        elif isinstance(inst, StoreInst):  # store
 
-            addr = self.read_general_reg(inst["rs1"])
-            value = self.read_general_reg(inst["rs2"])
-            offset = inst["offset"]
+            addr = self.read_general_reg(inst.reg_addr)
+            value = self.read_general_reg(inst.reg_value)
+            offset = inst.offset
             addr += offset
             self.memory_space.write(np.array([value], dtype=np.int32), addr, 4)
 
         else:
             assert False, f"Not support {opcode=}."
-
-    def _run_scalar_class_other_type_inst(self, inst):
-        assert inst["class"] == 0b10
-        assert inst["type"] == 0b11
-        if inst["opcode"] in [0b00, 0b01]:
-            self._run_scalar_class_other_type_li_inst(inst)
-        elif inst["opcode"] in [0b10, 0b11]:
-            self._run_scalar_class_other_type_special_general_assign_inst(inst)
-        else:
-            assert False, f"Not support {inst['opcode']=}"
 
     def _run_scalar_class_other_type_li_inst(self, inst):
         """
@@ -751,12 +650,11 @@ class Simulator:
         - [25, 21]，5bit：rd，专用寄存器编号，即要赋值的通用寄存器
         - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
         """
-        rd = inst["rd"]
-        imm = inst["imm"]
-        opcode = inst["opcode"]
-        if opcode == 0b00:  # 通用寄存器
+        rd = inst.reg
+        imm = inst.value
+        if isinstance(inst, GeneralLiInst):  # 通用寄存器
             rf = self.general_rf
-        elif opcode == 0b01:  # 专用寄存器
+        elif isinstance(inst, SpecialLiInst):  # 专用寄存器
             rf = self.special_rf
         self.write_reg(rf, rd, imm)
 
@@ -773,12 +671,12 @@ class Simulator:
         - [20, 16]，5bit：rs2，专用寄存器编号，即涉及赋值的专用寄存器
         - [15, 0]，16bit：reserve，保留字段
         """
-        if opcode == 0b10:
-            value = self.read_general_reg(inst["rs1"])
-            self.write_special_reg(inst["rs2"], value)
-        elif opcode == 0b11:
-            value = self.read_special_reg(inst["rs2"])
-            self.write_general_reg(inst["rs1"], value)
+        if isinstance(inst, GeneralToSpecialAssignInst):
+            value = self.read_general_reg(inst.reg_general)
+            self.write_special_reg(inst.reg_special, value)
+        elif isinstance(inst, SpecialToGeneralAssignInst):
+            value = self.read_special_reg(inst.reg_special)
+            self.write_general_reg(inst.reg_general, value)
         else:
             assert False, f"Not support {opcode=}"
 
@@ -798,12 +696,12 @@ class Simulator:
         - 源地址计算公式：$rs + offset * [27]
         - 目的地址计算公式：$rd + offset * [26]
         """
-        src_base = self.read_general_reg(inst["rs1"])
-        dst_base = self.read_general_reg(inst["rd"])
-        offset = inst["offset"]
-        src_offset_mask = inst["source_offset_mask"]
-        dst_offset_mask = inst["destination_offset_mask"]
-        size = self.read_general_reg(inst["rs2"])
+        src_base = self.read_general_reg(inst.reg_in)
+        dst_base = self.read_general_reg(inst.reg_out)
+        offset = inst.offset
+        src_offset_mask = inst.flag_src_offset
+        dst_offset_mask = inst.flag_dst_offset
+        size = self.read_general_reg(inst.reg_size)
 
         src_addr = src_base + src_offset_mask * offset
         dst_addr = dst_base + dst_offset_mask * offset
@@ -836,9 +734,9 @@ class Simulator:
         - [20, 16]，5bit：rs2，通用寄存器2，表示进行比较的操作数2
         - [15, 0]，16bit：offset，立即数，表示跳转指令地址相对于该指令的偏移值
         """
-        val1 = self.read_general_reg(inst["rs1"])
-        val2 = self.read_general_reg(inst["rs2"])
-        inst_type = inst["type"]
+        val1 = self.read_general_reg(inst.reg_lhs)
+        val2 = self.read_general_reg(inst.reg_rhs)
+        inst_type = inst.compare
         if inst_type == 0b000:  # equals
             cond = val1 == val2
         elif inst_type == 0b001:  # not equals
@@ -851,69 +749,13 @@ class Simulator:
             assert False, f"Unsupported {inst_type=} in control instruction!"
 
         if cond:
-            self.jump_offset = inst["offset"]
+            self.jump_offset = inst.offset
 
     def _run_control_class_jump_type_inst(self, inst):
-        """
-        无条件跳转指令：jmp
-        指令字段划分：
-        - [31, 29]，3bit：class，指令类别码，值为111
-        - [28, 26]，3bit：type，指令类型码，值为100
-        - [25, 0]，26bit：offset，立即数，表示跳转指令地址相对于该指令的偏移值
-        """
-        self.jump_offset = inst["offset"]
-
-    def _run_scalar_class_other_type_inst(self, inst):
-        opcode = inst["opcode"]
-        if opcode == 0b00:  # general-li
-            self.write_general_reg(inst["rd"], inst["imm"])
-        elif opcode == 0b01:  # special-li
-            self.write_special_reg(inst["rd"], inst["imm"])
-        elif opcode == 0b10:  # general-to-special
-            val = self.read_general_reg(inst["rs1"])
-            self.write_special_reg(inst["rs2"], val)
-        elif opcode == 0b11:  # special-to-general
-            val = self.read_special_reg(inst["rs2"])
-            self.write_general_reg(inst["rs1"], val)
-        else:
-            assert False, "Not support yet"
+        self.jump_offset = inst.offset
 
     def _run_pim_class_pim_compute_type_inst(self, inst):
-        """
-        pim计算：pim-compute
-        指令字段划分：
-        - [31, 30]，2bit：class，指令类别码，值为00
-        - [29, 29]，1bit：type，指令类型码，值为0
-        - [28, 25]，4bit：reserve，保留字段
-        - [24, 20]，5bit：flag，功能扩展字段
-        - [24]，1bit：value sparse，表示是否使用值稀疏，稀疏掩码Mask的起始地址由专用寄存器给出
-        - [23]，1bit：bit sparse，表示是否使用bit级稀疏，稀疏Meta数据的起始地址由专用寄存器给出
-        - [22]，1bit：group，表示是否进行分组，组大小及激活的组数量由专用寄存器给出
-        - [21]，1bit：group input mode，表示多组输入的模式
-            - 0：每一组输入向量的起始地址相对于上一组的增量（步长，step）是一个定值，由专用寄存器给出
-            - 1：每一组输入向量的起始地址相对于上一组的增量不是定值，其相对于rs1的偏移量（offset）在存储器中给出，地址（offset addr）由专用寄存器给出
-        - [20]，1bit：accumulate，表示是否进行累加
-        - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址
-        - [14, 10]，5bit：rs2，通用寄存器2，表示input向量长度
-        - [9, 5]，5bit：rs3，通用寄存器3，表示激活的row的index
-        - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
-        使用的专用寄存器：
-        - input bit width：输入的bit长度
-        - output bit width：输出的bit长度
-        - weight bit width：权重的bit长度
-        - group size：macro group的大小，即包含多少个macro，仅允许设置为config文件里设置的数值之一
-        - activation group num：激活的group的数量
-        - activation element col num：每个group内激活的element列的数量
-        - group input step/offset addr：每一组输入向量的起始地址相对于上一组的增量（step），或相对于rs1的偏移量的地址（offset addr）
-        - value sparse mask addr：值稀疏掩码Mask的起始地址
-        - bit sparse meta addr：Bit级稀疏Meta数据的起始地址
-        """
-        # assert inst["group"] == 0, "Not support group yet."
-        # if inst["value_sparse"] == 1 and inst["bit_sparse"] == 1:
-        #     self._run_pim_class_pim_compute_type_inst_value_bit_sparse(inst)
-        # elif inst["value_sparse"] == 1:
-        #     self._run_pim_class_pim_compute_type_inst_value_sparse(inst)
-        if inst["bit_sparse"] == 1:
+        if inst.flag_bit_sparse == 1:
             self._run_pim_class_pim_compute_type_inst_bit_sparse(inst)
         else:
             self._run_pim_class_pim_compute_type_inst_dense(inst)
@@ -923,12 +765,6 @@ class Simulator:
     """
     Diffenet Pim Compute
     """
-
-    def _run_pim_class_pim_compute_type_inst_value_bit_sparse(self, inst):
-        assert False, "Executor not support value & bit sparse yet."
-
-    def _run_pim_class_pim_compute_type_inst_value_sparse(self, inst):
-        assert False, "Executor not support value sparse yet."
 
     def _stats_macro_util(self, macro_id, group_size, n_use_comp, width_bw):
         pimset_mask = self.get_pimset_mask().reshape(group_size, -1)
@@ -941,7 +777,7 @@ class Simulator:
             self.stats_util.record_macro_ultilize(n_use_comp, n_use_col, n_comp * n_col)
 
     def _value_sparsity_compute(self, inst, input_data, weight_data):
-        if inst["value_sparse"] == 0:
+        if inst.flag_value_sparse == 0:
             return input_data
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
@@ -1034,10 +870,10 @@ class Simulator:
         return output_data
 
     def _run_pim_class_pim_compute_type_inst_dense(self, inst):
-        input_offset = self.read_general_reg(inst["rs1"])
-        input_size = self.read_general_reg(inst["rs2"])
-        activate_row = self.read_general_reg(inst["rs3"])
-        # output_offset = self.read_general_reg(inst["rd"])
+        input_offset = self.read_general_reg(inst.reg_input_addr)
+        input_size = self.read_general_reg(inst.reg_input_size)
+        activate_row = self.read_general_reg(inst.reg_activate_row)
+
         input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
@@ -1050,16 +886,13 @@ class Simulator:
         assert self.macro_config.n_macro % group_size == 0
         group_num = self.macro_config.n_macro // group_size
         group_input_step = self.read_special_reg(SpecialReg.GROUP_INPUT_STEP)
-        assert inst.get("group", -1) == 1
-        assert inst.get("group_input_mode", -1) == 0
+        assert inst.flag_group == 1
+        assert inst.flag_group_input_mode == 0
         logging.debug(f"{group_num=}")
-        # logging.debug(f"{self.macro_config.n_macro=}")
-        # logging.debug(f"{self.macro_config.n_macro=}")
 
-        value_sparsity = inst["value_sparse"]
+        value_sparsity = inst.flag_value_sparse
         # Get input vector
         input_byte_size = input_size * input_bw // 8
-        # print(f"{input_offset=}, {input_byte_size=}")
 
         self.memory_space.check_memory_name(input_offset, input_byte_size, "pim_input_reg_buffer")
         group_input_data = []
@@ -1101,7 +934,6 @@ class Simulator:
             ), f"{len(pimset_mask)=}, {weight_data.shape[1]=}"
             assert pimset_mask.dtype == bool, f"{pimset_mask.dtype=}"
             weight_data[:, pimset_mask] = 0
-            # import pdb; pdb.set_trace()
 
             assert input_data.ndim == 1
             assert weight_data.ndim == 2, f"{weight_data.shape=}"
@@ -1132,7 +964,6 @@ class Simulator:
                 )
 
             group_output_data.append(output_data)
-        # import pdb; pdb.set_trace()
         # Save output
         n_macro_per_group = group_size
         group_output_step = (
@@ -1150,8 +981,7 @@ class Simulator:
             )
 
             # Accumulate
-            # import pdb; pdb.set_trace()
-            if inst["accumulate"] == 1:
+            if inst.flag_accumulate == 1:
                 output_data_ori = self.memory_space.read_as(
                     group_output_offset, output_byte_size, out_dtype
                 )
@@ -1161,10 +991,10 @@ class Simulator:
             self.memory_space.write(output_data, group_output_offset, output_byte_size)
 
     def _run_pim_class_pim_compute_type_inst_bit_sparse(self, inst):
-        input_offset = self.read_general_reg(inst["rs1"])
-        input_size = self.read_general_reg(inst["rs2"])
-        activate_row = self.read_general_reg(inst["rs3"])
-        # output_offset = self.read_general_reg(inst["rd"])
+        input_offset = self.read_general_reg(inst.reg_input_addr)
+        input_size = self.read_general_reg(inst.reg_input_size)
+        activate_row = self.read_general_reg(inst.reg_activate_row)
+
         input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
@@ -1180,13 +1010,13 @@ class Simulator:
         assert self.macro_config.n_macro % group_size == 0
         group_num = self.macro_config.n_macro // group_size
         group_input_step = self.read_special_reg(SpecialReg.GROUP_INPUT_STEP)
-        assert inst.get("group", -1) == 1
-        assert inst.get("group_input_mode", -1) == 0
+        assert inst.flag_group == 1
+        assert inst.flag_group_input_mode == 0
         logging.debug(f"{group_num=}")
         # logging.debug(f"{self.macro_config.n_macro=}")
         # logging.debug(f"{self.macro_config.n_macro=}")
-        value_sparsity = inst["value_sparse"]
-        assert "bit_sparse" in inst and inst["bit_sparse"] == 1, str(inst)
+        value_sparsity = inst.flag_value_sparse
+        assert inst.flag_bit_sparse == 1, str(inst)
         meta_addr = self.read_special_reg(SpecialReg.BIT_SPARSE_META_ADDR)
 
         # Get input vector
@@ -1280,7 +1110,7 @@ class Simulator:
             )
 
             # Accumulate
-            if inst["accumulate"] == 1:
+            if inst.flag_accumulate == 1:
                 output_data_ori = self.memory_space.read_as(
                     group_output_offset, output_byte_size, out_dtype
                 )
@@ -1290,8 +1120,8 @@ class Simulator:
             self.memory_space.write(output_data, group_output_offset, output_byte_size)
 
     def _run_pim_class_pim_output_type_inst(self, inst):
-        outsum_move = inst["outsum_move"]
-        outsum = inst["outsum"]
+        outsum_move = inst.flag_outsum_move
+        outsum = inst.flag_outsum
         if outsum:
             self._outsum(inst)
             return
@@ -1301,10 +1131,9 @@ class Simulator:
         #     return
 
         if outsum_move or outsum:
-            assert False, "This should not happend!"
+            assert False, "This should not happen!"
 
-        # out_n = self.read_general_reg(inst["rs1"])
-        dst_offset = self.read_general_reg(inst["rd"])
+        dst_offset = self.read_general_reg(inst.reg_out_addr)
 
         internel_buffer = self.memory_space.get_memory_by_name(
             "internel_macro_output_reg_buffer"
@@ -1324,9 +1153,9 @@ class Simulator:
         internel_buffer.clear()
 
     def _outsum(self, inst):
-        out_n = self.read_general_reg(inst["rs1"])
+        out_n = self.read_general_reg(inst.reg_out_n)
         assert out_n % 8 == 0
-        out_mask_addr = self.read_general_reg(inst["rs2"])
+        out_mask_addr = self.read_general_reg(inst.reg_out_mask_addr)
         out_mask = self.memory_space.read_as(out_mask_addr, out_n // 8, np.int8)
         out_mask = tensor_int8_to_bits(out_mask)
         out_mask = out_mask.reshape(-1)
@@ -1343,7 +1172,7 @@ class Simulator:
             self.macro_config.n_vcol(width_bw) * n_macro_per_group * output_bw // 8
         )
 
-        dst_offset = self.read_general_reg(inst["rd"])
+        dst_offset = self.read_general_reg(inst.reg_out_addr)
         dst_group_step = src_group_step
         for g in range(n_group):
             src_group_offset = src_offset + g * src_group_step
@@ -1368,23 +1197,11 @@ class Simulator:
         internel_buffer.clear()
 
     def _run_pim_class_pim_transfer_type_inst(self, inst):
-        """
-        pim数据传输：pim-transfer
-        该指令针对【使用”基于CSD编码的bit-level sparsity“算法的pim运算结果】，在阈值有1和2的情况下，在output reg buffer中不规则、不连续的问题，专门用于搬运pim运算结果，且该指令需要使用缓冲区
-        指令字段划分：
-        - [31, 30]，2bit：class，指令类别码，值为00
-        - [29, 28]，2bit：type，指令类型码，值为11
-        - [19, 15]，5bit：rs1，通用寄存器1，src addr，表示源本地存储器的地址
-        - [14, 10]，5bit：rs2，通用寄存器2，output num，表示output的数量，包含有效值和无效值，也即掩码的长度
-        - [9, 5]，5bit：rs3，通用寄存器3，output mask，表示掩码的存储地址，掩码的每一bit表示对应的output是否有效，掩码长度由rs2指定
-        - [4, 0]，5bit：rd，通用寄存器4，dst addr，表示目的本地存储器的地址
-        使用的专用寄存器：
-        - output bit width：输出的bit长度
-        """
-        src_addr = self.read_general_reg(inst["rs1"])
-        output_num = self.read_general_reg(inst["rs2"])
-        output_mask_addr = self.read_general_reg(inst["rs3"])
-        dst_addr = self.read_general_reg(inst["rd"])
+
+        src_addr = self.read_general_reg(inst.reg_src_addr)
+        output_num = self.read_general_reg(inst.reg_out_n)
+        output_mask_addr = self.read_general_reg(inst.reg_out_mask_addr)
+        dst_addr = self.read_general_reg(inst.reg_dst_addr)
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         output_byte = output_bw // 8
 
@@ -1412,23 +1229,9 @@ class Simulator:
         )
 
     def _run_pim_class_pim_set_type_inst(self, inst):
-        """
-        pim设置：pim-set
-        设置pim单元的一些参数，以每个MacroGroup为单位进行设置，设置的参数包括每个macro激活的element列等
-        - [31, 30]，2bit：class，指令类别码，值为00
-        - [29, 28]，2bit：type，指令类型码，值为01
-        - [27, 21]，7bit：reserve，保留字段
-        - [20, 20]，1bit：group broadcast，表示是否进行设置的组广播
-        - 0：不进行组广播，即仅对单个MacroGroup进行设置，MacroGroup编号由寄存器rs1给出
-        - 1：进行组广播，即对所有MacroGroup进行该次设置，此时忽略寄存器rs1
-        - [19, 15]，5bit：rs1，通用寄存器1，表示单播时设置的MacroGroup编号
-        - [14, 10]，5bit：rs2，通用寄存器2，表示一个MacroGroup内所有Macro激活element列的掩码mask地址
-        - 每个element列对应1bit mask，0表示不激活，1表示激活
-        - 每个Macro的mask从前到后依次排布，连续存储
-        - [9, 0]，10bit：reserve，保留字段
-        """
-        assert inst["group_broadcast"] == 1, "Only support group broadcast"
-        mask_addr = self.read_general_reg(inst["rs2"])
+
+        assert inst.flag_group_broadcast == 1, "Only support group broadcast"
+        mask_addr = self.read_general_reg(inst.reg_mask_addr)
 
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
         vcol = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
@@ -1446,12 +1249,12 @@ class Simulator:
         self.set_pimset_mask(mask_data.copy())
 
     def _run_debug_class_inst(self, inst):
-        if inst["type"] == 0:  # print
-            rs = inst["rs"]
+        if isinstance(inst, PrintInst):  # print
+            rs = inst.reg
             val = self.read_general_reg(rs)
             self.print_record.append(val)
             logging.info(f" general_reg[{rs}] = {val}")
-        elif inst["type"] == 1:
+        elif isinstance(inst, DebugInst):
             import pdb
 
             pdb.set_trace()
@@ -1461,26 +1264,24 @@ class Simulator:
             assert False, "Not support yet."
 
     def _run_simd_class_vector_vector_inst(self, inst):
-        """
-        support: 1.vec add; 2.vec mul
-        """
-        opcode = inst["opcode"]
-        assert inst["input_num"] == 1
+
+        opcode = inst.opcode
+        assert inst.input_num == 2, f"{inst.input_num=}"
 
         # Prepare input
-        input_size = self.read_general_reg(inst["rs3"])
+        input_size = self.read_general_reg(inst.reg_size)
 
-        input1_addr = self.read_general_reg(inst["rs1"])
+        input1_addr = self.read_general_reg(inst.reg_in1)
         input1_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
         input1_byte_size = input1_bitwidth * input_size // 8
         # self.memory_space.check_memory_type(input1_addr, input1_byte_size, "sram")
 
-        input2_addr = self.read_general_reg(inst["rs2"])
+        input2_addr = self.read_general_reg(inst.reg_in2)
         input2_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_2_BIT_WIDTH)
         input2_byte_size = input2_bitwidth * input_size // 8
         # self.memory_space.check_memory_type(input2_addr, input2_byte_size, "sram")
 
-        output_addr = self.read_general_reg(inst["rd"])
+        output_addr = self.read_general_reg(inst.reg_out)
         output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
         output_dtype = get_dtype_from_bitwidth(output_bitwidth)
 
@@ -1523,27 +1324,25 @@ class Simulator:
         self.memory_space.write(output_data, output_addr, output_byte_size)
 
     def _run_simd_class_scalar_vector_inst(self, inst):
-        """
-        support: scalar-vec add
-        """
-        opcode = inst["opcode"]
-        assert inst["input_num"] == 1
+
+        opcode = inst.opcode
+        assert inst.input_num == 2
 
         # Prepare input
-        input_size = self.read_general_reg(inst["rs3"])
+        input_size = self.read_general_reg(inst.reg_size)
 
-        input1_addr = self.read_general_reg(inst["rs1"])
+        input1_addr = self.read_general_reg(inst.reg_in1)
         input1_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
         input1_byte_size = input1_bitwidth * input_size // 8
         self.memory_space.check_memory_type(input1_addr, input1_byte_size, "sram")
 
-        input2_addr = self.read_general_reg(inst["rs2"])
+        input2_addr = self.read_general_reg(inst.reg_in2)
         input2_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_2_BIT_WIDTH)
         input2_byte_size = input2_bitwidth // 8
         self.memory_space.check_memory_type(input2_addr, input2_byte_size, "sram")
         input2_dtype = get_dtype_from_bitwidth(input2_bitwidth)
 
-        output_addr = self.read_general_reg(inst["rd"])
+        output_addr = self.read_general_reg(inst.reg_out)
         output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
         output_dtype = get_dtype_from_bitwidth(output_bitwidth)
 
@@ -1584,11 +1383,11 @@ class Simulator:
         self.memory_space.write(output_data, output_addr, output_byte_size)
 
     def _run_simd_class_floor_inst(self, inst):
-        assert inst["input_num"] == 0
+        assert inst.input_num == 1
 
-        input_addr = self.read_general_reg(inst["rs1"])
-        output_addr = self.read_general_reg(inst["rd"])
-        input_size = self.read_general_reg(inst["rs3"])
+        input_addr = self.read_general_reg(inst.reg_in1)
+        output_addr = self.read_general_reg(inst.reg_out)
+        input_size = self.read_general_reg(inst.reg_size)
         input_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
         input_byte_size = input_bitwidth * input_size // 8
         self.memory_space.check_memory_type(input_addr, input_byte_size, "sram")
@@ -1599,17 +1398,18 @@ class Simulator:
         self.memory_space.write(output_data, output_addr, output_byte_size)
 
     def _run_simd_class_quantify_inst(self, inst):
-        input_addr = self.read_general_reg(inst["rs1"])
-        bias_scale_addr = self.read_general_reg(inst["rs2"])
+        input_addr = self.read_general_reg(inst.reg_in1)
+        bias_scale_addr = self.read_general_reg(inst.reg_in2)
         out_zp_addr = self.read_special_reg(
             SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1
         )
-        input_size = self.read_general_reg(inst["rs3"])
-        output_addr = self.read_general_reg(inst["rd"])
-        clip_min = 0 if "relu" in inst and inst["relu"] else -128
+        input_size = self.read_general_reg(inst.reg_size)
+        output_addr = self.read_general_reg(inst.reg_out)
+        # clip_min = 0 if "relu" in inst and inst["relu"] else -128
+        # clip_min = 0 if inst.relu else -128
+        clip_min = -128
         clip_max = 127
         # print(f"{clip_min=}")
-        # print(f"{inst['relu']=}")
         # import pdb; pdb.set_trace()
 
         assert self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH) == 32
@@ -1651,21 +1451,20 @@ class Simulator:
         self.memory_space.write(output_data, output_addr, output_byte_size)
 
     def _run_simd_class_resadd_quantify_inst(self, inst):
-        assert inst["input_num"] == 0b11, inst["input_num"]
-        input_1_addr = self.read_general_reg(inst["rs1"])
-        input_2_addr = self.read_general_reg(inst["rs2"])
+        assert inst.input_num == 4, inst.input_num
+        input_1_addr = self.read_general_reg(inst.reg_in1)
+        input_2_addr = self.read_general_reg(inst.reg_in2)
         bias_scale_addr = self.read_special_reg(
             SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1
         )
         out_zp_addr = self.read_special_reg(
             SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2
         )
-        input_size = self.read_general_reg(inst["rs3"])
-        output_addr = self.read_general_reg(inst["rd"])
+        input_size = self.read_general_reg(inst.reg_size)
+        output_addr = self.read_general_reg(inst.reg_out)
         clip_min = -128
         clip_max = 127
         # print(f"{clip_min=}")
-        # print(f"{inst['relu']=}")
         # import pdb; pdb.set_trace()
 
         assert self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH) == 8
@@ -1717,21 +1516,20 @@ class Simulator:
         self.memory_space.write(output_data, output_addr, output_byte_size)
 
     def _run_simd_class_resmul_quantify_inst(self, inst):
-        assert inst["input_num"] == 0b11, inst["input_num"]
-        input_1_addr = self.read_general_reg(inst["rs1"])
-        input_2_addr = self.read_general_reg(inst["rs2"])
+        assert inst.input_num == 4, inst.input_num
+        input_1_addr = self.read_general_reg(inst.reg_in1)
+        input_2_addr = self.read_general_reg(inst.reg_in2)
         bias_scale_addr = self.read_special_reg(
             SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1
         )
         out_zp_addr = self.read_special_reg(
             SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2
         )
-        input_size = self.read_general_reg(inst["rs3"])
-        output_addr = self.read_general_reg(inst["rd"])
+        input_size = self.read_general_reg(inst.reg_size)
+        output_addr = self.read_general_reg(inst.reg_out)
         clip_min = -128
         clip_max = 127
         # print(f"{clip_min=}")
-        # print(f"{inst['relu']=}")
         # import pdb; pdb.set_trace()
 
         assert self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH) == 8
@@ -1779,9 +1577,3 @@ class Simulator:
         # import pdb; pdb.set_trace()
         self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
         self.memory_space.write(output_data, output_addr, output_byte_size)
-
-if __name__=="__main__":
-    config_path = (
-        "/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json"
-    )
-    cls.simulator = Simulator.from_config(cls.config_path)
