@@ -108,3 +108,10 @@ class CIMOutputInst:
     flag_outsum: int
     flag_outsum_move: int
 
+@dataclass
+class CIMTransferInst:
+    reg_src_addr: int
+    reg_out_n: int
+    reg_out_mask_addr: int
+    reg_buffer_addr: int
+    reg_dst_addr: int

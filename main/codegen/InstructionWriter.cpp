@@ -215,3 +215,15 @@ Inst LegacyInstructionWriter::getCIMOutputInst(int reg_out_n, int reg_out_mask_a
         {"rd", reg_out_addr}
     };
 }
+
+Inst LegacyInstructionWriter::getCIMTransferInst(int reg_src_addr, int reg_out_n, int reg_out_mask_addr, int reg_buffer_addr, int reg_dst_addr) {
+    return {
+        {"class", 0b00}, 
+        {"type", 0b11}, 
+        {"rs1", reg_src_addr}, 
+        {"rs2", reg_out_n}, 
+        {"rs3", reg_out_mask_addr}, 
+        {"rs4", reg_buffer_addr}, 
+        {"rd", reg_dst_addr}
+    };
+}

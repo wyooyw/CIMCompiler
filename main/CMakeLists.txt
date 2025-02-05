@@ -27,6 +27,7 @@ add_llvm_executable(main
         pass/CommonSubexpressionExposePass.cpp
         codegen/CodeGenPass.cpp
         codegen/InstructionWriter.cpp
+        codegen/CIMFlowInstructionWriter.cpp
 
         DEPENDS
         CIMOpsIncGen

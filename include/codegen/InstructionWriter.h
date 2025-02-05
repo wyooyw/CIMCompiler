@@ -29,6 +29,7 @@ public:
     virtual Inst getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode) = 0;
     virtual Inst getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) = 0;
     virtual Inst getCIMOutputInst(int reg_out_n, int reg_out_mask_addr, int reg_out_addr, int flag_outsum, int flag_outsum_move ) = 0;
+    virtual Inst getCIMTransferInst(int reg_src_addr, int reg_out_n, int reg_out_mask_addr, int reg_buffer_addr, int reg_dst_addr) = 0;
 
     virtual void setJumpOffset(Inst &inst, int offset) = 0;
     virtual void setBranchOffset(Inst &inst, int offset) = 0;
@@ -63,6 +64,8 @@ public:
     Inst getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode) override;
     Inst getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) override;
     Inst getCIMOutputInst(int reg_out_n, int reg_out_mask_addr, int reg_out_addr, int flag_outsum, int flag_outsum_move ) override;
+    Inst getCIMTransferInst(int reg_src_addr, int reg_out_n, int reg_out_mask_addr, int reg_buffer_addr, int reg_dst_addr) override;
+    
     bool isGeneralReg(Inst &inst, std::string key) override; 
     bool isGeneralToSpecialAssign(Inst &inst) override;
     bool isSpecialToGeneralAssign(Inst &inst) override;
@@ -92,6 +95,7 @@ public:
     Inst getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode) override;
     Inst getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) override;
     Inst getCIMOutputInst(int reg_out_n, int reg_out_mask_addr, int reg_out_addr, int flag_outsum, int flag_outsum_move ) override;
+    Inst getCIMTransferInst(int reg_src_addr, int reg_out_n, int reg_out_mask_addr, int reg_buffer_addr, int reg_dst_addr) override;
 
     bool isGeneralReg(Inst &inst, std::string key) override; 
     bool isGeneralToSpecialAssign(Inst &inst) override;

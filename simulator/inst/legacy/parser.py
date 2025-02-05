@@ -154,6 +154,14 @@ class LegacyParser:
                 flag_outsum=inst["outsum"],
                 flag_outsum_move=inst["outsum_move"]
             )
+        elif type_ == 0b11:
+            return CIMTransferInst(
+                reg_src_addr=inst["rs1"],
+                reg_out_n=inst["rs2"],
+                reg_out_mask_addr=inst["rs3"],
+                reg_buffer_addr=inst["rs4"],
+                reg_dst_addr=inst["rd"]
+            )
         else:
             raise ValueError(f"Unknown CIM instruction type: {type_}")
 

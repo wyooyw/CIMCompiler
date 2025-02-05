@@ -245,8 +245,10 @@ static void codeGenRI(Ty op,
     std::exit(1);
   }
 
-  Inst inst = {{"class", 0b10}, {"type", 0b01}, {"opcode", opcode},
-               {"rs", rs},      {"rd", rd},     {"imm", imm}};
+  Inst inst = writer.getRIInst(opcode, rs, rd, imm);
+
+  // Inst inst = {{"class", 0b10}, {"type", 0b01}, {"opcode", opcode},
+  //              {"rs", rs},      {"rd", rd},     {"imm", imm}};
   instr_list.push_back(inst);
 }
 
@@ -522,6 +524,7 @@ static void codeGen(mlir::cimisa::CIMOutputSumOp op,
 }
 
 static void codeGen(mlir::cimisa::CIMTransferOp op,
+                    InstructionWriter &writer,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     std::vector<Inst> &instr_list, std::set<int> &def,
                     std::set<int> &use) {
@@ -542,12 +545,13 @@ src_addr,
   use.insert(output_mask_addr);
   use.insert(buffer_addr);
   use.insert(dst_addr);
-  Inst inst = {
-      {"class", 0b00},           {"type", 0b11},
-      {"rs1", src_addr},         {"rs2", output_number},
-      {"rs3", output_mask_addr}, {"rs4", buffer_addr},
-      {"rd", dst_addr},
-  };
+  Inst inst = writer.getCIMTransferInst(
+    /*reg_src_addr=*/ src_addr,
+    /*reg_out_n=*/ output_number,
+    /*reg_out_mask_addr=*/ output_mask_addr,
+    /*reg_buffer_addr=*/ buffer_addr,
+    /*reg_dst_addr=*/ dst_addr
+  );
   instr_list.push_back(inst);
 }
 
@@ -924,7 +928,8 @@ static std::vector<Block *> getBlockList(mlir::func::FuncOp func) {
 // }
 
 static void codeGenForBlockArgs(
-    Block *block, std::unordered_map<llvm::hash_code, int> &general_reg_map,
+    Block *block, InstructionWriter &writer,
+    std::unordered_map<llvm::hash_code, int> &general_reg_map,
     std::unordered_map<llvm::hash_code, int> &block_args_special_reg_map,
     std::vector<Inst> &instr_list, std::set<int> &write, std::set<int> &read) {
 
@@ -934,11 +939,12 @@ static void codeGenForBlockArgs(
     if (block_args_special_reg_map.count(mlir::hash_value(arg))) {
       int special_reg = getReg(block_args_special_reg_map, arg);
       int general_reg = getReg(general_reg_map, arg);
-      Inst inst = {{"class", 0b10},
-                   {"type", 0b11},
-                   {"opcode", 0b11},
-                   {"rs1", general_reg},
-                   {"rs2", special_reg}};
+      Inst inst = writer.getSpecialToGeneralAssignInst(general_reg, special_reg);
+      // Inst inst = {{"class", 0b10},
+      //              {"type", 0b11},
+      //              {"opcode", 0b11},
+      //              {"rs1", general_reg},
+      //              {"rs2", special_reg}};
       instr_list.push_back(inst);
       write.insert(general_reg);
     }
@@ -963,7 +969,7 @@ codeGen(std::vector<Block *> &blocks,
     std::set<int> _write;
     std::set<int> _read;
 
-    codeGenForBlockArgs(block, regmap, block_args_special_reg_map, instr_list,
+    codeGenForBlockArgs(block, writer, regmap, block_args_special_reg_map, instr_list,
                         _write, _read);
     for (Operation &op_obj : block->getOperations()) {
       Operation *op = &op_obj;
@@ -1033,7 +1039,7 @@ codeGen(std::vector<Block *> &blocks,
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMOutputSumOp>(op)) {
         codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMTransferOp>(op)) {
-        codeGen(_op, regmap, instr_list, _write, _read);
+        codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMSetOp>(op)) {
         codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::TransOp>(op)) {
@@ -1712,7 +1718,8 @@ struct CodeGenerationPass
         regmaps.second;
     LOG_DEBUG << "getRegisterMapping finish!";
 
-    LegacyInstructionWriter writer;
+    // LegacyInstructionWriter writer;
+    CIMFlowInstructionWriter writer;
 
     std::vector<Inst> instr_list;
     std::map<Block *, int> block2line;

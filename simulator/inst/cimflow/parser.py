@@ -139,6 +139,14 @@ class CIMFlowParser:
                 flag_outsum=inst["OSUM"],
                 flag_outsum_move=inst["OSUM_MOV"]
             )
+        elif opcode == 0b001100:
+            return CIMTransferInst(
+                reg_src_addr=inst["rs"],
+                reg_out_n=inst["rt"],
+                reg_out_mask_addr=inst["re"],
+                reg_buffer_addr=inst["rf"],
+                reg_dst_addr=inst["rd"]
+            )
         else:
             raise ValueError(f"Unknown opcode: {opcode}")
         
