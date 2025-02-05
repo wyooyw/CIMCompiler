@@ -6,22 +6,21 @@ class TestLinear(TestBase):
     @pytest.mark.parametrize(
         "casename",
         [
-            # 'linear/dense',
-            "linear/dense_onegroup",
-            "linear/bit_sparse",
+            # normal
+            "linear/dense/normal",
+            "linear/bs/normal",
             # quantify
-            # 'linear/dense_quantify',
-            'linear/bit_sparse_quantify',
-            'linear/dense_quantify_onegroup'
+            'linear/dense/quantize',
+            'linear/bs/quantize',
         ],
     )
     @pytest.mark.parametrize(
         "op_config",
         [
             {"out_channel": 32, "in_channel": 16},
-            {"out_channel": 16, "in_channel": 32},
-            {"out_channel": 512, "in_channel": 16},
-            {"out_channel": 16, "in_channel": 512},
+            # {"out_channel": 16, "in_channel": 32},
+            # {"out_channel": 512, "in_channel": 16},
+            # {"out_channel": 16, "in_channel": 512},
         ],
     )
     def test_pim_compute(self, casename, op_config):

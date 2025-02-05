@@ -6,7 +6,7 @@ class TestDWConvSIMD(TestBase):
     @pytest.mark.parametrize(
         "casename",
         [
-            'depthwise_conv'
+            'dwconv2d/simd'
         ],
     )
     @pytest.mark.parametrize(

@@ -7,7 +7,7 @@ class TestDWConvCIM(TestBase):
         "casename",
         [
             # quantify
-            "dense/dense_dwconv_group_quantify",
+            "dwconv2d/mvm",
         ],
     )
     @pytest.mark.parametrize(

@@ -167,7 +167,7 @@ class LegacyParser:
 
 if __name__ == "__main__":
     parser = LegacyParser()
-    with open("/home/wangyiou/project/cim_compiler_frontend/playground/op/depthwise_conv/.result/final_code.json", 'r') as file:
+    with open("/home/wangyiou/project/cim_compiler_frontend/playground/op/dwconv2d/simd/.result/final_code.json", 'r') as file:
         data = json.load(file)
     instructions = parser.parse(data)
     # dumper = LegacyDumper(instructions)
