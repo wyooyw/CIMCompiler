@@ -1,0 +1,843 @@
+[
+    {
+        "opcode": 44,
+        "rd": 1,
+        "imm": 25088
+    },
+    {
+        "opcode": 44,
+        "rd": 2,
+        "imm": 25602
+    },
+    {
+        "opcode": 44,
+        "rd": 3,
+        "imm": 16
+    },
+    {
+        "opcode": 44,
+        "rd": 4,
+        "imm": 1
+    },
+    {
+        "opcode": 44,
+        "rd": 5,
+        "imm": 0
+    },
+    {
+        "opcode": 44,
+        "rd": 6,
+        "imm": 25600
+    },
+    {
+        "opcode": 44,
+        "rd": 7,
+        "imm": 541232
+    },
+    {
+        "opcode": 44,
+        "rd": 8,
+        "imm": 25600
+    },
+    {
+        "opcode": 44,
+        "rd": 9,
+        "imm": 2
+    },
+    {
+        "opcode": 48,
+        "rs": 7,
+        "rt": 9,
+        "rd": 8,
+        "imm": 0
+    },
+    {
+        "opcode": 44,
+        "rd": 7,
+        "imm": 541234
+    },
+    {
+        "opcode": 44,
+        "rd": 8,
+        "imm": 25602
+    },
+    {
+        "opcode": 44,
+        "rd": 9,
+        "imm": 128
+    },
+    {
+        "opcode": 48,
+        "rs": 7,
+        "rt": 9,
+        "rd": 8,
+        "imm": 0
+    },
+    {
+        "opcode": 44,
+        "rd": 7,
+        "imm": 541362
+    },
+    {
+        "opcode": 44,
+        "rd": 8,
+        "imm": 25730
+    },
+    {
+        "opcode": 44,
+        "rd": 9,
+        "imm": 4
+    },
+    {
+        "opcode": 48,
+        "rs": 7,
+        "rt": 9,
+        "rd": 8,
+        "imm": 0
+    },
+    {
+        "opcode": 45,
+        "rd": 0,
+        "imm": 8
+    },
+    {
+        "opcode": 45,
+        "rd": 2,
+        "imm": 8
+    },
+    {
+        "opcode": 45,
+        "rd": 1,
+        "imm": 32
+    },
+    {
+        "opcode": 45,
+        "rd": 3,
+        "imm": 8
+    },
+    {
+        "opcode": 45,
+        "rd": 4,
+        "imm": 4
+    },
+    {
+        "opcode": 45,
+        "rd": 5,
+        "imm": 16
+    },
+    {
+        "opcode": 45,
+        "rd": 6,
+        "imm": 128
+    },
+    {
+        "opcode": 45,
+        "rd": 16,
+        "imm": 32
+    },
+    {
+        "opcode": 45,
+        "rd": 17,
+        "imm": 64
+    },
+    {
+        "opcode": 45,
+        "rd": 18,
+        "imm": 8
+    },
+    {
+        "opcode": 45,
+        "rd": 20,
+        "imm": 8
+    },
+    {
+        "opcode": 4,
+        "rs": 0,
+        "rt": 6,
+        "GRP_B": 1
+    },
+    {
+        "opcode": 44,
+        "rd": 6,
+        "imm": 539184
+    },
+    {
+        "opcode": 44,
+        "rd": 7,
+        "imm": 0
+    },
+    {
+        "opcode": 44,
+        "rd": 8,
+        "imm": 2048
+    },
+    {
+        "opcode": 48,
+        "rs": 6,
+        "rt": 8,
+        "rd": 7,
+        "imm": 0
+    },
+    {
+        "opcode": 44,
+        "rd": 6,
+        "imm": 16384
+    },
+    {
+        "opcode": 44,
+        "rd": 7,
+        "imm": 1
+    },
+    {
+        "opcode": 41,
+        "rs": 6,
+        "rt": 7,
+        "imm": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 5,
+        "rd": 0,
+        "funct": 0,
+        "imm": 0
+    },
+    {
+        "opcode": 60,
+        "imm": 1
+    },
+    {
+        "opcode": 44,
+        "rd": 6,
+        "imm": 6
+    },
+    {
+        "opcode": 32,
+        "rs": 0,
+        "rt": 6,
+        "rd": 7,
+        "funct": 15
+    },
+    {
+        "opcode": 59,
+        "rs": 0,
+        "rt": 6,
+        "imm": 2
+    },
+    {
+        "opcode": 60,
+        "imm": 96
+    },
+    {
+        "opcode": 36,
+        "rs": 0,
+        "rd": 8,
+        "funct": 2,
+        "imm": 72
+    },
+    {
+        "opcode": 36,
+        "rs": 8,
+        "rd": 8,
+        "funct": 0,
+        "imm": 538752
+    },
+    {
+        "opcode": 44,
+        "rd": 9,
+        "imm": 25734
+    },
+    {
+        "opcode": 44,
+        "rd": 10,
+        "imm": 144
+    },
+    {
+        "opcode": 48,
+        "rs": 8,
+        "rt": 10,
+        "rd": 9,
+        "imm": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 5,
+        "rd": 6,
+        "funct": 0,
+        "imm": 0
+    },
+    {
+        "opcode": 60,
+        "imm": 1
+    },
+    {
+        "opcode": 44,
+        "rd": 8,
+        "imm": 6
+    },
+    {
+        "opcode": 32,
+        "rs": 6,
+        "rt": 8,
+        "rd": 9,
+        "funct": 15
+    },
+    {
+        "opcode": 59,
+        "rs": 6,
+        "rt": 8,
+        "imm": 2
+    },
+    {
+        "opcode": 60,
+        "imm": 82
+    },
+    {
+        "opcode": 44,
+        "rd": 11,
+        "imm": 16384
+    },
+    {
+        "opcode": 40,
+        "rs": 11,
+        "rt": 11,
+        "imm": 0
+    },
+    {
+        "opcode": 32,
+        "rs": 4,
+        "rt": 11,
+        "rd": 11,
+        "funct": 1
+    },
+    {
+        "opcode": 44,
+        "rd": 13,
+        "imm": 16384
+    },
+    {
+        "opcode": 41,
+        "rs": 13,
+        "rt": 11,
+        "imm": 0
+    },
+    {
+        "opcode": 44,
+        "rd": 13,
+        "imm": 16384
+    },
+    {
+        "opcode": 44,
+        "rd": 14,
+        "imm": 0
+    },
+    {
+        "opcode": 41,
+        "rs": 13,
+        "rt": 14,
+        "imm": 4
+    },
+    {
+        "opcode": 36,
+        "rs": 6,
+        "rd": 13,
+        "funct": 2,
+        "imm": 9
+    },
+    {
+        "opcode": 36,
+        "rs": 13,
+        "rd": 14,
+        "funct": 0,
+        "imm": 25734
+    },
+    {
+        "opcode": 36,
+        "rs": 11,
+        "rd": 12,
+        "funct": 2,
+        "imm": 512
+    },
+    {
+        "opcode": 36,
+        "rs": 12,
+        "rd": 15,
+        "funct": 0,
+        "imm": 418816
+    },
+    {
+        "opcode": 44,
+        "rd": 16,
+        "imm": 27
+    },
+    {
+        "opcode": 48,
+        "rs": 14,
+        "rt": 16,
+        "rd": 15,
+        "imm": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 13,
+        "rd": 14,
+        "funct": 0,
+        "imm": 25806
+    },
+    {
+        "opcode": 36,
+        "rs": 11,
+        "rd": 11,
+        "funct": 2,
+        "imm": 4
+    },
+    {
+        "opcode": 36,
+        "rs": 11,
+        "rd": 11,
+        "funct": 2,
+        "imm": 128
+    },
+    {
+        "opcode": 36,
+        "rs": 11,
+        "rd": 15,
+        "funct": 0,
+        "imm": 418944
+    },
+    {
+        "opcode": 44,
+        "rd": 16,
+        "imm": 27
+    },
+    {
+        "opcode": 48,
+        "rs": 14,
+        "rt": 16,
+        "rd": 15,
+        "imm": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 13,
+        "rd": 14,
+        "funct": 0,
+        "imm": 25743
+    },
+    {
+        "opcode": 36,
+        "rs": 11,
+        "rd": 15,
+        "funct": 0,
+        "imm": 419072
+    },
+    {
+        "opcode": 44,
+        "rd": 16,
+        "imm": 27
+    },
+    {
+        "opcode": 48,
+        "rs": 14,
+        "rt": 16,
+        "rd": 15,
+        "imm": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 13,
+        "rd": 13,
+        "funct": 0,
+        "imm": 25815
+    },
+    {
+        "opcode": 36,
+        "rs": 11,
+        "rd": 11,
+        "funct": 0,
+        "imm": 419200
+    },
+    {
+        "opcode": 44,
+        "rd": 14,
+        "imm": 27
+    },
+    {
+        "opcode": 48,
+        "rs": 13,
+        "rt": 14,
+        "rd": 11,
+        "imm": 0
+    },
+    {
+        "opcode": 44,
+        "rd": 11,
+        "imm": 16384
+    },
+    {
+        "opcode": 40,
+        "rs": 11,
+        "rt": 11,
+        "imm": 4
+    },
+    {
+        "opcode": 36,
+        "rs": 5,
+        "rd": 8,
+        "funct": 0,
+        "imm": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 11,
+        "rd": 10,
+        "funct": 0,
+        "imm": 0
+    },
+    {
+        "opcode": 60,
+        "imm": 1
+    },
+    {
+        "opcode": 44,
+        "rd": 11,
+        "imm": 27
+    },
+    {
+        "opcode": 32,
+        "rs": 8,
+        "rt": 11,
+        "rd": 13,
+        "funct": 15
+    },
+    {
+        "opcode": 59,
+        "rs": 8,
+        "rt": 11,
+        "imm": 2
+    },
+    {
+        "opcode": 60,
+        "imm": 12
+    },
+    {
+        "opcode": 36,
+        "rs": 8,
+        "rd": 11,
+        "funct": 0,
+        "imm": 16
+    },
+    {
+        "opcode": 36,
+        "rs": 11,
+        "rd": 11,
+        "funct": 8,
+        "imm": 27
+    },
+    {
+        "opcode": 32,
+        "rs": 11,
+        "rt": 8,
+        "rd": 11,
+        "funct": 1
+    },
+    {
+        "opcode": 32,
+        "rs": 12,
+        "rt": 8,
+        "rd": 14,
+        "funct": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 14,
+        "rd": 14,
+        "funct": 0,
+        "imm": 418816
+    },
+    {
+        "opcode": 0,
+        "rs": 14,
+        "rt": 11,
+        "re": 10,
+        "SP_V": 0,
+        "SP_B": 0,
+        "GRP": 1,
+        "GRP_I": 0,
+        "ACC": 1
+    },
+    {
+        "opcode": 36,
+        "rs": 10,
+        "rd": 11,
+        "funct": 0,
+        "imm": 1
+    },
+    {
+        "opcode": 36,
+        "rs": 8,
+        "rd": 14,
+        "funct": 0,
+        "imm": 16
+    },
+    {
+        "opcode": 36,
+        "rs": 14,
+        "rd": 8,
+        "funct": 0,
+        "imm": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 11,
+        "rd": 10,
+        "funct": 0,
+        "imm": 0
+    },
+    {
+        "opcode": 60,
+        "imm": -14
+    },
+    {
+        "opcode": 44,
+        "rd": 11,
+        "imm": 16384
+    },
+    {
+        "opcode": 41,
+        "rs": 11,
+        "rt": 10,
+        "imm": 4
+    },
+    {
+        "opcode": 44,
+        "rd": 11,
+        "imm": 16
+    },
+    {
+        "opcode": 44,
+        "rd": 12,
+        "imm": 0
+    },
+    {
+        "opcode": 44,
+        "rd": 14,
+        "imm": 419840
+    },
+    {
+        "opcode": 8,
+        "rs": 11,
+        "rt": 12,
+        "rd": 14,
+        "OSUM": 0,
+        "OSUM_MOV": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 5,
+        "rd": 8,
+        "funct": 0,
+        "imm": 0
+    },
+    {
+        "opcode": 60,
+        "imm": 1
+    },
+    {
+        "opcode": 44,
+        "rd": 10,
+        "imm": 4
+    },
+    {
+        "opcode": 32,
+        "rs": 8,
+        "rt": 10,
+        "rd": 11,
+        "funct": 15
+    },
+    {
+        "opcode": 59,
+        "rs": 8,
+        "rt": 10,
+        "imm": 2
+    },
+    {
+        "opcode": 60,
+        "imm": 19
+    },
+    {
+        "opcode": 36,
+        "rs": 8,
+        "rd": 10,
+        "funct": 2,
+        "imm": 64
+    },
+    {
+        "opcode": 36,
+        "rs": 10,
+        "rd": 10,
+        "funct": 0,
+        "imm": 419840
+    },
+    {
+        "opcode": 44,
+        "rd": 12,
+        "imm": 25088
+    },
+    {
+        "opcode": 44,
+        "rd": 14,
+        "imm": 64
+    },
+    {
+        "opcode": 48,
+        "rs": 10,
+        "rt": 14,
+        "rd": 12,
+        "imm": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 8,
+        "rd": 10,
+        "funct": 3,
+        "imm": 2
+    },
+    {
+        "opcode": 36,
+        "rs": 8,
+        "rd": 12,
+        "funct": 7,
+        "imm": 2
+    },
+    {
+        "opcode": 32,
+        "rs": 6,
+        "rt": 10,
+        "rd": 10,
+        "funct": 0
+    },
+    {
+        "opcode": 32,
+        "rs": 0,
+        "rt": 12,
+        "rd": 12,
+        "funct": 0
+    },
+    {
+        "opcode": 45,
+        "rd": 21,
+        "imm": 25730
+    },
+    {
+        "opcode": 36,
+        "rs": 10,
+        "rd": 10,
+        "funct": 2,
+        "imm": 6
+    },
+    {
+        "opcode": 32,
+        "rs": 10,
+        "rt": 12,
+        "rd": 10,
+        "funct": 0
+    },
+    {
+        "opcode": 36,
+        "rs": 10,
+        "rd": 10,
+        "funct": 2,
+        "imm": 16
+    },
+    {
+        "opcode": 36,
+        "rs": 10,
+        "rd": 10,
+        "funct": 0,
+        "imm": 156672
+    },
+    {
+        "opcode": 24,
+        "rs": 1,
+        "rt": 2,
+        "rd": 10,
+        "re": 3,
+        "funct": 3
+    },
+    {
+        "opcode": 36,
+        "rs": 8,
+        "rd": 10,
+        "funct": 0,
+        "imm": 1
+    },
+    {
+        "opcode": 36,
+        "rs": 10,
+        "rd": 8,
+        "funct": 0,
+        "imm": 0
+    },
+    {
+        "opcode": 60,
+        "imm": -21
+    },
+    {
+        "opcode": 36,
+        "rs": 6,
+        "rd": 8,
+        "funct": 0,
+        "imm": 2
+    },
+    {
+        "opcode": 36,
+        "rs": 8,
+        "rd": 6,
+        "funct": 0,
+        "imm": 0
+    },
+    {
+        "opcode": 60,
+        "imm": -84
+    },
+    {
+        "opcode": 36,
+        "rs": 0,
+        "rd": 6,
+        "funct": 0,
+        "imm": 2
+    },
+    {
+        "opcode": 36,
+        "rs": 6,
+        "rd": 0,
+        "funct": 0,
+        "imm": 0
+    },
+    {
+        "opcode": 60,
+        "imm": -98
+    },
+    {
+        "opcode": 44,
+        "rd": 0,
+        "imm": 156672
+    },
+    {
+        "opcode": 44,
+        "rd": 1,
+        "imm": 541366
+    },
+    {
+        "opcode": 44,
+        "rd": 2,
+        "imm": 576
+    },
+    {
+        "opcode": 48,
+        "rs": 0,
+        "rt": 2,
+        "rd": 1,
+        "imm": 0
+    }
+]
