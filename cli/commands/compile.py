@@ -27,8 +27,8 @@ def to_abs_path(path, parent=os.getcwd()):
 
 def run_compile(args):
     input_file = to_abs_path(args.input_file)
-    output_path = to_abs_path(args.output_path)
-    config_path = to_abs_path(args.config_path)
+    output_path = to_abs_path(args.output_dir)
+    config_path = to_abs_path(args.config_file)
 
     os.makedirs(output_path, exist_ok=True)
 

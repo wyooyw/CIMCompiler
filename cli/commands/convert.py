@@ -2,6 +2,14 @@ import argparse
 import os
 
 from utils.logger import get_logger
+from simulator.inst import (
+    LegacyParser,
+    LegacyDumper,
+    AsmParser,
+    AsmDumper,
+    CIMFlowParser,
+    CIMFlowDumper
+)
 
 logger = get_logger("cli/convert")
 
