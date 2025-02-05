@@ -13,6 +13,8 @@ from simulator.simulator import Memory, MemorySpace, Simulator, SpecialReg
 from utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
 from simulator.inst import CIMFlowParser
 
+import tempfile
+
 class TestBase:
 
     @classmethod
@@ -29,81 +31,75 @@ class TestBase:
         op_base_dir = os.path.join(os.environ["CIM_COMPILER_BASE"], "op")
         case_dir = os.path.join(op_base_dir, casename)
         code_template_path = os.path.join(case_dir, "code_template.cim")
-        code_path = os.path.join(case_dir, "code.cim")
         test_helper_path = os.path.join(case_dir, "helper.py")
         assert os.path.exists(code_template_path), f"{code_template_path} not exists"
         assert os.path.exists(test_helper_path), f"{test_helper_path} not exists"
 
-        output_folder = os.path.join(case_dir, ".result")
-        os.makedirs(output_folder, exist_ok=True)
+        with tempfile.TemporaryDirectory() as output_folder:
 
-        # If there is already files in .result, remove them, to make sure not execute old codes.
-        for filename in os.listdir(output_folder):
-            file_path = os.path.join(output_folder, filename)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-        # return
-        # Get helper
-        with open(test_helper_path, "r") as file:
-            code = file.read()
-        local_namespace = {}
-        exec(code, {}, local_namespace)
-        Helper = local_namespace["TestHelper"]
-        helper = Helper(op_config)
+            code_path = os.path.join(output_folder, "code.cim")
 
-        # load image
-        image = helper.get_image(self.simulator)
-        with open(os.path.join(output_folder, "global_image"), "wb") as file:
-            file.write(image)
-        with open(os.path.join(output_folder, "global_image"), "rb") as file:
-            image = bytearray(file.read())
-        global_memory_base = self.simulator.memory_space.get_base_of("global")
-        self.simulator.memory_space.write(image, global_memory_base, len(image))
+            # Get helper
+            with open(test_helper_path, "r") as file:
+                code = file.read()
+            local_namespace = {}
+            exec(code, {}, local_namespace)
+            Helper = local_namespace["TestHelper"]
+            helper = Helper(op_config)
 
-        # fill code template
-        helper.fill_template(code_template_path, code_path, self.simulator)
-        # return
+            # load image
+            image = helper.get_image(self.simulator)
+            with open(os.path.join(output_folder, "global_image"), "wb") as file:
+                file.write(image)
+            with open(os.path.join(output_folder, "global_image"), "rb") as file:
+                image = bytearray(file.read())
+            global_memory_base = self.simulator.memory_space.get_base_of("global")
+            self.simulator.memory_space.write(image, global_memory_base, len(image))
 
-        # register debug hook
-        # self.simulator.debug_hook = partial(debug_hook, helper=helper)
+            # fill code template
+            helper.fill_template(code_template_path, code_path, self.simulator)
+            # return
 
-        # run compiler
-        cmd = f"bash compile.sh isa {code_path} {output_folder} {self.config_path}"
-        result = subprocess.run(cmd.split(" "), text=True)
-        # print("输出:", result.stdout)
-        # print("错误:", result.stderr)
-        assert result.returncode == 0
-        # return
-        # get output code
-        output_path = os.path.join(output_folder, "final_code.json")
-        with open(output_path, "r") as f:
-            code = json.load(f)
-        cimflow_parser = CIMFlowParser()
-        code = cimflow_parser.parse(code)
+            # register debug hook
+            # self.simulator.debug_hook = partial(debug_hook, helper=helper)
 
-        # run code in simulator
-        # pimcompute_count = predict_pimcompute_count_for_conv2d_dense(
-        #     self.simulator.macro_config, op_config, group_size=16
-        # )
-        status, stats, flat = self.simulator.run_code(
-            code, total_pim_compute_count=pimcompute_count
-        )
-        assert status == self.simulator.FINISH
+            # run compiler
+            cmd = f"bash compile.sh isa {code_path} {output_folder} {self.config_path}"
+            result = subprocess.run(cmd.split(" "), text=True)
+            # print("输出:", result.stdout)
+            # print("错误:", result.stderr)
+            assert result.returncode == 0
+            # return
+            # get output code
+            output_path = os.path.join(output_folder, "final_code.json")
+            with open(output_path, "r") as f:
+                code = json.load(f)
+            cimflow_parser = CIMFlowParser()
+            code = cimflow_parser.parse(code)
 
-        # check result
-        # print_record = self.simulator.print_record
-        stats.dump(output_folder)
-        flat.dump(output_folder)
-        helper.check_image(self.simulator.memory_space)
+            # run code in simulator
+            # pimcompute_count = predict_pimcompute_count_for_conv2d_dense(
+            #     self.simulator.macro_config, op_config, group_size=16
+            # )
+            status, stats, flat = self.simulator.run_code(
+                code, total_pim_compute_count=pimcompute_count
+            )
+            assert status == self.simulator.FINISH
 
-        # run flat code
-        flat_code = flat.get_flat_code()
-        self.simulator.clear()
-        self.simulator.memory_space.write(image, global_memory_base, len(image))
-        # self.simulator._read_reg_value_directly = True
-        status, stats, flat = self.simulator.run_code(
-            flat_code, total_pim_compute_count=pimcompute_count, record_flat=False
-        )
-        assert status == self.simulator.FINISH
-        stats.dump(output_folder, prefix="flat_")
-        helper.check_image(self.simulator.memory_space)
+            # check result
+            # print_record = self.simulator.print_record
+            stats.dump(output_folder)
+            flat.dump(output_folder)
+            helper.check_image(self.simulator.memory_space)
+
+            # run flat code
+            flat_code = flat.get_flat_code()
+            self.simulator.clear()
+            self.simulator.memory_space.write(image, global_memory_base, len(image))
+            # self.simulator._read_reg_value_directly = True
+            status, stats, flat = self.simulator.run_code(
+                flat_code, total_pim_compute_count=pimcompute_count, record_flat=False
+            )
+            assert status == self.simulator.FINISH
+            stats.dump(output_folder, prefix="flat_")
+            helper.check_image(self.simulator.memory_space)
