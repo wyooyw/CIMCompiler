@@ -63,7 +63,8 @@ class AsmDumper:
             return f"{op_name} r{inst.reg_out}, r{inst.reg_in}, {inst.imm}"
         elif isinstance(inst, SIMDInst):
             op_name = self._simd_funct_to_name(inst.opcode)
-            return f"{op_name} r{inst.reg_out}, r{inst.reg_in1}, r{inst.reg_in2}, r{inst.reg_size}, {inst.input_num}"
+            input_num = inst.input_num - 1
+            return f"{op_name} r{inst.reg_out}, r{inst.reg_in1}, r{inst.reg_in2}, r{inst.reg_size}, {input_num}"
         elif isinstance(inst, TransInst):
             terms = [f"r{inst.reg_out}", f"r{inst.reg_in}", f"r{inst.reg_size}", f"{inst.offset}"]
             if inst.flag_src_offset:

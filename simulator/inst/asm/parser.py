@@ -132,6 +132,7 @@ class AsmParser:
             return RIInst(opcode=opcode, reg_in=reg_in, reg_out=reg_out, imm=imm)
         elif op_name.startswith("VEC_"):
             reg_out, reg_in1, reg_in2, reg_size, input_num = match_asm_args(args, ['reg', 'reg', 'reg', 'reg', 'imm'])
+            input_num = input_num + 1
             opcode = self._name_to_simd_funct(op_name)
             return SIMDInst(opcode=opcode, reg_in1=reg_in1, reg_in2=reg_in2, reg_size=reg_size, reg_out=reg_out, input_num=input_num)
         elif op_name == "MEM_CPY":
