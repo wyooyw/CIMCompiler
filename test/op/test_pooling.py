@@ -1,5 +1,5 @@
 import pytest
-from test.compiler.pimcompute.base import TestBase
+from test.op.base import TestBase
 
 class TestPooling(TestBase):
 

@@ -1,20 +1,20 @@
 import pytest
-from test.compiler.pimcompute.base import TestBase
+from test.op.base import TestBase
 
-class TestResMulQuantize(TestBase):
+class TestResAddQuantize(TestBase):
 
     @pytest.mark.parametrize(
         "casename",
         [
-            'resmul_quantize'
+            'resadd_quantize'
         ],
     )
     @pytest.mark.parametrize(
         "op_config",
         [
             {"in_channel": 4, "in_hw": 8},
-            # {"in_channel": 32, "in_hw": 32},
+            {"in_channel": 32, "in_hw": 32},
         ],
     )
-    def test_resmul(self, casename, op_config):
+    def test_pim_compute(self, casename, op_config):
         self.run_op_test(casename, op_config)
