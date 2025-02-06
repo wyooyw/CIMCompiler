@@ -1,0 +1,232 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+
+// input
+#define INPUT_ROW {{ INPUT_ROW }}
+#define INPUT_COL {{ INPUT_COL }}
+#define INPUT_CHANNEL {{ INPUT_CHANNEL }}
+
+#define OUTPUT_ROW {{ OUTPUT_ROW }}
+#define OUTPUT_COL {{ OUTPUT_COL }}
+#define OUTPUT_CHANNEL {{ OUTPUT_CHANNEL }}
+
+#define KERNEL_SIZE {{ KERNEL_SIZE }}
+#define PADDING {{ PADDING }}
+
+#define N_MACRO_PER_GROUP {{ N_MACRO_PER_GROUP }}
+#define N_MACRO {{ N_MACRO }}
+#define N_VCOL {{ N_VCOL }}
+#define N_GROUP_VCOL {{ N_GROUP_VCOL }}
+#define N_GROUP {{ N_GROUP }}
+#define N_USE_GROUP {{ N_USE_GROUP }}
+#define N_ROW {{ N_ROW }}
+#define N_COMP {{ N_COMP }}
+#define N_MACRO_REDUCE {{ N_MACRO_REDUCE }} // N_ROW * N_COMP = 64 * 16 = 1024;
+
+#define INPUT_BUFFER_SIZE_PER_GROUP {{ INPUT_BUFFER_SIZE_PER_GROUP }}
+
+#define OUT_SPATIAL_TILE {{ OUT_SPATIAL_TILE }}
+#define OUT_REDUCE_TILE {{ OUT_REDUCE_TILE }}
+{% if IM2COL %}
+    {% include 'op/common/input_loader_im2col.cim' %}
+{% else %}
+    {% include 'op/common/input_loader.cim' %}
+{% endif %}
+
+
+def main(){
+    // prepare input and weight
+    {% if IM2COL %}
+        global_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __GLOBAL__);
+    {% else %}
+        global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
+    {% endif %}
+    global_weight = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __GLOBAL__);
+    
+    global_pimset_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_VCOL>, int1, __GLOBAL__);
+    local_pimset_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_VCOL>, int1, __INPUT_MEMORY__);
+    Trans(global_pimset_mask, local_pimset_mask);
+
+    // prepare output buffers
+    global_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
+    local_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, {{ LOCAL_OUTPUT_CHANNEL }}>, int32, __OUTPUT_MEMORY__);
+
+    // Copy input and index into local memory
+    {% if IM2COL %}
+        {% if IM2COL_SMALL_INPUT_MEMORY %}
+            local_input = Buffer(<2, {{IM2COL_SIZE_1}}>, int8, __INPUT_MEMORY__);
+        {% else %}
+            local_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __INPUT_MEMORY__);
+            Trans(global_input, local_input);
+        {% endif %}
+    {% else %}
+        local_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+        Trans(global_input, local_input);
+    {% endif %}
+    // Trans(global_input, local_input);
+
+    // Prepare memory's that will be used
+    
+    // PIM input reg buffer, it is a double-buffer. Each group use 128 byte, total 4 groups.
+    pim_input_reg_buffer = Buffer(<2,N_GROUP,INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__);
+
+    // PIM output reg buffer, it's capacity is 4096 bytes, but we use it to store int32 data, so the buffer's shape is 1024
+    pim_output_reg_buffer = Buffer(<1024>, int32, __PIM_OUTPUT_REG_BUFFER__);
+    
+    // Macros
+    macros = Buffer(<N_ROW, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __MACRO__);
+
+    // Spill
+    local_spill = Buffer(<4>, index, __INDEX_MEMORY__);
+
+    // a blank buffer used to clear other buffer
+    local_blank = Buffer(<N_GROUP_VCOL>, int32, __BLANK_MEMORY__);
+    local_output_for_temp_sum = Buffer(<N_GROUP_VCOL>, int32, __TEMP_SUM_MEMORY__);
+
+    // TODO: Add 'SPECIAL_REG_' prefix for these macro.
+    SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_GROUP_SIZE, N_MACRO_PER_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, N_USE_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, N_GROUP_VCOL);
+    SpecialRegSet(SPECIAL_REG_GROUP_INPUT_STEP, INPUT_BUFFER_SIZE_PER_GROUP);
+
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+
+    // out_channel_outer_tile_size = OUTPUT_CHANNEL/N_GROUP_VCOL;
+    for out_channel_begin in range(0, OUTPUT_CHANNEL, N_GROUP_VCOL) carry () {
+        out_channel_end = Min(out_channel_begin + N_GROUP_VCOL, OUTPUT_CHANNEL);
+        out_channel_len = out_channel_end - out_channel_begin;
+        out_tile_i = out_channel_begin / N_GROUP_VCOL;
+
+        use_pimset_mask = global_pimset_mask[out_tile_i:out_tile_i+1,0:N_GROUP_VCOL];
+        CIMSet(use_pimset_mask);
+
+        inner_reduce_tile_size = N_ROW;
+        for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (){
+
+            out_reduce_end = Min(out_reduce_begin + inner_reduce_tile_size, OUT_REDUCE_TILE);
+            out_reduce_len = out_reduce_end - out_reduce_begin;
+
+            // Step 1: Prepare weight
+            // notice that weight.shape = <TIME, N_TO, N_GROUP, N_MACRO_PER_GROUP, N_VCOL>
+            use_weight = global_weight[
+                out_tile_i:out_tile_i+1, 
+                out_reduce_begin:out_reduce_end,
+                0:N_COMP,
+                0:N_GROUP,
+                0:N_GROUP_VCOL
+            ];
+            use_macros = macros[0:out_reduce_len, 0:N_COMP, 0:N_GROUP, 0:N_GROUP_VCOL];
+            Trans(use_weight, use_macros);
+
+            // Iter over output's height and width
+            // Notice that we have 4 group, so each time we deal with 4 pixel in a square.
+            // So, the 'step' of oh and ow is 2.
+            double_buffer_id = 1;
+            Save(local_spill, [0], double_buffer_id);
+            for ow in range(0,OUTPUT_COL,2) carry() {
+                {% if IM2COL_SMALL_INPUT_MEMORY %}
+                    use_global_input = global_input[ow:ow+2,0:{{IM2COL_SIZE_1}}];
+                    Trans(use_global_input, local_input);
+                {% endif %}
+                for oh in range(0,OUTPUT_ROW,2) carry() {
+                    // Double buffer index
+                    double_buffer_id = Load(local_spill, [0]);
+                    double_buffer_id = 1 - double_buffer_id;
+                    Save(local_spill, [0], double_buffer_id);
+
+                    // Step 3: Prepare input
+                    use_input_buffer = pim_input_reg_buffer[
+                        double_buffer_id:double_buffer_id+1,
+                        0:N_GROUP,
+                        0:INPUT_BUFFER_SIZE_PER_GROUP
+                    ];
+                    
+                    // iter over a sliding window : KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL
+                    t_ = KERNEL_SIZE * KERNEL_SIZE;
+                    sliding_window_size = t_ * INPUT_CHANNEL;
+                    row_to_activate = 0;
+                    Save(local_spill, [1], row_to_activate);
+
+                    begin_tile_in_window = out_reduce_begin * N_COMP;
+                    tile_size_in_window = N_ROW * N_COMP;
+                    end_tile_in_window = Min(sliding_window_size, begin_tile_in_window + tile_size_in_window);
+                    //Print(begin_tile_in_window);
+                    //Print(end_tile_in_window);
+                    //Debug();
+                    for i_tile_in_window in range(begin_tile_in_window, end_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP) carry(){
+                        copy_input_to_input_buffer_for_all_group(
+                            local_input, 
+                            use_input_buffer,
+                            oh,
+                            {% if IM2COL_SMALL_INPUT_MEMORY %} 0 {% else %} ow {% endif %},
+                            i_tile_in_window
+                        );
+
+                        // Step 4: comsume all 128(or less) input data
+                        useful_input_len = Min(sliding_window_size - i_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP);
+                        row_to_activate = Load(local_spill, [1]);
+                        for input_begin_in_buffer in range(0, useful_input_len, N_COMP) carry (row_to_activate){
+                            {% if KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL % N_COMP == 0 %}
+                                input_len = N_COMP;
+                            {% else %}
+                                input_end_in_buffer = Min(input_begin_in_buffer + N_COMP, useful_input_len);
+                                input_len = input_end_in_buffer - input_begin_in_buffer;
+                            {% endif %}
+                            //Print(useful_input_len);
+                            //Print(row_to_activate);
+                            // activate macro
+                            activate_macro = use_macros[row_to_activate:row_to_activate+1, 0:N_COMP, 0:N_GROUP, 0:N_GROUP_VCOL];
+                            
+                            // this is an uncontinous subview!!!
+                            compute_use_input_buffer = use_input_buffer[0:1, 0:N_GROUP, input_begin_in_buffer:input_begin_in_buffer+input_len];
+                            
+                            CIMComputeDense(compute_use_input_buffer, activate_macro);
+                            
+                            row_to_activate = row_to_activate + 1;
+                        };
+                        Save(local_spill, [1], row_to_activate);
+                    };
+                    CIMOutput(N_GROUP_VCOL, 0, pim_output_reg_buffer);
+
+                    // TODO: unroll this loop
+                    for group_i in range(N_USE_GROUP) carry (){
+                        t_ = group_i * N_GROUP_VCOL;
+                        output_buffer_group_i = pim_output_reg_buffer[t_:t_ + out_channel_len];
+                        use_local_output_for_temp_sum = local_output_for_temp_sum[0:out_channel_len];
+                        Trans(output_buffer_group_i, use_local_output_for_temp_sum);
+                        
+                        delta_h = group_i / 2;
+                        delta_w = group_i % 2;
+                        oh_ = oh+delta_h;
+                        ow_ = ow+delta_w;
+                        use_local_output_i32 = local_output_i32[oh_:oh_+1, ow_:ow_+1, 0:out_channel_len];
+
+                        {% if SINGLE_OUTER_REDUCE == 1 %}
+                            Trans(use_local_output_for_temp_sum, use_local_output_i32);
+                        {% else %}
+                            SIMD(VVADD, use_local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
+                        {% endif %}
+                    };
+                };
+            };
+        };
+        {% if FAST_MODE %}
+            Trans(local_output_i32, global_output_i32);
+        {% else %}
+            for oh in range(OUTPUT_ROW) carry (){
+                for ow in range(OUTPUT_COL) carry (){
+                    use_local_output_i32 = local_output_i32[oh:oh+1, ow:ow+1, 0:out_channel_len];
+                    use_global_output_i32 = global_output_i32[oh:oh+1, ow:ow+1, out_channel_begin:out_channel_begin+out_channel_len];
+                    Trans(use_local_output_i32, use_global_output_i32);
+                    use_blank = local_blank[0:out_channel_len];
+                    Trans(use_blank, use_local_output_i32);
+                };
+            };
+        {% endif %}
+    };
+}

@@ -20,7 +20,7 @@ Inst LegacyInstructionWriter::getSpecialLIInst(int reg, int value) {
     };
 }
 
-Inst LegacyInstructionWriter::getArithInst(int opcode, int reg_in1, int reg_in2, int reg_out) {
+Inst LegacyInstructionWriter::getRRInst(int opcode, int reg_in1, int reg_in2, int reg_out) {
     return {
         {"class", 0b10}, 
         {"type", 0b00}, 

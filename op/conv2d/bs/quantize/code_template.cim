@@ -1,0 +1,332 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+{% include 'op/common/quantize.cim' %}
+
+// input
+#define INPUT_ROW {{ INPUT_ROW }}
+#define INPUT_COL {{ INPUT_COL }}
+#define INPUT_CHANNEL {{ INPUT_CHANNEL }}
+
+#define OUTPUT_ROW {{ OUTPUT_ROW }}
+#define OUTPUT_COL {{ OUTPUT_COL }}
+#define OUTPUT_CHANNEL {{ OUTPUT_CHANNEL }}
+
+#define KERNEL_SIZE {{ KERNEL_SIZE }}
+#define PADDING {{ PADDING }}
+
+#define N_MACRO_PER_GROUP {{ N_MACRO_PER_GROUP }}
+#define N_MACRO {{ N_MACRO }}
+#define N_VCOL {{ N_VCOL }}
+#define N_GROUP_VCOL {{ N_GROUP_VCOL }}
+#define N_GROUP_BCOL {{ N_GROUP_BCOL }}
+#define N_GROUP {{ N_GROUP }}
+#define N_USE_GROUP {{ N_USE_GROUP }}
+#define N_ROW {{ N_ROW }}
+#define N_COMP {{ N_COMP }}
+#define N_MACRO_REDUCE {{ N_MACRO_REDUCE }} // N_ROW * N_COMP = 64 * 16 = 1024;
+
+#define INPUT_BUFFER_SIZE_PER_GROUP {{ INPUT_BUFFER_SIZE_PER_GROUP }}
+
+#define OUT_SPATIAL_TILE {{ OUT_SPATIAL_TILE }}
+#define OUT_REDUCE_TILE {{ OUT_REDUCE_TILE }}
+
+#define BIT_SPARSE_META_BASE_ADDR {{ BIT_SPARSE_META_BASE_ADDR }}
+
+#define OUT_CHANNEL_BEGIN_LEN {{ OUT_CHANNEL_BEGIN_LEN }}
+#define MAX_OUTER_SPATIEL_TILE_SIZE {{ MAX_OUTER_SPATIEL_TILE_SIZE }}
+
+{% if IM2COL %}
+    {% include 'op/common/input_loader_im2col.cim' %}
+{% else %}
+    {% include 'op/common/input_loader.cim' %}
+{% endif %}
+
+
+def main(){
+    // input, weight, mask and index will be prepared in memory image
+    {% if IM2COL %}
+        global_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __GLOBAL__);
+    {% else %}
+        global_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __GLOBAL__);
+    {% endif %}
+    global_weight = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __GLOBAL__);
+    
+    global_meta = Buffer(<OUT_SPATIAL_TILE, OUT_REDUCE_TILE, N_COMP, N_GROUP_BCOL, 3>, int1, __GLOBAL__);
+    global_outsum_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
+    global_transfer_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
+    global_pimset_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __GLOBAL__);
+    global_out_channel_begin = Buffer(<OUT_CHANNEL_BEGIN_LEN>, index, __GLOBAL__);
+    local_outsum_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __INPUT_MEMORY__);
+    local_transfer_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __INPUT_MEMORY__);
+    local_pimset_mask = Buffer(<OUT_SPATIAL_TILE, N_GROUP_BCOL>, int1, __INPUT_MEMORY__);
+    local_out_channel_begin = Buffer(<OUT_CHANNEL_BEGIN_LEN>, index, __INDEX_MEMORY__);
+    Trans(global_outsum_mask, local_outsum_mask);
+    Trans(global_transfer_mask, local_transfer_mask);
+    Trans(global_pimset_mask, local_pimset_mask);
+    Trans(global_out_channel_begin, local_out_channel_begin);
+
+    // prepare quantify buffers
+    global_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __GLOBAL__);
+    global_out_zp = Buffer(<1>, int32, __GLOBAL__);
+    local_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__);
+    local_out_zp = Buffer(<1>, int32, __INPUT_MEMORY__);
+    Trans(global_bias_scale, local_bias_scale);
+    Trans(global_out_zp, local_out_zp);
+
+    global_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __GLOBAL__);
+    local_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
+    local_output_for_temp_sum = Buffer(<N_GROUP_BCOL>, int32, __TEMP_SUM_MEMORY__);
+    {% if SINGLE_OUTER_REDUCE == 0 %}
+        local_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, MAX_OUTER_SPATIEL_TILE_SIZE>, int32, __OUTPUT_MEMORY__);
+    {% endif %}
+
+    // a blank buffer used to clear other buffer
+    local_blank = Buffer(<N_GROUP_BCOL>, int32, __BLANK_MEMORY__);
+
+    // Copy input and index into local memory
+    {% if IM2COL %}
+        {% if IM2COL_SMALL_INPUT_MEMORY %}
+            local_input = Buffer(<2, {{IM2COL_SIZE_1}}>, int8, __INPUT_MEMORY__);
+        {% else %}
+            local_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}>, int8, __INPUT_MEMORY__);
+            Trans(global_input, local_input);
+        {% endif %}
+    {% else %}
+        local_input = Buffer(<INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+        Trans(global_input, local_input);
+    {% endif %}
+
+    // Prepare memory's that will be used
+    
+    
+    // PIM input reg buffer, it is a double-buffer. Each group use 128 byte, total 4 groups.
+    pim_input_reg_buffer = Buffer(<2,N_GROUP,INPUT_BUFFER_SIZE_PER_GROUP>, int8, __PIM_INPUT_REG_BUFFER__);
+
+    // PIM output reg buffer, it's capacity is 4096 bytes, but we use it to store int32 data, so the buffer's shape is 1024
+    pim_output_reg_buffer = Buffer(<1024>, int32, __PIM_OUTPUT_REG_BUFFER__);
+    
+    // Macros
+    macros = Buffer(<N_ROW, N_COMP, N_GROUP, N_GROUP_VCOL>, int8, __MACRO__);
+
+    // Meta
+    pim_meta_data_reg_buffer = Buffer(<N_ROW, N_COMP, N_GROUP_BCOL>, int1, __PIM_META_DATA_REG_BUFFER__);
+
+    // pim_output_reg_to_output_memory_buffer
+    pim_output_reg_to_output_memory_buffer = Buffer(<1>, int32, __PIM_OUTPUT_REG_TO_OUTPUT_MEMORY_BUFFER__);
+
+    // Spill
+    local_spill = Buffer(<16>, index, __INDEX_MEMORY__);
+
+    // TODO: Add 'SPECIAL_REG_' prefix for these macro.
+    SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 1);
+    SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_GROUP_SIZE, N_MACRO_PER_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, N_USE_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, N_GROUP_BCOL);
+    SpecialRegSet(SPECIAL_REG_GROUP_INPUT_STEP, INPUT_BUFFER_SIZE_PER_GROUP);
+
+    {% if SINGLE_OUTER_REDUCE == 1 %}
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
+        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
+    {% else %}
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+    {% endif %}
+    
+    for out_tile_i in range(0, OUT_SPATIAL_TILE) carry () {
+        out_channel_begin = Load(local_out_channel_begin, [out_tile_i]);
+        out_channel_end = Load(local_out_channel_begin, [out_tile_i + 1]);
+        out_channel_len = out_channel_end - out_channel_begin;
+        Save(local_spill, [7], out_channel_begin);
+        Save(local_spill, [8], out_channel_len);
+        //Print(out_channel_begin);
+        // Print(out_channel_end);
+
+        use_pimset_mask = local_pimset_mask[out_tile_i:out_tile_i+1, 0:N_GROUP_BCOL];
+        CIMSet(use_pimset_mask);
+
+        use_bias_scale = local_bias_scale[out_channel_begin:out_channel_begin+out_channel_len, 0:2];
+
+        inner_reduce_tile_size = N_ROW;
+
+        for out_reduce_begin in range(0, OUT_REDUCE_TILE, inner_reduce_tile_size) carry (){
+            out_reduce_end = Min(out_reduce_begin + inner_reduce_tile_size, OUT_REDUCE_TILE);
+            out_reduce_len = out_reduce_end - out_reduce_begin;
+
+            // Step 1: Prepare weight
+            use_weight = global_weight[out_tile_i:out_tile_i+1,
+                                       out_reduce_begin:out_reduce_begin+out_reduce_len,
+                                       0:N_COMP,
+                                       0:N_GROUP,
+                                       0:N_GROUP_VCOL];
+            use_macros = macros[0:out_reduce_len,
+                                0:N_COMP,
+                                0:N_GROUP,
+                                0:N_GROUP_VCOL];
+            Trans(use_weight, use_macros);
+
+            // save meta
+            use_meta = global_meta[out_tile_i:out_tile_i+1,
+                                   out_reduce_begin:out_reduce_begin+out_reduce_len,
+                                   0:N_COMP,
+                                   0:N_GROUP_BCOL,
+                                   0:3];
+            Trans(use_meta, pim_meta_data_reg_buffer);
+
+            // Iter over output's height and width
+            // Notice that we have 4 group, so each time we deal with 4 pixel in a square.
+            // So, the 'step' of oh and ow is 2.
+            double_buffer_id = 1;
+            Save(local_spill, [6], double_buffer_id);
+            for ow in range(0,OUTPUT_COL,2) carry() {
+                {% if IM2COL_SMALL_INPUT_MEMORY %}
+                    use_global_input = global_input[ow:ow+2, 0:{{IM2COL_SIZE_1}}];
+                    Trans(use_global_input, local_input);
+                {% endif %}
+                for oh in range(0,OUTPUT_ROW,2) carry() {
+                    // Double buffer index
+                    double_buffer_id = Load(local_spill, [6]);
+                    double_buffer_id = 1 - double_buffer_id;
+                    Save(local_spill, [6], double_buffer_id);
+
+                    // Step 3: Prepare input
+                    use_input_buffer = pim_input_reg_buffer[double_buffer_id:double_buffer_id+1,
+                                                            0:N_GROUP,
+                                                            0:INPUT_BUFFER_SIZE_PER_GROUP];
+
+                    meta_addr = BIT_SPARSE_META_BASE_ADDR;
+                    t1 = N_COMP * N_GROUP_BCOL;
+                    t2 = t1 * 3;
+                    meta_addr_step = t2 / 8;
+                    
+                    // iter over a sliding window : KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL
+                    t3 = KERNEL_SIZE * KERNEL_SIZE;
+                    sliding_window_size = t3 * INPUT_CHANNEL;
+                    row_to_activate = 0;
+                    Save(local_spill, [3], row_to_activate);
+                    Save(local_spill, [4], meta_addr);
+
+                    t4 = out_reduce_begin * N_COMP;
+                    begin_tile_in_window = t4;
+                    t5 = N_ROW * N_COMP;
+                    tile_size_in_window = t5;
+                    t6 = begin_tile_in_window + tile_size_in_window;
+                    end_tile_in_window = Min(sliding_window_size, t6);
+
+                    for i_tile_in_window in range(begin_tile_in_window, end_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP) carry(){
+                        copy_input_to_input_buffer_for_all_group(
+                            local_input, 
+                            use_input_buffer,
+                            oh,
+                            {% if IM2COL_SMALL_INPUT_MEMORY %} 0 {% else %} ow {% endif %},
+                            i_tile_in_window
+                        );
+
+                        // Step 4: consume all 128(or less) input data
+                        useful_input_len = Min(sliding_window_size - i_tile_in_window, INPUT_BUFFER_SIZE_PER_GROUP);
+                        row_to_activate = Load(local_spill, [3]);
+                        meta_addr = Load(local_spill, [4]);
+                        for input_begin_in_buffer in range(0, useful_input_len, N_COMP) carry (row_to_activate, meta_addr){
+                            {% if KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL % N_COMP == 0 %}
+                                input_len = N_COMP;
+                            {% else %}
+                                input_end_in_buffer = Min(input_begin_in_buffer + N_COMP, useful_input_len);
+                                input_len = input_end_in_buffer - input_begin_in_buffer;
+                            {% endif %}
+
+                            // activate macro
+                            activate_macro = use_macros[row_to_activate:row_to_activate+1,
+                                                        0:N_COMP,
+                                                        0:N_GROUP,
+                                                        0:N_GROUP_VCOL];
+                            compute_use_input_buffer = use_input_buffer[0:1,
+                                                                        0:N_GROUP,
+                                                                        input_begin_in_buffer:input_begin_in_buffer+input_len];
+
+                            SpecialRegSet(SPECIAL_REG_BIT_SPARSE_META_ADDR, meta_addr);
+                            CIMComputeBitSparse(compute_use_input_buffer, activate_macro);
+
+                            row_to_activate = row_to_activate + 1;
+                            meta_addr = meta_addr + meta_addr_step;
+                        };
+                        Save(local_spill, [3], row_to_activate);
+                        Save(local_spill, [4], meta_addr);
+                    };
+
+                    out_channel_begin = Load(local_spill, [7]);
+                    out_channel_len = Load(local_spill, [8]);
+                    use_outsum_mask = local_outsum_mask[out_tile_i:out_tile_i+1, 0:N_GROUP_BCOL];
+                    use_transfer_mask = local_transfer_mask[out_tile_i:out_tile_i+1, 0:N_GROUP_BCOL];
+                    use_local_output_for_temp_sum = local_output_for_temp_sum[0:out_channel_len];
+
+                    CIMOutputSum(N_GROUP_BCOL, use_outsum_mask, pim_output_reg_buffer);
+                    
+                    // TODO: unroll this loop
+                    for group_i in range(N_USE_GROUP) carry (){
+                        t7 = group_i * N_GROUP_BCOL;
+                        output_buffer_group_i = pim_output_reg_buffer[t7:t7+N_GROUP_BCOL];
+
+                        CIMTransfer(output_buffer_group_i, N_GROUP_BCOL, use_transfer_mask, pim_output_reg_to_output_memory_buffer, use_local_output_for_temp_sum);
+                        
+                        delta_h = group_i / 2;
+                        delta_w = group_i % 2;
+                        // if SINGLE_OUTER_REDUCE==1, we do quantify inside oh and ow loop, to turn i32 to i8 immediately for saving memory.
+                        // else, we add result to i32 output, and do quantize when the partial sum finish compute.
+                        oh_ = oh + delta_h;
+                        ow_ = ow + delta_w;
+                        {% if SINGLE_OUTER_REDUCE == 1 %}
+                            use_i8_output = local_output_i8[oh_:oh_+1,
+                                                            ow_:ow_+1,
+                                                            out_channel_begin:out_channel_begin+out_channel_len];
+                            SIMD(QUANTIZE, use_local_output_for_temp_sum, use_bias_scale, local_out_zp, use_i8_output);
+                        {% else %}
+                            use_local_output_i32 = local_output_i32[oh_:oh_+1,
+                                                                    ow_:ow_+1,
+                                                                    0:out_channel_len];
+                            SIMD(VVADD, use_local_output_for_temp_sum, use_local_output_i32, use_local_output_i32);
+                        {% endif %}
+                    };
+                };
+            };
+        };
+
+        {% if SINGLE_OUTER_REDUCE == 0 %}
+            // Do quantify here
+            out_channel_begin = Load(local_spill, [7]);
+            out_channel_len = Load(local_spill, [8]);
+
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
+            SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
+            quantify(
+                out_channel_begin,
+                out_channel_len,
+                local_output_i32,
+                local_bias_scale,
+                local_output_i8,
+                local_out_zp,
+                local_blank
+            );
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+            SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+        {% endif %}
+    };
+    {% if FAST_MODE_OUTPUT_FILL_MEMORY %}
+        use_local_output_i32 = Slice(local_output_i32,
+            [0, 0, 0],
+            [OUTPUT_ROW/4, OUTPUT_COL, MAX_OUTER_SPATIEL_TILE_SIZE],
+            [1, 1, 1]
+        );
+        Trans(use_local_output_i32, global_output_i8);
+    {% else %}
+        Trans(local_output_i8, global_output_i8);
+    {% endif %}
+
+    Trans(global_pimset_mask, global_pimset_mask);
+}

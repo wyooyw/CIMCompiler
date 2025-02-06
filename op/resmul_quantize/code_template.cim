@@ -1,4 +1,4 @@
-{% include 'lib/def_special_regs.cim' %}
+{% include 'op/common/def_special_regs.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}

@@ -34,7 +34,7 @@ class CIMFlowParser:
                 value=inst["imm"]
             )
         elif opcode == 0b100000:
-            return ArithInst(
+            return RRInst(
                 opcode=inst["funct"],
                 reg_lhs=inst["rs"],
                 reg_rhs=inst["rt"],

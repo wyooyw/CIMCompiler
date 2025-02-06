@@ -1,9 +1,0 @@
-def main(null<int8>){
-    for i in range(0,4) carry (null){
-        if (i << 2) carry(null) {
-            Print(i);
-        }else{
-            
-        };
-    };
-}

@@ -111,7 +111,7 @@ class FlatInstUtil:
             self._flat_simd(inst, idx)
         else:
             assert (
-                isinstance(inst, ArithInst) or
+                isinstance(inst, RRInst) or
                 isinstance(inst, RIInst) or
                 isinstance(inst, GeneralLiInst) or
                 isinstance(inst, SpecialLiInst) or

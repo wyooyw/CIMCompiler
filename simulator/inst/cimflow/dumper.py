@@ -32,7 +32,7 @@ class CIMFlowDumper:
                 "rd": inst.reg,
                 "imm": inst.value
             }
-        elif isinstance(inst, ArithInst):
+        elif isinstance(inst, RRInst):
             return {
                 "opcode": 0b100000,
                 "rs": inst.reg_lhs,

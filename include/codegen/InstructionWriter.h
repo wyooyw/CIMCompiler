@@ -15,7 +15,7 @@ public:
     virtual Inst getSpecialLIInst(int reg, int value) = 0;
     virtual Inst getSpecialToGeneralAssignInst(int reg_general, int reg_special) = 0;
     virtual Inst getGeneralToSpecialAssignInst(int reg_general, int reg_special) = 0;
-    virtual Inst getArithInst(int opcode, int reg_in1, int reg_in2, int reg_out) = 0;
+    virtual Inst getRRInst(int opcode, int reg_in1, int reg_in2, int reg_out) = 0;
     virtual Inst getRIInst(int opcode, int reg_in, int reg_out, int imm) = 0;
     virtual Inst getSIMDInst(int opcode, int input_num, int in1_reg, int in2_reg, int size_reg, int out_reg) = 0;
     virtual Inst getTransInst(int reg_addr_in, int reg_addr_out, int size) = 0;
@@ -48,7 +48,7 @@ public:
     Inst getSpecialLIInst(int reg, int value) override;
     Inst getSpecialToGeneralAssignInst(int reg_general, int reg_special) override;
     Inst getGeneralToSpecialAssignInst(int reg_general, int reg_special) override;
-    Inst getArithInst(int opcode, int reg_in1, int reg_in2, int reg_out) override;
+    Inst getRRInst(int opcode, int reg_in1, int reg_in2, int reg_out) override;
     Inst getRIInst(int opcode, int reg_in, int reg_out, int imm) override;
     Inst getSIMDInst(int opcode, int input_num, int in1_reg, int in2_reg, int size_reg, int out_reg) override;
     Inst getTransInst(int reg_addr_in, int reg_addr_out, int size) override;
@@ -79,7 +79,7 @@ public:
     Inst getSpecialLIInst(int reg, int value) override;
     Inst getSpecialToGeneralAssignInst(int reg_general, int reg_special) override;
     Inst getGeneralToSpecialAssignInst(int reg_general, int reg_special) override;
-    Inst getArithInst(int opcode, int reg_in1, int reg_in2, int reg_out) override;
+    Inst getRRInst(int opcode, int reg_in1, int reg_in2, int reg_out) override;
     Inst getRIInst(int opcode, int reg_in, int reg_out, int imm) override;
     Inst getSIMDInst(int opcode, int input_num, int in1_reg, int in2_reg, int size_reg, int out_reg) override;
     Inst getTransInst(int reg_addr_in, int reg_addr_out, int size) override;

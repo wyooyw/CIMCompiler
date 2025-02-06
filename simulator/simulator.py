@@ -506,7 +506,7 @@ class Simulator:
             self._run_simd_class_inst(inst)
 
         # Scalar
-        elif isinstance(inst, ArithInst):
+        elif isinstance(inst, RRInst):
             self._run_scalar_class_rr_type_inst(inst)
         elif isinstance(inst, RIInst):
             self._run_scalar_class_ri_type_inst(inst)
@@ -526,6 +526,9 @@ class Simulator:
             self._run_control_class_br_type_inst(inst)
         elif isinstance(inst, JumpInst):
             self._run_control_class_jump_type_inst(inst)
+
+        elif isinstance(inst, PrintInst):
+            self._run_debug_class_inst(inst)
 
         else:
             assert False, f"Not support {inst=}"

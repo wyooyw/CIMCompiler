@@ -52,7 +52,7 @@ class LegacyDumper:
                 "rs1": inst.reg_general,
                 "rs2": inst.reg_special
             }
-        elif isinstance(inst, ArithInst):
+        elif isinstance(inst, RRInst):
             return {
                 "class": 0b10,
                 "type": 0b00,

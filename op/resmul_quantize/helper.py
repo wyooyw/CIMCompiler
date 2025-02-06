@@ -122,7 +122,8 @@ class TestHelper:
 
         # 创建 Jinja2 环境和加载器
         env = Environment(
-            loader=FileSystemLoader(src_folder), undefined=StrictUndefined
+            loader=FileSystemLoader([src_folder, os.environ["CIM_COMPILER_BASE"]]), 
+            undefined=StrictUndefined
         )
 
         # 加载模板

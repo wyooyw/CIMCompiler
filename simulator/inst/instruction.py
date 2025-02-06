@@ -21,7 +21,7 @@ class GeneralToSpecialAssignInst:
     reg_special: int
 
 @dataclass
-class ArithInst:
+class RRInst:
     opcode: int
     reg_lhs: int
     reg_rhs: int

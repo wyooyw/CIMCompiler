@@ -1,0 +1,132 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+{% include 'op/common/quantize.cim' %}
+
+// input
+#define INPUT_ROW {{ INPUT_ROW }}
+#define INPUT_COL {{ INPUT_COL }}
+#define INPUT_CHANNEL {{ INPUT_CHANNEL }}
+
+#define OUTPUT_ROW {{ OUTPUT_ROW }}
+#define OUTPUT_COL {{ OUTPUT_COL }}
+#define OUTPUT_CHANNEL {{ OUTPUT_CHANNEL }}
+
+#define KERNEL_SIZE {{ KERNEL_SIZE }}
+#define PADDING {{ PADDING }}
+#define STRIDE {{ STRIDE }}
+
+#define N_MACRO_PER_GROUP {{ N_MACRO_PER_GROUP }}
+#define N_MACRO {{ N_MACRO }}
+#define N_VCOL {{ N_VCOL }}
+#define N_GROUP_VCOL {{ N_GROUP_VCOL }}
+#define N_GROUP {{ N_GROUP }}
+#define N_ROW {{ N_ROW }}
+#define N_COMP {{ N_COMP }}
+#define N_MACRO_REDUCE {{ N_MACRO_REDUCE }} // N_ROW * N_COMP = 64 * 16 = 1024;
+
+#define INPUT_BUFFER_SIZE_PER_GROUP {{ INPUT_BUFFER_SIZE_PER_GROUP }}
+
+#define WINDOW_SIZE {{WINDOW_SIZE}}
+
+def main(){
+    // input, weight, mask and index will be prepared in memory image
+    global_input = Buffer(<{{IM2COL_SIZE_0}}, {{IM2COL_SIZE_1}}, INPUT_CHANNEL>, int8, __GLOBAL__);
+    global_weight = Buffer(<KERNEL_SIZE, KERNEL_SIZE, OUTPUT_CHANNEL>, int8, __GLOBAL__);
+
+    // local weight
+    local_weight = Buffer(<KERNEL_SIZE, KERNEL_SIZE, OUTPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+    Trans(global_weight, local_weight);
+
+    //global_pimset_mask = Buffer(<N_GROUP_VCOL>, int1, __GLOBAL__);
+    //local_pimset_mask = Buffer(<N_GROUP_VCOL>, int1, __INPUT_MEMORY__);
+    //Trans(global_pimset_mask, local_pimset_mask);
+
+    // prepare quantify buffers
+    global_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __GLOBAL__);
+    global_out_zp = Buffer(<1>, int32, __GLOBAL__);
+    local_bias_scale = Buffer(<OUTPUT_CHANNEL, 2>, int32, __INPUT_MEMORY__);
+    local_out_zp = Buffer(<1>, int32, __INPUT_MEMORY__);
+    Trans(global_bias_scale, local_bias_scale);
+    Trans(global_out_zp, local_out_zp);
+
+    //global_output_i32 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int32, __GLOBAL__);
+    global_output_i8 = Buffer(<OUTPUT_ROW, OUTPUT_COL, OUTPUT_CHANNEL>, int8, __GLOBAL__);
+    local_output_i8 = Buffer(<OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
+    local_simd_mul_output_i32 = Buffer(<OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__);
+    local_output_parial_sum_i32 = Buffer(<OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__);
+
+    // blank
+    local_blank_i32 = Buffer(<OUTPUT_CHANNEL>, int32, __OUTPUT_MEMORY__);
+   // local_blank_i8 = Buffer(<OUTPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
+    
+    // Copy input and index into local memory
+    // dwconv use [I,H,W] axis order
+    local_input = Buffer(<{{IM2COL_SIZE_1}}, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+
+    // Spill
+    local_spill = Buffer(<4>, index, __INDEX_MEMORY__);
+
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
+
+    for ow in range(0, OUTPUT_COL) carry () {
+
+        use_global_input = global_input[ow:ow+1, 0:{{IM2COL_SIZE_1}}, 0:INPUT_CHANNEL];
+        Trans(use_global_input, local_input);
+
+        for oh in range(0, OUTPUT_ROW) carry () {
+            for kh in range(0, KERNEL_SIZE) carry () {
+                for kw in range(0, KERNEL_SIZE) carry () {
+
+                    // weight
+                    use_weight = local_weight[kh:kh+1, kw:kw+1, 0:OUTPUT_CHANNEL];
+
+                    // input
+                    index_0 = oh * {{STRIDE}};
+                    index_1 = index_0 * {{KERNEL_SIZE}};
+                    index_2 = kh * {{KERNEL_SIZE}};
+                    index_3 = index_1 + index_2;
+                    index_4 = index_3 + kw;
+
+                    use_input = local_input[index_4:index_4+1, 0:INPUT_CHANNEL];
+
+                    {% if KERNEL_SIZE==1 %}
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
+                        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+                        SIMD(VVMUL, use_input, use_weight, local_output_parial_sum_i32);
+                    {% else %}
+                        // output
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
+                        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+                        SIMD(VVMUL, use_input, use_weight, local_simd_mul_output_i32);
+
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+                        SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+                        SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+                        SIMD(VVADD, local_output_parial_sum_i32, local_simd_mul_output_i32, local_output_parial_sum_i32);
+                    {% endif %}
+                };
+            };
+
+            // quantify
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);
+            SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
+            SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
+            SIMD(QUANTIZE, local_output_parial_sum_i32, local_bias_scale, local_out_zp, local_output_i8);
+            
+            // clear
+            {% if KERNEL_SIZE >1 %}
+                Trans(local_blank_i32, local_output_parial_sum_i32);
+            {% endif %}
+            
+            // move to global memory
+            use_global_output = global_output_i8[oh:oh+1, ow:ow+1, 0:OUTPUT_CHANNEL];
+            Trans(local_output_i8, use_global_output);
+        };
+    };
+}

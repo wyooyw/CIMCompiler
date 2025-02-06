@@ -71,7 +71,7 @@ class LegacyParser:
                     reg_special=inst["rs2"]
                 )
         elif type_ == 0b00:
-            return ArithInst(
+            return RRInst(
                 opcode=opcode,
                 reg_lhs=inst["rs1"],
                 reg_rhs=inst["rs2"],
@@ -167,7 +167,7 @@ class LegacyParser:
 
 if __name__ == "__main__":
     parser = LegacyParser()
-    with open("/home/wangyiou/project/cim_compiler_frontend/playground/op/depthwise_conv/.result/final_code.json", 'r') as file:
+    with open("/home/wangyiou/project/cim_compiler_frontend/playground/op/dwconv2d/simd/.result/final_code.json", 'r') as file:
         data = json.load(file)
     instructions = parser.parse(data)
     # dumper = LegacyDumper(instructions)

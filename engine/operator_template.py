@@ -97,7 +97,7 @@ class ResMulQuantizeTemplate(OperatorTemplate):
     def __init__(self):
         super().__init__(
             os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json"),
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/depthwise_conv"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/dwconv2d/simd"),
         )
 
     def raw_layer_to_op_config(self, raw_layer):
@@ -404,7 +404,7 @@ class Conv2dQuantifyTemplate(Conv2dTemplate):
 class DenseConv2dTemplate(Conv2dBaseTemplate):
     def __init__(self):
         super().__init__(
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/dense/dense_conv2d_group")
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/conv2d/dense/normal")
         )
 
     def is_dense(self):
@@ -424,7 +424,7 @@ class BitSparseConv2dTemplate(Conv2dBaseTemplate):
     def __init__(self):
         super().__init__(
             os.path.join(
-                os.environ["CIM_COMPILER_BASE"], "op/bit_sparse/bit_sparse_conv2d_group"
+                os.environ["CIM_COMPILER_BASE"], "op/conv2d/bs/normal"
             )
         )
 
@@ -444,7 +444,7 @@ class BitSparseConv2dTemplate(Conv2dBaseTemplate):
 class ValueSparseConv2dTemplate(Conv2dBaseTemplate):
     def __init__(self):
         super().__init__(
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/value_sparse/value_sparse_group_longer")
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/conv2d/vs/normal")
         )
 
     def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
@@ -462,7 +462,7 @@ class ValueSparseConv2dTemplate(Conv2dBaseTemplate):
 class ValueBitSparseConv2dTemplate(Conv2dBaseTemplate):
     def __init__(self):
         super().__init__(
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/value_bit_sparse/value_bit_sparse_base")
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/conv2d/vs_bs/normal")
         )
 
     def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
@@ -482,7 +482,7 @@ class ValueBitSparseConv2dTemplate(Conv2dBaseTemplate):
 class DenseLinearTemplate(LinearTemplate):
     def __init__(self):
         super().__init__(
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/linear/dense_onegroup"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/linear/dense/quantize"),
         )
 
     def is_dense(self):
@@ -503,7 +503,7 @@ class DenseLinearTemplate(LinearTemplate):
 class BitSparseLinearTemplate(LinearTemplate):
     def __init__(self):
         super().__init__(
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/linear/bit_sparse"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/linear/bs/normal"),
         )
 
     def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
@@ -521,7 +521,7 @@ class BitSparseLinearTemplate(LinearTemplate):
 class DenseConv2dQuantifyTemplate(Conv2dQuantifyTemplate):
     def __init__(self):
         super().__init__(
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/dense/dense_conv2d_group_quantify"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/conv2d/dense/quantize"),
         )
 
     def is_dense(self):
@@ -542,7 +542,7 @@ class DenseConv2dQuantifyTemplate(Conv2dQuantifyTemplate):
 class ValueSparseConv2dQuantifyTemplate(Conv2dQuantifyTemplate):
     def __init__(self):
         super().__init__(
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/value_sparse/value_sparse_group_longer_quantify"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/conv2d/vs/quantize"),
         )
 
     def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
@@ -562,7 +562,7 @@ class ValueSparseConv2dQuantifyTemplate(Conv2dQuantifyTemplate):
 class BitSparseConv2dQuantifyTemplate(Conv2dQuantifyTemplate):
     def __init__(self):
         super().__init__(
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/bit_sparse/bit_sparse_conv2d_group_quantify"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/conv2d/bs/quantize"),
         )
 
     def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
@@ -582,7 +582,7 @@ class BitSparseConv2dQuantifyTemplate(Conv2dQuantifyTemplate):
 class ValueBitSparseConv2dQuantifyTemplate(Conv2dQuantifyTemplate):
     def __init__(self):
         super().__init__(
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/value_bit_sparse/value_bit_sparse_quantify"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/conv2d/vs_bs/quantize"),
         )
 
     def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
@@ -625,7 +625,7 @@ class DenseLinearQuantifyTemplate(LinearTemplate):
 class BitSparseLinearQuantifyTemplate(LinearTemplate):
     def __init__(self):
         super().__init__(
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/linear/bit_sparse_quantify"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/linear/bs/quantize"),
         )
 
     def check_raw_layer(self, raw_layer, value_sparse, bit_sparse, quantify):
@@ -646,7 +646,7 @@ class DepthWiseConv2dQuantifyTemplate(OperatorTemplate):
     def __init__(self):
         super().__init__(
             os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json"),
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/depthwise_conv"),
+            os.path.join(os.environ["CIM_COMPILER_BASE"], "op/dwconv2d/simd"),
         )
 
     def is_dense(self):
