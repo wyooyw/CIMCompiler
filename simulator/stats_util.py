@@ -165,4 +165,4 @@ class StatsUtil:
             json.dump(cell_ultilization_data, f, indent=2)
         # print(f"Cell ultilization data saved to {save_json_path}")
 
-        logger.info(f"Stats files save to {save_path}")
+        logger.info(f"Statistics files have been saved to {save_path}")

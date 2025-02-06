@@ -14,10 +14,19 @@ def get_logger(name, output_file=None):
     logger = logging.getLogger(name)
     level = get_log_level_from_env()
     logger.setLevel(level)  # 设置日志级别为DEBUG
+    
+    # 禁用向上传播到 root logger
+    logger.propagate = False
+    
+    if logger.handlers:
+        return logger
 
     # 添加控制台处理器
     console_handler = logging.StreamHandler()
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter(
+        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
