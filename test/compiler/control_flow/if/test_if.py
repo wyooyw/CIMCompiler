@@ -1,14 +1,14 @@
 import pytest
 from test.compiler.base import TestBase
 
-class TestSIMD(TestBase):
+class TestIf(TestBase):
 
     @pytest.mark.parametrize(
         "casename",
         [
-            "vsadd"
+            "if"
         ],
     )
     def test_control_flow(self, casename):
-        casename = f"simd/{casename}"
+        casename = f"control_flow/if/{casename}"
         self.run_test(casename)

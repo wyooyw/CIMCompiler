@@ -1,4 +1,5 @@
 #define VVADD 0
+#define VSADD 1
 #define VVMUL 2
 #define RESADD_QUANTIZE 4
 #define QUANTIZE 3

@@ -527,6 +527,9 @@ class Simulator:
         elif isinstance(inst, JumpInst):
             self._run_control_class_jump_type_inst(inst)
 
+        elif isinstance(inst, PrintInst):
+            self._run_debug_class_inst(inst)
+
         else:
             assert False, f"Not support {inst=}"
 

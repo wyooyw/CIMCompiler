@@ -1,16 +1,21 @@
+{% include "op/common/def_special_regs.cim" %}
+{% include "op/common/simd.cim" %}
+
 def main(null<int8>){
-    buf1 = Buffer(<4>, index, local);
+    buf1 = Buffer(<4>, index, __LOCAL__);
     Save(buf1, [0], 0);
     Save(buf1, [1], 1);
     Save(buf1, [2], 2);
     Save(buf1, [3], 3);
 
-    scalar = 10
+    buf2 = Buffer(<4>, index, __LOCAL__);
+    Save(buf2, [0], 10);
 
-    buf2 = Buffer(<4>, index, local);
-    VSAdd(buf1, scalar, buf2);
-    Print(Load(buf2, [0])); // 10
-    Print(Load(buf2, [1])); // 11
-    Print(Load(buf2, [2])); // 12
-    Print(Load(buf2, [3])); // 13
+    buf3 = Buffer(<4>, index, __LOCAL__);
+
+    SIMD(VSADD, buf1, buf2, buf3);
+    Print(Load(buf3, [0])); // 10
+    Print(Load(buf3, [1])); // 11
+    Print(Load(buf3, [2])); // 12
+    Print(Load(buf3, [3])); // 13
 }
