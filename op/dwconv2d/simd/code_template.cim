@@ -1,6 +1,6 @@
-{% include 'lib/def_special_regs.cim' %}
-{% include 'lib/simd.cim' %}
-{% include 'lib/quantize.cim' %}
+{% include 'op/lib/def_special_regs.cim' %}
+{% include 'op/lib/simd.cim' %}
+{% include 'op/lib/quantize.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}

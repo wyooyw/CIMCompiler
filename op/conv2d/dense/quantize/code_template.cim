@@ -1,6 +1,6 @@
-{% include 'lib/def_special_regs.cim' %}
-{% include 'lib/simd.cim' %}
-{% include 'lib/quantize.cim' %}
+{% include 'op/lib/def_special_regs.cim' %}
+{% include 'op/lib/simd.cim' %}
+{% include 'op/lib/quantize.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}
@@ -29,9 +29,9 @@
 #define OUT_SPATIAL_TILE {{ OUT_SPATIAL_TILE }}
 #define OUT_REDUCE_TILE {{ OUT_REDUCE_TILE }}
 {% if IM2COL %}
-    {% include 'lib/input_loader_im2col.cim' %}
+    {% include 'op/lib/input_loader_im2col.cim' %}
 {% else %}
-    {% include 'lib/input_loader.cim' %}
+    {% include 'op/lib/input_loader.cim' %}
 {% endif %}
 
 

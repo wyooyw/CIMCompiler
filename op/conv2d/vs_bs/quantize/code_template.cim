@@ -1,6 +1,6 @@
-{% include 'lib/def_special_regs.cim' %}
-{% include 'lib/simd.cim' %}
-{% include 'lib/quantize.cim' %}
+{% include 'op/lib/def_special_regs.cim' %}
+{% include 'op/lib/simd.cim' %}
+{% include 'op/lib/quantize.cim' %}
 
 
 // weight
@@ -50,9 +50,9 @@
 #define MAX_I32_CHANNEL {{MAX_I32_CHANNEL}}
 
 {% if IM2COL %}
-    {% include 'lib/input_loader_im2col.cim' %}
+    {% include 'op/lib/input_loader_im2col.cim' %}
 {% else %}
-    {% include 'lib/input_loader.cim' %}
+    {% include 'op/lib/input_loader.cim' %}
 {% endif %}
 
 
