@@ -1,5 +1,5 @@
-{% include 'op/lib/def_special_regs.cim' %}
-{% include 'op/lib/simd.cim' %}
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}

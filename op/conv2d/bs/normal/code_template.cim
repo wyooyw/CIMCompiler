@@ -1,5 +1,5 @@
-{% include 'op/lib/def_special_regs.cim' %}
-{% include 'op/lib/simd.cim' %}
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}
@@ -35,9 +35,9 @@
 #define MAX_OUTER_SPATIEL_TILE_SIZE {{ MAX_OUTER_SPATIEL_TILE_SIZE }}
 
 {% if IM2COL %}
-    {% include 'op/lib/input_loader_im2col.cim' %}
+    {% include 'op/common/input_loader_im2col.cim' %}
 {% else %}
-    {% include 'op/lib/input_loader.cim' %}
+    {% include 'op/common/input_loader.cim' %}
 {% endif %}
 
 def main(){

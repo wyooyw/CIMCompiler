@@ -1,5 +1,5 @@
-{% include 'op/lib/def_special_regs.cim' %}
-{% include 'op/lib/simd.cim' %}
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
 
 // weight
 #define WEIGHT_OUT_CHANNEL {{ OUTPUT_CHANNEL }}
@@ -40,9 +40,9 @@
 #define MAPPING_FROM_TO_ROW_LENGTH {{ MAPPING_FROM_TO_ROW_LENGTH }}
 
 {% if IM2COL %}
-    {% include 'op/lib/input_loader_im2col.cim' %}
+    {% include 'op/common/input_loader_im2col.cim' %}
 {% else %}
-    {% include 'op/lib/input_loader.cim' %}
+    {% include 'op/common/input_loader.cim' %}
 {% endif %}
 
 def main(){

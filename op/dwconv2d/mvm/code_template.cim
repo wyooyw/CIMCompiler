@@ -1,4 +1,4 @@
-{% include 'op/lib/def_special_regs.cim' %}
+{% include 'op/common/def_special_regs.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}
@@ -27,9 +27,9 @@
 #define WINDOW_SIZE {{WINDOW_SIZE}}
 
 {% if IM2COL %}
-    {% include 'op/lib/input_loader_im2col_dw.cim' %}
+    {% include 'op/common/input_loader_im2col_dw.cim' %}
 {% else %}
-    {% include 'op/lib/input_loader_dw.cim' %}
+    {% include 'op/common/input_loader_dw.cim' %}
 {% endif %}
 
 

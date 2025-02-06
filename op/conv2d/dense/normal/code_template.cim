@@ -1,5 +1,5 @@
-{% include 'op/lib/def_special_regs.cim' %}
-{% include 'op/lib/simd.cim' %}
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}
@@ -28,9 +28,9 @@
 #define OUT_SPATIAL_TILE {{ OUT_SPATIAL_TILE }}
 #define OUT_REDUCE_TILE {{ OUT_REDUCE_TILE }}
 {% if IM2COL %}
-    {% include 'op/lib/input_loader_im2col.cim' %}
+    {% include 'op/common/input_loader_im2col.cim' %}
 {% else %}
-    {% include 'op/lib/input_loader.cim' %}
+    {% include 'op/common/input_loader.cim' %}
 {% endif %}
 
 
