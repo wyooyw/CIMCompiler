@@ -18,9 +18,9 @@ class TestLinear(TestBase):
         "op_config",
         [
             {"out_channel": 32, "in_channel": 16},
-            # {"out_channel": 16, "in_channel": 32},
-            # {"out_channel": 512, "in_channel": 16},
-            # {"out_channel": 16, "in_channel": 512},
+            {"out_channel": 16, "in_channel": 32},
+            {"out_channel": 512, "in_channel": 16},
+            {"out_channel": 16, "in_channel": 512},
         ],
     )
     def test_pim_compute(self, casename, op_config):
