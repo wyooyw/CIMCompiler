@@ -55,7 +55,7 @@ class AsmDumper:
         elif isinstance(inst, SpecialToGeneralAssignInst):
             special_reg_name = mapping_special_reg_to_name[inst.reg_special]
             return f"SG_MOV r{inst.reg_general}, {special_reg_name}"
-        elif isinstance(inst, ArithInst):
+        elif isinstance(inst, RRInst):
             op_name = self._arith_funct_to_name(inst.opcode)
             return f"{op_name} r{inst.reg_out}, r{inst.reg_lhs}, r{inst.reg_rhs}"
         elif isinstance(inst, RIInst):

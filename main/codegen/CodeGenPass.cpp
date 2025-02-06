@@ -197,7 +197,7 @@ static void codeGenArith(Ty op,
     std::exit(1);
   }
 
-  Inst inst = writer.getArithInst(opcode, rs1, rs2, rd);
+  Inst inst = writer.getRRInst(opcode, rs1, rs2, rd);
   instr_list.push_back(inst);
 }
 

@@ -16,7 +16,7 @@ Inst CIMFlowInstructionWriter::getSpecialLIInst(int reg, int value) {
     };
 }
 
-Inst CIMFlowInstructionWriter::getArithInst(int funct, int reg_in1, int reg_in2, int reg_out) {
+Inst CIMFlowInstructionWriter::getRRInst(int funct, int reg_in1, int reg_in2, int reg_out) {
     return {
         {"opcode", 0b100000}, 
         {"rs", reg_in1}, 

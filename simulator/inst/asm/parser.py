@@ -125,7 +125,7 @@ class AsmParser:
         elif op_name.startswith("SC_") and not op_name.endswith("I"):
             reg_out, reg_lhs, reg_rhs = match_asm_args(args, ['reg', 'reg', 'reg'])
             opcode = self._name_to_arith_funct(op_name)
-            return ArithInst(opcode=opcode, reg_lhs=reg_lhs, reg_rhs=reg_rhs, reg_out=reg_out)
+            return RRInst(opcode=opcode, reg_lhs=reg_lhs, reg_rhs=reg_rhs, reg_out=reg_out)
         elif op_name.startswith("SC_") and op_name.endswith("I"):
             reg_out, reg_in, imm = match_asm_args(args, ['reg', 'reg', 'imm'])
             opcode = self._name_to_arith_funct(op_name[:-1], is_ri=True)

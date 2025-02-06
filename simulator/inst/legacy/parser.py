@@ -71,7 +71,7 @@ class LegacyParser:
                     reg_special=inst["rs2"]
                 )
         elif type_ == 0b00:
-            return ArithInst(
+            return RRInst(
                 opcode=opcode,
                 reg_lhs=inst["rs1"],
                 reg_rhs=inst["rs2"],
