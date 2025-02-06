@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 from functools import partial
-from test.simulator.utils import InstUtil
 
 import numpy as np
 import pytest

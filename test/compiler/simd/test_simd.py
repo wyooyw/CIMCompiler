@@ -6,7 +6,8 @@ class TestSIMD(TestBase):
     @pytest.mark.parametrize(
         "casename",
         [
-            "vsadd"
+            "vsadd",
+            "vvadd"
         ],
     )
     def test_control_flow(self, casename):

@@ -2,6 +2,10 @@
 {% include "op/common/simd.cim" %}
 
 def main(null<int8>){
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+    
     buf1 = Buffer(<4>, index, __LOCAL__);
     Save(buf1, [0], 0);
     Save(buf1, [1], 1);

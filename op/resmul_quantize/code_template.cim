@@ -1,4 +1,5 @@
 {% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
 
 // input
 #define INPUT_ROW {{ INPUT_ROW }}
@@ -37,15 +38,14 @@ def main(){
 
             use_local_input1 = Slice(local_input1, [oh, ow, 0], [1,1,INPUT_CHANNEL], [1,1,1]);
 
-            local_bias_scale_addr = Addr(local_bias_scale);
-            SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1, local_bias_scale_addr);
-
-            local_out_zp_addr = Addr(local_out_zp);
-            SpecialRegSet(SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2, local_out_zp_addr);
-            
-            // res-mul-quantify
-            
-            ResMulQuantify(use_local_input1, local_input2, local_output_i8);
+            // res-mul-quantify            
+            SIMD(RESMUL_QUANTIZE, 
+                use_local_input1, 
+                local_input2, 
+                local_bias_scale, 
+                local_out_zp, 
+                local_output_i8
+            );
 
             // move to global memory
             use_global_output = Slice(global_output_i8,

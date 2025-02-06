@@ -13,7 +13,7 @@ class TestResMulQuantize(TestBase):
         "op_config",
         [
             {"in_channel": 4, "in_hw": 8},
-            # {"in_channel": 32, "in_hw": 32},
+            {"in_channel": 32, "in_hw": 32},
         ],
     )
     def test_resmul(self, casename, op_config):
