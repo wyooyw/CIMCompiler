@@ -63,13 +63,14 @@ class TestBase:
             # register debug hook
             # self.simulator.debug_hook = partial(debug_hook, helper=helper)
 
-            # run compiler
-            cmd = f"bash compile.sh isa {code_path} {output_folder} {self.config_path}"
-            result = subprocess.run(cmd.split(" "), text=True)
-            # print("输出:", result.stdout)
-            # print("错误:", result.stderr)
-            assert result.returncode == 0
-            # return
+            # run compiler\
+            subprocess.run([
+                "python", "cli/cim_compiler.py", "compile",
+                "--input-file", code_path,
+                "--output-dir", output_folder,
+                "--config-file", self.config_path
+            ], check=True)
+            
             # get output code
             output_path = os.path.join(output_folder, "final_code.json")
             with open(output_path, "r") as f:
