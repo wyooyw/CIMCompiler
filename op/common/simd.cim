@@ -2,6 +2,7 @@
 #define VSADD 1
 #define VVMUL 2
 #define RESADD_QUANTIZE 4
+#define RESMUL_QUANTIZE 5
 #define QUANTIZE 3
 #define VVMAX 6
 #define VSMUL 7

@@ -187,9 +187,12 @@ class MemorySpace:
         if type(memtype) == str:
             memtype = [memtype]
         assert type(memtype) == list
+        assert type(size) in (int, np.int32, np.int64), f"{type(size)=}"
+        assert size >= 0, f"{size=}"
         for memory in self.memory_space:
-            if offset >= memory.offset and (
-                offset + size <= memory.offset + memory.size
+            if ( offset >= memory.offset 
+                and offset < memory.offset + memory.size 
+                and offset + size <= memory.offset + memory.size
             ):
                 assert (
                     memory.memtype in memtype
@@ -1354,7 +1357,9 @@ class Simulator:
             input1_data = self.memory_space.read_as(
                 input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
             )
-            input2_data = np.array([input2_value], dtype=output_dtype)
+            input2_data = self.memory_space.read_as(
+                input2_addr, input2_byte_size, get_dtype_from_bitwidth(input2_bitwidth)
+            )
 
             # Compute
             output_data = input2_data.astype(output_dtype) + input1_data.astype(

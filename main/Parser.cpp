@@ -358,7 +358,14 @@ void MLIRGenImpl::parse_if_else_stmt(const boost::property_tree::ptree &ast) {
   auto loop_carried_names = loop_carried_names_and_variables.first;
   auto loop_carried_variables = loop_carried_names_and_variables.second;
 
-  mlir::scf::IfOp ifOp = builder.create<mlir::scf::IfOp>(loc, builder.getIndexType(), cond,
+  // Get result types from carried variables
+  llvm::SmallVector<mlir::Type> resultTypes;
+  for (auto var : loop_carried_variables) {
+    resultTypes.push_back(var.getType());
+  }
+
+  // Create if operation with correct result types
+  mlir::scf::IfOp ifOp = builder.create<mlir::scf::IfOp>(loc, resultTypes, cond,
                                              /*else=*/true);
 
   // build then body

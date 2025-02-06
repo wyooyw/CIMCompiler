@@ -1,4 +1,4 @@
-from test.compiler.pimcompute.helper import DenseConv2dTestHelper, QuantizeHelper
+from op.helper import DenseConv2dTestHelper, QuantizeHelper
 
 
 class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
