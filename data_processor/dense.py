@@ -426,9 +426,9 @@ def convert_value_sparse_conv2d_weight(weight, macro_config):
     # create pimset_mask
     pimset_mask = np.ones((out_spatial_tile, n_group_vcol), dtype=np.int8)
     pimset_mask[-1, n_group_vcol - spatial_pad_size :] = 0
-    pimset_mask = pimset_mask.reshape(
-        pimset_mask.shape[0], pimset_mask.shape[1] // 8, 8
-    )
+    pimset_mask = pimset_mask.reshape(-1)
+    pimset_mask = np.pad(pimset_mask, (0, (8 - pimset_mask.shape[0] % 8) % 8), mode="constant", constant_values=0)
+    pimset_mask = pimset_mask.reshape(pimset_mask.shape[0] // 8, 8)
     pimset_mask = tensor_bits_to_int8(pimset_mask)
 
     return {
