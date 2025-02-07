@@ -10,8 +10,9 @@ from simulator.inst import (
     CIMFlowParser,
     CIMFlowDumper
 )
+from cli.common import show_args, to_abs_path
 
-logger = get_logger("cli/convert")
+logger = get_logger(__name__)
 
 def parse_convert_args(subparsers):
     parser = subparsers.add_parser('convert')
@@ -21,6 +22,12 @@ def parse_convert_args(subparsers):
     parser.add_argument("--dst-file", "--df", type=str, required=True)
 
 def run_convert(args):
+    args.src_file = to_abs_path(args.src_file)
+    args.dst_file = to_abs_path(args.dst_file)
+
+    logger.info("Begin to convert.")
+    logger.info(show_args(args))
+
     parser_classes = {
         "legacy": LegacyParser,
         "asm": AsmParser,
@@ -35,4 +42,4 @@ def run_convert(args):
     dumper = dumper_classes[args.dst_type]()
     _, data = parser.parse_file(args.src_file)
     dumper.dump_to_file(data, args.dst_file)
-    print(f"Convert from \n{args.src_type}: {args.src_file}\nto \n{args.dst_type}: {args.dst_file}")
+    logger.info("Convert done.")

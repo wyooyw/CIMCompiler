@@ -6,9 +6,9 @@ from utils.logger import get_logger
 from precompile import detect_and_replace_macros, remove_comments
 from simulator.inst import *
 from simulator.simulator import Memory, MemorySpace, SpecialReg
+from cli.common import show_args, to_abs_path
 
-logger = get_logger("cli/simulate")
-
+logger = get_logger(__name__)
 
 def parse_simulate_args(subparsers):
     parser = subparsers.add_parser('simulate')
@@ -27,14 +27,14 @@ def parse_simulate_args(subparsers):
     
     parser.add_argument("--predict-cimcompute-count", type=int, required=False, default=-1)
 
-def to_abs_path(path, parent=os.getcwd()):
-    if not os.path.isabs(path):
-        return os.path.join(parent, path)
-    return path
 
 def run_simulate(args):
+    
     # update args
     args.output_dir = to_abs_path(args.output_dir)
+
+    logger.info("Begin to simulate.")
+    logger.info(show_args(args))
     
     if args.save_unrolled_code and args.unrolled_code_format is None:
         args.unrolled_code_format = args.code_format
@@ -99,3 +99,5 @@ def run_simulate(args):
     output_image = simulator.memory_space.get_memory_by_name("global").read_all()
     with open(os.path.join(output_dir, "image.bin"), "wb") as f:
         f.write(output_image)
+
+    logger.info(f"Simulate finished.")

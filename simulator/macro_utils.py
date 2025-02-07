@@ -11,7 +11,7 @@ class MacroConfig:
         self.n_row = n_row
         self.n_comp = n_comp
         self.n_bcol = n_bcol
-        logger.info(f"Macro config: {n_macro=}, {n_row=}, {n_comp=}, {n_bcol=}")
+        logger.debug(f"Macro config: {n_macro=}, {n_row=}, {n_comp=}, {n_bcol=}")
 
     def n_vcol(self, bitwidth):
         assert self.n_bcol % bitwidth == 0
