@@ -16,7 +16,7 @@ from utils.bit_sparse_weight_transform import (
 )
 from utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
 from utils.round import banker_round
-
+import subprocess
 
 class Operator:
     def __init__(self, config_path, template_path, op_config):
@@ -81,11 +81,14 @@ class Operator:
         # self.simulator.debug_hook = partial(debug_hook, helper=helper)
 
         # run compiler
-        cmd = f"bash compile.sh isa {input_path} {code_dir} {self.config_path}"
-        result = subprocess.run(cmd.split(" "), capture_output=True, text=True)
-        print("输出:", result.stdout)
-        print("错误:", result.stderr)
-        assert result.returncode == 0
+        # use CLI to call compile
+        subprocess.run([
+            "python", "cli/cim_compiler.py", "compile",
+            "--input-file", input_path,
+            "--output-dir", code_dir,
+            "--config-file", self.config_path
+        ], check=True)
+        
         return image
 
     def run(self, code_dir, image, predict_pimcompute_count=True):
