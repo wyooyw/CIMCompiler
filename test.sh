@@ -1,9 +1,9 @@
 source log_config.sh
 
-export PYTHONPATH=${PWD}
+export PYTHONPATH=${PWD}/src:${PWD}
 export FAST_MODE=0
 export IM2COL_SMALL_INPUT_MEMORY=1
-export CIM_COMPILER_BASE=/home/wangyiou/project/cim_compiler_frontend/playground
+export CIM_COMPILER_BASE=${PWD}
 # pytest test
 # pytest test/compiler/pimcompute/test_pimcompute_dwconv.py
 # pytest test/compiler/pimcompute/test_pimcompute_linear.py
@@ -30,11 +30,13 @@ export CIM_COMPILER_BASE=/home/wangyiou/project/cim_compiler_frontend/playground
 # pytest test/compiler/pimcompute/test_pimcompute_value_sparse.py
 # pytest test/compiler/pimcompute/test_pimcompute_depthwise_simd.py
 
-# python cli/cim_compiler.py convert \
+# python src/python/cli/cim_compiler.py convert \
 # --src-type legacy \
 # --dst-type asm \
 # --src-file test/inst/case1/legacy \
 # --dst-file ./asm
+
+# pytest test/inst
 
 # python cli/cim_compiler.py convert \
 # --src-type asm \
@@ -42,13 +44,14 @@ export CIM_COMPILER_BASE=/home/wangyiou/project/cim_compiler_frontend/playground
 # --src-file ./asm \
 # --dst-file ./legacy
 
-python cli/cim_compiler.py --debug compile \
--i test/compiler/control_flow/if/if/code.cim \
--o ./temp \
--c test/compiler/config.json
-# python cli/cim_compiler.py simulate \
-# -i .result/2024-12-14/AlexNet/bit_sparse/0_conv/final_code.json \
-# -d .result/2024-12-14/AlexNet/bit_sparse/0_conv/global_image \
+# python src/python/cli/cim_compiler.py compile \
+# -i test/compiler/control_flow/if/if/code.cim \
+# -o ./temp \
+# -c test/compiler/config.json
+
+# python src/python/cli/cim_compiler.py simulate \
+# -i /home/wangyiou/project/cim_compiler_frontend/playground/.result/2024-12-14/AlexNet/bit_sparse/0_conv/final_code.json \
+# -d /home/wangyiou/project/cim_compiler_frontend/playground/.result/2024-12-14/AlexNet/bit_sparse/0_conv/global_image \
 # -o temp/output \
 # -c config/config.json \
 # --code-format legacy \
@@ -61,3 +64,6 @@ python cli/cim_compiler.py --debug compile \
 # bash compile.sh isa $input_file $output_path $config_path
 
 # pytest test/inst/test_inst_parser_dumper.py
+# pytest test/compiler
+# pytest test/op/test_conv.py
+pytest test/utils

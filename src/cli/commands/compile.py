@@ -48,8 +48,9 @@ def run_compile(args):
         f.write(code)
 
     # ANTLR: code -> ast(json)
-    home = os.environ["CIM_COMPILER_BASE"]
-    antlr_home = os.path.join(home, "antlr")
+    # home = 
+    # third_party_dir = os.path.join(home, "thirdparty")
+    antlr_home = os.path.join(os.environ["CIM_COMPILER_BASE"], "src/java")
     
     with tempfile.TemporaryDirectory() as temp_dir:
 

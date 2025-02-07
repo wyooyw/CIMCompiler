@@ -14,17 +14,17 @@ add_llvm_executable(main
         CIMISADialect.cpp
         Combine.cpp
         Parser.cpp
-        pass/ShapeInferencePass.cpp
-        pass/MemoryAddressAllocationPass.cpp
-        pass/DecomposeAffineOpPass.cpp
-        pass/FoldMemRefAliasPass.cpp
-        pass/CIMLoweringPass.cpp
-        pass/CIMBranchConvertPass.cpp
-        pass/ExtractAddressComputationPass.cpp
-        pass/RR2RIPass.cpp
-        pass/LoopUnrollPass.cpp
-        pass/CastEliminationPass.cpp
-        pass/CommonSubexpressionExposePass.cpp
+        passes/ShapeInferencePass.cpp
+        passes/MemoryAddressAllocationPass.cpp
+        passes/DecomposeAffineOpPass.cpp
+        passes/FoldMemRefAliasPass.cpp
+        passes/CIMLoweringPass.cpp
+        passes/CIMBranchConvertPass.cpp
+        passes/ExtractAddressComputationPass.cpp
+        passes/RR2RIPass.cpp
+        passes/LoopUnrollPass.cpp
+        passes/CastEliminationPass.cpp
+        passes/CommonSubexpressionExposePass.cpp
         codegen/CodeGenPass.cpp
         codegen/InstructionWriter.cpp
         codegen/CIMFlowInstructionWriter.cpp

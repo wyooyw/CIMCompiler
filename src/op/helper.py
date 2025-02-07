@@ -374,7 +374,11 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
 
         # 创建 Jinja2 环境和加载器
         env = Environment(
-            loader=FileSystemLoader([src_folder, os.environ["CIM_COMPILER_BASE"]]), 
+            loader=FileSystemLoader([
+                src_folder, 
+                os.environ["CIM_COMPILER_BASE"],
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+            ]), 
             undefined=StrictUndefined
         )
 
@@ -626,7 +630,11 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
 
         # 创建 Jinja2 环境和加载器
         env = Environment(
-            loader=FileSystemLoader([src_folder, os.environ["CIM_COMPILER_BASE"]]), 
+            loader=FileSystemLoader([
+                src_folder, 
+                os.environ["CIM_COMPILER_BASE"],
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+            ]),
             undefined=StrictUndefined
         )
 
@@ -855,7 +863,11 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
 
         # 创建 Jinja2 环境和加载器
         env = Environment(
-            loader=FileSystemLoader([src_folder, os.environ["CIM_COMPILER_BASE"]]), 
+            loader=FileSystemLoader([
+                src_folder, 
+                os.environ["CIM_COMPILER_BASE"],
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+            ]),
             undefined=StrictUndefined
         )
 
@@ -1132,7 +1144,11 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
 
         # 创建 Jinja2 环境和加载器
         env = Environment(
-            loader=FileSystemLoader([src_folder, os.environ["CIM_COMPILER_BASE"]]), 
+            loader=FileSystemLoader([
+                src_folder, 
+                os.environ["CIM_COMPILER_BASE"],
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+            ]),
             undefined=StrictUndefined
         )
 

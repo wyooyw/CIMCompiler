@@ -12,10 +12,6 @@ class TestHelper:
         self.input_size = op_config["in_channel"] * op_config["in_hw"] * op_config["in_hw"]
         self.in_channel = op_config["in_channel"]
         self.in_hw = op_config["in_hw"]
-        self.out_hw = op_config["out_hw"]
-        self.ker_size = op_config["ker_size"]
-        assert self.in_hw % self.ker_size == 0, f"{self.in_hw=}, {self.ker_size=}"
-        assert self.in_hw // self.ker_size == self.out_hw, f"{self.in_hw=}, {self.ker_size=}, {self.out_hw=}"
 
 
     def _get_mock_input(self):
@@ -35,13 +31,7 @@ class TestHelper:
     def _calculate_golden(self):
         import numpy as np
 
-        input_tensor = self.input_.reshape(
-            self.in_hw//self.ker_size, self.ker_size, self.in_hw//self.ker_size, self.ker_size, self.in_channel
-        )
-        output_tensor = input_tensor.max(axis=(1,3))
-        # output_tensor = np.transpose(output_tensor, (1, 2, 0))
-
-        return output_tensor
+        return np.clip(self.input_, 0, 127)
 
     def get_image(
         self,
@@ -66,10 +56,7 @@ class TestHelper:
         context = {
             "INPUT_ROW": self.in_hw,
             "INPUT_COL": self.in_hw,
-            "INPUT_CHANNEL": self.in_channel,
-            "OUTPUT_ROW": self.out_hw,
-            "OUTPUT_COL": self.out_hw,
-            "KERNEL_SIZE": self.ker_size,
+            "INPUT_CHANNEL": self.in_channel
         }
         return context
 
@@ -82,7 +69,11 @@ class TestHelper:
 
         # 创建 Jinja2 环境和加载器
         env = Environment(
-            loader=FileSystemLoader([src_folder, os.environ["CIM_COMPILER_BASE"]]), 
+            loader=FileSystemLoader([
+                src_folder, 
+                os.environ["CIM_COMPILER_BASE"],
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+            ]),
             undefined=StrictUndefined
         )
 
@@ -103,12 +94,12 @@ class TestHelper:
         global_offset = memory_space.get_base_of("global")
         output_offset = global_offset + self.output_offset
         output_byte_size = (
-            self.out_hw * self.out_hw * self.in_channel * self.output_bytes
+            self.in_hw * self.in_hw * self.in_channel * self.output_bytes
         )
         output = memory_space.read_as(
             output_offset, output_byte_size, self.output_dtype
         )
-        output = output.reshape(self.out_hw, self.out_hw, self.in_channel)
+        output = output.reshape(self.in_hw, self.in_hw, self.in_channel)
         return output
 
     def check_image(self, memory_space):

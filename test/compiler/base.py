@@ -27,7 +27,11 @@ def fill_template(src_path, dst_path):
 
     # 创建 Jinja2 环境和加载器
     env = Environment(
-        loader=FileSystemLoader([src_folder, os.environ["CIM_COMPILER_BASE"]]), 
+        loader=FileSystemLoader([
+            src_folder, 
+            os.environ["CIM_COMPILER_BASE"],
+            os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+        ]),
         undefined=StrictUndefined
     )
 
@@ -76,7 +80,7 @@ class TestBase:
 
             # run compiler
             subprocess.run([
-                "python", "cli/cim_compiler.py", "compile",
+                "python", "src/cli/cim_compiler.py", "compile",
                 "--input-file", input_path,
                 "--output-dir", output_folder,
                 "--config-file", self.config_path
@@ -132,7 +136,7 @@ class TestBase:
 
             # run compiler
             subprocess.run([
-                "python", "cli/cim_compiler.py", "compile",
+                "python", "src/cli/cim_compiler.py", "compile",
                 "--input-file", input_path,
                 "--output-dir", output_folder,
                 "--config-file", self.config_path
