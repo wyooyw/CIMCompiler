@@ -67,8 +67,25 @@ void errorLogIR(mlir::ModuleOp &module) {
   LOG_ERROR << "IR: " << irString << "\n\n";
 }
 
+void MyPrefixFormatter(std::ostream& s, const google::LogMessage& m, void* /*data*/) {
+   s << std::setw(4) << 1900 + m.time().year() << "-"
+   << std::setw(2) << 1 + m.time().month() << "-"
+   << std::setw(2) << m.time().day()
+   << " "
+   << std::setw(2) << m.time().hour() << ":"
+   << std::setw(2) << m.time().min()  << ":"
+   << std::setw(2) << m.time().sec()
+   << " - "
+   << m.basename() << ':' << m.line()
+   << " - "
+   << google::GetLogSeverityName(m.severity())
+   << " - ";
+}
+
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallPrefixFormatter(&MyPrefixFormatter);
+
 
   if (argc < 4) {
     LOG_ERROR << "Error: Not enough arguments provided.";
