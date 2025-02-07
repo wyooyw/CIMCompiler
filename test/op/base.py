@@ -27,7 +27,7 @@ class TestBase:
         self.simulator.clear()
 
     def run_op_test(self, casename, op_config, pimcompute_count=None):
-        op_base_dir = os.path.join(os.environ["CIM_COMPILER_BASE"], "op")
+        op_base_dir = os.path.join(os.environ["CIM_COMPILER_BASE"], "src/op")
         case_dir = os.path.join(op_base_dir, casename)
         code_template_path = os.path.join(case_dir, "code_template.cim")
         test_helper_path = os.path.join(case_dir, "helper.py")
@@ -64,7 +64,7 @@ class TestBase:
 
             # run compiler\
             subprocess.run([
-                "python", "cli/cim_compiler.py", "compile",
+                "python", "src/cli/cim_compiler.py", "compile",
                 "--input-file", code_path,
                 "--output-dir", output_folder,
                 "--config-file", self.config_path
