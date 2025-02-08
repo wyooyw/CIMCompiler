@@ -1,0 +1,9 @@
+from cim_compiler.precompile.remove_comment import remove_comments, remove_comments_from_file
+from cim_compiler.precompile.macro_replace import detect_and_replace_macros, detect_and_replace_macros_from_file
+
+__all__ = [
+    "remove_comments",
+    "remove_comments_from_file",
+    "detect_and_replace_macros",
+    "detect_and_replace_macros_from_file",
+]

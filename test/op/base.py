@@ -6,11 +6,11 @@ from functools import partial
 import numpy as np
 import pytest
 
-from simulator.macro_utils import MacroConfig
-from simulator.mask_utils import MaskConfig
-from simulator.simulator import Memory, MemorySpace, Simulator, SpecialReg
-from utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
-from simulator.inst import CIMFlowParser
+from cim_compiler.simulator.macro_utils import MacroConfig
+from cim_compiler.simulator.mask_utils import MaskConfig
+from cim_compiler.simulator.simulator import Memory, MemorySpace, Simulator, SpecialReg
+from cim_compiler.utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
+from cim_compiler.simulator.inst import CIMFlowParser
 
 import tempfile
 
@@ -27,7 +27,7 @@ class TestBase:
         self.simulator.clear()
 
     def run_op_test(self, casename, op_config, pimcompute_count=None):
-        op_base_dir = os.path.join(os.environ["CIM_COMPILER_BASE"], "src/op")
+        op_base_dir = os.path.join(os.environ["CIM_COMPILER_BASE"], "cim_compiler/op")
         case_dir = os.path.join(op_base_dir, casename)
         code_template_path = os.path.join(case_dir, "code_template.cim")
         test_helper_path = os.path.join(case_dir, "helper.py")
@@ -64,7 +64,7 @@ class TestBase:
 
             # run compiler\
             subprocess.run([
-                "python", "src/cli/cim_compiler.py", "compile",
+                "python", "cim_compiler/cli/main.py", "compile",
                 "--input-file", code_path,
                 "--output-dir", output_folder,
                 "--config-file", self.config_path
