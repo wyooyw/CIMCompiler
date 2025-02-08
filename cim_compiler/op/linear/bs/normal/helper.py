@@ -33,10 +33,10 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
 
         macro_config = simulator.macro_config
         bitwidth = 8
-        n_group = 4
+        n_group = macro_config.n_group
         n_comp = macro_config.n_comp
         n_bcol = macro_config.n_bcol
-        n_macro_per_group = macro_config.n_macro // n_group
+        n_macro_per_group = macro_config.n_macro_per_group
         n_group_bcol = n_macro_per_group * n_bcol
         op_cfg = SimpleNamespace(
             out_channel=weight.shape[0],

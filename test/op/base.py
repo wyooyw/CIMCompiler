@@ -18,8 +18,8 @@ class TestBase:
 
     @classmethod
     def setup_class(cls):
-        cls.config_path = (
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "config/config.json")
+        cls.config_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "config.json"
         )
         cls.simulator = Simulator.from_config(cls.config_path)
 

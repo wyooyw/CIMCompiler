@@ -28,7 +28,7 @@ def get_value_index(weight):
     from cim_compiler.data_processor.dense import convert_value_sparse_conv2d_weight
 
     bitwidth = 8
-    n_group = 4
+    n_group = macro_config.n_group
     config = {
         "n_row": 64,
         "n_vcol": 2,

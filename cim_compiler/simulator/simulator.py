@@ -282,7 +282,7 @@ class MemorySpace:
     @classmethod
     def from_memory_config(
         cls,
-        memory_config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json",
+        memory_config_path,
     ):
         with open(memory_config_path, "r") as f:
             memory_config = json.load(f)
@@ -380,7 +380,7 @@ class Simulator:
     @classmethod
     def from_config(
         cls,
-        config_path="/home/wangyiou/project/cim_compiler_frontend/playground/config/config.json",
+        config_path,
     ):
         with open(config_path, "r") as f:
             config = json.load(f)
@@ -891,6 +891,8 @@ class Simulator:
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
         assert self.macro_config.n_macro % group_size == 0
         group_num = self.macro_config.n_macro // group_size
+        assert group_num == self.macro_config.n_group
+        
         group_input_step = self.read_special_reg(SpecialReg.GROUP_INPUT_STEP)
         assert inst.flag_group == 1
         assert inst.flag_group_input_mode == 0
@@ -915,7 +917,6 @@ class Simulator:
         weight_data = self.macro_util.get_macro_data(
             activate_row,
             width_bw,
-            group_num,
             activate_element_row_num,
             activation_element_col_num,
             activation_group_num,
@@ -1015,6 +1016,7 @@ class Simulator:
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
         assert self.macro_config.n_macro % group_size == 0
         group_num = self.macro_config.n_macro // group_size
+        assert group_num == self.macro_config.n_group
         group_input_step = self.read_special_reg(SpecialReg.GROUP_INPUT_STEP)
         assert inst.flag_group == 1
         assert inst.flag_group_input_mode == 0
@@ -1041,7 +1043,6 @@ class Simulator:
         weight_data = self.macro_util.get_macro_data(
             activate_row,
             8,  # width_bw,
-            group_num,
             activate_element_row_num,
             self.macro_config.n_vcol(8) * group_size,  # activation_element_col_num,
             activation_group_num,
@@ -1050,7 +1051,7 @@ class Simulator:
         group_weight_data = []
         for group_id in range(activation_group_num):
             _weight = weight_data[:, group_id, :]
-            _weight = self.meta_util.recover_weight(meta_addr, _weight, group_num)
+            _weight = self.meta_util.recover_weight(meta_addr, _weight)
             group_weight_data.append(_weight)
 
         # compute
