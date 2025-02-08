@@ -24,6 +24,7 @@ def parse_args():
     parse_convert_args(subparsers)
     parse_compile_args(subparsers)
     parse_simulate_args(subparsers)
+    parse_config_args(subparsers)
     args = parser.parse_args()
     return args
 
@@ -35,6 +36,8 @@ def main():
         run_compile(args)
     elif args.command == "simulate":
         run_simulate(args)
+    elif args.command == "config":
+        run_config(args)
     else:
         raise ValueError(f"Invalid command: {args.command}")
 
