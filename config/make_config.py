@@ -12,10 +12,10 @@ def make_config(args):
 
     config_template_path = args.config_template_path
     # if it is relative path, convert it to absolute path
-    if not os.path.isabs(config_template_path):
-        config_template_path = os.path.join(os.path.dirname(__file__), config_template_path)
+    # if not os.path.isabs(config_template_path):
+    #     config_template_path = os.path.join(os.path.dirname(__file__), config_template_path)
 
-    config_path = os.path.join(os.path.dirname(__file__), "config.json")
+    config_path = args.config_output_path
     with open(config_template_path, "r") as f:
         config = json.load(f)
     last_end = 0
@@ -29,6 +29,9 @@ def make_config(args):
         make_sure = input(
             f"config.json already exists, do you want to overwrite it? (y/n)"
         )
+    else:
+        make_sure = 'y'
+    
     if make_sure.lower() == "y":
         with open(config_path, "w") as f:
             json.dump(config, f, indent=4)
@@ -36,7 +39,8 @@ def make_config(args):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="make config.json")
-    parser.add_argument("--config-template-path", "-p", type=str, help="config template path")
+    parser.add_argument("--config-template-path", "-t", type=str, help="config template path")
+    parser.add_argument("--config-output-path", "-o", type=str, help="config output path")
     return parser.parse_args()
 
 if __name__ == "__main__":
