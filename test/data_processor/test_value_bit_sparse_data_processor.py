@@ -1,8 +1,8 @@
 import numpy as np
 
-from data_processor.dense import convert_value_sparse_conv2d_weight
-from utils.bit_sparse_weight_transform import *
-from utils.bit_value_sparse_weight_transform import (
+from cim_compiler.data_processor.dense import convert_value_sparse_conv2d_weight
+from cim_compiler.utils.bit_sparse_weight_transform import *
+from cim_compiler.utils.bit_value_sparse_weight_transform import (
     convert_value_bit_sparse_conv2d_weight,
 )
 

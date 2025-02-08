@@ -1,4 +1,4 @@
-from op.helper import BitSparseConv2dTestHelper, QuantizeHelper
+from cim_compiler.op.helper import BitSparseConv2dTestHelper, QuantizeHelper
 
 
 class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
@@ -10,7 +10,7 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
         self.output_dtype = np.int32
 
     def _get_mock_weight(self):
-        from utils.bit_sparse_weight_transform import generate_valid_weight
+        from cim_compiler.utils.bit_sparse_weight_transform import generate_valid_weight
 
         weight = generate_valid_weight(
             [self.out_channel, self.ker_size, self.ker_size, self.in_channel]
@@ -22,14 +22,14 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
 
         import numpy as np
 
-        from utils.bit_sparse_weight_transform import (
+        from cim_compiler.utils.bit_sparse_weight_transform import (
             outsum_mask_to_transfer_mask,
             parse_out_begin_channel,
             parse_out_mask,
             parse_out_mask_and_transfer_mask,
             weight_transform_group,
         )
-        from utils.df_layout import tensor_bits_to_int8
+        from cim_compiler.utils.df_layout import tensor_bits_to_int8
 
         macro_config = simulator.macro_config
         bitwidth = 8
@@ -122,7 +122,7 @@ class TestHelper(BitSparseConv2dTestHelper, QuantizeHelper):
 
     # def get_image(self, simulator, input=None, weight=None, bias=None, scale=None, out_zp=None, relu=False):
     #     import numpy as np
-    #     from utils.bias_scale_fuse import bias_scale_fuse
+    #     from cim_compiler.utils.bias_scale_fuse import bias_scale_fuse
 
     #     quantify_image = self.get_image_quantify(simulator, bias, scale, out_zp, relu)
     #     origin_image = super().get_image(simulator, input, weight)

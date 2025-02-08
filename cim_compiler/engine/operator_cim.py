@@ -10,12 +10,12 @@ import pytest
 from simulator.macro_utils import MacroConfig
 from simulator.mask_utils import MaskConfig
 from simulator.simulator import Memory, MemorySpace, Simulator, SpecialReg
-from utils.bit_sparse_weight_transform import (
+from cim_compiler.utils.bit_sparse_weight_transform import (
     argsort_filters_threshold,
     find_nonzero_filter,
 )
-from utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
-from utils.round import banker_round
+from cim_compiler.utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
+from cim_compiler.utils.round import banker_round
 import subprocess
 
 class Operator:
@@ -83,7 +83,7 @@ class Operator:
         # run compiler
         # use CLI to call compile
         subprocess.run([
-            "python", "src/cli/cim_compiler.py", "compile",
+            "python", "cim_compiler/cli/main.py", "compile",
             "--input-file", input_path,
             "--output-dir", code_dir,
             "--config-file", self.config_path

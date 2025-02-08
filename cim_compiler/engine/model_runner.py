@@ -25,7 +25,7 @@ from engine.operator_template import (  # quantify
     MaxPoolingTemplate,
     AvgPoolingQuantizeTemplate,
 )
-from utils.logger import get_logger
+from cim_compiler.utils.logger import get_logger
 from functools import reduce
 
 formatted_now = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
@@ -228,7 +228,7 @@ class ModelRunner:
         logger.info(f"Layer {raw_layer['name']} begin")
         logger.info(f"{mode_name=}")
         output, check_result = op.compile_and_run_from_dataflow_dir(
-            df_dir, code_dir, check_result=1 - int(os.environ.get("FAST_MODE"), 0)
+            df_dir, code_dir, check_result=1 - int(os.environ.get("FAST_MODE", 0))
         )
 
         # show layer name and check result

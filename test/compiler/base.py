@@ -5,10 +5,10 @@ import subprocess
 import numpy as np
 import pytest
 
-from simulator.macro_utils import MacroConfig
-from simulator.mask_utils import MaskConfig
-from simulator.simulator import Memory, MemorySpace, Simulator, SpecialReg
-from simulator.inst import CIMFlowParser
+from cim_compiler.simulator.macro_utils import MacroConfig
+from cim_compiler.simulator.mask_utils import MaskConfig
+from cim_compiler.simulator.simulator import Memory, MemorySpace, Simulator, SpecialReg
+from cim_compiler.simulator.inst import CIMFlowParser
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 import tempfile
 
@@ -30,7 +30,7 @@ def fill_template(src_path, dst_path):
         loader=FileSystemLoader([
             src_folder, 
             os.environ["CIM_COMPILER_BASE"],
-            os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+            os.environ.get(os.environ["CIM_COMPILER_BASE"], "cim_compiler")
         ]),
         undefined=StrictUndefined
     )
@@ -80,7 +80,7 @@ class TestBase:
 
             # run compiler
             subprocess.run([
-                "python", "src/cli/cim_compiler.py", "compile",
+                "python", "cim_compiler/cli/main.py", "compile",
                 "--input-file", input_path,
                 "--output-dir", output_folder,
                 "--config-file", self.config_path
@@ -136,7 +136,7 @@ class TestBase:
 
             # run compiler
             subprocess.run([
-                "python", "src/cli/cim_compiler.py", "compile",
+                "python", "cim_compiler/cli/main.py", "compile",
                 "--input-file", input_path,
                 "--output-dir", output_folder,
                 "--config-file", self.config_path

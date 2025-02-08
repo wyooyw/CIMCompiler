@@ -1,4 +1,4 @@
-# from op.helper import TestHelper
+# from cim_compiler.op.helper import TestHelper
 
 
 class TestHelper:
@@ -44,7 +44,7 @@ class TestHelper:
     def _calculate_golden(self):
         import numpy as np
 
-        from utils.round import banker_round
+        from cim_compiler.utils.round import banker_round
         
         mul_result_1 = self.input1.astype(np.int32) * self.input2.astype(np.int32)
         mul_result_2 = banker_round(mul_result_1 * self.scale)
@@ -55,7 +55,7 @@ class TestHelper:
     def get_image_quantify(self, simulator, scale):
         import numpy as np
 
-        from utils.bias_scale_fuse import bias_scale_fuse
+        from cim_compiler.utils.bias_scale_fuse import bias_scale_fuse
 
 
         if scale is None:
@@ -125,7 +125,7 @@ class TestHelper:
             loader=FileSystemLoader([
                 src_folder, 
                 os.environ["CIM_COMPILER_BASE"],
-                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "cim_compiler")
             ]),
             undefined=StrictUndefined
         )

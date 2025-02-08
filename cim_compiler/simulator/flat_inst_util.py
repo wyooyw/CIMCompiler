@@ -102,10 +102,10 @@ class FlatInstUtil:
         elif isinstance(inst, CIMConfigInst):
             self._flat_pim_set(inst, idx)
         elif isinstance(inst, CIMOutputInst):
-            if int(os.environ.get("FAST_MODE")) == 0:
+            if int(os.environ.get("FAST_MODE", 0)) == 0:
                 self._flat_pim_output(inst, idx)
         elif isinstance(inst, CIMTransferInst):
-            if int(os.environ.get("FAST_MODE")) == 0:
+            if int(os.environ.get("FAST_MODE", 0)) == 0:
                 self._flat_pim_transfer(inst, idx)
         elif isinstance(inst, SIMDInst):
             self._flat_simd(inst, idx)

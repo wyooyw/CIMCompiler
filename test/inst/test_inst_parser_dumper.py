@@ -1,5 +1,5 @@
 import pytest
-from simulator.inst import *
+from cim_compiler.simulator.inst import *
 import json
 import os
 

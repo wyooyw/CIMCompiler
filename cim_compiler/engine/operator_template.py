@@ -30,7 +30,7 @@ from engine.operator_cim import (
 from simulator.macro_utils import MacroConfig
 from simulator.mask_utils import MaskConfig
 from simulator.simulator import Memory, MemorySpace, Simulator, SpecialReg
-from utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
+from cim_compiler.utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
 
 
 class OperatorTemplate:

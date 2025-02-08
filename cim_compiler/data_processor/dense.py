@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-from utils.df_layout import tensor_bits_to_int8
+from cim_compiler.utils.df_layout import tensor_bits_to_int8
 
 
 def convert_dense_conv2d_weight(weight, macro_config):

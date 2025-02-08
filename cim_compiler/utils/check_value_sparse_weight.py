@@ -25,7 +25,7 @@ def get_weight(model_path, layer_info, layer_name):
 
 
 def get_value_index(weight):
-    from data_processor.dense import convert_value_sparse_conv2d_weight
+    from cim_compiler.data_processor.dense import convert_value_sparse_conv2d_weight
 
     bitwidth = 8
     n_group = 4

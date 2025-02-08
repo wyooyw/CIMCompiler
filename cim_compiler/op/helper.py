@@ -245,7 +245,7 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
         self.im2col = False
 
     def _make_dense_data(self, weight, simulator):
-        from data_processor.dense import convert_dense_conv2d_weight
+        from cim_compiler.data_processor.dense import convert_dense_conv2d_weight
 
         macro_config = simulator.macro_config
         bitwidth = 8
@@ -377,7 +377,7 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
             loader=FileSystemLoader([
                 src_folder, 
                 os.environ["CIM_COMPILER_BASE"],
-                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "cim_compiler")
             ]), 
             undefined=StrictUndefined
         )
@@ -402,7 +402,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         self.im2col = False
 
     def _get_mock_weight(self):
-        from utils.bit_sparse_weight_transform import generate_valid_weight
+        from cim_compiler.utils.bit_sparse_weight_transform import generate_valid_weight
 
         # weight = generate_valid_weight([self.out_channel, self.ker_size, self.ker_size, self.in_channel], 2)
         weight = generate_valid_weight(
@@ -415,14 +415,14 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
 
         import numpy as np
 
-        from utils.bit_sparse_weight_transform import (
+        from cim_compiler.utils.bit_sparse_weight_transform import (
             outsum_mask_to_transfer_mask,
             parse_out_begin_channel,
             parse_out_mask,
             parse_out_mask_and_transfer_mask,
             weight_transform_group,
         )
-        from utils.df_layout import tensor_bits_to_int8
+        from cim_compiler.utils.df_layout import tensor_bits_to_int8
 
         macro_config = simulator.macro_config
         bitwidth = 8
@@ -633,7 +633,7 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
             loader=FileSystemLoader([
                 src_folder, 
                 os.environ["CIM_COMPILER_BASE"],
-                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "cim_compiler")
             ]),
             undefined=StrictUndefined
         )
@@ -657,7 +657,7 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
         self.output_dtype = np.int32
 
     def _get_mock_weight(self):
-        from utils.bit_sparse_weight_transform import generate_valid_weight
+        from cim_compiler.utils.bit_sparse_weight_transform import generate_valid_weight
 
         weight = np.random.randint(
             -100,
@@ -687,7 +687,7 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
         return weight
 
     def _make_value_sparse_data(self, weight, simulator):
-        from data_processor.dense import convert_value_sparse_conv2d_weight
+        from cim_compiler.data_processor.dense import convert_value_sparse_conv2d_weight
 
         macro_config = simulator.macro_config
         n_from = simulator.mask_config.n_from
@@ -724,7 +724,7 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
     def get_image(self, simulator, input=None, weight=None):
         import numpy as np
 
-        from utils.df_layout import tensor_bits_to_int8
+        from cim_compiler.utils.df_layout import tensor_bits_to_int8
 
         """
         
@@ -866,7 +866,7 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
             loader=FileSystemLoader([
                 src_folder, 
                 os.environ["CIM_COMPILER_BASE"],
-                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "cim_compiler")
             ]),
             undefined=StrictUndefined
         )
@@ -899,7 +899,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
 
         import random
 
-        from utils.bit_sparse_weight_transform import generate_valid_weight
+        from cim_compiler.utils.bit_sparse_weight_transform import generate_valid_weight
 
         np.random.seed(4)
         random.seed(4)
@@ -920,7 +920,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
         return weight
 
     def _make_value_bit_sparse_data(self, weight, simulator):
-        from utils.bit_value_sparse_weight_transform import (
+        from cim_compiler.utils.bit_value_sparse_weight_transform import (
             convert_value_bit_sparse_conv2d_weight,
         )
 
@@ -945,7 +945,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
     def get_image(self, simulator, input=None, weight=None):
         import numpy as np
 
-        from utils.df_layout import tensor_bits_to_int8
+        from cim_compiler.utils.df_layout import tensor_bits_to_int8
 
         """
         
@@ -1147,7 +1147,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
             loader=FileSystemLoader([
                 src_folder, 
                 os.environ["CIM_COMPILER_BASE"],
-                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "cim_compiler")
             ]),
             undefined=StrictUndefined
         )
@@ -1191,7 +1191,7 @@ class QuantizeHelper:
     def _calculate_golden_quantize(self):
         import numpy as np
 
-        from utils.round import banker_round
+        from cim_compiler.utils.round import banker_round
 
         output_h = output_w = self.out_hw
         output_c = self.out_channel
@@ -1228,7 +1228,7 @@ class QuantizeHelper:
     ):
         import numpy as np
 
-        from utils.bias_scale_fuse import bias_scale_fuse
+        from cim_compiler.utils.bias_scale_fuse import bias_scale_fuse
 
         if bias is None:
             bias = self._get_mock_bias()

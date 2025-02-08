@@ -1,4 +1,4 @@
-# from op.helper import TestHelper
+# from cim_compiler.op.helper import TestHelper
 
 
 class TestHelper:
@@ -43,7 +43,7 @@ class TestHelper:
 
     def _calculate_golden(self):
         import numpy as np
-        from utils.round import banker_round
+        from cim_compiler.utils.round import banker_round
 
         input_tensor = self.input_.reshape(
             self.in_hw//self.ker_size, self.ker_size, self.in_hw//self.ker_size, self.ker_size, self.in_channel
@@ -70,7 +70,7 @@ class TestHelper:
         out_zp=None
     ):
         import numpy as np
-        from utils.bias_scale_fuse import bias_scale_fuse
+        from cim_compiler.utils.bias_scale_fuse import bias_scale_fuse
         
         self.input_ = self._get_mock_input() if input_ is None else input_
         self.mul_factor = np.array([1 / (self.ker_size * self.ker_size)], dtype=np.float32)
@@ -115,7 +115,7 @@ class TestHelper:
             loader=FileSystemLoader([
                 src_folder, 
                 os.environ["CIM_COMPILER_BASE"],
-                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "cim_compiler")
             ]),
             undefined=StrictUndefined
         )

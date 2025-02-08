@@ -1,6 +1,6 @@
 import pytest
 
-from utils.bit_sparse_weight_transform import (
+from cim_compiler.utils.bit_sparse_weight_transform import (
     generate_valid_weight,
     int_to_csd_nonzero_count,
     int_to_csd_nonzero_count_tensor,

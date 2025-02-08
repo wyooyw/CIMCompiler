@@ -21,8 +21,8 @@ output:
 
 import math
 
-from data_processor.dense import *
-from utils.bit_sparse_weight_transform import *
+from cim_compiler.data_processor.dense import *
+from cim_compiler.utils.bit_sparse_weight_transform import *
 
 
 def convert_value_bit_sparse_conv2d_weight(weight, macro_config):

@@ -1,4 +1,4 @@
-# from op.helper import TestHelper
+# from cim_compiler.op.helper import TestHelper
 
 
 class TestHelper:
@@ -85,7 +85,7 @@ class TestHelper:
             loader=FileSystemLoader([
                 src_folder, 
                 os.environ["CIM_COMPILER_BASE"],
-                os.environ.get(os.environ["CIM_COMPILER_BASE"], "src")
+                os.environ.get(os.environ["CIM_COMPILER_BASE"], "cim_compiler")
             ]),
             undefined=StrictUndefined
         )

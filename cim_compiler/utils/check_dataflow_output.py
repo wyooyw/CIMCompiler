@@ -1,6 +1,6 @@
 import numpy as np
 
-from utils.round import banker_round
+from cim_compiler.utils.round import banker_round
 
 
 def conv2d(input, weight, padding, bias=None, stride=1):

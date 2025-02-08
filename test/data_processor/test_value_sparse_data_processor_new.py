@@ -1,6 +1,6 @@
 import numpy as np
 
-from data_processor.dense import convert_value_sparse_conv2d_weight
+from cim_compiler.data_processor.dense import convert_value_sparse_conv2d_weight
 
 
 def test_case1():

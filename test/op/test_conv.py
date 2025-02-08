@@ -1,5 +1,5 @@
 import pytest
-from utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
+from cim_compiler.utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
 from test.op.base import TestBase
 
 class TestConv(TestBase):

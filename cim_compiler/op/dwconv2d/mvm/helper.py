@@ -1,4 +1,4 @@
-from op.helper import DenseConv2dTestHelper, QuantizeHelper
+from cim_compiler.op.helper import DenseConv2dTestHelper, QuantizeHelper
 
 
 class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
@@ -81,7 +81,7 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
         return input_data
 
     def _make_dense_data(self, weight, simulator):
-        from data_processor.dense import convert_dense_depthwise_conv2d_weight
+        from cim_compiler.data_processor.dense import convert_dense_depthwise_conv2d_weight
 
         macro_config = simulator.macro_config
         bitwidth = 8
@@ -118,7 +118,7 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
     def _calculate_golden(self):
         import numpy as np
 
-        from utils.round import banker_round
+        from cim_compiler.utils.round import banker_round
 
         output_h = output_w = self.out_hw
         output_c = self.out_channel
@@ -182,7 +182,7 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
     ):
         import numpy as np
 
-        from utils.bias_scale_fuse import bias_scale_fuse
+        from cim_compiler.utils.bias_scale_fuse import bias_scale_fuse
 
         quantify_image = self.get_image_quantify(simulator, bias, scale, out_zp, relu)
         origin_image = super().get_image(simulator, input, weight)

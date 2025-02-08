@@ -1,4 +1,4 @@
-from op.helper import QuantizeHelper, ValueSparseConv2dTestHelper
+from cim_compiler.op.helper import QuantizeHelper, ValueSparseConv2dTestHelper
 
 
 class TestHelper(ValueSparseConv2dTestHelper):
@@ -22,7 +22,7 @@ class TestHelper(ValueSparseConv2dTestHelper):
 
     # def get_image(self, simulator, input=None, weight=None, bias=None, scale=None, out_zp=None, relu=False):
     #     import numpy as np
-    #     from utils.bias_scale_fuse import bias_scale_fuse
+    #     from cim_compiler.utils.bias_scale_fuse import bias_scale_fuse
 
     #     quantify_image = self.get_image_quantify(simulator, bias, scale, out_zp, relu)
     #     origin_image = super().get_image(simulator, input, weight)
@@ -43,10 +43,10 @@ class TestHelper(ValueSparseConv2dTestHelper):
             context["IM2COL_SIZE_1"] = self.input_data_im2col.shape[1]
             if context["IM2COL_SIZE_0"] > 1:
                 context["IM2COL_SMALL_INPUT_MEMORY"] = bool(
-                    int(os.environ.get("IM2COL_SMALL_INPUT_MEMORY"))
+                    int(os.environ.get("IM2COL_SMALL_INPUT_MEMORY", 1))
                 )
             else:
                 context["IM2COL_SMALL_INPUT_MEMORY"] = False
 
-        context["FAST_MODE"] = bool(int(os.environ.get("FAST_MODE")))
+        context["FAST_MODE"] = bool(int(os.environ.get("FAST_MODE", 0)))
         return context
