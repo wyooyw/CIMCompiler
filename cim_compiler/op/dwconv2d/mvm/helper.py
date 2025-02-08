@@ -85,9 +85,9 @@ class TestHelper(DenseConv2dTestHelper, QuantizeHelper):
 
         macro_config = simulator.macro_config
         bitwidth = 8
-        n_group = 4
+        n_group = macro_config.n_group
         n_vcol = macro_config.n_bcol // bitwidth
-        n_macro_per_group = macro_config.n_macro // n_group
+        n_macro_per_group = macro_config.n_macro_per_group
         n_group_vcol = n_macro_per_group * n_vcol
         config = {
             "n_vcol": n_vcol,

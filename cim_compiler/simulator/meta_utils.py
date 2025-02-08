@@ -17,22 +17,22 @@ class MetaUtil:
         del self.recover_tensor_buffer
         self.recover_tensor_buffer = dict()
 
-    def _get_buffer_key(self, meta_addr, wtensor, n_group):
-        key = (meta_addr, wtensor.data.tobytes(), n_group)
+    def _get_buffer_key(self, meta_addr, wtensor):
+        key = (meta_addr, wtensor.data.tobytes())
         return key
 
-    def _find_in_buffer(self, meta_addr, wtensor, n_group):
-        key = self._get_buffer_key(meta_addr, wtensor, n_group)
+    def _find_in_buffer(self, meta_addr, wtensor):
+        key = self._get_buffer_key(meta_addr, wtensor)
         if key in self.recover_tensor_buffer:
             return self.recover_tensor_buffer[key]
         return None
 
-    def _set_in_buffer(self, meta_addr, wtensor, n_group, recovered_tensor):
-        key = self._get_buffer_key(meta_addr, wtensor, n_group)
+    def _set_in_buffer(self, meta_addr, wtensor, recovered_tensor):
+        key = self._get_buffer_key(meta_addr, wtensor)
         self.recover_tensor_buffer[key] = recovered_tensor
 
-    def get_meta(self, meta_addr, n_group):
-        n_macro_per_group = self.macro_config.n_macro // n_group
+    def get_meta(self, meta_addr):
+        n_macro_per_group = self.macro_config.n_macro_per_group
         info_size = (
             self.macro_config.n_comp
             * n_macro_per_group
@@ -51,21 +51,21 @@ class MetaUtil:
         info_tensor = info_tensor.reshape(self.macro_config.n_comp, -1, 3)
         return info_tensor
 
-    def recover_weight(self, meta_addr, wtensor, n_group):
-        cache_result = self._find_in_buffer(meta_addr, wtensor, n_group)
+    def recover_weight(self, meta_addr, wtensor):
+        cache_result = self._find_in_buffer(meta_addr, wtensor)
         if cache_result is not None:
             return cache_result
         ori_wtensor = wtensor
 
         n_comp = self.macro_config.n_comp
-        n_macro_per_group = self.macro_config.n_macro // n_group
+        n_macro_per_group = self.macro_config.n_macro_per_group
         n_bcol_per_group = self.macro_config.n_bcol * n_macro_per_group
 
         wtensor = tensor_int8_to_bits(wtensor)
         # print(wtensor.shape)
         wtensor = wtensor.reshape(self.macro_config.n_comp, n_bcol_per_group)
 
-        info_tensor = self.get_meta(meta_addr, n_group)
+        info_tensor = self.get_meta(meta_addr)
         # print(f"{info_tensor.shape=}")
         # import pdb; pdb.set_trace()
 
@@ -83,5 +83,5 @@ class MetaUtil:
                 # print(f"value:",val,"sign:",sign,"location:",location,"csd:",csd,"int:",int_val)
                 recovered_wtensor[i_comp, i_col_and_macro] = int_val
 
-        self._set_in_buffer(meta_addr, ori_wtensor, n_group, recovered_wtensor)
+        self._set_in_buffer(meta_addr, ori_wtensor, recovered_wtensor)
         return recovered_wtensor

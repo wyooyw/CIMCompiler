@@ -249,9 +249,9 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
 
         macro_config = simulator.macro_config
         bitwidth = 8
-        n_group = 4
+        n_group = macro_config.n_group
         n_vcol = macro_config.n_bcol // bitwidth
-        n_macro_per_group = macro_config.n_macro // n_group
+        n_macro_per_group = macro_config.n_macro_per_group
         n_group_vcol = n_macro_per_group * n_vcol
         config = {
             "n_vcol": n_vcol,
@@ -329,10 +329,10 @@ class DenseConv2dTestHelper(Conv2dTestHelper):
         mask_config = simulator.mask_config
 
         # 准备模板上下文
-        n_group = 4
+        n_group = macro_config.n_group
         bitwidth = 8
         n_macro = macro_config.n_macro
-        n_macro_per_group = n_macro // n_group
+        n_macro_per_group = macro_config.n_macro_per_group
         n_vcol = macro_config.n_vcol(bitwidth)
         n_group_vcol = n_macro_per_group * n_vcol
         n_row = macro_config.n_row
@@ -426,10 +426,10 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
 
         macro_config = simulator.macro_config
         bitwidth = 8
-        n_group = 4
+        n_group = macro_config.n_group
         n_comp = macro_config.n_comp
         n_bcol = macro_config.n_bcol
-        n_macro_per_group = macro_config.n_macro // n_group
+        n_macro_per_group = macro_config.n_macro_per_group
         n_group_bcol = n_macro_per_group * n_bcol
         op_cfg = SimpleNamespace(
             out_channel=weight.shape[0],
@@ -577,10 +577,10 @@ class BitSparseConv2dTestHelper(Conv2dTestHelper):
         mask_config = simulator.mask_config
 
         # 准备模板上下文
-        n_group = 4
+        n_group = macro_config.n_group
         bitwidth = 8
         n_macro = macro_config.n_macro
-        n_macro_per_group = n_macro // n_group
+        n_macro_per_group = macro_config.n_macro_per_group
         n_vcol = macro_config.n_vcol(bitwidth)
         n_bcol = macro_config.n_bcol
         n_group_vcol = n_macro_per_group * n_vcol
@@ -693,7 +693,7 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
         n_from = simulator.mask_config.n_from
         n_to = simulator.mask_config.n_to
         bitwidth = 8
-        n_group = 4
+        n_group = macro_config.n_group
         config = {
             "n_row": macro_config.n_row,
             "n_vcol": macro_config.n_bcol // bitwidth,
@@ -811,10 +811,10 @@ class ValueSparseConv2dTestHelper(Conv2dTestHelper):
         mask_config = simulator.mask_config
 
         # 准备模板上下文
-        n_group = 4
+        n_group = macro_config.n_group
         bitwidth = 8
         n_macro = macro_config.n_macro
-        n_macro_per_group = n_macro // n_group
+        n_macro_per_group = macro_config.n_macro_per_group
         n_vcol = macro_config.n_vcol(bitwidth)
         n_group_vcol = n_macro_per_group * n_vcol
         n_row = macro_config.n_row
@@ -928,7 +928,7 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
         n_from = simulator.mask_config.n_from
         n_to = simulator.mask_config.n_to
         bitwidth = 8
-        n_group = 4
+        n_group = macro_config.n_group
         config = {
             "n_row": macro_config.n_row,
             "n_bcol": macro_config.n_bcol,
@@ -1004,10 +1004,10 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
 
         macro_config = simulator.macro_config
         bitwidth = 8
-        n_group = 4
+        n_group = macro_config.n_group
         n_comp = macro_config.n_comp
         n_bcol = macro_config.n_bcol
-        n_macro_per_group = macro_config.n_macro // n_group
+        n_macro_per_group = macro_config.n_macro_per_group
         n_group_bcol = n_macro_per_group * n_bcol
 
         assert outsum_mask.shape[1] == (
@@ -1087,10 +1087,10 @@ class ValueBitSparseConv2dTestHelper(Conv2dTestHelper):
         mask_config = simulator.mask_config
 
         # 准备模板上下文
-        n_group = 4
+        n_group = macro_config.n_group
         bitwidth = 8
         n_macro = macro_config.n_macro
-        n_macro_per_group = n_macro // n_group
+        n_macro_per_group = macro_config.n_macro_per_group
         n_vcol = macro_config.n_vcol(bitwidth)
         n_group_vcol = n_macro_per_group * n_vcol
         n_group_bcol = n_macro_per_group * macro_config.n_bcol
