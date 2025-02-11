@@ -102,7 +102,7 @@ def main(){
         out_channel_len = out_channel_end - out_channel_begin;
         out_tile_i = out_channel_begin / N_GROUP_VCOL;
 
-        use_pimset_mask = global_pimset_mask[out_tile_i:out_tile_i+1,0:N_GROUP_VCOL];
+        use_pimset_mask = local_pimset_mask[out_tile_i:out_tile_i+1,0:N_GROUP_VCOL];
         CIMSet(use_pimset_mask);
 
         inner_reduce_tile_size = N_ROW;
