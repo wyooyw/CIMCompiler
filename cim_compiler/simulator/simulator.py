@@ -6,6 +6,7 @@ from enum import Enum
 
 import numpy as np
 from tqdm import tqdm
+import math
 
 from cim_compiler.simulator.data_type import get_bitwidth_from_dtype, get_dtype_from_bitwidth
 from cim_compiler.simulator.flat_inst_util import FlatInstUtil
@@ -1243,14 +1244,14 @@ class Simulator:
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
         vcol = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
         n_vcol_per_group = self.macro_config.n_vcol(vcol) * group_size
-        mask_size = n_vcol_per_group // 8
+        mask_size = int(math.ceil(n_vcol_per_group / 8))
 
         mask_data = self.memory_space.read_as(mask_addr, mask_size, np.int8)
         mask_data = tensor_int8_to_bits(mask_data)
         mask_data = mask_data.reshape(-1)
+        mask_data = mask_data[:n_vcol_per_group]
         self.stats_util.record_pimset_mask(mask_data.tolist(), vcol)
 
-        # import pdb; pdb.set_trace()
         mask_data = mask_data.astype(bool)
         mask_data = ~mask_data
         self.set_pimset_mask(mask_data.copy())
