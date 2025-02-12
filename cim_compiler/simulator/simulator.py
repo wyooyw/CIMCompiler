@@ -7,6 +7,7 @@ from enum import Enum
 import numpy as np
 from tqdm import tqdm
 import math
+import os
 
 from cim_compiler.simulator.data_type import get_bitwidth_from_dtype, get_dtype_from_bitwidth
 from cim_compiler.simulator.flat_inst_util import FlatInstUtil
@@ -18,11 +19,9 @@ from cim_compiler.utils.df_layout import tensor_int8_to_bits
 from cim_compiler.utils.round import banker_round
 from cim_compiler.simulator.inst.instruction import *
 from cim_compiler.simulator.inst import LegacyParser, CIMFlowParser
+from cim_compiler.utils.logger import get_logger
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
+logger = get_logger(__name__)
 
 class SpecialReg(Enum):
 
@@ -293,7 +292,7 @@ class MemorySpace:
             memtype = memory["type"]
             offset = memory["addressing"]["offset_byte"]
             size = memory["addressing"]["size_byte"]
-            logging.debug(f"Add memory: {name=}, {memtype=}, {offset=}, {size=}")
+            logger.debug(f"Add memory: {name=}, {memtype=}, {offset=}, {size=}")
             memory_space.add_memory(Memory(name, memtype, offset, size))
         return memory_space
 
@@ -360,7 +359,7 @@ class Simulator:
         This is an internal memory for doing accumulate for macro's output
         """
         if self.memory_space.get_memory_by_name("pim_output_reg_buffer") is None:
-            logging.debug(
+            logger.debug(
                 "[Warning] Can't find pim_output_reg_buffer. Make sure the code has no macro-related instruction."
             )
             return
@@ -375,7 +374,7 @@ class Simulator:
             offset=end_offset,
             size=output_buffer_size,
         )
-        logging.debug(f"{end_offset=}")
+        logger.debug(f"{end_offset=}")
         self.memory_space.add_memory(internel_macro_output_buffer)
 
     @classmethod
@@ -448,10 +447,10 @@ class Simulator:
         self.pbar.close()
 
         if pc == len(code):
-            logging.debug("Run finish!")
+            logger.debug("Run finish!")
             return self.FINISH, self.stats_util, self.flat_inst_util
         elif pc < len(code) and cnt == self.safe_time:
-            logging.debug("Meet safe time!")
+            logger.debug("Meet safe time!")
             return self.TIMEOUT, self.stats_util, self.flat_inst_util
         else:
             print(
@@ -713,18 +712,19 @@ class Simulator:
         src_addr = src_base + src_offset_mask * offset
         dst_addr = dst_base + dst_offset_mask * offset
 
-        logging.debug(
-            "Trans: from {}({}) to {}({}), {} bytes".format(
+        src_data = self.memory_space.read(src_addr, size)
+        self.memory_space.write(src_data, dst_addr, size)
+
+        logger.debug(
+            "Trans: from {}({}) to {}({}), {} bytes. Data (first 16 bytes): {}".format(
                 str(src_addr),
                 self.memory_space.get_memory_by_address(src_addr).name,
                 str(dst_addr),
                 self.memory_space.get_memory_by_address(dst_addr).name,
                 str(size),
+                src_data[0:min(size, 16)]
             )
         )
-
-        src_data = self.memory_space.read(src_addr, size)
-        self.memory_space.write(src_data, dst_addr, size)
 
         self.stats_util.record_trans_addr(src_addr, dst_addr, size)
 
@@ -789,8 +789,8 @@ class Simulator:
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
         width_bw = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
-        logging.debug(f"{group_size=}, {self.macro_config.n_macro=}")
-        logging.debug(f"old {weight_data.shape=}")
+        logger.debug(f"{group_size=}, {self.macro_config.n_macro=}")
+        logger.debug(f"old {weight_data.shape=}")
         weight_data = np.pad(
             weight_data,
             (
@@ -804,7 +804,7 @@ class Simulator:
             mode="constant",
             constant_values=0,
         )
-        logging.debug(f"new {weight_data.shape=}")
+        logger.debug(f"new {weight_data.shape=}")
         weight_data = weight_data.reshape(
             self.macro_config.n_comp, group_size, self.macro_config.n_vcol(width_bw)
         )
@@ -818,7 +818,7 @@ class Simulator:
             input_data.size == self.mask_config.n_from
         ), f"{input_data.size=}, {self.mask_config.n_from=}"
         mask_addr = self.read_special_reg(SpecialReg.VALUE_SPARSE_MASK_ADDR)
-        # logging.debug(f"{mask_addr=}")
+        # logger.debug(f"{mask_addr=}")
         mask_data = self.mask_util.get_mask(mask_addr, input_data.size, group_size)
         assert mask_data.ndim == 2, f"{mask_data.ndim=}"
         assert (
@@ -830,10 +830,10 @@ class Simulator:
             mask_data.sum(axis=1) <= self.mask_config.n_to
         ).all(), f"{mask_data.sum(axis=1)=}, {self.mask_config.n_to=}"
         # np.set_printoptions(threshold=65536)
-        # logging.debug(f"{mask_data.shape=}")
-        # logging.debug(mask_data.astype(np.int8))
-        # logging.debug(f"{weight_data.shape=}")
-        # logging.debug(weight_data.reshape(self.macro_config.n_comp, -1))
+        # logger.debug(f"{mask_data.shape=}")
+        # logger.debug(mask_data.astype(np.int8))
+        # logger.debug(f"{weight_data.shape=}")
+        # logger.debug(weight_data.reshape(self.macro_config.n_comp, -1))
         # import pdb; pdb.set_trace()
         pimset_mask = self.get_pimset_mask().reshape(group_size, -1)
         n_comp = self.macro_config.n_comp
@@ -846,7 +846,7 @@ class Simulator:
             macro_mask = mask_data[macro_id]
             # import pdb; pdb.set_trace()
             macro_input_data = input_data[macro_mask]
-            # logging.debug(f"{input_data=}, {macro_mask=}, {macro_input_data=}")
+            # logger.debug(f"{input_data=}, {macro_mask=}, {macro_input_data=}")
             assert macro_input_data.ndim == 1
             assert macro_input_data.size <= self.mask_config.n_to
             macro_input_data = np.pad(
@@ -862,7 +862,7 @@ class Simulator:
             macro_output = np.dot(
                 macro_input_data.astype(out_dtype), macro_weight.astype(out_dtype)
             )
-            # logging.debug(f"{macro_input_data=}, {macro_weight=}, {macro_output=}")
+            # logger.debug(f"{macro_input_data=}, {macro_weight=}, {macro_output=}")
             output_list.append(macro_output)
 
             n_use_comp = macro_mask.sum().item()
@@ -873,7 +873,7 @@ class Simulator:
             self._stats_macro_util(macro_id, group_size, n_use_comp, width_bw)
         # import pdb; pdb.set_trace()
         output_data = np.concatenate(output_list)
-        # logging.debug(f"{output_data=}")
+        # logger.debug(f"{output_data=}")
         return output_data
 
     def _run_pim_class_pim_compute_type_inst_dense(self, inst):
@@ -897,7 +897,7 @@ class Simulator:
         group_input_step = self.read_special_reg(SpecialReg.GROUP_INPUT_STEP)
         assert inst.flag_group == 1
         assert inst.flag_group_input_mode == 0
-        logging.debug(f"{group_num=}")
+        logger.debug(f"{group_num=}")
 
         value_sparsity = inst.flag_value_sparse
         # Get input vector
@@ -922,7 +922,7 @@ class Simulator:
             activation_element_col_num,
             activation_group_num,
         )  # shape: [compartment, group, vcolumn]
-        logging.debug(f"{weight_data.shape=}")
+        logger.debug(f"{weight_data.shape=}")
         group_weight_data = []
         for group_id in range(activation_group_num):
             group_weight_data.append(weight_data[:, group_id, :])
@@ -932,7 +932,7 @@ class Simulator:
         for group_id in range(activation_group_num):
             input_data = group_input_data[group_id]
             weight_data = group_weight_data[group_id]
-            # logging.debug(f"{input_data=}, {weight_data=}")
+            # logger.debug(f"{input_data=}, {weight_data=}")
 
             # use pimset to mask weight
             pimset_mask = self.get_pimset_mask()
@@ -970,8 +970,11 @@ class Simulator:
                 output_data = np.dot(
                     input_data.astype(out_dtype), weight_data.astype(out_dtype)
                 )
-
+                
+                pass
+            
             group_output_data.append(output_data)
+        # import pdb; pdb.set_trace()
         # Save output
         n_macro_per_group = group_size
         group_output_step = (
@@ -1021,9 +1024,9 @@ class Simulator:
         group_input_step = self.read_special_reg(SpecialReg.GROUP_INPUT_STEP)
         assert inst.flag_group == 1
         assert inst.flag_group_input_mode == 0
-        logging.debug(f"{group_num=}")
-        # logging.debug(f"{self.macro_config.n_macro=}")
-        # logging.debug(f"{self.macro_config.n_macro=}")
+        logger.debug(f"{group_num=}")
+        # logger.debug(f"{self.macro_config.n_macro=}")
+        # logger.debug(f"{self.macro_config.n_macro=}")
         value_sparsity = inst.flag_value_sparse
         assert inst.flag_bit_sparse == 1, str(inst)
         meta_addr = self.read_special_reg(SpecialReg.BIT_SPARSE_META_ADDR)
@@ -1048,7 +1051,7 @@ class Simulator:
             self.macro_config.n_vcol(8) * group_size,  # activation_element_col_num,
             activation_group_num,
         )  # shape: [compartment, group, vcolumn]
-        logging.debug(f"{weight_data.shape=}")
+        logger.debug(f"{weight_data.shape=}")
         group_weight_data = []
         for group_id in range(activation_group_num):
             _weight = weight_data[:, group_id, :]
@@ -1060,7 +1063,7 @@ class Simulator:
         for group_id in range(activation_group_num):
             input_data = group_input_data[group_id]
             weight_data = group_weight_data[group_id]
-            # logging.debug(f"{input_data=}, {weight_data=}")
+            # logger.debug(f"{input_data=}, {weight_data=}")
 
             # use pimset to mask weight
             pimset_mask = self.get_pimset_mask()
@@ -1224,10 +1227,10 @@ class Simulator:
 
         data = self.memory_space.read_as(src_addr, output_num * output_byte, np.int32)
         assert data.size == output_mask.size
-        # logging.debug(f"{data=}")
-        # logging.debug(f"{output_mask=}")
+        # logger.debug(f"{data=}")
+        # logger.debug(f"{output_mask=}")
         filtered_data = data[output_mask == 1]
-        # logging.debug(f"{filtered_data=}")
+        # logger.debug(f"{filtered_data=}")
         # import pdb; pdb.set_trace()
         assert (
             filtered_data.size == output_mask.sum()
@@ -1261,7 +1264,7 @@ class Simulator:
             rs = inst.reg
             val = self.read_general_reg(rs)
             self.print_record.append(val)
-            logging.info(f" general_reg[{rs}] = {val}")
+            logger.info(f" general_reg[{rs}] = {val}")
         elif isinstance(inst, DebugInst):
             import pdb
 
