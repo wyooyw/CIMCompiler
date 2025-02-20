@@ -5,6 +5,7 @@ from cim_compiler.cli.commands.convert import parse_convert_args, run_convert
 from cim_compiler.cli.commands.simulate import parse_simulate_args, run_simulate
 from cim_compiler.cli.commands.config import parse_config_args, run_config
 from cim_compiler.cli.commands.cfg_pimsim import parse_cfg_pimsim_args, run_cfg_pimsim
+from cim_compiler.cli.commands.show import parse_show_args, run_show
 
 __all__ = [
     "parse_convert_args", 
@@ -16,5 +17,7 @@ __all__ = [
     "parse_config_args", 
     "run_config", 
     "parse_cfg_pimsim_args", 
-    "run_cfg_pimsim"
+    "run_cfg_pimsim",
+    "parse_show_args",
+    "run_show"
 ]
