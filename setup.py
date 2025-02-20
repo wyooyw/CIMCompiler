@@ -7,6 +7,7 @@ setup(
     entry_points={
         'console_scripts': [
             'cim-compiler=cim_compiler.cli.main:main',
+            'cmcp=cim_compiler.cli.main:main',
         ],
     },
     install_requires=[
