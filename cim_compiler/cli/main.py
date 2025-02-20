@@ -25,6 +25,7 @@ def parse_args():
     parse_compile_args(subparsers)
     parse_simulate_args(subparsers)
     parse_config_args(subparsers)
+    parse_cfg_pimsim_args(subparsers)
     args = parser.parse_args()
     return args
 
@@ -38,6 +39,8 @@ def main():
         run_simulate(args)
     elif args.command == "config":
         run_config(args)
+    elif args.command == "cfg_pimsim":
+        run_cfg_pimsim(args)
     else:
         raise ValueError(f"Invalid command: {args.command}")
 
