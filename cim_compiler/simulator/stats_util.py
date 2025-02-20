@@ -55,6 +55,7 @@ class StatsUtil:
         self._reg_data.append(
             {"pc": pc, "idx": idx, "general_rf": general_rf[:32].tolist()}
         )
+        pass
 
     def record(self, inst):
 
@@ -117,11 +118,11 @@ class StatsUtil:
             json.dump(save_data, f, indent=2)
         # print(f"Stats saved to {save_json_path}")
 
-        # save_json_path = os.path.join(save_path, f"{prefix}regs.json")
-        # with open(save_json_path, "w") as f:
-        #     for reg_data in self._reg_data:
-        #         f.write(f"pc: {reg_data['pc']}, ins id: {reg_data['idx']}, general reg: {reg_data['general_rf']}\n")
-        # print(f"Regs info saved to {save_json_path}")
+        save_json_path = os.path.join(save_path, f"{prefix}regs.txt")
+        with open(save_json_path, "w") as f:
+            for reg_data in self._reg_data:
+                f.write(f"pc: {reg_data['pc']}, ins id: {reg_data['idx']}, general reg: {reg_data['general_rf']}\n")
+        print(f"Regs info saved to {save_json_path}")
 
         pimset_data = {
             # "col_use": self._col_use.item(),
