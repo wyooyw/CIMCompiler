@@ -46,6 +46,10 @@ class SpecialReg(Enum):
     SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 = 21
     SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 = 22
 
+    # Data type
+    # Only use in this functional simulator, not used in pimsim
+    DTYPE_MACRO_IS_FLOAT = 30
+    DTYPE_SIMD_IS_FLOAT = 31
 
 class InstClass(Enum):
     PIM_CLASS = 0  # 0b00
@@ -552,6 +556,8 @@ class Simulator:
             self._run_simd_class_floor_inst(inst)
         # elif opcode == 9:
         #     self._run_simd_class_set_inst(inst)
+        elif opcode == 10:
+            self._run_simd_class_softmax_inst(inst)
         else:
             assert False, f"Not support {opcode=} yet."
 
@@ -910,7 +916,9 @@ class Simulator:
         for group_id in range(activation_group_num):
             group_input_offset = input_offset + group_id * group_input_step
             input_data = self.memory_space.read_as(
-                group_input_offset, input_byte_size, self.get_dtype(input_bw)
+                group_input_offset, 
+                input_byte_size, 
+                get_dtype_from_bitwidth(input_bw, is_float=self.read_special_reg(SpecialReg.DTYPE_MACRO_IS_FLOAT))
             )
             self.memory_space.check_memory_name(group_input_offset, input_byte_size, "pim_input_reg_buffer")
             group_input_data.append(input_data)
@@ -919,16 +927,17 @@ class Simulator:
         activate_element_row_num = input_size
         weight_data = self.macro_util.get_macro_data(
             activate_row,
-            width_bw,
+            get_dtype_from_bitwidth(width_bw, is_float=self.read_special_reg(SpecialReg.DTYPE_MACRO_IS_FLOAT)),
             activate_element_row_num,
             activation_element_col_num,
             activation_group_num,
         )  # shape: [compartment, group, vcolumn]
+        
         logger.debug(f"{weight_data.shape=}")
         group_weight_data = []
         for group_id in range(activation_group_num):
             group_weight_data.append(weight_data[:, group_id, :])
-
+        
         # compute
         group_output_data = []
         for group_id in range(activation_group_num):
@@ -947,7 +956,7 @@ class Simulator:
 
             assert input_data.ndim == 1
             assert weight_data.ndim == 2, f"{weight_data.shape=}"
-            out_dtype = get_dtype_from_bitwidth(output_bw)
+            out_dtype = get_dtype_from_bitwidth(output_bw, is_float=self.read_special_reg(SpecialReg.DTYPE_MACRO_IS_FLOAT))
             if value_sparsity:
                 output_data = self._value_sparsity_compute(
                     inst, input_data, weight_data
@@ -976,7 +985,7 @@ class Simulator:
                 pass
             
             group_output_data.append(output_data)
-        # import pdb; pdb.set_trace()
+
         # Save output
         n_macro_per_group = group_size
         group_output_step = (
@@ -1406,6 +1415,33 @@ class Simulator:
         output_byte_size = output_data.size * output_bitwidth // 8
         self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
 
+        self.memory_space.write(output_data, output_addr, output_byte_size)
+
+    def _run_simd_class_softmax_inst(self, inst):
+        assert inst.input_num == 1
+
+        input_addr = self.read_general_reg(inst.reg_in1)
+        output_addr = self.read_general_reg(inst.reg_out)
+        input_size = self.read_general_reg(inst.reg_size)
+        input_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
+        input_byte_size = input_bitwidth * input_size // 8
+        input_dtype = get_dtype_from_bitwidth(input_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
+        output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
+        output_dtype = get_dtype_from_bitwidth(output_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
+        self.memory_space.check_memory_type(input_addr, input_byte_size, "sram")
+        input_data = self.memory_space.read_as(
+            input_addr, 
+            input_byte_size, 
+            input_dtype
+        )
+
+        def softmax(x, axis=-1):
+            exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
+            return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
+            
+        output_data = softmax(input_data.astype(output_dtype)).astype(output_dtype)
+        output_byte_size = output_data.size * output_bitwidth // 8
+        self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
         self.memory_space.write(output_data, output_addr, output_byte_size)
 
     def _run_simd_class_floor_inst(self, inst):

@@ -8,3 +8,4 @@
 #define VSMUL 7
 #define VFLOOR 8
 #define VSET 9
+#define SOFTMAX 10

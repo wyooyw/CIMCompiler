@@ -1334,6 +1334,8 @@ mlir::Type MLIRGenImpl::parse_datatype(std::string datatype) {
     return builder.getIndexType();
   } else if (datatype == "float32") {
     return builder.getF32Type();
+  } else if (datatype == "fp16") {
+    return builder.getF16Type();
   } else {
     // raise: not support yet
     mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),

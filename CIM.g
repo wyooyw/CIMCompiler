@@ -76,7 +76,7 @@ const_array1d: '<' constant (',' constant)* '>';
 array1d: '[' expr (',' expr)* ']';
 
 MEMORY: '__'[a-zA-Z_0-9]+'__';
-DATATYPE: ('int1' | 'int8' | 'int32' | 'int64' | 'index' | 'float32') ;
+DATATYPE: ('int1' | 'int8' | 'int32' | 'int64' | 'index' | 'float32' | 'fp16') ;
 BINARY_OP: ADD | SUB | MUL | DIV | MOD | LE | GE | LT | GT | COND_EQ | COND_NE | AND;
 ADD : '+';
 SUB : '-';

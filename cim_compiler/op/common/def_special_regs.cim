@@ -17,3 +17,8 @@
 
 #define SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 21
 #define SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 22
+
+// Data type
+// Only use in this functional simulator, not used in pimsim
+#define SPECIAL_REG_DTYPE_MACRO_IS_FLOAT 30
+#define SPECIAL_REG_DTYPE_SIMD_IS_FLOAT 31

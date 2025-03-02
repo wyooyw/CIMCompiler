@@ -1,0 +1,161 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+
+{# Add parameter validation #}
+{% if head_hidden % N_COMP != 0 %}
+    {% set error_msg = "head_hidden must be divisible by N_COMP" %}
+    {{ raise(error_msg) }}
+{% endif %}
+{% if seqlen % N_GROUP_VCOL != 0 %}
+    {% set error_msg = "seqlen must be divisible by N_GROUP_VCOL" %}
+    {{ raise(error_msg) }}
+{% endif %}
+
+def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>, 
+                    macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>
+                    ){
+    src_row = Shape(src, 0);
+    src_col = Shape(src, 1);
+
+    out_row_size = src_row / {{N_COMP}};
+    out_col_size = src_col / {{N_GROUP_VCOL}};
+
+    // TODO: optimize when src_col == N_GROUP_VCOL
+
+    macro_row = Shape(macro, 0);
+    for r_out in range(0, out_row_size) carry () {
+        for c_out in range(0, out_col_size) carry () {
+            for r_in in range(0, {{N_COMP}}) carry () {
+                t1 = r_out * {{N_COMP}};
+                t2 = t1 + r_in;
+                t3 = c_out * {{N_GROUP_VCOL}};
+                sub_src = src[
+                    t2 : t2 + 1, 
+                    t3 : t3 + {{N_GROUP_VCOL}}
+                ];
+                
+                t4 = c_out * out_row_size;
+                t5 = t4 + r_out;
+                sub_macro = macro[
+                    t5:t5 + 1,
+                    r_in:r_in + 1,
+                    0:1,
+                    0:{{N_GROUP_VCOL}}
+                ];
+
+                Trans(sub_src, sub_macro);
+            };
+        };
+    };
+}
+
+def gemv(src< <-1>, fp16, __OUTPUT_MEMORY__>, 
+         macro< <-1, {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>,
+         dst< <-1>, fp16, __OUTPUT_MEMORY__>,
+         n_reduce_row<index>,
+         pim_input_reg_buffer< <-1>, fp16, __PIM_INPUT_REG_BUFFER__>,
+         pim_output_reg_buffer< <-1>, fp16, __PIM_OUTPUT_REG_BUFFER__>
+){
+    src_row = Shape(src, 0);
+
+    n_macro_row = Shape(macro, 0);
+    // Print(n_macro_row);
+    n_spatial_row = n_macro_row / n_reduce_row;
+
+    use_input_reg_buffer = pim_input_reg_buffer[0:{{N_COMP}}];
+    use_output_reg_buffer = pim_output_reg_buffer[0:{{N_GROUP_VCOL}}];
+    
+    for i_spatial_row in range(0, n_spatial_row) carry () {
+        for i_reduce_row in range(0, n_reduce_row) carry () {
+            t1 = i_spatial_row * n_reduce_row;
+            i_row = t1 + i_reduce_row;
+            // Print(i_row);
+            macro_for_compute = macro[
+                i_row : i_row + 1,
+                0 : {{N_COMP}},
+                0 : 1,
+                0 : {{N_GROUP_VCOL}}
+            ];
+
+            t1 = i_reduce_row * {{N_COMP}};
+            input_for_compute = src[
+                t1 : t1 + {{N_COMP}}
+            ];
+            
+            Trans(input_for_compute, use_input_reg_buffer);
+            CIMComputeDense(use_input_reg_buffer, macro_for_compute);
+        };
+        CIMOutput({{N_GROUP_VCOL}}, 0, use_output_reg_buffer);
+
+        t2 = i_spatial_row * {{N_GROUP_VCOL}};
+        output = dst[t2 : t2 + {{N_GROUP_VCOL}}];
+        Trans(use_output_reg_buffer, output);
+    };
+}
+
+def set_special_regs(){
+    SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_GROUP_SIZE, {{N_MACRO_PER_GROUP}});
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, {{N_GROUP}});
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, {{N_GROUP_VCOL}});
+
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 16);
+
+    SpecialRegSet(SPECIAL_REG_DTYPE_MACRO_IS_FLOAT, 1);
+    SpecialRegSet(SPECIAL_REG_DTYPE_SIMD_IS_FLOAT, 1);
+}
+
+def main(){
+    set_special_regs();
+
+    global_pimset_mask = Buffer(<{{N_GROUP_VCOL}}>, int1, __GLOBAL__);
+    local_pimset_mask = Buffer(<{{N_GROUP_VCOL}}>, int1, __INPUT_MEMORY__);
+    Trans(global_pimset_mask, local_pimset_mask);
+    CIMSet(local_pimset_mask);
+    
+    q_global = Buffer(<{{head_hidden}}>, fp16, __GLOBAL__);
+    k_T_global = Buffer(<{{head_hidden}}, {{seqlen}}>, fp16, __GLOBAL__);
+    v_global = Buffer(<{{seqlen}}, {{head_hidden}}>, fp16, __GLOBAL__);
+    output_global = Buffer(<{{head_hidden}}>, fp16, __GLOBAL__);
+    
+    macros = Buffer(<{{N_ROW}}, {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__);
+    pim_input_reg_buffer = Buffer(<{{N_COMP}}>, fp16, __PIM_INPUT_REG_BUFFER__);
+    pim_output_reg_buffer = Buffer(<{{N_GROUP_VCOL}}>, fp16, __PIM_OUTPUT_REG_BUFFER__);
+
+    // step 0: load q into local
+    q_local = Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
+    Trans(q_global, q_local);
+
+    // step 1: load all kv caches into macro
+    k_row_begin = 0;
+    k_row_size = {{ (head_hidden // N_COMP) * (seqlen // N_GROUP_VCOL) }};
+    k_row_end = k_row_begin + k_row_size;
+    k_macro = macros[k_row_begin:k_row_end, 0:{{N_COMP}}, 0:1, 0:{{N_GROUP_VCOL}}];
+
+    v_row_begin = k_row_end;
+    v_row_size = {{ (seqlen // N_COMP) * (head_hidden // N_GROUP_VCOL) }};
+    v_row_end = v_row_begin + v_row_size;
+    v_macro = macros[v_row_begin:v_row_end, 0:{{N_COMP}}, 0:1, 0:{{N_GROUP_VCOL}}];
+
+    load_into_macro(k_T_global, k_macro);
+    load_into_macro(v_global, v_macro);
+
+    // step 2: compute qK^T
+    attn_out1 = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
+    gemv(q_local, k_macro, attn_out1, {{ head_hidden // N_COMP }}, pim_input_reg_buffer, pim_output_reg_buffer);
+
+    // step 3: compute softmax(qK^T)
+    score = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
+    // Trans(attn_out1, score);
+    SIMD(SOFTMAX, attn_out1, score);
+
+    // step 4: compute softmax(qK^T)V
+    attn_out2= Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
+    gemv(score, v_macro, attn_out2, {{ seqlen // N_COMP }}, pim_input_reg_buffer, pim_output_reg_buffer);
+
+    // step 5: output
+    Trans(attn_out2, output_global);
+}

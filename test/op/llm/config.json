@@ -1,0 +1,124 @@
+{
+    "macro": {
+        "n_macro": 16,
+        "n_row": 2048,
+        "n_comp": 8,
+        "n_bcol": 128,
+        "n_group": 1
+    },
+    "mask": {
+        "n_from": 128,
+        "n_to": 16
+    },
+    "mask_memory_name": "pim_mask_data_reg_buffer",
+    "memory_list": [
+        {
+            "name": "macro",
+            "type": "macro",
+            "addressing": {
+                "offset_byte": 0,
+                "size_byte": 4194304,
+                "comments": "offset: 0 Byte, size: 128 * 1024 Byte"
+            }
+        },
+        {
+            "name": "index_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 8192,
+                "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
+                "offset_byte": 4194304
+            }
+        },
+        {
+            "name": "blank_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 512,
+                "comments": "",
+                "offset_byte": 4202496
+            }
+        },
+        {
+            "name": "temp_sum_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 512,
+                "comments": "",
+                "offset_byte": 4203008
+            }
+        },
+        {
+            "name": "input_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 131072,
+                "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
+                "offset_byte": 4203520
+            }
+        },
+        {
+            "name": "output_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 262144,
+                "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte",
+                "offset_byte": 4334592
+            }
+        },
+        {
+            "name": "pim_input_reg_buffer",
+            "type": "reg_buffer",
+            "addressing": {
+                "size_byte": 1024,
+                "comments": "offset: 256 * 1024 Byte, size: 0.5 * 1024 * 2 Byte",
+                "offset_byte": 4596736
+            }
+        },
+        {
+            "name": "pim_output_reg_buffer",
+            "type": "reg_buffer",
+            "addressing": {
+                "size_byte": 4096,
+                "comments": "offset: 257 * 1024 Byte, size: 4 * 1024 Byte",
+                "offset_byte": 4597760
+            }
+        },
+        {
+            "name": "pim_meta_data_reg_buffer",
+            "type": "reg_buffer",
+            "addressing": {
+                "size_byte": 98304,
+                "comments": "offset: 261 * 1024 Byte, size: 96 * 1024 Byte",
+                "offset_byte": 4601856
+            }
+        },
+        {
+            "name": "pim_mask_data_reg_buffer",
+            "type": "reg_buffer",
+            "addressing": {
+                "size_byte": 16384,
+                "comments": "offset: 357 * 1024 Byte, size: 16 * 1024 Byte",
+                "offset_byte": 4700160
+            }
+        },
+        {
+            "name": "pim_output_reg_to_output_memory_buffer",
+            "type": "reg_buffer",
+            "addressing": {
+                "size_byte": 128,
+                "comments": "offset: 373 * 1024 Byte, size: 128 Byte",
+                "offset_byte": 4716544
+            }
+        },
+        {
+            "name": "global",
+            "type": "dram",
+            "addressing": {
+                "size_byte": 33554432,
+                "comments": "size: 16MB",
+                "offset_byte": 4716672
+            }
+        }
+    ]
+}
