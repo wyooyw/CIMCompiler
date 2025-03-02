@@ -46,13 +46,27 @@ stmt_return: 'return' ID;
 
 // Expression
 expr: 
-    unary_expr
-    | binary_expr;
+    additive_expr
+    ;
+
+additive_expr:
+    multiplicative_expr ((ADD | SUB) multiplicative_expr)*
+    ;
+
+multiplicative_expr:
+    primary_expr ((MUL | DIV | MOD) primary_expr)*
+    ;
+
+primary_expr:
+    '(' expr ')'
+    | unary_expr
+    ;
+
 unary_expr: 
     call
     | const_or_var
-    | buffer_slice ;
-binary_expr: unary_expr BINARY_OP unary_expr;
+    | buffer_slice
+    ;
 
 // Slice
 buffer_slice: var '[' slice_list ']';
