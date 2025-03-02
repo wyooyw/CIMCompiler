@@ -46,21 +46,15 @@ stmt_return: 'return' ID;
 
 // Expression
 expr: 
-    additive_expr
+    condition_expr
     ;
+condition_expr: additive_expr ((COND_OP) additive_expr)* ;
 
-additive_expr:
-    multiplicative_expr ((ADD | SUB) multiplicative_expr)*
-    ;
+additive_expr: multiplicative_expr ((ADD_SUB) multiplicative_expr)* ;
 
-multiplicative_expr:
-    primary_expr ((MUL | DIV | MOD) primary_expr)*
-    ;
+multiplicative_expr: primary_expr (MUL_DIV_MOD primary_expr)* ;
 
-primary_expr:
-    '(' expr ')'
-    | unary_expr
-    ;
+primary_expr: ('(' expr ')') | unary_expr;
 
 unary_expr: 
     call
@@ -91,6 +85,9 @@ var: ID;
 const_array1d: '<' constant (',' constant)* '>';
 array1d: '[' expr (',' expr)* ']';
 
+COND_OP: LE | GE | LT | GT | COND_EQ | COND_NE | AND;
+ADD_SUB: ADD | SUB;
+MUL_DIV_MOD: MUL | DIV | MOD;
 MEMORY: '__'[a-zA-Z_0-9]+'__';
 DATATYPE: ('int1' | 'int8' | 'int32' | 'int64' | 'index' | 'float32' | 'fp16') ;
 BINARY_OP: ADD | SUB | MUL | DIV | MOD | LE | GE | LT | GT | COND_EQ | COND_NE | AND;

@@ -26,22 +26,12 @@ def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
     for r_out in range(0, out_row_size) carry () {
         for c_out in range(0, out_col_size) carry () {
             for r_in in range(0, {{N_COMP}}) carry () {
-                t1 = r_out * {{N_COMP}};
-                t2 = t1 + r_in;
-                t3 = c_out * {{N_GROUP_VCOL}};
                 sub_src = src[
-                    t2, 
-                    t3 : t3 + {{N_GROUP_VCOL}}
+                    r_out * {{N_COMP}} + r_in, 
+                    c_out * {{N_GROUP_VCOL}} : (c_out + 1) * {{N_GROUP_VCOL}}
                 ];
                 
-                t4 = c_out * out_row_size;
-                t5 = t4 + r_out;
-                sub_macro = macro[
-                    t5,
-                    r_in,
-                    :,
-                    :
-                ];
+                sub_macro = macro[c_out * out_row_size + r_out, r_in, :, : ];
 
                 Trans(sub_src, sub_macro);
             };
@@ -67,14 +57,10 @@ def gemv(src< <-1>, fp16, __OUTPUT_MEMORY__>,
     
     for i_spatial_row in range(0, n_spatial_row) carry () {
         for i_reduce_row in range(0, n_reduce_row) carry () {
-            t1 = i_spatial_row * n_reduce_row;
-            i_row = t1 + i_reduce_row;
-            // Print(i_row);
-            macro_for_compute = macro[i_row, :, :, :];
+            macro_for_compute = macro[i_spatial_row * n_reduce_row + i_reduce_row, :, :, :];
 
-            t1 = i_reduce_row * {{N_COMP}};
             input_for_compute = src[
-                t1 : t1 + {{N_COMP}}
+                i_reduce_row * {{N_COMP}} : (i_reduce_row + 1) * {{N_COMP}}
             ];
             
             Trans(input_for_compute, use_input_reg_buffer);
@@ -82,8 +68,7 @@ def gemv(src< <-1>, fp16, __OUTPUT_MEMORY__>,
         };
         CIMOutput({{N_GROUP_VCOL}}, 0, use_output_reg_buffer);
 
-        t2 = i_spatial_row * {{N_GROUP_VCOL}};
-        output = dst[t2 : t2 + {{N_GROUP_VCOL}}];
+        output = dst[i_spatial_row * {{N_GROUP_VCOL}} : (i_spatial_row + 1) * {{N_GROUP_VCOL}}];
         Trans(use_output_reg_buffer, output);
     };
 }

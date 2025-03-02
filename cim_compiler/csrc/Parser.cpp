@@ -1281,14 +1281,112 @@ bool MLIRGenImpl::is_binary_expr(const boost::property_tree::ptree &ast) {
 mlir::Value MLIRGenImpl::parse_expr(const boost::property_tree::ptree &ast) {
   LOG_DEBUG << "parse_expr";
   auto expr = get_item(ast, 0);
-  if (is_unary_expr(expr)) {
-    return parse_unary_expr(safe_get_child(expr, "unary_expr"));
-  } else if (is_binary_expr(expr)) {
-    return parse_binary_expr(safe_get_child(expr, "binary_expr"));
+  if (is_condition_expr(expr)) {
+    return parse_condition_expr(safe_get_child(expr, "condition_expr"));
   } else {
     // raise: not support yet
     mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
                     "Not support expr: " + ast.begin()->first);
+    std::exit(1);
+    return nullptr;
+  }
+}
+
+bool MLIRGenImpl::is_condition_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "is_condition_expr";
+  return ast.count("condition_expr");
+}
+
+mlir::Value
+MLIRGenImpl::parse_condition_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_condition_expr";
+  auto lhs = parse_additive_expr(safe_get_child(get_item(ast, 0), "additive_expr"));
+  for (size_t i = 1; i < ast.size(); i += 2) {
+    auto op = safe_get_str(get_item(ast, i), "text");
+    auto rhs = parse_additive_expr(safe_get_child(get_item(ast, i + 1), "additive_expr"));
+    if (op == "==") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::eq, lhs, rhs);
+    } else if (op == "!=") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::ne, lhs, rhs);
+    }else if (op == "<=") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::sle, lhs, rhs);
+    }else if (op == "<<") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::slt, lhs, rhs);
+    }else if (op == ">=") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::sge, lhs, rhs);
+    }else if (op == ">>") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::sgt, lhs, rhs);
+    }else if (op == "&&") {
+      lhs = builder.create<mlir::arith::AndIOp>(loc, lhs, rhs);
+    }else{
+      // raise: not support yet
+      mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                      "Not support condition op: " + op);
+      std::exit(1);
+      return nullptr;
+    }
+  }
+  return lhs;
+}
+
+bool MLIRGenImpl::is_additive_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "is_additive_expr";
+  return ast.count("additive_expr");
+}
+
+mlir::Value
+MLIRGenImpl::parse_additive_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_additive_expr";
+  auto lhs = parse_multiplicative_expr(safe_get_child(get_item(ast, 0), "multiplicative_expr"));
+  for (size_t i = 1; i < ast.size(); i += 2) {
+    auto op = safe_get_str(get_item(ast, i), "text");
+    auto rhs = parse_multiplicative_expr(safe_get_child(get_item(ast, i + 1), "multiplicative_expr"));
+    if (op == "+") {
+      lhs = builder.create<mlir::arith::AddIOp>(loc, lhs, rhs);
+    } else if (op == "-") {
+      lhs = builder.create<mlir::arith::SubIOp>(loc, lhs, rhs);
+    }else{
+      // raise: not support yet
+      mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                      "Not support additive op: " + op);
+      std::exit(1);
+      return nullptr;
+    }
+  }
+  return lhs;
+}
+
+mlir::Value
+MLIRGenImpl::parse_multiplicative_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_multiplicative_expr";
+  auto lhs = parse_primary_expr(safe_get_child(get_item(ast, 0), "primary_expr"));
+  for (size_t i = 1; i < ast.size(); i += 2) {
+    auto op = safe_get_str(get_item(ast, i), "text");
+    auto rhs = parse_primary_expr(safe_get_child(get_item(ast, i + 1), "primary_expr"));
+    if (op == "*") {
+      lhs = builder.create<mlir::arith::MulIOp>(loc, lhs, rhs);
+    } else if (op == "/") {
+      lhs = builder.create<mlir::arith::DivSIOp>(loc, lhs, rhs);
+    } else if (op == "%") {
+      lhs = builder.create<mlir::arith::RemSIOp>(loc, lhs, rhs);
+    }
+  }
+  return lhs;
+}
+
+mlir::Value
+MLIRGenImpl::parse_primary_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_primary_expr";
+  if (ast.size() >= 1 && get_item(ast, 0).count("unary_expr")) {
+    auto primary_expr = get_item(ast, 0);
+    return parse_unary_expr(safe_get_child(primary_expr, "unary_expr"));
+  } else if (ast.size() >= 2 && get_item(ast, 1).count("expr")) {
+    auto primary_expr = get_item(ast, 1);
+    return parse_expr(safe_get_child(primary_expr, "expr"));
+  } else {
+    // raise: not support yet
+    mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                    "Not support primary_expr: " + ast.begin()->first);
     std::exit(1);
     return nullptr;
   }
