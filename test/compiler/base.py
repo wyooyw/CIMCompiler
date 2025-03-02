@@ -13,7 +13,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 import tempfile
 
 def init_macro_config():
-    macro_config = MacroConfig(n_macro=2, n_row=4, n_comp=4, n_bcol=16)
+    macro_config = MacroConfig(n_group=1, n_macro=2, n_row=4, n_comp=4, n_bcol=16)
     return macro_config
 
 

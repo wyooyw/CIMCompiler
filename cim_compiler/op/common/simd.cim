@@ -7,3 +7,4 @@
 #define VVMAX 6
 #define VSMUL 7
 #define VFLOOR 8
+#define VSET 9

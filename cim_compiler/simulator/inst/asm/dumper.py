@@ -18,10 +18,14 @@ class AsmDumper:
             data.append(inst_dict)
         return data
 
-    def dump_to_file(self, instructions, file_path):
+    def dump_str(self, instructions, core_id=None):
+        data = self.dump(instructions)
+        return "\n".join(data)
+
+    def dump_to_file(self, instructions, file_path, core_id=None):
         with open(file_path, 'w') as file:
-            for inst in self.dump(instructions):
-                file.write(inst + "\n")
+            data_str = self.dump_str(instructions)
+            file.write(data_str)
 
     def _arith_funct_to_name(self, funct, is_ri=False):
         """
