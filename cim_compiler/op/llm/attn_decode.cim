@@ -30,17 +30,17 @@ def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
                 t2 = t1 + r_in;
                 t3 = c_out * {{N_GROUP_VCOL}};
                 sub_src = src[
-                    t2 : t2 + 1, 
+                    t2, 
                     t3 : t3 + {{N_GROUP_VCOL}}
                 ];
                 
                 t4 = c_out * out_row_size;
                 t5 = t4 + r_out;
                 sub_macro = macro[
-                    t5:t5 + 1,
-                    r_in:r_in + 1,
-                    0:1,
-                    0:{{N_GROUP_VCOL}}
+                    t5,
+                    r_in,
+                    :,
+                    :
                 ];
 
                 Trans(sub_src, sub_macro);
@@ -70,12 +70,7 @@ def gemv(src< <-1>, fp16, __OUTPUT_MEMORY__>,
             t1 = i_spatial_row * n_reduce_row;
             i_row = t1 + i_reduce_row;
             // Print(i_row);
-            macro_for_compute = macro[
-                i_row : i_row + 1,
-                0 : {{N_COMP}},
-                0 : 1,
-                0 : {{N_GROUP_VCOL}}
-            ];
+            macro_for_compute = macro[i_row, :, :, :];
 
             t1 = i_reduce_row * {{N_COMP}};
             input_for_compute = src[
@@ -149,7 +144,6 @@ def main(){
 
     // step 3: compute softmax(qK^T)
     score = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
-    // Trans(attn_out1, score);
     SIMD(SOFTMAX, attn_out1, score);
 
     // step 4: compute softmax(qK^T)V

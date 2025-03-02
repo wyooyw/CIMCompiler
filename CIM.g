@@ -57,9 +57,11 @@ binary_expr: unary_expr BINARY_OP unary_expr;
 // Slice
 buffer_slice: var '[' slice_list ']';
 slice_list: slice? (',' slice)*;
-slice: slice_offset ':' slice_end;
-slice_offset: expr;
-slice_end: expr;
+slice: slice_scalar | slice_range;
+slice_scalar: expr;
+slice_range: slice_offset ':' slice_end;
+slice_offset: expr?;
+slice_end: expr?;
 
 // Call
 call: ID '(' call_param_list ')';

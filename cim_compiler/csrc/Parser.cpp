@@ -1128,7 +1128,7 @@ mlir::Value MLIRGenImpl::parse_buffer_slice(const boost::property_tree::ptree &a
   auto var = parse_var(ast_var);
 
   auto ast_slice_list = safe_get_child(get_item(ast, 2), "slice_list");
-  auto offsets_sizes_strides = parse_slice_list(ast_slice_list);
+  auto offsets_sizes_strides = parse_slice_list(var, ast_slice_list);
 
   mlir::SmallVector<mlir::Value> offsets = std::get<0>(offsets_sizes_strides);
   mlir::SmallVector<mlir::Value> sizes = std::get<1>(offsets_sizes_strides);
@@ -1139,25 +1139,53 @@ mlir::Value MLIRGenImpl::parse_buffer_slice(const boost::property_tree::ptree &a
 }
 
 std::tuple<mlir::SmallVector<mlir::Value>, mlir::SmallVector<mlir::Value>, mlir::SmallVector<mlir::Value>>
-MLIRGenImpl::parse_slice_list(const boost::property_tree::ptree &ast) {
+MLIRGenImpl::parse_slice_list(mlir::Value var, const boost::property_tree::ptree &ast) {
   LOG_DEBUG << "parse_slice_list";
   mlir::SmallVector<mlir::Value> offsets;
   mlir::SmallVector<mlir::Value> sizes;
   mlir::SmallVector<mlir::Value> strides;
   // iter over ast
+  int slice_id = 0;
   for (const auto &pair : ast) {
     if (is_slice(pair.second)) {
       auto ast_slice = safe_get_child(pair.second, "slice");
-      auto ast_slice_offset = safe_get_child(get_item(ast_slice, 0), "slice_offset");
-      auto ast_slice_end = safe_get_child(get_item(ast_slice, 2), "slice_end");
-      
-      auto slice_offset_value = parse_expr(safe_get_child(get_item(ast_slice_offset, 0), "expr"));
-      auto slice_end_value = parse_expr(safe_get_child(get_item(ast_slice_end, 0), "expr"));
-      auto slice_len_value = builder.create<mlir::arith::SubIOp>(loc, slice_end_value, slice_offset_value);
-      
+      mlir::Value slice_offset_value;
+      mlir::Value slice_len_value;
+      if (get_item(ast_slice, 0).count("slice_range")) {
+        auto ast_slice_range = safe_get_child(get_item(ast_slice, 0), "slice_range");
+        auto ast_slice_offset = safe_get_child(get_item(ast_slice_range, 0), "slice_offset");
+        auto ast_slice_end = safe_get_child(get_item(ast_slice_range, 2), "slice_end");
+        
+        if (ast_slice_offset.empty()) {
+          slice_offset_value = builder.create<mlir::arith::ConstantIndexOp>(loc, 0);
+        } else {
+          slice_offset_value = parse_expr(safe_get_child(get_item(ast_slice_offset, 0), "expr"));
+        }
+        mlir::Value slice_end_value;
+        if (ast_slice_end.empty()) {
+          mlir::Value slice_index = builder.create<mlir::arith::ConstantIndexOp>(loc, slice_id);
+          slice_end_value = builder.create<mlir::cim::ShapeOp>(loc, var, slice_index);
+        } else {
+          slice_end_value = parse_expr(safe_get_child(get_item(ast_slice_end, 0), "expr"));
+        }
+        slice_len_value = builder.create<mlir::arith::SubIOp>(loc, slice_end_value, slice_offset_value);
+      } else if (get_item(ast_slice, 0).count("slice_scalar")) {
+        auto ast_slice_scalar = safe_get_child(get_item(ast_slice, 0), "slice_scalar");
+        slice_offset_value = parse_expr(safe_get_child(get_item(ast_slice_scalar, 0), "expr"));
+        slice_len_value = builder.create<mlir::arith::ConstantIndexOp>(loc, 1);
+      } else {
+        // raise: not support yet
+        mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                        "Not support slice: " + ast.begin()->first);
+        std::exit(1);
+      }
+
       offsets.push_back(slice_offset_value);
       sizes.push_back(slice_len_value);
       strides.push_back(builder.create<mlir::arith::ConstantIndexOp>(loc, 1));
+
+      slice_id += 1;
+
     }
   }
   return std::make_tuple(offsets, sizes, strides);
