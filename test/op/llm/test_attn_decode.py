@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import dataclass
 from cim_compiler.simulator.macro_utils import MacroConfig
 from cim_compiler.utils.df_layout import tensor_bits_to_int8
-
+import pytest
 
 @dataclass
 class OpConfig:
@@ -27,7 +27,7 @@ class OpRunner:
     def run(self, input_list:list[np.ndarray], output_list:list[np.ndarray]):
         
         with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
+            # tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
             op_code_path = os.path.join(tmp_dir, "op_code.cim")
             final_code_dir = os.path.join(tmp_dir, "compiler_output")
             simulator_output_dir = os.path.join(tmp_dir, "simulator_output")
@@ -116,13 +116,25 @@ def softmax(x, axis=-1):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
-if __name__ == "__main__":
-    op_path = "/home/wangyiou/project/CIMCompiler/cim_compiler/op/llm/attn_decode.cim"
+@pytest.mark.parametrize(
+    "head_hidden, seqlen",
+    [
+        (128, 4096),
+        (128, 2048),
+        (128, 1024),
+        (256, 4096),
+        (256, 2048),
+        (256, 1024),
+    ],
+)
+def test_attn_decode(head_hidden, seqlen):
+    cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
+    op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode.cim")
     cim_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
     cim_config = MacroConfig.from_config(cim_config_path)
     op_config = OpConfig(
-        head_hidden=128, 
-        seqlen=4096, 
+        head_hidden=head_hidden, 
+        seqlen=seqlen, 
         N_ROW=cim_config.n_row, 
         N_COMP=cim_config.n_comp, 
         N_GROUP_VCOL=cim_config.n_group_vcol(16),
@@ -140,19 +152,20 @@ if __name__ == "__main__":
     """
     cimset_mask = make_cimset_mask(op_config.N_GROUP_VCOL)
     query = np.random.randint(-1, 2, (op_config.head_hidden,)).astype(np.float16)
-    # query[::2] = 0
     keyT = np.random.randint(-1, 2, (op_config.head_hidden, op_config.seqlen)).astype(np.float16)
     value = np.random.randint(-1, 2, (op_config.seqlen, op_config.head_hidden)).astype(np.float16)
-    # value[::2, :] = 0
     golden = np.dot(softmax(np.dot(query, keyT)), value).reshape(-1)
 
     output = np.zeros(op_config.head_hidden, dtype=np.float16)
     op_runner.run([cimset_mask, query, keyT, value], [output])
 
-    print(f"{output=}")
-    print(f"{golden=}")
+    # print(f"{output=}")
+    # print(f"{golden=}")
     # 设置相对误差和绝对误差阈值
     rtol = 1e-3  # 相对误差：0.1%
     atol = 1e-3  # 绝对误差：0.001
-    print(f"{np.allclose(output, golden, rtol=rtol, atol=atol)=}")
+    allclose = np.allclose(output, golden, rtol=rtol, atol=atol)
+    assert allclose, f"{output=} {golden=}"
     
+if __name__=="__main__":
+    test_attn_decode(128, 4096)
