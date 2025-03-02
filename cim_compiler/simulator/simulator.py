@@ -540,7 +540,7 @@ class Simulator:
         opcode = inst.opcode
         if opcode in [0x00, 0x02, 6]:  # vec add / mul
             self._run_simd_class_vector_vector_inst(inst)
-        elif opcode in [0b01, 7]:  # scalar add
+        elif opcode in [0b01, 7, 9]:  # scalar add
             self._run_simd_class_scalar_vector_inst(inst)
         elif opcode == 3:
             self._run_simd_class_quantify_inst(inst)
@@ -550,6 +550,8 @@ class Simulator:
             self._run_simd_class_resmul_quantify_inst(inst)
         elif opcode == 8:
             self._run_simd_class_floor_inst(inst)
+        # elif opcode == 9:
+        #     self._run_simd_class_set_inst(inst)
         else:
             assert False, f"Not support {opcode=} yet."
 
@@ -1306,8 +1308,8 @@ class Simulator:
         # Compute
         if opcode == 0x00:
             assert input1_bitwidth in [8,32]
-            assert input2_bitwidth == 32
-            assert output_bitwidth == 32
+            assert input2_bitwidth in [8,32]
+            assert output_bitwidth in [8,32]
             output_data = input1_data.astype(output_dtype) + input2_data.astype(
                 output_dtype
             )
@@ -1335,7 +1337,7 @@ class Simulator:
         self.memory_space.write(output_data, output_addr, output_byte_size)
 
     def _run_simd_class_scalar_vector_inst(self, inst):
-
+        
         opcode = inst.opcode
         assert inst.input_num == 2
 
@@ -1386,6 +1388,17 @@ class Simulator:
             # Compute
             output_data = (input1_data * input2_data).astype(np.float32)
 
+        elif opcode==9:
+
+            input1_data = self.memory_space.read_as(
+                input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
+            )
+            input2_data = self.memory_space.read_as(
+                input2_addr, input2_byte_size, get_dtype_from_bitwidth(input2_bitwidth)
+            )
+            # Compute
+            scalar = input2_data[0]
+            output_data = np.full(input_size, scalar, dtype=output_dtype)
         else:
             assert False, f"Not support: {opcode=}"
 

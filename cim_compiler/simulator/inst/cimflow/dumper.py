@@ -1,5 +1,9 @@
 import json
 from cim_compiler.simulator.inst.instruction import *
+from cim_compiler.utils.json_utils import (
+    dumps_list_of_dict,
+    dumps_dict_of_list_of_dict
+)
 
 class CIMFlowDumper:
     def __init__(self):
@@ -7,6 +11,10 @@ class CIMFlowDumper:
 
     def dump(self, instructions):
         data = []
+
+        if isinstance(instructions[-1], (JumpInst, BranchInst)):
+            no_op_inst = RIInst(opcode=0, reg_in=0, reg_out=0, imm=0 )
+            instructions.append(no_op_inst)
         
         for inst in instructions:
             inst_dict = self._convert_to_dict(inst)
@@ -14,10 +22,17 @@ class CIMFlowDumper:
 
         return data
 
-    def dump_to_file(self, instructions, path):
+    def dump_str(self, instructions, core_id=None):
+        data = self.dump(instructions)
+        if core_id is None:
+            return dumps_list_of_dict(data)
+        else:
+            return dumps_dict_of_list_of_dict({core_id: data})
+
+    def dump_to_file(self, instructions, path, core_id=None):
         with open(path, 'w') as file:
-            data = self.dump(instructions)
-            json.dump(data, file, indent=4)
+            data_str = self.dump_str(instructions, core_id)
+            file.write(data_str)
 
     def _convert_to_dict(self, inst):
         if isinstance(inst, GeneralLiInst):

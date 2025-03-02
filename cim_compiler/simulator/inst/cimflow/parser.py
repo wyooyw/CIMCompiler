@@ -13,6 +13,10 @@ class CIMFlowParser:
         return data, self.parse(data)
 
     def parse(self, data):
+
+        if isinstance(data, dict):
+            assert len(data.keys()) == 1
+            data = data.values()[0]
         
         instructions = []
         for item in data:
