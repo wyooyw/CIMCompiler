@@ -22,21 +22,12 @@
             }
         },
         {
-            "name": "transpose_memory_0",
+            "name": "transpose_memory",
             "type": "sram",
             "addressing": {
-                "size_byte": 4096,
-                "comments": "(16 * 128 * 2) = 4096",
+                "size_byte": 8192,
+                "comments": "2 * (16 * 128 * 2) = 8192",
                 "offset_byte": 4194304
-            }
-        },
-        {
-            "name": "transpose_memory_1",
-            "type": "sram",
-            "addressing": {
-                "size_byte": 4096,
-                "comments": "(16 * 128 * 2) = 4096",
-                "offset_byte": 4198400
             }
         },
         {

@@ -139,9 +139,9 @@ class TransposeMemory(Memory):
             return self._transpose_buffer
     
         src_np = np.frombuffer(self._data, dtype=np.float16).reshape(-1)
-        assert src_np.shape[0] == 16 * 128
-        src_np = src_np.reshape(16, 128)
-        src_np = np.transpose(src_np).reshape(-1)
+        assert src_np.shape[0] % (16 * 128) == 0
+        src_np = src_np.reshape(-1, 16, 128)
+        src_np = np.transpose(src_np, (0, 2, 1)).reshape(-1)
         transpose_data = bytearray(src_np.tobytes())
         self._transpose_buffer = transpose_data
 
@@ -334,7 +334,7 @@ class MemorySpace:
             offset = memory["addressing"]["offset_byte"]
             size = memory["addressing"]["size_byte"]
             logger.debug(f"Add memory: {name=}, {memtype=}, {offset=}, {size=}")
-            if name == "transpose_memory_0" or name == "transpose_memory_1":
+            if name == "transpose_memory":
                 memory_space.add_memory(TransposeMemory(name, memtype, offset, size))
             else:
                 memory_space.add_memory(Memory(name, memtype, offset, size))

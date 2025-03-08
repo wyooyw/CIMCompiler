@@ -14,7 +14,10 @@
     {% set error_msg = "transpose_col must equals head_hidden" %}
     {{ raise(error_msg) }}
 {% endif %}
-
+{% if not (seqlen >= transpose_row and seqlen % transpose_row == 0) %}
+    {% set error_msg = "seqlen must be greater than transpose_row" %}
+    {{ raise(error_msg) }}
+{% endif %}
 
 def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>, 
                     macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>
@@ -44,61 +47,75 @@ def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
     };
 }
 
-def load_transpose_into_macro(src< <-1, -1>, fp16, __GLOBAL__>, 
-                    macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>,
-                    transpose_unit_1< <-1>, fp16, __TRANSPOSE_MEMORY_1__>,
-                    transpose_unit_2< <-1>, fp16, __TRANSPOSE_MEMORY_2__>
-                    ){
-    
-    // assert transpose_unit_1.shape == transpose_unit_2.shape
-
+def load_single_transpose_into_macro(
+        transpose_unit< <1, -1>, fp16, __TRANSPOSE_MEMORY__>,
+        macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>,
+        row_outer_src<index>
+    ){
     transpose_row = {{transpose_row}};
     transpose_col = {{transpose_col}};
-    // assert transpose_unit_1.shape == transpose_row * transpose_col
 
-    // transpose_unit_1_out = View(transpose_unit_1, <transpose_col, transpose_row> );
-    // transpose_unit_2_out = View(transpose_unit_2, <transpose_col, transpose_row> );
+    for r_transpose_out in range(0, transpose_col) carry () {
+        transpose_unit_out_line = transpose_unit[:, r_transpose_out * transpose_row : (r_transpose_out + 1) * transpose_row];
+        
+        
+        // A little complicated here.
+        col_outer_macro = row_outer_src % ({{N_GROUP_VCOL}} / transpose_row);
+        row_outer_macro = row_outer_src / ({{N_GROUP_VCOL}} / transpose_row);
+
+        col_macro_begin = col_outer_macro * transpose_row;
+        col_macro_end = (col_outer_macro + 1) * transpose_row;
+        
+        abs_row_macro = row_outer_macro * transpose_col + r_transpose_out;
+        row_macro = abs_row_macro / {{N_COMP}};
+        comp_macro = abs_row_macro % {{N_COMP}};
+
+        macro_line = macro[row_macro, comp_macro, 0, col_macro_begin:col_macro_end];
+
+        Trans(transpose_unit_out_line, macro_line);
+    };
+}
+
+def load_transpose_into_macro(src< <-1, -1>, fp16, __GLOBAL__>, 
+                    macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>,
+                    transpose_unit< <2, -1>, fp16, __TRANSPOSE_MEMORY__>
+                    ){
+    transpose_row = {{transpose_row}};
+    transpose_col = {{transpose_col}};
 
     src_row = Shape(src, 0);
     src_col = Shape(src, 1);
 
-    // assert src_col == transpose_col
-    // assert src_row >= transpose_row
-    // assert src_row % transpose_row == 0
-
-    // TODO: check shapes at compile time
-
     out_row_size = src_row / transpose_row;
     out_col_size = src_col / transpose_col;
 
-    for row_outer_src in range(0, out_row_size) carry () {
+    // double buffer transpose
 
-        // step 1: write src tile into transpose unit
-        src_tile = src[row_outer_src * transpose_row: (row_outer_src + 1) * transpose_row, :];
-        Trans(src_tile, transpose_unit_1);
+    // write 0
+    Trans(src[:transpose_row, :], transpose_unit[0,:]);
 
-        // step 2: write tile from transpose unit into macros
-        for r_transpose_out in range(0, transpose_col) carry () {
-            transpose_unit_1_out_line = transpose_unit_1[r_transpose_out * transpose_row : (r_transpose_out + 1) * transpose_row];
-            
-            
-            // A little complicated here.
-            col_outer_macro = row_outer_src % ({{N_GROUP_VCOL}} / transpose_row);
-            row_outer_macro = row_outer_src / ({{N_GROUP_VCOL}} / transpose_row);
+    for row_outer_src in range(1, out_row_size) carry () {
 
-            col_macro_begin = col_outer_macro * transpose_row;
-            col_macro_end = (col_outer_macro + 1) * transpose_row;
-            
-            abs_row_macro = row_outer_macro * transpose_col + r_transpose_out;
-            row_macro = abs_row_macro / {{N_COMP}};
-            comp_macro = abs_row_macro % {{N_COMP}};
+        // write row_outer_src % 2
+        Trans(
+            src[row_outer_src * transpose_row: (row_outer_src + 1) * transpose_row, :], 
+            transpose_unit[row_outer_src % 2,:]
+        );
 
-            macro_line = macro[row_macro, comp_macro, 0, col_macro_begin:col_macro_end];
-
-            Trans(transpose_unit_1_out_line, macro_line);
-        };
-
+        // read from (row_outer_src % 2) + 1
+        load_single_transpose_into_macro(
+            transpose_unit[(row_outer_src - 1) % 2, :],
+            macro,
+            row_outer_src - 1
+        );
     };
+
+    // read from (out_row_size - 1) % 2
+    load_single_transpose_into_macro(
+        transpose_unit[(out_row_size - 1) % 2, :],
+        macro,
+        out_row_size - 1
+    );
 }
 
 def gemv(src< <-1>, fp16, __OUTPUT_MEMORY__>, 
@@ -182,9 +199,8 @@ def main(){
     v_row_end = v_row_begin + v_row_size;
     v_macro = macros[v_row_begin:v_row_end, 0:{{N_COMP}}, 0:1, 0:{{N_GROUP_VCOL}}];
     
-    transpose_unit_1 = Buffer(<{{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY_1__);
-    transpose_unit_2 = Buffer(<{{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY_2__);
-    load_transpose_into_macro(k_global, k_macro, transpose_unit_1, transpose_unit_2);
+    transpose_unit = Buffer(<2, {{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY__);
+    load_transpose_into_macro(k_global, k_macro, transpose_unit);
     load_into_macro(v_global, v_macro);
 
     // step 2: compute qK^T
