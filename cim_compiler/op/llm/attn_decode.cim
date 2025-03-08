@@ -10,6 +10,11 @@
     {% set error_msg = "seqlen must be divisible by N_GROUP_VCOL" %}
     {{ raise(error_msg) }}
 {% endif %}
+{% if transpose_col != head_hidden %}
+    {% set error_msg = "transpose_col must equals head_hidden" %}
+    {{ raise(error_msg) }}
+{% endif %}
+
 
 def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>, 
                     macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>
@@ -41,45 +46,58 @@ def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
 
 def load_transpose_into_macro(src< <-1, -1>, fp16, __GLOBAL__>, 
                     macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>,
-                    transpose_unit< <-1, -1>, fp16, __TRANSPOSE__>
+                    transpose_unit_1< <-1>, fp16, __TRANSPOSE_MEMORY_1__>,
+                    transpose_unit_2< <-1>, fp16, __TRANSPOSE_MEMORY_2__>
                     ){
-    transpose_row = Shape(transpose_unit, 0);
-    transpose_col = Shape(transpose_unit, 1);
+    
+    // assert transpose_unit_1.shape == transpose_unit_2.shape
 
-    transpose_unit_out = View(transpose_unit, <transpose_col, transpose_row> );
+    transpose_row = {{transpose_row}};
+    transpose_col = {{transpose_col}};
+    // assert transpose_unit_1.shape == transpose_row * transpose_col
+
+    // transpose_unit_1_out = View(transpose_unit_1, <transpose_col, transpose_row> );
+    // transpose_unit_2_out = View(transpose_unit_2, <transpose_col, transpose_row> );
 
     src_row = Shape(src, 0);
     src_col = Shape(src, 1);
+
+    // assert src_col == transpose_col
+    // assert src_row >= transpose_row
+    // assert src_row % transpose_row == 0
 
     // TODO: check shapes at compile time
 
     out_row_size = src_row / transpose_row;
     out_col_size = src_col / transpose_col;
 
-    for r_out in range(0, out_row_size) carry () {
-        for c_out in range(0, out_col_size) carry () {
-            # step 1: write src tile into transpose unit
-            // TODO: optimize when out_col_size == 1
-            for r_transpose in range(0, transpose_row) carry () {
-                src_line = src[r_out * transpose_row + r_transpose, c_out * transpose_col : (c_out + 1) * transpose_col];
-                transpose_unit_line = transpose_unit[r_transpose, :];
-                Trans(src_line, transpose_unit_line);
-            };
+    for row_outer_src in range(0, out_row_size) carry () {
 
-            # step 2: write tile from transpose unit into macros
-            // TODO: optimize when transpose_row == N_GROUP_VCOL
-            for r_transpose_out in range(0, transpose_col) carry () {
-                transpose_unit_out_line = transpose_unit_out[r_transpose_out, :];
-                
-                # A little complicated here.
-                abs_row = 
-                row = row_comp / {{N_COMP}};
-                comp = row_comp % {{N_COMP}};
-                col_begin = 
-                col_end = 
-                macro_line = macro[row, comp, 0, col_begin:col_end];
-            };
+        // step 1: write src tile into transpose unit
+        src_tile = src[row_outer_src * transpose_row: (row_outer_src + 1) * transpose_row, :];
+        Trans(src_tile, transpose_unit_1);
+
+        // step 2: write tile from transpose unit into macros
+        for r_transpose_out in range(0, transpose_col) carry () {
+            transpose_unit_1_out_line = transpose_unit_1[r_transpose_out * transpose_row : (r_transpose_out + 1) * transpose_row];
+            
+            
+            // A little complicated here.
+            col_outer_macro = row_outer_src % ({{N_GROUP_VCOL}} / transpose_row);
+            row_outer_macro = row_outer_src / ({{N_GROUP_VCOL}} / transpose_row);
+
+            col_macro_begin = col_outer_macro * transpose_row;
+            col_macro_end = (col_outer_macro + 1) * transpose_row;
+            
+            abs_row_macro = row_outer_macro * transpose_col + r_transpose_out;
+            row_macro = abs_row_macro / {{N_COMP}};
+            comp_macro = abs_row_macro % {{N_COMP}};
+
+            macro_line = macro[row_macro, comp_macro, 0, col_macro_begin:col_macro_end];
+
+            Trans(transpose_unit_1_out_line, macro_line);
         };
+
     };
 }
 
@@ -163,8 +181,10 @@ def main(){
     v_row_size = {{ (seqlen // N_COMP) * (head_hidden // N_GROUP_VCOL) }};
     v_row_end = v_row_begin + v_row_size;
     v_macro = macros[v_row_begin:v_row_end, 0:{{N_COMP}}, 0:1, 0:{{N_GROUP_VCOL}}];
-
-    load_transpose_into_macro(k_global, k_macro);
+    
+    transpose_unit_1 = Buffer(<{{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY_1__);
+    transpose_unit_2 = Buffer(<{{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY_2__);
+    load_transpose_into_macro(k_global, k_macro, transpose_unit_1, transpose_unit_2);
     load_into_macro(v_global, v_macro);
 
     // step 2: compute qK^T

@@ -129,6 +129,43 @@ class Memory:
     def register_write_hook(self, hook):
         self.write_hook_list.append(hook)
 
+class TransposeMemory(Memory):
+    def __init__(self, name, memtype, offset, size):
+        super().__init__(name, memtype, offset, size)
+        self._transpose_buffer = None
+    
+    def get_transpose_buffer(self):
+        if self._transpose_buffer is not None:
+            return self._transpose_buffer
+    
+        src_np = np.frombuffer(self._data, dtype=np.float16).reshape(-1)
+        assert src_np.shape[0] == 16 * 128
+        src_np = src_np.reshape(16, 128)
+        src_np = np.transpose(src_np).reshape(-1)
+        transpose_data = bytearray(src_np.tobytes())
+        self._transpose_buffer = transpose_data
+
+        return transpose_data
+    
+    def write(self, data, offset, size):
+        super().write(data, offset, size)
+        self._transpose_buffer = None
+
+    def clear(self):
+        super().clear()
+        self._transpose_buffer = None
+
+    def read(self, offset, size):
+        transpose_data = self.get_transpose_buffer()
+        
+        assert self._check_range(offset, size), f"offset={offset}, size={size}"
+        offset = offset - self.offset
+        return copy.copy(transpose_data[offset : offset + size])
+
+    def read_all(self):
+        transpose_data = self.get_transpose_buffer()
+        return copy.copy(transpose_data)
+        
 
 class MemorySpace:
     def __init__(self):
@@ -297,7 +334,10 @@ class MemorySpace:
             offset = memory["addressing"]["offset_byte"]
             size = memory["addressing"]["size_byte"]
             logger.debug(f"Add memory: {name=}, {memtype=}, {offset=}, {size=}")
-            memory_space.add_memory(Memory(name, memtype, offset, size))
+            if name == "transpose_memory_0" or name == "transpose_memory_1":
+                memory_space.add_memory(TransposeMemory(name, memtype, offset, size))
+            else:
+                memory_space.add_memory(Memory(name, memtype, offset, size))
         return memory_space
 
 
