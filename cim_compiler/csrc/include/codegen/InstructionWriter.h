@@ -30,6 +30,9 @@ public:
     virtual Inst getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) = 0;
     virtual Inst getCIMOutputInst(int reg_out_n, int reg_out_mask_addr, int reg_out_addr, int flag_outsum, int flag_outsum_move ) = 0;
     virtual Inst getCIMTransferInst(int reg_src_addr, int reg_out_n, int reg_out_mask_addr, int reg_buffer_addr, int reg_dst_addr) = 0;
+    
+    virtual Inst getSendInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) = 0;
+    virtual Inst getRecvInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) = 0;
 
     virtual void setJumpOffset(Inst &inst, int offset) = 0;
     virtual void setBranchOffset(Inst &inst, int offset) = 0;
@@ -58,6 +61,9 @@ public:
     Inst getDebugInst() override;
     Inst getJumpInst(int offset) override;
     Inst getBranchInst(int compare, int reg1, int reg2, int offset) override;
+    Inst getSendInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) override;
+    Inst getRecvInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) override;
+
     void setJumpOffset(Inst &inst, int offset);
     void setBranchOffset(Inst &inst, int offset);
     
@@ -91,6 +97,8 @@ public:
     Inst getBranchInst(int compare, int reg1, int reg2, int offset) override;
     void setJumpOffset(Inst &inst, int offset);
     void setBranchOffset(Inst &inst, int offset);
+    Inst getSendInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) override;
+    Inst getRecvInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) override;
     
     Inst getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode) override;
     Inst getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) override;

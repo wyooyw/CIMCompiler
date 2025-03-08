@@ -231,6 +231,18 @@ CIMSetOp::fold(FoldAdaptor adaptor,
   return memref::foldMemRefCast(*this);
 }
 
+LogicalResult
+SendOp::fold(FoldAdaptor adaptor,
+               llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  return memref::foldMemRefCast(*this);
+}
+
+LogicalResult
+RecvOp::fold(FoldAdaptor adaptor,
+               llvm::SmallVectorImpl<::mlir::OpFoldResult> &results) {
+  return memref::foldMemRefCast(*this);
+}
+
 void AddrOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                    mlir::Value src) {
   state.addTypes(builder.getIndexType());

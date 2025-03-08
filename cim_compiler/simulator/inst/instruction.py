@@ -115,3 +115,19 @@ class CIMTransferInst:
     reg_out_mask_addr: int
     reg_buffer_addr: int
     reg_dst_addr: int
+
+@dataclass
+class SendInst:
+    reg_src_addr: int
+    reg_dst_addr: int
+    reg_size: int
+    reg_dst_core: int
+    reg_transfer_id: int
+
+@dataclass
+class RecvInst:
+    reg_src_addr: int
+    reg_dst_addr: int
+    reg_size: int
+    reg_src_core: int
+    reg_transfer_id: int

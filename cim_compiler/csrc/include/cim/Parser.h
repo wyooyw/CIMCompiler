@@ -176,6 +176,10 @@ private:
   parse_slice_list(mlir::Value var, const boost::property_tree::ptree &ast);
   bool is_buffer_slice(const boost::property_tree::ptree &ast);
   bool is_slice(const boost::property_tree::ptree &ast);
+
+  // communication
+  void parse_builtin_send(const boost::property_tree::ptree &ast);
+  void parse_builtin_recv(const boost::property_tree::ptree &ast);
 };
 
 #endif // MLIRGENIMPL_H

@@ -322,4 +322,32 @@ def RIMinSIOp : CIMISA_Op<"ri_minsi",[Pure]> {
   let results = (outs AnyTypeOf<[AnyInteger, Index]>);
 }
 
+def SendOp : CIMISA_Op<"send"> {
+  let summary = "send";
+  let description = [{
+    send
+  }];
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$src_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$dst_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$size,
+    AnyTypeOf<[AnyInteger, Index]>:$core_id,
+    AnyTypeOf<[AnyInteger, Index]>:$transfer_id
+  );
+}
+
+def RecvOp : CIMISA_Op<"recv"> {
+  let summary = "recv";
+  let description = [{
+    recv
+  }];
+  let arguments = (ins
+    AnyTypeOf<[AnyInteger, Index]>:$src_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$dst_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$size,
+    AnyTypeOf<[AnyInteger, Index]>:$core_id,
+    AnyTypeOf<[AnyInteger, Index]>:$transfer_id
+  );
+}
+
 #endif // CIMISA_OPS

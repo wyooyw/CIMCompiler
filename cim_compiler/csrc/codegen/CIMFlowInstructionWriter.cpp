@@ -164,6 +164,28 @@ Inst CIMFlowInstructionWriter::getCIMTransferInst(int reg_src_addr, int reg_out_
     };
 }
 
+Inst CIMFlowInstructionWriter::getSendInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) {
+    return {
+        {"opcode", 0b110100}, 
+        {"rs", reg_src_addr}, 
+        {"rt", reg_core_id}, 
+        {"rd", reg_dst_addr},
+        {"re", reg_size},
+        {"rf", reg_transfer_id}
+    };
+}
+
+Inst CIMFlowInstructionWriter::getRecvInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) {
+    return {
+        {"opcode", 0b110110}, 
+        {"rs", reg_core_id}, 
+        {"rt", reg_src_addr}, 
+        {"rd", reg_dst_addr},
+        {"re", reg_size},
+        {"rf", reg_transfer_id}
+    };
+}
+
 void CIMFlowInstructionWriter::setJumpOffset(Inst &inst, int offset) {
     inst["imm"] = offset;
 }
@@ -193,3 +215,4 @@ bool CIMFlowInstructionWriter::isGeneralReg(Inst &inst, std::string key) {
 bool CIMFlowInstructionWriter::isSpecialLi(Inst &inst) {
   return inst.count("opcode") && inst["opcode"] == 0b101101;
 }
+

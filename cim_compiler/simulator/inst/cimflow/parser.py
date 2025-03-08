@@ -151,6 +151,22 @@ class CIMFlowParser:
                 reg_buffer_addr=inst["rf"],
                 reg_dst_addr=inst["rd"]
             )
+        elif opcode == 0b110100:
+            return SendInst(
+                reg_src_addr=inst["rs"],
+                reg_dst_addr=inst["rd"],
+                reg_size=inst["re"],
+                reg_dst_core=inst["rt"],
+                reg_transfer_id=inst["rf"]
+            )
+        elif opcode == 0b110110:
+            return RecvInst(
+                reg_src_addr=inst["rt"],
+                reg_dst_addr=inst["rd"],
+                reg_size=inst["re"],
+                reg_src_core=inst["rs"],
+                reg_transfer_id=inst["rf"]
+            )
         else:
             raise ValueError(f"Unknown opcode: {opcode}")
         

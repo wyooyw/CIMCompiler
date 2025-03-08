@@ -27,6 +27,7 @@ def parse_args():
     parse_config_args(subparsers)
     parse_cfg_pimsim_args(subparsers)
     parse_show_args(subparsers)
+    parse_multi_core_simulate_args(subparsers)
     args = parser.parse_args()
     return args
 
@@ -44,6 +45,8 @@ def main():
         run_cfg_pimsim(args)
     elif args.command == "show":
         run_show(args)
+    elif args.command == "multi-core-simulate":
+        run_multi_core_simulate(args)
     else:
         raise ValueError(f"Invalid command: {args.command}")
 

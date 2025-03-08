@@ -384,6 +384,8 @@ class Simulator:
         self._read_reg_value_directly = False
 
         self.pimset_mask = None
+
+        self.pipes = None
     
     def get_pimset_mask(self):
         if self.pimset_mask is not None:
@@ -489,6 +491,11 @@ class Simulator:
 
         # print(f"{self.pimcompute_cnt=}, {total_pim_compute_count=}")
         self.pbar.close()
+        
+        # if self.pipes is not None:
+        #     for pipe in self.pipes:
+        #         if pipe:
+        #             pipe.close()
 
         if pc == len(code):
             logger.debug("Run finish!")
@@ -577,6 +584,11 @@ class Simulator:
         elif isinstance(inst, PrintInst):
             self._run_debug_class_inst(inst)
 
+        # Communication
+        elif isinstance(inst, SendInst):
+            self._run_send_inst(inst)
+        elif isinstance(inst, RecvInst):
+            self._run_recv_inst(inst)
         else:
             assert False, f"Not support {inst=}"
 
@@ -1679,3 +1691,38 @@ class Simulator:
         # import pdb; pdb.set_trace()
         self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
         self.memory_space.write(output_data, output_addr, output_byte_size)
+
+    def _run_send_inst(self, inst):
+        assert self.pipes is not None
+        dst_core = self.read_general_reg(inst.reg_dst_core)
+        transfer_id = self.read_general_reg(inst.reg_transfer_id)
+        src_addr = self.read_general_reg(inst.reg_src_addr)
+        dst_addr = self.read_general_reg(inst.reg_dst_addr)
+        size = self.read_general_reg(inst.reg_size)
+        data = self.memory_space.read(src_addr, size)
+
+        assert dst_core < len(self.pipes)
+        assert self.pipes[dst_core] is not None
+        self.pipes[dst_core].send((data, (src_addr, dst_addr, transfer_id)))
+
+        # Wait for acknowledgment
+        ack = self.pipes[dst_core].recv()
+        assert ack == "ACK", "Did not receive acknowledgment from receiver"
+
+    def _run_recv_inst(self, inst):
+        assert self.pipes is not None
+        src_core = self.read_general_reg(inst.reg_src_core)
+        transfer_id = self.read_general_reg(inst.reg_transfer_id)
+        dst_addr = self.read_general_reg(inst.reg_dst_addr)
+        src_addr = self.read_general_reg(inst.reg_src_addr)
+        size = self.read_general_reg(inst.reg_size)
+        
+        assert src_core < len(self.pipes)
+        assert self.pipes[src_core] is not None
+        data, (_src_addr, _dst_addr, _transfer_id) = self.pipes[src_core].recv()
+        self.pipes[src_core].send("ACK")
+        assert _src_addr == src_addr
+        assert _dst_addr == dst_addr
+        assert _transfer_id == transfer_id
+        
+        self.memory_space.write(data, dst_addr, size)

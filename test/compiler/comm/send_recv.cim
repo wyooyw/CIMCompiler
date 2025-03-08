@@ -1,0 +1,11 @@
+def main(){
+    buf_src = Buffer(<16>, int32, __GLOBAL__);
+    buf_dst = Buffer(<16>, int32, __GLOBAL__);
+    {% if core_id==0 %}
+        Send(buf_src, buf_dst, 1, 0);
+        Recv(buf_src, buf_dst, 1, 1);
+    {% else %}
+        Recv(buf_src, buf_dst, 0, 0);
+        Send(buf_src, buf_dst, 0, 1);
+    {% endif %}
+}

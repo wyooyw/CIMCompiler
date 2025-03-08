@@ -159,6 +159,24 @@ class CIMFlowDumper:
                 "OSUM": inst.flag_outsum,
                 "OSUM_MOV": inst.flag_outsum_move
             }
+        elif isinstance(inst, SendInst):
+            return {
+                "opcode": 0b110100,
+                "rs": inst.reg_src_addr,
+                "rt": inst.reg_dst_core,
+                "rd": inst.reg_dst_addr,
+                "re": inst.reg_size,
+                "rf": inst.reg_transfer_id
+            }
+        elif isinstance(inst, RecvInst):
+            return {
+                "opcode": 0b110110,
+                "rs": inst.reg_src_core,
+                "rt": inst.reg_src_addr,
+                "rd": inst.reg_dst_addr,
+                "re": inst.reg_size,
+                "rf": inst.reg_transfer_id
+            }
         else:
             raise ValueError(f"Unknown instruction type: {type(inst)}")
         

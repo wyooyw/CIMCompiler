@@ -603,6 +603,12 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree &ast) {
   } else if (call_func_name == "SpecialRegSet") {
     parse_builtin_special_reg_set(ast);
     return;
+  } else if (call_func_name == "Send") {
+    parse_builtin_send(ast);
+    return;
+  } else if (call_func_name == "Recv") {
+    parse_builtin_recv(ast);
+    return;
   }
 
   // check sign table
@@ -1044,6 +1050,49 @@ void MLIRGenImpl::parse_builtin_special_reg_set(
   mlir::Value set_value =
       parse_expr(safe_get_child(get_item(ast_set_value, 0), "expr"));
   builder.create<mlir::cim::SpecialRegSetOp>(loc, special_reg, set_value);
+}
+
+void MLIRGenImpl::parse_builtin_send(
+    const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_builtin_special_send";
+  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
+
+  auto ast_src_buffer =
+      safe_get_child(get_item(ast_param_list, 0), "call_param");
+  auto ast_dst_buffer =
+      safe_get_child(get_item(ast_param_list, 2), "call_param");
+  auto ast_core_id =
+      safe_get_child(get_item(ast_param_list, 4), "call_param");
+  auto ast_transfer_id =
+    safe_get_child(get_item(ast_param_list, 6), "call_param");
+
+  mlir::Value src_buffer = parse_expr(safe_get_child(get_item(ast_src_buffer, 0), "expr"));
+  mlir::Value dst_buffer = parse_expr(safe_get_child(get_item(ast_dst_buffer, 0), "expr"));
+  mlir::Value core_id = parse_expr(safe_get_child(get_item(ast_core_id, 0), "expr"));
+  mlir::Value transfer_id = parse_expr(safe_get_child(get_item(ast_transfer_id, 0), "expr"));
+  builder.create<mlir::cim::SendOp>(loc, src_buffer, dst_buffer, core_id, transfer_id);
+}
+
+
+void MLIRGenImpl::parse_builtin_recv(
+    const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_builtin_special_recv";
+  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
+
+  auto ast_src_buffer =
+      safe_get_child(get_item(ast_param_list, 0), "call_param");
+  auto ast_dst_buffer =
+      safe_get_child(get_item(ast_param_list, 2), "call_param");
+  auto ast_core_id =
+      safe_get_child(get_item(ast_param_list, 4), "call_param");
+  auto ast_transfer_id =
+    safe_get_child(get_item(ast_param_list, 6), "call_param");
+
+  mlir::Value src_buffer = parse_expr(safe_get_child(get_item(ast_src_buffer, 0), "expr"));
+  mlir::Value dst_buffer = parse_expr(safe_get_child(get_item(ast_dst_buffer, 0), "expr"));
+  mlir::Value core_id = parse_expr(safe_get_child(get_item(ast_core_id, 0), "expr"));
+  mlir::Value transfer_id = parse_expr(safe_get_child(get_item(ast_transfer_id, 0), "expr"));
+  builder.create<mlir::cim::RecvOp>(loc, src_buffer, dst_buffer, core_id, transfer_id);
 }
 
 /*

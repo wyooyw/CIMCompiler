@@ -227,3 +227,15 @@ Inst LegacyInstructionWriter::getCIMTransferInst(int reg_src_addr, int reg_out_n
         {"rd", reg_dst_addr}
     };
 }
+
+Inst LegacyInstructionWriter::getSendInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) {
+    return {
+        {"opcode", 0},
+    };
+}
+
+Inst LegacyInstructionWriter::getRecvInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) {
+    return {
+        {"opcode", 0},
+    };
+}

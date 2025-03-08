@@ -732,6 +732,64 @@ static void codeGen(mlir::cimisa::SpecialRegAssignOp op,
   Inst inst = writer.getGeneralToSpecialAssignInst(from_general_reg, special_reg);
   instr_list.push_back(inst);
 }
+
+/*
+Communication
+ */
+
+static void codeGen(mlir::cimisa::SendOp op,
+                    InstructionWriter &writer,
+                    std::unordered_map<llvm::hash_code, int> &regmap,
+                    std::vector<Inst> &instr_list, std::set<int> &def,
+                    std::set<int> &use) {
+  int src_addr_reg = getReg(regmap, op.getOperand(0));
+  int dst_addr_reg = getReg(regmap, op.getOperand(1));
+  int size_reg = getReg(regmap, op.getOperand(2));
+  int core_reg = getReg(regmap, op.getOperand(3));
+  int transfer_id_reg = getReg(regmap, op.getOperand(4));
+ 
+  use.insert(src_addr_reg);
+  use.insert(dst_addr_reg);
+  use.insert(size_reg);
+  use.insert(core_reg);
+  use.insert(transfer_id_reg);
+
+  Inst inst = writer.getSendInst(
+    src_addr_reg, 
+    dst_addr_reg, 
+    size_reg,
+    core_reg,
+    transfer_id_reg
+  );
+  instr_list.push_back(inst);
+}
+
+static void codeGen(mlir::cimisa::RecvOp op,
+                    InstructionWriter &writer,
+                    std::unordered_map<llvm::hash_code, int> &regmap,
+                    std::vector<Inst> &instr_list, std::set<int> &def,
+                    std::set<int> &use) {
+  int src_addr_reg = getReg(regmap, op.getOperand(0));
+  int dst_addr_reg = getReg(regmap, op.getOperand(1));
+  int size_reg = getReg(regmap, op.getOperand(2));
+  int core_reg = getReg(regmap, op.getOperand(3));
+  int transfer_id_reg = getReg(regmap, op.getOperand(4));
+ 
+  use.insert(src_addr_reg);
+  use.insert(dst_addr_reg);
+  use.insert(size_reg);
+  use.insert(core_reg);
+  use.insert(transfer_id_reg);
+
+  Inst inst = writer.getRecvInst(
+    src_addr_reg, 
+    dst_addr_reg, 
+    size_reg,
+    core_reg,
+    transfer_id_reg
+  );
+  instr_list.push_back(inst);
+}
 /*
   CodeGen For Operator Finish!
 */
@@ -1062,6 +1120,10 @@ codeGen(std::vector<Block *> &blocks,
       } else if (auto _op = dyn_cast<mlir::cimisa::SpecialRegLiOp>(op)) {
         codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::SpecialRegAssignOp>(op)) {
+        codeGen(_op, writer, regmap, instr_list, _write, _read);
+      } else if (auto _op = dyn_cast<mlir::cimisa::SendOp>(op)) {
+        codeGen(_op, writer, regmap, instr_list, _write, _read);
+      } else if (auto _op = dyn_cast<mlir::cimisa::RecvOp>(op)) {
         codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::func::ReturnOp>(op)) {
         // do nothing
