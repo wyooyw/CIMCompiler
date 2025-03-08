@@ -141,10 +141,10 @@ void MLIRGenImpl::parse_func(const boost::property_tree::ptree &ast) {
 
   // Parse function return type
   // return null for now.
-  auto ret_type = builder.getNoneType();
+  auto ret_type = builder.getIndexType();
 
   // Make function node
-  auto func_type = builder.getFunctionType(args_types, {});
+  auto func_type = builder.getFunctionType(args_types, {ret_type});
   auto func = builder.create<mlir::func::FuncOp>(loc, func_name, func_type);
   if (func_name != "main") {
     func.setPrivate();
@@ -186,7 +186,13 @@ void MLIRGenImpl::parse_func_body(const boost::property_tree::ptree &ast) {
   LOG_DEBUG << "parse_func_body";
 
   parse_stmt_list(safe_get_child(get_item(ast, 0), "stmt_list"));
-  builder.create<mlir::func::ReturnOp>(loc);
+
+  // Check if the block already has a terminator
+  if (!builder.getInsertionBlock()->mightHaveTerminator()) {
+    mlir::Value zero = builder.create<mlir::arith::ConstantIndexOp>(loc, 0);
+    builder.create<mlir::func::ReturnOp>(loc, zero);
+  }
+
   LOG_DEBUG << "parse_func_body finish.";
 }
 
@@ -204,7 +210,7 @@ void MLIRGenImpl::parse_stmt(const boost::property_tree::ptree &ast) {
   if (is_assign_stmt(ast_stmt)) {
     parse_assign_stmt(safe_get_child(ast_stmt, "stmt_assign"));
   } else if (is_return_stmt(ast_stmt)) {
-    // return nullptr; //parse_return_stmt(ast.begin()->first);
+    parse_return_stmt(safe_get_child(ast_stmt, "stmt_return"));
   } else if (is_call_stmt(ast_stmt)) {
     parse_call_stmt(safe_get_child(ast_stmt, "stmt_call"));
   } else if (is_for_stmt(ast_stmt)) {
@@ -269,6 +275,13 @@ void MLIRGenImpl::parse_assign_stmt(const boost::property_tree::ptree &ast) {
 
   // Add to sign table
   add_to_sign_table(var_name, expr);
+}
+
+void MLIRGenImpl::parse_return_stmt(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_return_stmt";
+  auto ast_expr = safe_get_child(get_item(ast, 1), "expr");
+  mlir::Value expr = parse_expr(ast_expr);
+  builder.create<mlir::func::ReturnOp>(loc, expr);
 }
 
 void MLIRGenImpl::parse_for_stmt(const boost::property_tree::ptree &ast) {

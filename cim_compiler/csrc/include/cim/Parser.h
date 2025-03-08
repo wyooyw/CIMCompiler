@@ -180,6 +180,9 @@ private:
   // communication
   void parse_builtin_send(const boost::property_tree::ptree &ast);
   void parse_builtin_recv(const boost::property_tree::ptree &ast);
+
+  // return
+  void parse_return_stmt(const boost::property_tree::ptree &ast);
 };
 
 #endif // MLIRGENIMPL_H

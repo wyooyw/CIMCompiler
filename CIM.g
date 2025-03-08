@@ -40,7 +40,7 @@ stmt_if_else: 'if' '(' expr ')' carry '{' stmt_list '}' 'else' '{' stmt_list '}'
 carry: 'carry' '(' carry_list ')';
 carry_list: var? (',' var)*;
 
-stmt_return: 'return' ID;
+stmt_return: 'return' expr;
 
 
 
