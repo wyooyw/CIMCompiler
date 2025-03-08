@@ -1,18 +1,32 @@
+def get_next_rank(rank<index>, world_size<index>){
+    return (rank + 1) % world_size;
+}
+
+def get_prev_rank(rank<index>, world_size<index>){
+    return (rank - 1 + world_size) % world_size;
+}
+
+def get_row_to_send(rank<index>, step<index>, world_size<index>){
+    return (rank - step + world_size) % world_size;
+}
+
+def get_row_to_recv(rank<index>, step<index>, world_size<index>){
+    return (rank - step - 1 + world_size) % world_size;
+}
+
 def send(rank<index>, step<index>, world_size<index>, data< <-1, -1>, int32, __GLOBAL__>){
-    rank_to_send = (rank + 1) % world_size;
-    idx_to_send = (rank - step + world_size) % world_size;
-    data_to_send = data[idx_to_send, :];
-    fake_idx_to_recv = (rank_to_send - step - 1 + world_size) % world_size;
-    fake_data_to_recv = data[fake_idx_to_recv, :];
+    rank_to_send = get_next_rank(rank, world_size);
+    data_to_send = data[get_row_to_send(rank, step, world_size), :];
+    
+    fake_data_to_recv = data[get_row_to_recv(rank_to_send, step, world_size), :];
     Send(data_to_send, fake_data_to_recv, rank_to_send, step);
 }
 
 def recv(rank<index>, step<index>, world_size<index>, data< <-1, -1>, int32, __GLOBAL__>){
-    rank_to_recv = (rank - 1 + world_size) % world_size;
-    idx_to_recv = (rank - step - 1 + world_size) % world_size;
-    data_to_recv = data[idx_to_recv , :];
-    fake_idx_to_send = (rank_to_recv - step + world_size) % world_size;
-    fake_data_to_send = data[fake_idx_to_send, :];
+    rank_to_recv = get_prev_rank(rank, world_size);
+    data_to_recv = data[get_row_to_recv(rank, step, world_size), :];
+
+    fake_data_to_send = data[get_row_to_send(rank_to_recv, step, world_size), :];
     Recv(fake_data_to_send, data_to_recv, rank_to_recv, step);
 }
 
