@@ -20,6 +20,6 @@ def main(){
     x_local = Buffer(<{{seqlen // world_size}}>, fp16, __OUTPUT_MEMORY__);
     score_local = Buffer(<{{seqlen // world_size}}>, fp16, __OUTPUT_MEMORY__);
     Trans(x_global, x_local);
-    cp_online_softmax(x_local, score_local);
+    cp_online_softmax(x_local, score_local, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
     Trans(score_local, score_global);
 }

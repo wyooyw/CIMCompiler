@@ -1,6 +1,9 @@
 def cp_online_softmax(
     x< <-1>, fp16, __OUTPUT_MEMORY__>,
-    score< <-1>, fp16, __OUTPUT_MEMORY__>
+    score< <-1>, fp16, __OUTPUT_MEMORY__>,
+    group_offset<index>,
+    group_stride<index>,
+    group_size<index>
     ) {
     // local softmax
     max_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
@@ -11,9 +14,9 @@ def cp_online_softmax(
     all_sum_exp_x = Buffer(<{{world_size}}, 1>, fp16, __OUTPUT_MEMORY__);
     all_max_x = Buffer(<{{world_size}}, 1>, fp16, __OUTPUT_MEMORY__);
     Trans(sum_exp_x, all_sum_exp_x[{{core_id}}, 0]);
-    all_gather(all_sum_exp_x);
+    all_gather(all_sum_exp_x, group_offset, group_stride, group_size);
     Trans(max_x, all_max_x[{{core_id}}, 0]);
-    all_gather(all_max_x);
+    all_gather(all_max_x, group_offset, group_stride, group_size);
 
     total_max_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
     SIMD(REDUCE_MAX, all_max_x, total_max_x);

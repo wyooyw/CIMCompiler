@@ -51,6 +51,9 @@ def test_softmax(seqlen):
 @dataclass
 class CpSoftmaxOpConfig(SIMDOpConfig):
     seqlen: int = 0
+    cp_group_offset: int = 0
+    cp_group_stride: int = 1
+    cp_group_size: int = 1
 
 def test_cp_softmax(seqlen, world_size):
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
@@ -58,6 +61,9 @@ def test_cp_softmax(seqlen, world_size):
     cim_config_path = os.path.join(cim_compiler_home, "test/op/llm/config.json")
     op_config = CpSoftmaxOpConfig(
         seqlen=seqlen,
+        cp_group_offset=0,
+        cp_group_stride=1,
+        cp_group_size=world_size
     )
 
     op_runner = SPMDOpRunner(op_path, op_config, cim_config_path, world_size)
