@@ -9,3 +9,8 @@
 #define VFLOOR 8
 #define VSET 9
 #define SOFTMAX 10
+#define REDUCE_MAX 11
+#define V_EXP 12
+#define REDUCE_SUM 13
+#define VS_DIV 14
+#define VS_SUB 15

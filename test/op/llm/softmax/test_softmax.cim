@@ -1,0 +1,25 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+{% include 'op/llm/softmax.cim' %}
+
+def set_special_regs(){
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 16);
+
+    SpecialRegSet(SPECIAL_REG_DTYPE_SIMD_IS_FLOAT, 1);
+}
+
+def main(){
+    set_special_regs();
+    
+    x_global = Buffer(<{{seqlen}}>, fp16, __GLOBAL__);
+    score_global = Buffer(<{{seqlen}}>, fp16, __GLOBAL__);
+    x_local = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
+    score_local = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
+    max_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__)
+    sum_exp_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__)
+    Trans(x_global, x_local);
+    softmax(x_local, score_local, max_x, sum_exp_x);
+    Trans(score_local, score_global);
+}

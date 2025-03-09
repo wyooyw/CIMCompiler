@@ -1,0 +1,49 @@
+def get_next_rank(rank<index>, world_size<index>){
+    return (rank + 1) % world_size;
+}
+
+def get_prev_rank(rank<index>, world_size<index>){
+    return (rank - 1 + world_size) % world_size;
+}
+
+def get_row_to_send(rank<index>, step<index>, world_size<index>){
+    return (rank - step + world_size) % world_size;
+}
+
+def get_row_to_recv(rank<index>, step<index>, world_size<index>){
+    return (rank - step - 1 + world_size) % world_size;
+}
+
+def send(rank<index>, step<index>, world_size<index>, data< <-1, -1>, fp16, __OUTPUT_MEMORY__>){
+    rank_to_send = get_next_rank(rank, world_size);
+    data_to_send = data[get_row_to_send(rank, step, world_size), :];
+    
+    fake_data_to_recv = data[get_row_to_recv(rank_to_send, step, world_size), :];
+    Send(data_to_send, fake_data_to_recv, rank_to_send, step);
+}
+
+def recv(rank<index>, step<index>, world_size<index>, data< <-1, -1>, fp16, __OUTPUT_MEMORY__>){
+    rank_to_recv = get_prev_rank(rank, world_size);
+    data_to_recv = data[get_row_to_recv(rank, step, world_size), :];
+
+    fake_data_to_send = data[get_row_to_send(rank_to_recv, step, world_size), :];
+    Recv(fake_data_to_send, data_to_recv, rank_to_recv, step);
+}
+
+def all_gather(
+    data< <-1, -1>, fp16, __OUTPUT_MEMORY__>
+    ){
+    rank = {{core_id}};
+    world_size = {{world_size}};
+    
+    step_max = world_size - 1;
+    for step in range(0, step_max) carry (){
+        {% if core_id % 2 == 0 %}
+            send(rank, step, world_size, data);
+            recv(rank, step, world_size, data);
+        {% else %}
+            recv(rank, step, world_size, data);
+            send(rank, step, world_size, data);
+        {% endif %}
+    };
+}

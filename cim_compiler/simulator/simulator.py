@@ -596,7 +596,13 @@ class Simulator:
         opcode = inst.opcode
         if opcode in [0x00, 0x02, 6]:  # vec add / mul
             self._run_simd_class_vector_vector_inst(inst)
-        elif opcode in [0b01, 7, 9]:  # scalar add
+        elif opcode in [
+            0b01, 
+            7, 
+            9, 
+            14, # VS_DIV
+            15  # VS_SUB
+        ]: 
             self._run_simd_class_scalar_vector_inst(inst)
         elif opcode == 3:
             self._run_simd_class_quantify_inst(inst)
@@ -610,6 +616,15 @@ class Simulator:
         #     self._run_simd_class_set_inst(inst)
         elif opcode == 10:
             self._run_simd_class_softmax_inst(inst)
+        elif opcode in [
+            11, # reduce max
+            13 # reduce sum
+        ]:
+            self._run_simd_class_reduce_inst(inst)
+        elif opcode in [
+            12 # vector exp
+        ]:
+            self._run_simd_class_vector_inst(inst)
         else:
             assert False, f"Not support {opcode=} yet."
 
@@ -1357,13 +1372,13 @@ class Simulator:
 
         output_addr = self.read_general_reg(inst.reg_out)
         output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
-        output_dtype = get_dtype_from_bitwidth(output_bitwidth)
+        output_dtype = get_dtype_from_bitwidth(output_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
 
         input1_data = self.memory_space.read_as(
-            input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
+            input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
         )
         input2_data = self.memory_space.read_as(
-            input2_addr, input2_byte_size, get_dtype_from_bitwidth(input2_bitwidth)
+            input2_addr, input2_byte_size, get_dtype_from_bitwidth(input2_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
         )
 
         # Compute
@@ -1375,9 +1390,9 @@ class Simulator:
                 output_dtype
             )
         elif opcode == 0x02:
-            assert input1_bitwidth == 8
-            assert input2_bitwidth == 8
-            assert output_bitwidth == 32
+            # assert input1_bitwidth == 8
+            # assert input2_bitwidth == 8
+            # assert output_bitwidth == 32
             output_data = input1_data.astype(output_dtype) * input2_data.astype(
                 output_dtype
             )
@@ -1409,26 +1424,26 @@ class Simulator:
         input1_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
         input1_byte_size = input1_bitwidth * input_size // 8
         self.memory_space.check_memory_type(input1_addr, input1_byte_size, "sram")
+        input1_dtype = get_dtype_from_bitwidth(input1_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
 
         input2_addr = self.read_general_reg(inst.reg_in2)
         input2_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_2_BIT_WIDTH)
         input2_byte_size = input2_bitwidth // 8
         self.memory_space.check_memory_type(input2_addr, input2_byte_size, "sram")
-        input2_dtype = get_dtype_from_bitwidth(input2_bitwidth)
+        input2_dtype = get_dtype_from_bitwidth(input2_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
 
         output_addr = self.read_general_reg(inst.reg_out)
         output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
-        output_dtype = get_dtype_from_bitwidth(output_bitwidth)
+        output_dtype = get_dtype_from_bitwidth(output_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
+
+        input1_data = self.memory_space.read_as(
+            input1_addr, input1_byte_size, input1_dtype
+        )
+        input2_data = self.memory_space.read_as(
+            input2_addr, input2_byte_size, input2_dtype
+        )
 
         if opcode==1:
-
-            input1_data = self.memory_space.read_as(
-                input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
-            )
-            input2_data = self.memory_space.read_as(
-                input2_addr, input2_byte_size, get_dtype_from_bitwidth(input2_bitwidth)
-            )
-
             # Compute
             output_data = input2_data.astype(output_dtype) + input1_data.astype(
                 output_dtype
@@ -1436,38 +1451,60 @@ class Simulator:
 
         elif opcode==7:
             # vsmul
-            assert input1_bitwidth == 32
-            assert input2_bitwidth == 32
-            assert output_bitwidth == 32
-            input1_data = self.memory_space.read_as(
-                input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
-            )
-            input2_data = self.memory_space.read_as(
-                input2_addr, input2_byte_size, np.float32
-            )
-
+            # assert input1_bitwidth == 32
+            # assert input2_bitwidth == 32
+            # assert output_bitwidth == 32
+            # assert input2_dtype == np.float32
             # Compute
-            output_data = (input1_data * input2_data).astype(np.float32)
+            output_data = (input1_data * input2_data).astype(output_dtype)
 
         elif opcode==9:
-
-            input1_data = self.memory_space.read_as(
-                input1_addr, input1_byte_size, get_dtype_from_bitwidth(input1_bitwidth)
-            )
-            input2_data = self.memory_space.read_as(
-                input2_addr, input2_byte_size, get_dtype_from_bitwidth(input2_bitwidth)
-            )
             # Compute
             scalar = input2_data[0]
             output_data = np.full(input_size, scalar, dtype=output_dtype)
+        elif opcode == 14: # VS_DIV
+            output_data = (
+                input1_data.astype(output_dtype) / input2_data.astype(output_dtype)
+            ).astype(output_dtype)
+        elif opcode == 15: # VS_SUB
+            output_data = (
+                input1_data.astype(output_dtype) - input2_data.astype(output_dtype)
+            ).astype(output_dtype)
         else:
             assert False, f"Not support: {opcode=}"
 
         # Save output
         output_byte_size = output_data.size * output_bitwidth // 8
         self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
-
         self.memory_space.write(output_data, output_addr, output_byte_size)
+
+    def _run_simd_class_vector_inst(self, inst):
+        assert inst.input_num == 1
+
+        input_addr = self.read_general_reg(inst.reg_in1)
+        input_size = self.read_general_reg(inst.reg_size)
+        output_addr = self.read_general_reg(inst.reg_out)
+
+        input_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
+        input_byte_size = input_bitwidth * input_size // 8
+        input_dtype = get_dtype_from_bitwidth(input_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
+        output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
+        output_dtype = get_dtype_from_bitwidth(output_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
+        self.memory_space.check_memory_type(input_addr, input_byte_size, "sram")
+        input_data = self.memory_space.read_as(
+            input_addr, 
+            input_byte_size, 
+            input_dtype
+        )
+        if inst.opcode == 12: # vector exp
+            output_data = np.exp(input_data.astype(output_dtype)).astype(output_dtype)
+        else:
+            assert False, f"Not support: {inst.opcode=}"
+
+        output_byte_size = output_data.size * output_bitwidth // 8
+        self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
+        self.memory_space.write(output_data, output_addr, output_byte_size)
+        
 
     def _run_simd_class_softmax_inst(self, inst):
         assert inst.input_num == 1
@@ -1492,6 +1529,37 @@ class Simulator:
             return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
             
         output_data = softmax(input_data.astype(output_dtype)).astype(output_dtype)
+        output_byte_size = output_data.size * output_bitwidth // 8
+        self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
+        self.memory_space.write(output_data, output_addr, output_byte_size)
+
+    def _run_simd_class_reduce_inst(self, inst):
+        assert inst.input_num == 1
+
+        input_addr = self.read_general_reg(inst.reg_in1)
+        input_size = self.read_general_reg(inst.reg_size)
+        output_addr = self.read_general_reg(inst.reg_out)
+        
+        # dtypes
+        input_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
+        input_dtype = get_dtype_from_bitwidth(input_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
+        output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
+        output_dtype = get_dtype_from_bitwidth(output_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
+        
+        input_byte_size = input_bitwidth * input_size // 8
+        self.memory_space.check_memory_type(input_addr, input_byte_size, "sram")
+        input_data = self.memory_space.read_as(input_addr, input_byte_size, input_dtype)
+        assert input_data.shape[0] == input_size
+
+        if inst.opcode == 11:
+            # reduce max
+            output_data = np.max(input_data.astype(output_dtype)).reshape(-1)
+        elif inst.opcode == 13:
+            # reduce sum
+            output_data = np.sum(input_data.astype(output_dtype)).reshape(-1)
+        else:
+            assert False, f"Not support: {inst.opcode=}"
+
         output_byte_size = output_data.size * output_bitwidth // 8
         self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
         self.memory_space.write(output_data, output_addr, output_byte_size)

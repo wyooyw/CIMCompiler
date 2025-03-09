@@ -1,0 +1,14 @@
+
+def softmax(
+    x< <-1>, fp16, __OUTPUT_MEMORY__>,
+    score< <-1>, fp16, __OUTPUT_MEMORY__>,
+    max_x< <1>, fp16, __OUTPUT_MEMORY__>,
+    sum_exp_x< <1>, fp16, __OUTPUT_MEMORY__>
+) {
+    // local softmax
+    SIMD(REDUCE_MAX, x, max_x);
+    SIMD(VS_SUB, x, max_x, x);
+    SIMD(V_EXP, x, x);
+    SIMD(REDUCE_SUM, x, sum_exp_x);
+    SIMD(VS_DIV, x, sum_exp_x, score);
+}
