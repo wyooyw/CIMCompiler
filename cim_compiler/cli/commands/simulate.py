@@ -29,7 +29,7 @@ def parse_simulate_args(subparsers):
     parser = subparsers.add_parser('simulate')
     _add_arguments_for_simulator(parser)
 
-def run_simulate(args, pipes=None):
+def run_simulate(args, pipes=None, core_id=0):
     
     # update args
     args.code_file = to_abs_path(args.code_file)
@@ -61,6 +61,7 @@ def run_simulate(args, pipes=None):
     simulator = Simulator.from_config(args.config_file)
     if pipes is not None:
         simulator.pipes = pipes
+        simulator.core_id = core_id
 
     # load data to global memory
     # TODO: support load data into other memory space
@@ -119,7 +120,7 @@ def run_multi_core_simulate(args):
             if isinstance(value, str):
                 args_.__setattr__(key, value.replace('{core_id}', str(i)))
         
-        process = multiprocessing.Process(target=run_simulate, args=(args_, pipes[i],))
+        process = multiprocessing.Process(target=run_simulate, args=(args_, pipes[i],i))
         process.start()
         processes.append(process)
     

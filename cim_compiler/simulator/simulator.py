@@ -1342,7 +1342,7 @@ class Simulator:
             rs = inst.reg
             val = self.read_general_reg(rs)
             self.print_record.append(val)
-            logger.info(f" general_reg[{rs}] = {val}")
+            logger.info(f"[{self.core_id}] general_reg[{rs}] = {val}")
         elif isinstance(inst, DebugInst):
             import pdb
 
@@ -1762,12 +1762,15 @@ class Simulator:
 
     def _run_send_inst(self, inst):
         assert self.pipes is not None
+
         dst_core = self.read_general_reg(inst.reg_dst_core)
         transfer_id = self.read_general_reg(inst.reg_transfer_id)
         src_addr = self.read_general_reg(inst.reg_src_addr)
         dst_addr = self.read_general_reg(inst.reg_dst_addr)
         size = self.read_general_reg(inst.reg_size)
         data = self.memory_space.read(src_addr, size)
+        data_np = np.frombuffer(data, dtype=np.float16)
+        logger.info(f"[{self.core_id}] send to {dst_core}, data: {data_np}")
 
         assert dst_core < len(self.pipes)
         assert self.pipes[dst_core] is not None
@@ -1788,6 +1791,10 @@ class Simulator:
         assert src_core < len(self.pipes)
         assert self.pipes[src_core] is not None
         data, (_src_addr, _dst_addr, _transfer_id) = self.pipes[src_core].recv()
+
+        data_np = np.frombuffer(data, dtype=np.float16)
+        logger.info(f"[{self.core_id}] recv from {src_core}, data: {data_np}")
+        
         self.pipes[src_core].send("ACK")
         assert _src_addr == src_addr
         assert _dst_addr == dst_addr

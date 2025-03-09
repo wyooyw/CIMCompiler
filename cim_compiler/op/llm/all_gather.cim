@@ -1,49 +1,82 @@
-def get_next_rank(rank<index>, world_size<index>){
-    return (rank + 1) % world_size;
+def get_local_rank(rank<index>, group_offset<index>, group_stride<index>){
+    return (rank - group_offset) / group_stride;
 }
 
-def get_prev_rank(rank<index>, world_size<index>){
-    return (rank - 1 + world_size) % world_size;
+def get_rank(local_rank<index>, group_offset<index>, group_stride<index>){
+    return (local_rank * group_stride) + group_offset;
 }
 
-def get_row_to_send(rank<index>, step<index>, world_size<index>){
-    return (rank - step + world_size) % world_size;
+def get_next_local_rank(local_rank<index>, group_size<index>){
+    return (local_rank + 1) % group_size;
 }
 
-def get_row_to_recv(rank<index>, step<index>, world_size<index>){
-    return (rank - step - 1 + world_size) % world_size;
+def get_prev_local_rank(local_rank<index>, group_size<index>){
+    return (local_rank - 1 + group_size) % group_size;
 }
 
-def send(rank<index>, step<index>, world_size<index>, data< <-1, -1>, fp16, __OUTPUT_MEMORY__>){
-    rank_to_send = get_next_rank(rank, world_size);
-    data_to_send = data[get_row_to_send(rank, step, world_size), :];
+def get_row_to_send(local_rank<index>, step<index>, group_size<index>){
+    return (local_rank - step + group_size) % group_size;
+}
+
+def get_row_to_recv(local_rank<index>, step<index>, group_size<index>){
+    return (local_rank - step - 1 + group_size) % group_size;
+}
+
+def send(
+    local_rank<index>,
+    step<index>, 
+    data< <-1, -1>, fp16, __OUTPUT_MEMORY__>,
+    group_offset<index>,
+    group_stride<index>,
+    group_size<index>
+){
+    local_rank_to_send = get_next_local_rank(local_rank, group_size);
+    data_to_send = data[get_row_to_send(local_rank, step, group_size), :];
     
-    fake_data_to_recv = data[get_row_to_recv(rank_to_send, step, world_size), :];
+    fake_data_to_recv = data[get_row_to_recv(local_rank_to_send, step, group_size), :];
+    rank_to_send = get_rank(local_rank_to_send, group_offset, group_stride);
     Send(data_to_send, fake_data_to_recv, rank_to_send, step);
 }
 
-def recv(rank<index>, step<index>, world_size<index>, data< <-1, -1>, fp16, __OUTPUT_MEMORY__>){
-    rank_to_recv = get_prev_rank(rank, world_size);
-    data_to_recv = data[get_row_to_recv(rank, step, world_size), :];
+def recv(
+    local_rank<index>,
+    step<index>, 
+    data< <-1, -1>, fp16, __OUTPUT_MEMORY__>,
+    group_offset<index>,
+    group_stride<index>,
+    group_size<index>
+    ){
+    local_rank_to_recv = get_prev_local_rank(local_rank, group_size);
+    data_to_recv = data[get_row_to_recv(local_rank, step, group_size), :];
 
-    fake_data_to_send = data[get_row_to_send(rank_to_recv, step, world_size), :];
+    fake_data_to_send = data[get_row_to_send(local_rank_to_recv, step, group_size), :];
+    
+    rank_to_recv = get_rank(local_rank_to_recv, group_offset, group_stride);
     Recv(fake_data_to_send, data_to_recv, rank_to_recv, step);
 }
 
 def all_gather(
-    data< <-1, -1>, fp16, __OUTPUT_MEMORY__>
-    ){
+    data< <-1, -1>, fp16, __OUTPUT_MEMORY__>,
+    group_offset<index>,
+    group_stride<index>,
+    group_size<index>
+){
     rank = {{core_id}};
-    world_size = {{world_size}};
+    world_size = group_size;
+    local_rank = get_local_rank(rank, group_offset, group_stride);
     
     step_max = world_size - 1;
     for step in range(0, step_max) carry (){
         {% if core_id % 2 == 0 %}
-            send(rank, step, world_size, data);
-            recv(rank, step, world_size, data);
+            send(local_rank, step, data, 
+                    group_offset, group_stride, group_size);
+            recv(local_rank, step, data, 
+                    group_offset, group_stride, group_size);
         {% else %}
-            recv(rank, step, world_size, data);
-            send(rank, step, world_size, data);
+            recv(local_rank, step, data, 
+                    group_offset, group_stride, group_size);
+            send(local_rank, step, data, 
+                    group_offset, group_stride, group_size);
         {% endif %}
     };
 }

@@ -17,7 +17,7 @@ class OpRunner:
     def run(self, input_list:list[np.ndarray], output_list:list[np.ndarray]):
         
         with tempfile.TemporaryDirectory() as tmp_dir:
-            # tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
+            tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
             op_code_path = os.path.join(tmp_dir, "op_code.cim")
             final_code_dir = os.path.join(tmp_dir, "compiler_output")
             simulator_output_dir = os.path.join(tmp_dir, "simulator_output")
@@ -102,15 +102,18 @@ class SIMDOpConfig:
     world_size: int = -1
 
 class SPMDOpRunner(OpRunner):
-    def __init__(self, op_path, op_config, cim_config_path, num_cores:int):
+    def __init__(self, op_path, op_config, cim_config_path, num_cores:int, config_for_each_core = None):
         super().__init__(op_path, op_config, cim_config_path)
         assert isinstance(op_config, SIMDOpConfig)
         self.num_cores = num_cores
+        self.config_for_each_core = config_for_each_core
 
     def _compile_core(self, core_id, tmp_dir, input_list):
         op_config = copy.deepcopy(self.op_config)
         op_config.core_id = core_id
         op_config.world_size = self.num_cores
+        if self.config_for_each_core:
+            self.config_for_each_core(core_id, op_config)
         
         core_tmp_dir = os.path.join(tmp_dir, str(core_id))
         op_code_path = os.path.join(core_tmp_dir, "op_code.cim")
@@ -126,6 +129,7 @@ class SPMDOpRunner(OpRunner):
         assert all(len(output_list[i]) == len(output_list[0]) for i in range(self.num_cores))
 
         with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
             
             processes = []
             for core_id in range(self.num_cores):
