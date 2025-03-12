@@ -98,6 +98,20 @@ class AttnDecodeCPConfig(SIMDOpConfig, AttnDecodeConfig):
     cp_group_size: int = -1
 
 
+@pytest.mark.parametrize(
+    "head_hidden, seqlen, world_size, cp_group_size",
+    [
+        (128, 4096, 8, 1),
+        (128, 4096, 8, 2),
+        (128, 4096, 8, 4),
+        (128, 4096, 8, 8),
+        (128, 4096, 16, 1),
+        (128, 4096, 16, 2),
+        (128, 4096, 16, 4),
+        (128, 4096, 16, 8),
+        (128, 4096, 16, 16),
+    ],
+)
 def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp.cim")
