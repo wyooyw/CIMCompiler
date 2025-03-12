@@ -13,9 +13,10 @@ def cp_online_softmax(
     // all-gather sum_exp_x and max_x
     all_sum_exp_x = Buffer(<{{world_size}}, 1>, fp16, __OUTPUT_MEMORY__);
     all_max_x = Buffer(<{{world_size}}, 1>, fp16, __OUTPUT_MEMORY__);
-    Trans(sum_exp_x, all_sum_exp_x[{{core_id}}, 0]);
+    cp_rank = get_local_rank({{core_id}}, {{cp_group_offset}}, {{cp_group_stride}});
+    Trans(sum_exp_x, all_sum_exp_x[cp_rank, 0]);
     all_gather(all_sum_exp_x, group_offset, group_stride, group_size);
-    Trans(max_x, all_max_x[{{core_id}}, 0]);
+    Trans(max_x, all_max_x[cp_rank, 0]);
     all_gather(all_max_x, group_offset, group_stride, group_size);
 
     total_max_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
@@ -31,6 +32,6 @@ def cp_online_softmax(
     SIMD(REDUCE_SUM, all_sum_exp_x, final_denominator);
 
     final_factor = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
-    SIMD(VS_DIV, all_sum_exp_x[{{core_id}}, 0], final_denominator, final_factor);
+    SIMD(VS_DIV, all_sum_exp_x[cp_rank, 0], final_denominator, final_factor);
     SIMD(VSMUL, score, final_factor, score);
 }

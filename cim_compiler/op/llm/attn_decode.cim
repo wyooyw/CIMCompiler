@@ -1,5 +1,9 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
 {% include 'op/llm/attn_decode_utils.cim' %}
 {% include 'op/llm/special_regs.cim' %}
+{% include 'op/llm/softmax.cim' %}
+
 
 def main(){
     set_special_regs();

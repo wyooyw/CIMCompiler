@@ -1,5 +1,4 @@
-{% include 'op/common/def_special_regs.cim' %}
-{% include 'op/common/simd.cim' %}
+
 
 {# Add parameter validation #}
 {% if head_hidden % N_COMP != 0 %}
@@ -151,21 +150,3 @@ def gemv(src< <-1>, fp16, __OUTPUT_MEMORY__>,
         Trans(use_output_reg_buffer, output);
     };
 }
-
-def set_special_regs(){
-    SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 16);
-    SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 16);
-    SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 16);
-    SpecialRegSet(SPECIAL_REG_GROUP_SIZE, {{N_MACRO_PER_GROUP}});
-    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, {{N_GROUP}});
-    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, {{N_GROUP_VCOL}});
-
-    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 16);
-    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 16);
-
-    SpecialRegSet(SPECIAL_REG_DTYPE_MACRO_IS_FLOAT, 1);
-    SpecialRegSet(SPECIAL_REG_DTYPE_SIMD_IS_FLOAT, 1);
-}
-
-
-

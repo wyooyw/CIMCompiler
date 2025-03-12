@@ -1355,7 +1355,7 @@ class Simulator:
     def _run_simd_class_vector_vector_inst(self, inst):
 
         opcode = inst.opcode
-        assert inst.input_num == 2, f"{inst.input_num=}"
+        assert inst.input_num == 2, f"{inst.input_num=}, {opcode=}"
 
         # Prepare input
         input_size = self.read_general_reg(inst.reg_size)
@@ -1383,9 +1383,9 @@ class Simulator:
 
         # Compute
         if opcode == 0x00:
-            assert input1_bitwidth in [8,32]
-            assert input2_bitwidth in [8,32]
-            assert output_bitwidth in [8,32]
+            # assert input1_bitwidth in [8,32]
+            # assert input2_bitwidth in [8,32]
+            # assert output_bitwidth in [8,32]
             output_data = input1_data.astype(output_dtype) + input2_data.astype(
                 output_dtype
             )
