@@ -122,17 +122,17 @@ int main(int argc, char **argv) {
   
 
   // unroll
-  // std::vector<mlir::scf::ForOp> unrollForOps = gen_impl.getUnrollForOps();
-  // mlir::PassManager unroll_pm(&context);
-  // unroll_pm.addPass(cim::createLoopUnrollPass(unrollForOps));
-  // if (mlir::failed(unroll_pm.run(module))) {
-  //   std::cout << "Unroll Passes fail." << std::endl;
-  //   module.dump();
-  //   return 1;
-  // }else{
-  //   std::cout << "Unroll Passes success." << std::endl;
-  //   module.dump();
-  // }
+  std::vector<mlir::scf::ForOp> unrollForOps = gen_impl.getUnrollForOps();
+  mlir::PassManager unroll_pm(&context);
+  unroll_pm.addPass(cim::createLoopUnrollPass(unrollForOps));
+  if (mlir::failed(unroll_pm.run(module))) {
+    std::cout << "Unroll Passes fail." << std::endl;
+    module.dump();
+    return 1;
+  }else{
+    std::cout << "Unroll Passes success." << std::endl;
+    module.dump();
+  }
 
   mlir::PassManager init_passes(&context);
   init_passes.addPass(mlir::createInlinerPass());
