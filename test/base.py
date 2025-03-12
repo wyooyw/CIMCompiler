@@ -17,7 +17,7 @@ class OpRunner:
     def run(self, input_list:list[np.ndarray], output_list:list[np.ndarray]):
         
         with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
+            # tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
             op_code_path = os.path.join(tmp_dir, "op_code.cim")
             final_code_dir = os.path.join(tmp_dir, "compiler_output")
             simulator_output_dir = os.path.join(tmp_dir, "simulator_output")
@@ -129,7 +129,7 @@ class SPMDOpRunner(OpRunner):
         assert all(len(output_list[i]) == len(output_list[0]) for i in range(self.num_cores))
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
+            # tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
             
             processes = []
             for core_id in range(self.num_cores):
