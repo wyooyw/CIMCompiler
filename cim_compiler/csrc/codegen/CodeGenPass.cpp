@@ -86,7 +86,7 @@ static int getReg(std::unordered_map<llvm::hash_code, int> &regmap,
   }
 }
 
-typedef map<std::string, int> Inst;
+// typedef map<std::string, int> Inst;
 
 static void codeGen(mlir::arith::ConstantOp op,
                     InstructionWriter &writer,
@@ -1393,7 +1393,16 @@ getRegisterMapping(mlir::func::FuncOp func) {
 static string instToStr(Inst &inst) {
   std::string json = "{";
   for (auto it = inst.begin(); it != inst.end();) {
-    json += "\"" + it->first + "\": " + std::to_string(it->second);
+    std::string value = "";
+    if (std::holds_alternative<int>(it->second)) {
+      value = std::to_string(std::get<int>(it->second));
+    } else if (std::holds_alternative<bool>(it->second)) {
+      value = std::get<bool>(it->second) ? "true" : "false";
+    } else {
+      std::cerr << "error: unknown type" << std::endl;
+      std::exit(1);
+    }
+    json += "\"" + it->first + "\": " + value;
     if ((++it) != inst.end()) {
       json += ", ";
     }
@@ -1625,7 +1634,7 @@ static void mappingRegisterLogicalToPhysical(
       // key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") ||
       // isPrefix(key, "rd")));
       if (writer.isGeneralReg(inst, key)) {
-        int reg_id = value;
+        int reg_id = std::get<int>(value);
         if (!logic_reg_life_begin.count(reg_id)) {
           logic_reg_life_begin[reg_id] = inst_id;
           logic_reg_life_end[reg_id] = inst_id;
@@ -1747,7 +1756,7 @@ static void mappingRegisterLogicalToPhysical(
       // isPrefix(key, "rd")));
 
       if (writer.isGeneralReg(inst, key)) {
-        replace[key] = logical_to_physical_mapping[value];
+        replace[key] = logical_to_physical_mapping[std::get<int>(value)];
       }
     }
     for (const auto &[key, value] : replace) {

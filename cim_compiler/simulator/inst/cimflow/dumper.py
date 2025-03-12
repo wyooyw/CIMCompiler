@@ -140,8 +140,7 @@ class CIMFlowDumper:
                 "SP_V": inst.flag_value_sparse,
                 "SP_B": inst.flag_bit_sparse,
                 "GRP": inst.flag_group,
-                "GRP_I": inst.flag_group_input_mode,
-                "ACC": inst.flag_accumulate
+                "GRP_I": inst.flag_group_input_mode
             }
         elif isinstance(inst, CIMConfigInst):
             return {

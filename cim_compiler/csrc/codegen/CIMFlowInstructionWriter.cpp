@@ -125,11 +125,10 @@ Inst CIMFlowInstructionWriter::getCIMComputeInst(int reg_input_addr, int reg_inp
         {"rs", reg_input_addr},
         {"rt", reg_input_size},
         {"re", reg_activate_row},
-        {"SP_V", flag_value_sparse},
-        {"SP_B", flag_bit_sparse},
-        {"GRP", flag_group},
-        {"GRP_I", flag_group_input_mode},
-        {"ACC", flag_accumulate},
+        {"SP_V", bool(flag_value_sparse)},
+        {"SP_B", bool(flag_bit_sparse)},
+        {"GRP", bool(flag_group)},
+        {"GRP_I", bool(flag_group_input_mode)},
     };
 }
 
@@ -138,7 +137,7 @@ Inst CIMFlowInstructionWriter::getCIMSetInst(int reg_single_group_id, int reg_ma
         {"opcode", 0b000100},
         {"rs", reg_single_group_id}, 
         {"rt", reg_mask_addr},
-        {"GRP_B", flag_group_broadcast}
+        {"GRP_B", bool(flag_group_broadcast)}
     };
 }
 
@@ -148,8 +147,8 @@ Inst CIMFlowInstructionWriter::getCIMOutputInst(int reg_out_n, int reg_out_mask_
         {"rs", reg_out_n}, 
         {"rt", reg_out_mask_addr},
         {"rd", reg_out_addr},
-        {"OSUM", flag_outsum},
-        {"OSUM_MOV", flag_outsum_move}
+        {"OSUM", bool(flag_outsum)},
+        {"OSUM_MOV", bool(flag_outsum_move)}
     };
 }
 
@@ -196,11 +195,11 @@ void CIMFlowInstructionWriter::setBranchOffset(Inst &inst, int offset) {
 
 
 bool CIMFlowInstructionWriter::isGeneralToSpecialAssign(Inst &inst) {
-  return inst.count("opcode") && inst["opcode"] == 0b101110;
+  return inst.count("opcode") && std::holds_alternative<int>(inst["opcode"]) && std::get<int>(inst["opcode"]) == 0b101110;
 }
 
 bool CIMFlowInstructionWriter::isSpecialToGeneralAssign(Inst &inst) {
-  return inst.count("opcode") && inst["opcode"] == 0b101111;
+  return inst.count("opcode") && std::holds_alternative<int>(inst["opcode"]) && std::get<int>(inst["opcode"]) == 0b101111;
 }
 
 bool CIMFlowInstructionWriter::isGeneralReg(Inst &inst, std::string key) {
@@ -213,6 +212,6 @@ bool CIMFlowInstructionWriter::isGeneralReg(Inst &inst, std::string key) {
 }
 
 bool CIMFlowInstructionWriter::isSpecialLi(Inst &inst) {
-  return inst.count("opcode") && inst["opcode"] == 0b101101;
+  return inst.count("opcode") && std::holds_alternative<int>(inst["opcode"]) && std::get<int>(inst["opcode"]) == 0b101101;
 }
 

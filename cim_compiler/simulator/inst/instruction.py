@@ -48,8 +48,8 @@ class TransInst:
     reg_in: int
     reg_out: int
     reg_size: int
-    flag_src_offset: int
-    flag_dst_offset: int
+    flag_src_offset: bool
+    flag_dst_offset: bool
     offset: int
 
 @dataclass
@@ -88,25 +88,25 @@ class CIMComputeInst:
     reg_input_addr: int
     reg_input_size: int
     reg_activate_row: int
-    flag_accumulate: int
-    flag_value_sparse: int
-    flag_bit_sparse: int
-    flag_group: int
-    flag_group_input_mode: int
+    flag_accumulate: bool
+    flag_value_sparse: bool
+    flag_bit_sparse: bool
+    flag_group: bool
+    flag_group_input_mode: bool
 
 @dataclass
 class CIMConfigInst:
     reg_single_group_id: int
     reg_mask_addr: int
-    flag_group_broadcast: int
+    flag_group_broadcast: bool
 
 @dataclass
 class CIMOutputInst:
     reg_out_n: int
     reg_out_mask_addr: int
     reg_out_addr: int
-    flag_outsum: int
-    flag_outsum_move: int
+    flag_outsum: bool
+    flag_outsum_move: bool
 
 @dataclass
 class CIMTransferInst:

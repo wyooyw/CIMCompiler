@@ -127,7 +127,7 @@ class CIMFlowParser:
                 flag_bit_sparse=inst["SP_B"],
                 flag_group=inst["GRP"],
                 flag_group_input_mode=inst["GRP_I"],
-                flag_accumulate=inst["ACC"]
+                flag_accumulate=1
             )
         elif opcode == 0b000100:
             return CIMConfigInst(

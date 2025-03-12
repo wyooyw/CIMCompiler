@@ -130,18 +130,18 @@ void LegacyInstructionWriter::setBranchOffset(Inst &inst, int offset) {
 }
 
 bool LegacyInstructionWriter::isGeneralToSpecialAssign(Inst &inst) {
-  if ((inst.count("class") && inst["class"] == 0b10) &&
-      (inst.count("type") && inst["type"] == 0b11) &&
-      (inst.count("opcode") && inst["opcode"] == 0b10)) {
+  if ((inst.count("class") && std::holds_alternative<int>(inst["class"]) && std::get<int>(inst["class"]) == 0b10) &&
+      (inst.count("type") && std::holds_alternative<int>(inst["type"]) && std::get<int>(inst["type"]) == 0b11) &&
+      (inst.count("opcode") && std::holds_alternative<int>(inst["opcode"]) && std::get<int>(inst["opcode"]) == 0b10)) {
     return true;
   }
   return false;
 }
 
 bool LegacyInstructionWriter::isSpecialToGeneralAssign(Inst &inst) {
-  if ((inst.count("class") && inst["class"] == 0b10) &&
-      (inst.count("type") && inst["type"] == 0b11) &&
-      (inst.count("opcode") && inst["opcode"] == 0b11)) {
+  if ((inst.count("class") && std::holds_alternative<int>(inst["class"]) && std::get<int>(inst["class"]) == 0b10) &&
+      (inst.count("type") && std::holds_alternative<int>(inst["type"]) && std::get<int>(inst["type"]) == 0b11) &&
+      (inst.count("opcode") && std::holds_alternative<int>(inst["opcode"]) && std::get<int>(inst["opcode"]) == 0b11)) {
     return true;
   }
   return false;
@@ -171,9 +171,9 @@ bool LegacyInstructionWriter::isGeneralReg(Inst &inst, std::string key) {
 }
 
 bool LegacyInstructionWriter::isSpecialLi(Inst &inst) {
-  if ((inst.count("class") && inst["class"] == 0b10) &&
-      (inst.count("type") && inst["type"] == 0b11) &&
-      (inst.count("opcode") && inst["opcode"] == 0b01)) {
+  if ((inst.count("class") && std::holds_alternative<int>(inst["class"]) && std::get<int>(inst["class"]) == 0b10) &&
+      (inst.count("type") && std::holds_alternative<int>(inst["type"]) && std::get<int>(inst["type"]) == 0b11) &&
+      (inst.count("opcode") && std::holds_alternative<int>(inst["opcode"]) && std::get<int>(inst["opcode"]) == 0b01)) {
     return true;
   }
   return false;

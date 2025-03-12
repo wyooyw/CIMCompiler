@@ -5,8 +5,9 @@
 
 #include <map>
 #include <string>
+#include <variant>
 
-typedef std::map<std::string, int> Inst;
+typedef std::map<std::string, std::variant<int, bool> > Inst;
 
 // Define an interface for InstructionWriter
 class InstructionWriter {
