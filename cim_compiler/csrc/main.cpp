@@ -49,7 +49,7 @@ void debugLogIR(mlir::ModuleOp &module) {
   std::string irString;
   llvm::raw_string_ostream os(irString);
   module.print(os);
-  LOG_DEBUG << "IR: " << irString << "\n\n";
+  LOG_INFO << "IR: " << irString << "\n\n";
 }
 
 void errorLogIR(mlir::ModuleOp &module) {
@@ -127,11 +127,11 @@ int main(int argc, char **argv) {
   unroll_pm.addPass(cim::createLoopUnrollPass(unrollForOps));
   if (mlir::failed(unroll_pm.run(module))) {
     std::cout << "Unroll Passes fail." << std::endl;
-    module.dump();
+    errorLogIR(module);
     return 1;
   }else{
     std::cout << "Unroll Passes success." << std::endl;
-    module.dump();
+    debugLogIR(module);
   }
 
   mlir::PassManager init_passes(&context);
@@ -159,8 +159,10 @@ int main(int argc, char **argv) {
 
   mlir::PassManager cf_passes(&context);
   cf_passes.addPass(mlir::createConvertSCFToCFPass());
-  cf_passes.addPass(mlir::cim::createRR2RIPass());
+  // cf_passes.addPass(mlir::cim::createRR2RIPass());
   cf_passes.addPass(mlir::cim::createCIMBranchConvertPass());
+  mlir::OpPassManager &cf_op_passes = cf_passes.nest<mlir::func::FuncOp>();
+  cf_op_passes.addPass(mlir::cim::createConstantExpandPass());
 
   mlir::PassManager codegen_passes(&context);
   mlir::OpPassManager &codegen_op_passes =
@@ -203,6 +205,8 @@ int main(int argc, char **argv) {
     LOG_INFO << "CF Passes success.";
     debugLogIR(module);
   }
+
+  // return 0;
 
   if (mlir::failed(codegen_passes.run(module))) {
     LOG_ERROR << "CodeGen Passes fail.";

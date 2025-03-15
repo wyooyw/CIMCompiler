@@ -22,6 +22,7 @@ add_llvm_executable(main
         passes/CIMBranchConvertPass.cpp
         passes/ExtractAddressComputationPass.cpp
         passes/RR2RIPass.cpp
+        passes/ConstantExpandPass.cpp
         passes/LoopUnrollPass.cpp
         passes/CastEliminationPass.cpp
         passes/CommonSubexpressionExposePass.cpp
