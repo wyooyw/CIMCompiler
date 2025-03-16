@@ -155,7 +155,10 @@ int main(int argc, char **argv) {
   // cf_passes.addPass(mlir::cim::createRR2RIPass());
   cf_passes.addPass(mlir::cim::createCIMBranchConvertPass());
   mlir::OpPassManager &cf_op_passes = cf_passes.nest<mlir::func::FuncOp>();
+  cf_op_passes.addPass(mlir::cim::createTransOffsetOptimizePass());
   cf_op_passes.addPass(mlir::cim::createConstantExpandPass());
+  
+  
 
   mlir::PassManager codegen_passes(&context);
   mlir::OpPassManager &codegen_op_passes =

@@ -26,6 +26,7 @@ add_llvm_executable(main
         passes/LoopUnrollPass.cpp
         passes/CastEliminationPass.cpp
         passes/CommonSubexpressionExposePass.cpp
+        passes/TransOffsetOptimizePass.cpp
         codegen/CodeGenPass.cpp
         codegen/InstructionWriter.cpp
         codegen/CIMFlowInstructionWriter.cpp

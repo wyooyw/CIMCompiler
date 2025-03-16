@@ -47,13 +47,13 @@ Inst CIMFlowInstructionWriter::getSIMDInst(int funct, int input_num, int reg_in1
     };
 }
 
-Inst CIMFlowInstructionWriter::getTransInst(int reg_addr_in, int reg_addr_out, int reg_size) {
+Inst CIMFlowInstructionWriter::getTransInst(int reg_addr_in, int reg_addr_out, int reg_size, int imm, bool src_offset_flag, bool dst_offset_flag) {
     return {
-        {"opcode", 0b110000}, 
+        {"opcode", 0b110000 + (int(src_offset_flag) << 1) + int(dst_offset_flag)}, 
         {"rs", reg_addr_in}, 
         {"rt", reg_size}, 
         {"rd", reg_addr_out}, 
-        {"imm", 0b0}, 
+        {"imm", imm},
     };
 }
 

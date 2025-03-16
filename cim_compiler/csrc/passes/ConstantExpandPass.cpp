@@ -28,6 +28,7 @@
 #include <iostream>
 #include <memory>
 #include "common/macros.h"
+#include <algorithm>
 
 using namespace mlir;
 using namespace cim;
@@ -55,39 +56,53 @@ struct ConstantExpandPass
         SmallVector<mlir::Operation*, 8> users(constantOp->getUsers().begin(), constantOp->getUsers().end());
         
         // block to users
-        DenseMap<mlir::Block*, SmallVector<mlir::Operation*, 8>> blockToUsersMap;
+        DenseMap<mlir::Block*, std::vector<mlir::Operation*>> blockToUsersMap;
         for (auto *user : users) {
             auto *block = user->getBlock();
             blockToUsersMap[block].push_back(user);
         }
 
+        // Sort users in each block according to their order in the block
+        for (auto &entry : blockToUsersMap) {
+            auto &userList = entry.second;
+            std::sort(userList.begin(), userList.end(), [](mlir::Operation *a, mlir::Operation *b) {
+                return a->isBeforeInBlock(b);
+            });
+        }
 
         // Map to track if a block has a shared newConstantOp
         DenseMap<mlir::Block*, mlir::arith::ConstantOp> blockToConstantOpMap;
 
-        for (auto *user : users) {
-            auto *block = user->getBlock();
+        // Iterate over the blockToUsersMap first
+        for (auto &entry : blockToUsersMap) {
+            auto *block = entry.first;
+            auto &userList = entry.second;
 
-            mlir::arith::ConstantOp newConstantOp;
+            for (auto *user : userList) {
+                // Map to track if a block has a shared newConstantOp
+                mlir::arith::ConstantOp newConstantOp;
 
-            if (blockToUsersMap[block].size() > 2) {
-              if (blockToConstantOpMap.count(block) == 0) {
-                  std::cout << "miss: " << user->getName().getStringRef().str() << std::endl;
-                  OpBuilder builder(block, block->begin());
+                if (blockToUsersMap[block].size() > 2) {
+                  if (blockToConstantOpMap.count(block) == 0) {
+                      LOG_DEBUG << "miss: " << user->getName().getStringRef().str() << std::endl;
+                      OpBuilder builder(user);
+                      newConstantOp = llvm::cast<mlir::arith::ConstantOp>(builder.clone(*constantOp));
+                      blockToConstantOpMap[block] = newConstantOp;
+                  } else {
+                      LOG_DEBUG << "hit: " << user->getName().getStringRef().str() << std::endl;
+                      newConstantOp = blockToConstantOpMap[block];
+                  }
+                } else {
+                  LOG_DEBUG << "single: " << user->getName().getStringRef().str() << std::endl;
+                  OpBuilder builder(user);
                   newConstantOp = llvm::cast<mlir::arith::ConstantOp>(builder.clone(*constantOp));
-                  blockToConstantOpMap[block] = newConstantOp;
-              } else {
-                  std::cout << "hit: " << user->getName().getStringRef().str() << std::endl;
-                  newConstantOp = blockToConstantOpMap[block];
-              }
-            } else {
-              std::cout << "single: " << user->getName().getStringRef().str() << std::endl;
-              OpBuilder builder(user);
-              newConstantOp = llvm::cast<mlir::arith::ConstantOp>(builder.clone(*constantOp));
+                }
+
+
+                user->replaceUsesOfWith(constantOp->getResult(0), newConstantOp->getResult(0));
             }
 
-
-            user->replaceUsesOfWith(constantOp->getResult(0), newConstantOp->getResult(0));
+            
         }
         // Erase the original constantOp
         constantOp->erase();

@@ -329,10 +329,13 @@ static void codeGen(mlir::cimisa::TransOp op,
   int rs = getReg(regmap, op.getOperand(0));
   int rd = getReg(regmap, op.getOperand(1));
   int size = getReg(regmap, op.getOperand(2));
+  int32_t imm = op.getImm();
+  bool src_offset_flag = op.getSrcOffsetFlag();
+  bool dst_offset_flag = op.getDstOffsetFlag();
   use.insert(rs);
   use.insert(rd);
   use.insert(size);
-  Inst inst = writer.getTransInst(rs, rd, size);
+  Inst inst = writer.getTransInst(rs, rd, size, imm, src_offset_flag, dst_offset_flag);
   instr_list.push_back(inst);
 }
 

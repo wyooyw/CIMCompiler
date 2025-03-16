@@ -595,7 +595,7 @@ struct TransOpLowering : public OpRewritePattern<cim::CopyOp> {
     }
     LOG_DEBUG << "TransOpLowering::matchAndRewrite success";
 
-    rewriter.replaceOpWithNewOp<cimisa::TransOp>(op, addr_src, addr_dst, size);
+    rewriter.replaceOpWithNewOp<cimisa::TransOp>(op, addr_src, addr_dst, size, 0, false, false);
 
     return success();
   }

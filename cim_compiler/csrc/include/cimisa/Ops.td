@@ -135,7 +135,10 @@ def TransOp : CIMISA_Op<"trans"> {
   let arguments = (ins
     AnyTypeOf<[AnyInteger, Index]>:$src_addr, 
     AnyTypeOf<[AnyInteger, Index]>:$dst_addr,
-    AnyTypeOf<[AnyInteger, Index]>:$size
+    AnyTypeOf<[AnyInteger, Index]>:$size,
+    I32Attr:$imm,
+    I1Attr:$src_offset_flag,
+    I1Attr:$dst_offset_flag
   );
 }
 

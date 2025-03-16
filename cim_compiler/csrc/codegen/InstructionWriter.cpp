@@ -54,15 +54,15 @@ Inst LegacyInstructionWriter::getSIMDInst(int opcode, int input_num, int in1_reg
     };
 }
 
-Inst LegacyInstructionWriter::getTransInst(int reg_addr_in, int reg_addr_out, int size) {
+Inst LegacyInstructionWriter::getTransInst(int reg_addr_in, int reg_addr_out, int size, int imm, bool src_offset_flag, bool dst_offset_flag) {
     return {
         {"class", 0b110}, 
         {"type", 0b0}, 
-        {"source_offset_mask", 0b0}, 
-        {"destination_offset_mask", 0b0}, 
+        {"source_offset_mask", src_offset_flag}, 
+        {"destination_offset_mask", dst_offset_flag}, 
         {"rs1", reg_addr_in}, 
         {"rd", reg_addr_out}, 
-        {"offset", 0b0}, 
+        {"offset", imm}, 
         {"rs2", size}
     };
 }

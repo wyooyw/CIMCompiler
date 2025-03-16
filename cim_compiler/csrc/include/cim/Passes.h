@@ -20,6 +20,7 @@ std::unique_ptr<Pass> createConstantExpandPass();
 std::unique_ptr<Pass> createLoopUnrollPass();
 std::unique_ptr<Pass> createCastEliminationPass();
 std::unique_ptr<Pass> createCommonSubexpressionExposePass();
+std::unique_ptr<Pass> createTransOffsetOptimizePass();
 } // namespace cim
 } // namespace mlir
 

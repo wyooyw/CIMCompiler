@@ -215,7 +215,7 @@ struct TransOpConvert : public OpRewritePattern<cimisa::TransOp> {
       return failure();
     }
 
-    rewriter.replaceOpWithNewOp<cimisa::TransOp>(op, src_addr, dst_addr, size);
+    rewriter.replaceOpWithNewOp<cimisa::TransOp>(op, src_addr, dst_addr, size, 0, false, false);
     LOG_DEBUG << "TransOpConvert::matchAndRewrite finish";
     return success();
   }
