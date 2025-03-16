@@ -312,7 +312,8 @@ void MLIRGenImpl::parse_for_stmt(const boost::property_tree::ptree &ast) {
 
   // mark for_op tag
   if (tag == 1) {
-    unrollForOps.push_back(for_op);
+    // unrollForOps.push_back(for_op);
+    for_op->setAttr("unroll", builder.getUnitAttr());
   }
 
   // Add to sign table
@@ -1710,6 +1711,6 @@ MLIRGenImpl::cast_to_index_type(mlir::SmallVector<mlir::Value> _index) {
   return _index;
 }
 
-std::vector<mlir::scf::ForOp> MLIRGenImpl::getUnrollForOps() {
-  return unrollForOps;
-}
+// std::vector<mlir::scf::ForOp> MLIRGenImpl::getUnrollForOps() {
+//   return unrollForOps;
+// }

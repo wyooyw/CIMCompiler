@@ -49,6 +49,8 @@ void debugLogIR(mlir::ModuleOp &module) {
   std::string irString;
   llvm::raw_string_ostream os(irString);
   module.print(os);
+  os.flush();
+
   LOG_INFO << "IR: " << irString << "\n\n";
 }
 
@@ -121,18 +123,6 @@ int main(int argc, char **argv) {
   }  
   
 
-  // unroll
-  std::vector<mlir::scf::ForOp> unrollForOps = gen_impl.getUnrollForOps();
-  mlir::PassManager unroll_pm(&context);
-  unroll_pm.addPass(cim::createLoopUnrollPass(unrollForOps));
-  if (mlir::failed(unroll_pm.run(module))) {
-    std::cout << "Unroll Passes fail." << std::endl;
-    errorLogIR(module);
-    return 1;
-  }else{
-    std::cout << "Unroll Passes success." << std::endl;
-    debugLogIR(module);
-  }
 
   mlir::PassManager init_passes(&context);
   init_passes.addPass(mlir::createInlinerPass());
@@ -143,6 +133,9 @@ int main(int argc, char **argv) {
   init_op_passes.addPass(cim::createExtractAddressComputationPass());
   init_op_passes.addPass(mlir::createLowerAffinePass());
   init_op_passes.addPass(mlir::cim::createMemoryAddressAllocationPass());
+
+  mlir::PassManager unroll_passes(&context);
+  unroll_passes.addPass(cim::createLoopUnrollPass());
 
   mlir::PassManager lower_passes(&context);
   lower_passes.addPass(mlir::cim::createCIMLoweringPass(configPath));
@@ -176,6 +169,15 @@ int main(int argc, char **argv) {
     return 1;
   }else{
     LOG_INFO << "Init Passes success.";
+    debugLogIR(module);
+  }
+
+  if (mlir::failed(unroll_passes.run(module))) {
+    LOG_ERROR << "Unroll passes fail.";
+    errorLogIR(module);
+    return 1;
+  }else{
+    LOG_INFO << "Unroll Passes success.";
     debugLogIR(module);
   }
 

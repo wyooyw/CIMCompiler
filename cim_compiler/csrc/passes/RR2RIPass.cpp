@@ -587,7 +587,8 @@ void RR2RIPass::runOnOperation() {
                LoadBaseAndOffsetOpConvert, 
               //  TransOpConvert, 
                CIMTransferOpConvert,
-               CIMComputeOpConvert, CIMOutputSumOpConvert,
+               // CIMComputeOpConvert, 
+               CIMOutputSumOpConvert,
                CmpIOpConvert, CIMOutputOpConvert, 
                SpecialRegAssignOpConvert>(
       &getContext());

@@ -22,7 +22,7 @@ public:
 
   mlir::ModuleOp parseJson(std::string json_path);
   mlir::ModuleOp parseModule(const boost::property_tree::ptree &ast);
-  std::vector<mlir::scf::ForOp> getUnrollForOps();
+  // std::vector<mlir::scf::ForOp> getUnrollForOps();
 
 private:
   mlir::OpBuilder builder;
