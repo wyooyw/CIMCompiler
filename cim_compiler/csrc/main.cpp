@@ -51,7 +51,7 @@ void debugLogIR(mlir::ModuleOp &module) {
   module.print(os);
   os.flush();
 
-  LOG_INFO << "IR: " << irString << "\n\n";
+  LOG_DEBUG << "IR: " << irString << "\n\n";
 }
 
 void errorLogIR(mlir::ModuleOp &module) {
