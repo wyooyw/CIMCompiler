@@ -584,7 +584,9 @@ void RR2RIPass::runOnOperation() {
   RewritePatternSet patterns(&getContext());
   patterns.add<AddIOpConvert, SubIOpConvert, MulIOpConvert, DivSIOpConvert,
                RemSIOpConvert, MinSIOpConvert, StoreBaseAndOffsetOpConvert,
-               LoadBaseAndOffsetOpConvert, TransOpConvert, CIMTransferOpConvert,
+               LoadBaseAndOffsetOpConvert, 
+              //  TransOpConvert, 
+               CIMTransferOpConvert,
                CIMComputeOpConvert, CIMOutputSumOpConvert,
                CmpIOpConvert, CIMOutputOpConvert, 
                SpecialRegAssignOpConvert>(

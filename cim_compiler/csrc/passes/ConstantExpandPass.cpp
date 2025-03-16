@@ -53,11 +53,40 @@ struct ConstantExpandPass
     for (auto constantOp : constantOps) {
         // Store users in a separate container
         SmallVector<mlir::Operation*, 8> users(constantOp->getUsers().begin(), constantOp->getUsers().end());
+        
+        // block to users
+        DenseMap<mlir::Block*, SmallVector<mlir::Operation*, 8>> blockToUsersMap;
         for (auto *user : users) {
-            // std::cout << "User operation name: " << user->getName().getStringRef().str() << "\n";
-            OpBuilder builder(user);
-            builder.setInsertionPoint(user);
-            auto newConstantOp = builder.clone(*constantOp);
+            auto *block = user->getBlock();
+            blockToUsersMap[block].push_back(user);
+        }
+
+
+        // Map to track if a block has a shared newConstantOp
+        DenseMap<mlir::Block*, mlir::arith::ConstantOp> blockToConstantOpMap;
+
+        for (auto *user : users) {
+            auto *block = user->getBlock();
+
+            mlir::arith::ConstantOp newConstantOp;
+
+            if (blockToUsersMap[block].size() > 2) {
+              if (blockToConstantOpMap.count(block) == 0) {
+                  std::cout << "miss: " << user->getName().getStringRef().str() << std::endl;
+                  OpBuilder builder(block, block->begin());
+                  newConstantOp = llvm::cast<mlir::arith::ConstantOp>(builder.clone(*constantOp));
+                  blockToConstantOpMap[block] = newConstantOp;
+              } else {
+                  std::cout << "hit: " << user->getName().getStringRef().str() << std::endl;
+                  newConstantOp = blockToConstantOpMap[block];
+              }
+            } else {
+              std::cout << "single: " << user->getName().getStringRef().str() << std::endl;
+              OpBuilder builder(user);
+              newConstantOp = llvm::cast<mlir::arith::ConstantOp>(builder.clone(*constantOp));
+            }
+
+
             user->replaceUsesOfWith(constantOp->getResult(0), newConstantOp->getResult(0));
         }
         // Erase the original constantOp
