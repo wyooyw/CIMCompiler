@@ -200,6 +200,6 @@ if __name__=="__main__":
     test_attn_decode_cp(
         head_hidden=128, 
         seqlen=4096,
-        world_size=8,
-        cp_group_size=2,
+        world_size=32,
+        cp_group_size=1,
     )
