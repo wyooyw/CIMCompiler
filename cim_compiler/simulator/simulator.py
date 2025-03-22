@@ -386,6 +386,8 @@ class Simulator:
         self.pimset_mask = None
 
         self.pipes = None
+
+        self.core_id = -1
     
     def get_pimset_mask(self):
         if self.pimset_mask is not None:
