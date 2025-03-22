@@ -1,3 +1,7 @@
 [submodule "thirdparty/glog"]
 	path = thirdparty/glog
 	url = https://github.com/google/glog.git
+[submodule "thirdparty/llvm-project"]
+	path = thirdparty/llvm-project
+	url = https://github.com/wyooyw/llvm-project.git
+	branch = cim_compiler/dev
