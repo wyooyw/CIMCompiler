@@ -215,6 +215,37 @@ def CIMSetOp : CIM_Op<"cim_set"> {
   let hasFolder = 1;
 }
 
+def SendOp : CIM_Op<"send"> {
+  let summary = "send";
+  let description = [{
+    send
+  }];
+
+  let arguments = (ins 
+    AnyMemRef:$src_buffer,
+    AnyMemRef:$dst_buffer,
+    AnyTypeOf<[AnyInteger, Index]>:$core_id,
+    AnyTypeOf<[AnyInteger, Index]>:$transfer_id
+  );
+
+  let hasFolder = 1;
+}
+
+def RecvOp : CIM_Op<"recv"> {
+  let summary = "recv";
+  let description = [{
+    recv
+  }];
+
+  let arguments = (ins 
+    AnyMemRef:$src_buffer,
+    AnyMemRef:$dst_buffer,
+    AnyTypeOf<[AnyInteger, Index]>:$core_id,
+    AnyTypeOf<[AnyInteger, Index]>:$transfer_id
+  );
+
+  let hasFolder = 1;
+}
 
 
 #endif // CIM_OPS

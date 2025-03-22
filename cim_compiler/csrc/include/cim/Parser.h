@@ -22,7 +22,7 @@ public:
 
   mlir::ModuleOp parseJson(std::string json_path);
   mlir::ModuleOp parseModule(const boost::property_tree::ptree &ast);
-  std::vector<mlir::scf::ForOp> getUnrollForOps();
+  // std::vector<mlir::scf::ForOp> getUnrollForOps();
 
 private:
   mlir::OpBuilder builder;
@@ -62,6 +62,12 @@ private:
   void parse_for_stmt(const boost::property_tree::ptree &ast);
   void parse_if_else_stmt(const boost::property_tree::ptree &ast);
   mlir::Value parse_expr(const boost::property_tree::ptree &ast);
+  bool is_condition_expr(const boost::property_tree::ptree &ast);
+  mlir::Value parse_condition_expr(const boost::property_tree::ptree &ast);
+  bool is_additive_expr(const boost::property_tree::ptree &ast);
+  mlir::Value parse_additive_expr(const boost::property_tree::ptree &ast);
+  mlir::Value parse_multiplicative_expr(const boost::property_tree::ptree &ast);
+  mlir::Value parse_primary_expr(const boost::property_tree::ptree &ast);
   bool is_unary_expr(const boost::property_tree::ptree &ast);
   bool is_binary_expr(const boost::property_tree::ptree &ast);
   mlir::Value parse_unary_expr(const boost::property_tree::ptree &ast);
@@ -167,9 +173,16 @@ private:
   // Slice
   mlir::Value parse_buffer_slice(const boost::property_tree::ptree &ast);
   std::tuple<mlir::SmallVector<mlir::Value>, mlir::SmallVector<mlir::Value>, mlir::SmallVector<mlir::Value>>
-  parse_slice_list(const boost::property_tree::ptree &ast);
+  parse_slice_list(mlir::Value var, const boost::property_tree::ptree &ast);
   bool is_buffer_slice(const boost::property_tree::ptree &ast);
   bool is_slice(const boost::property_tree::ptree &ast);
+
+  // communication
+  void parse_builtin_send(const boost::property_tree::ptree &ast);
+  void parse_builtin_recv(const boost::property_tree::ptree &ast);
+
+  // return
+  void parse_return_stmt(const boost::property_tree::ptree &ast);
 };
 
 #endif // MLIRGENIMPL_H

@@ -22,6 +22,18 @@ _simd_funct_name_pair = (
     (1, "VEC_SC_ADD"),
     (2, "VEC_MUL"),
     (3, "VEC_QUANTIZE"),
+    (4, "VEC_RESADD_QUANTIZE"),
+    (5, "VEC_RESMUL_QUANTIZE"),
+    (6, "VEC_VVMAX"),
+    (7, "VEC_VSMUL"),
+    (8, "VEC_VFLOOR"),
+    (9, "VEC_VSET"),
+    (10, "VEC_SOFTMAX"),
+    (11, "VEC_REDUCE_MAX"),
+    (12, "VEC_V_EXP"),
+    (13, "VEC_REDUCE_SUM"),
+    (14, "VEC_VS_DIV"),
+    (15, "VEC_VS_SUB"),
 )
 
 _branch_compare_name_pair = (

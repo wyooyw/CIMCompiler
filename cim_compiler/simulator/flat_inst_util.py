@@ -109,6 +109,10 @@ class FlatInstUtil:
                 self._flat_pim_transfer(inst, idx)
         elif isinstance(inst, SIMDInst):
             self._flat_simd(inst, idx)
+        elif isinstance(inst, SendInst):
+            self._flat_send(inst, idx)
+        elif isinstance(inst, RecvInst):
+            self._flat_recv(inst, idx)
         else:
             assert (
                 isinstance(inst, RRInst) or
@@ -164,6 +168,14 @@ class FlatInstUtil:
                 SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2,
             ]
         )
+        self.flat_inst_list.append(inst)
+
+    def _flat_send(self, inst, idx):
+        self._load_general_regs(inst, [inst.reg_src_addr, inst.reg_size, inst.reg_dst_core, inst.reg_dst_addr, inst.reg_transfer_id], idx)
+        self.flat_inst_list.append(inst)
+
+    def _flat_recv(self, inst, idx):
+        self._load_general_regs(inst, [inst.reg_dst_addr, inst.reg_size, inst.reg_src_core, inst.reg_src_addr, inst.reg_transfer_id], idx)
         self.flat_inst_list.append(inst)
 
     def _flat_pim_output(self, inst, idx):

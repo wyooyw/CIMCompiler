@@ -60,6 +60,8 @@ class StatsUtil:
     def record(self, inst):
 
         inst_name = type(inst).__name__
+        if inst_name=="RIInst":
+            inst_name = inst_name + "_" + str(inst.opcode)
         self.per_class_cnt[inst_name] += 1
         self.total_inst_cnt += 1
 

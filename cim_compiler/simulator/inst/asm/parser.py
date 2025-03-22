@@ -141,8 +141,8 @@ class AsmParser:
                 reg_out=reg_out,
                 reg_in=reg_in,
                 reg_size=reg_size,
-                flag_src_offset=int("SRC_O" in flags),
-                flag_dst_offset=int("DST_O" in flags),
+                flag_src_offset=bool("SRC_O" in flags),
+                flag_dst_offset=bool("DST_O" in flags),
                 offset=offset
             )
 
@@ -183,11 +183,11 @@ class AsmParser:
                 reg_input_addr=int(reg_input_addr),
                 reg_input_size=int(reg_input_size), 
                 reg_activate_row=int(reg_activate_row), 
-                flag_value_sparse=int(flag_value_sparse), 
-                flag_bit_sparse=int(flag_bit_sparse), 
-                flag_group=int(flag_group), 
-                flag_group_input_mode=int(flag_group_input_mode),
-                flag_accumulate = 1
+                flag_value_sparse=bool(flag_value_sparse), 
+                flag_bit_sparse=bool(flag_bit_sparse), 
+                flag_group=bool(flag_group), 
+                flag_group_input_mode=bool(flag_group_input_mode),
+                flag_accumulate=True
             )
 
         elif op_name == "CIM_CFG":
@@ -197,7 +197,7 @@ class AsmParser:
             return CIMConfigInst(
                 reg_single_group_id=reg_single_group_id,
                 reg_mask_addr=reg_mask_addr,
-                flag_group_broadcast=int("GRP_B" in flags)
+                flag_group_broadcast=bool("GRP_B" in flags)
             )
 
         elif op_name == "CIM_OUT":
@@ -208,8 +208,8 @@ class AsmParser:
                 reg_out_n=reg_out_n,
                 reg_out_mask_addr=reg_out_mask_addr,
                 reg_out_addr=reg_out_addr,
-                flag_outsum=int("OSUM" in flags),
-                flag_outsum_move=int("OSUM_MOVE" in flags)
+                flag_outsum=bool("OSUM" in flags),
+                flag_outsum_move=bool("OSUM_MOVE" in flags)
             )
         else:
             raise ValueError(f"Unknown instruction name: {op_name}")

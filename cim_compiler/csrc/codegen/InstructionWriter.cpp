@@ -54,15 +54,15 @@ Inst LegacyInstructionWriter::getSIMDInst(int opcode, int input_num, int in1_reg
     };
 }
 
-Inst LegacyInstructionWriter::getTransInst(int reg_addr_in, int reg_addr_out, int size) {
+Inst LegacyInstructionWriter::getTransInst(int reg_addr_in, int reg_addr_out, int size, int imm, bool src_offset_flag, bool dst_offset_flag) {
     return {
         {"class", 0b110}, 
         {"type", 0b0}, 
-        {"source_offset_mask", 0b0}, 
-        {"destination_offset_mask", 0b0}, 
+        {"source_offset_mask", src_offset_flag}, 
+        {"destination_offset_mask", dst_offset_flag}, 
         {"rs1", reg_addr_in}, 
         {"rd", reg_addr_out}, 
-        {"offset", 0b0}, 
+        {"offset", imm}, 
         {"rs2", size}
     };
 }
@@ -130,18 +130,18 @@ void LegacyInstructionWriter::setBranchOffset(Inst &inst, int offset) {
 }
 
 bool LegacyInstructionWriter::isGeneralToSpecialAssign(Inst &inst) {
-  if ((inst.count("class") && inst["class"] == 0b10) &&
-      (inst.count("type") && inst["type"] == 0b11) &&
-      (inst.count("opcode") && inst["opcode"] == 0b10)) {
+  if ((inst.count("class") && std::holds_alternative<int>(inst["class"]) && std::get<int>(inst["class"]) == 0b10) &&
+      (inst.count("type") && std::holds_alternative<int>(inst["type"]) && std::get<int>(inst["type"]) == 0b11) &&
+      (inst.count("opcode") && std::holds_alternative<int>(inst["opcode"]) && std::get<int>(inst["opcode"]) == 0b10)) {
     return true;
   }
   return false;
 }
 
 bool LegacyInstructionWriter::isSpecialToGeneralAssign(Inst &inst) {
-  if ((inst.count("class") && inst["class"] == 0b10) &&
-      (inst.count("type") && inst["type"] == 0b11) &&
-      (inst.count("opcode") && inst["opcode"] == 0b11)) {
+  if ((inst.count("class") && std::holds_alternative<int>(inst["class"]) && std::get<int>(inst["class"]) == 0b10) &&
+      (inst.count("type") && std::holds_alternative<int>(inst["type"]) && std::get<int>(inst["type"]) == 0b11) &&
+      (inst.count("opcode") && std::holds_alternative<int>(inst["opcode"]) && std::get<int>(inst["opcode"]) == 0b11)) {
     return true;
   }
   return false;
@@ -171,9 +171,9 @@ bool LegacyInstructionWriter::isGeneralReg(Inst &inst, std::string key) {
 }
 
 bool LegacyInstructionWriter::isSpecialLi(Inst &inst) {
-  if ((inst.count("class") && inst["class"] == 0b10) &&
-      (inst.count("type") && inst["type"] == 0b11) &&
-      (inst.count("opcode") && inst["opcode"] == 0b01)) {
+  if ((inst.count("class") && std::holds_alternative<int>(inst["class"]) && std::get<int>(inst["class"]) == 0b10) &&
+      (inst.count("type") && std::holds_alternative<int>(inst["type"]) && std::get<int>(inst["type"]) == 0b11) &&
+      (inst.count("opcode") && std::holds_alternative<int>(inst["opcode"]) && std::get<int>(inst["opcode"]) == 0b01)) {
     return true;
   }
   return false;
@@ -225,5 +225,17 @@ Inst LegacyInstructionWriter::getCIMTransferInst(int reg_src_addr, int reg_out_n
         {"rs3", reg_out_mask_addr}, 
         {"rs4", reg_buffer_addr}, 
         {"rd", reg_dst_addr}
+    };
+}
+
+Inst LegacyInstructionWriter::getSendInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) {
+    return {
+        {"opcode", 0},
+    };
+}
+
+Inst LegacyInstructionWriter::getRecvInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) {
+    return {
+        {"opcode", 0},
     };
 }

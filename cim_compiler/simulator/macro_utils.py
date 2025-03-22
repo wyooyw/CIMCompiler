@@ -19,6 +19,9 @@ class MacroConfig:
         assert self.n_bcol % bitwidth == 0
         return self.n_bcol // bitwidth
 
+    def n_group_vcol(self, bitwidth):
+        return self.n_vcol(bitwidth) * self.n_macro_per_group
+
     def total_size(self):
         return self.n_macro * self.n_row * self.n_comp * self.n_bcol // 8
 
@@ -52,7 +55,7 @@ class MacroUtil:
         elif type(data_type) == np.int32:
             bitwidth = data_type.item()
             data_type = get_dtype_from_bitwidth(bitwidth)
-        elif data_type in [np.int8, np.int16, np.int32]:
+        elif data_type in [np.int8, np.int16, np.int32, np.float16, np.float32]:
             bitwidth = get_bitwidth_from_dtype(data_type)
         else:
             assert False, f"Unsupport {data_type=}"

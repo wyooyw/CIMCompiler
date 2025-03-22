@@ -49,6 +49,8 @@ void debugLogIR(mlir::ModuleOp &module) {
   std::string irString;
   llvm::raw_string_ostream os(irString);
   module.print(os);
+  os.flush();
+
   LOG_DEBUG << "IR: " << irString << "\n\n";
 }
 
@@ -121,18 +123,6 @@ int main(int argc, char **argv) {
   }  
   
 
-  // unroll
-  // std::vector<mlir::scf::ForOp> unrollForOps = gen_impl.getUnrollForOps();
-  // mlir::PassManager unroll_pm(&context);
-  // unroll_pm.addPass(cim::createLoopUnrollPass(unrollForOps));
-  // if (mlir::failed(unroll_pm.run(module))) {
-  //   std::cout << "Unroll Passes fail." << std::endl;
-  //   module.dump();
-  //   return 1;
-  // }else{
-  //   std::cout << "Unroll Passes success." << std::endl;
-  //   module.dump();
-  // }
 
   mlir::PassManager init_passes(&context);
   init_passes.addPass(mlir::createInlinerPass());
@@ -143,6 +133,9 @@ int main(int argc, char **argv) {
   init_op_passes.addPass(cim::createExtractAddressComputationPass());
   init_op_passes.addPass(mlir::createLowerAffinePass());
   init_op_passes.addPass(mlir::cim::createMemoryAddressAllocationPass());
+
+  mlir::PassManager unroll_passes(&context);
+  unroll_passes.addPass(cim::createLoopUnrollPass());
 
   mlir::PassManager lower_passes(&context);
   lower_passes.addPass(mlir::cim::createCIMLoweringPass(configPath));
@@ -159,8 +152,13 @@ int main(int argc, char **argv) {
 
   mlir::PassManager cf_passes(&context);
   cf_passes.addPass(mlir::createConvertSCFToCFPass());
-  cf_passes.addPass(mlir::cim::createRR2RIPass());
+  // cf_passes.addPass(mlir::cim::createRR2RIPass());
   cf_passes.addPass(mlir::cim::createCIMBranchConvertPass());
+  mlir::OpPassManager &cf_op_passes = cf_passes.nest<mlir::func::FuncOp>();
+  cf_op_passes.addPass(mlir::cim::createTransOffsetOptimizePass());
+  cf_op_passes.addPass(mlir::cim::createConstantExpandPass());
+  
+  
 
   mlir::PassManager codegen_passes(&context);
   mlir::OpPassManager &codegen_op_passes =
@@ -174,6 +172,15 @@ int main(int argc, char **argv) {
     return 1;
   }else{
     LOG_INFO << "Init Passes success.";
+    debugLogIR(module);
+  }
+
+  if (mlir::failed(unroll_passes.run(module))) {
+    LOG_ERROR << "Unroll passes fail.";
+    errorLogIR(module);
+    return 1;
+  }else{
+    LOG_INFO << "Unroll Passes success.";
     debugLogIR(module);
   }
 
@@ -203,6 +210,8 @@ int main(int argc, char **argv) {
     LOG_INFO << "CF Passes success.";
     debugLogIR(module);
   }
+
+  // return 0;
 
   if (mlir::failed(codegen_passes.run(module))) {
     LOG_ERROR << "CodeGen Passes fail.";

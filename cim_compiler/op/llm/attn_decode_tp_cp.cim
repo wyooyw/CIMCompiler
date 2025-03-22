@@ -1,0 +1,75 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+{% include 'op/llm/attn_decode_utils.cim' %}
+{% include 'op/llm/all_gather.cim' %}
+{% include 'op/llm/softmax.cim' %}
+{% include 'op/llm/cp_softmax.cim' %}
+{% include 'op/llm/special_regs.cim' %}
+
+{% if seqlen % cp_group_size != 0 %}
+    {% set error_msg = "seqlen must be divisible by cp_group_size" %}
+    {{ raise(error_msg) }}
+{% endif %}
+
+def main(){
+    set_special_regs();
+
+    global_pimset_mask = Buffer(<{{N_GROUP_VCOL}}>, int1, __GLOBAL__);
+    local_pimset_mask = Buffer(<{{N_GROUP_VCOL}}>, int1, __INPUT_MEMORY__);
+    Trans(global_pimset_mask, local_pimset_mask);
+    CIMSet(local_pimset_mask);
+    
+    q_global = Buffer(<{{head_hidden}}>, fp16, __GLOBAL__);
+    k_global = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, __GLOBAL__);
+    v_global = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, __GLOBAL__);
+    output_global = Buffer(<{{head_hidden}}>, fp16, __GLOBAL__);
+    
+    macros = Buffer(<{{N_ROW}}, {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__);
+    pim_input_reg_buffer = Buffer(<{{N_COMP}}>, fp16, __PIM_INPUT_REG_BUFFER__);
+    pim_output_reg_buffer = Buffer(<{{N_GROUP_VCOL}}>, fp16, __PIM_OUTPUT_REG_BUFFER__);
+
+    // step 0: load q into local
+    q_local = Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
+    Trans(q_global, q_local);
+
+    // step 1: load all kv caches into macro
+    k_row_begin = 0;
+    k_row_size = {{ (head_hidden // N_COMP) * ((seqlen // cp_group_size) // N_GROUP_VCOL) }};
+    k_row_end = k_row_begin + k_row_size;
+    k_macro = macros[k_row_begin:k_row_end, 0:{{N_COMP}}, 0:1, 0:{{N_GROUP_VCOL}}];
+
+    v_row_begin = k_row_end;
+    v_row_size = {{ ((seqlen // cp_group_size) // N_COMP) * (head_hidden // N_GROUP_VCOL) }};
+    v_row_end = v_row_begin + v_row_size;
+    v_macro = macros[v_row_begin:v_row_end, 0:{{N_COMP}}, 0:1, 0:{{N_GROUP_VCOL}}];
+    
+    transpose_unit = Buffer(<2, {{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY__);
+    load_transpose_into_macro(k_global, k_macro, transpose_unit);
+    load_into_macro(v_global, v_macro);
+
+    // step 2: compute qK^T
+    attn_out1 = Buffer(<{{seqlen // cp_group_size}}>, fp16, __OUTPUT_MEMORY__);
+    gemv(q_local, k_macro, attn_out1, {{ head_hidden // N_COMP }}, pim_input_reg_buffer, pim_output_reg_buffer);
+
+    // step 3: online softmax
+    score = Buffer(<{{seqlen // cp_group_size}}>, fp16, __OUTPUT_MEMORY__);
+    cp_online_softmax(attn_out1, score, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
+
+    // step 4: compute softmax(qK^T)V
+    attn_out2= Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
+    gemv(score, v_macro, attn_out2, {{ (seqlen // cp_group_size) // N_COMP }}, pim_input_reg_buffer, pim_output_reg_buffer);
+
+    // step 5 sum over cp group
+    // TODO: For now, we use all-gather + sum. In the future, we will use reduce-scatter to get better performance
+    attn_out3 = Buffer(<{{cp_group_size}}, {{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
+    cp_rank = get_local_rank({{core_id}}, {{cp_group_offset}}, {{cp_group_stride}});
+    Trans(attn_out2, attn_out3[cp_rank, :]);
+    all_gather(attn_out3, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
+
+    for i in range(1, {{cp_group_size}}) carry () {
+        SIMD(VVADD, attn_out3[0, :], attn_out3[i, :], attn_out3[0, :]);
+    };
+    
+    // step 6
+    Trans(attn_out3[0, :], output_global);
+}

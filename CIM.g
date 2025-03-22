@@ -40,26 +40,36 @@ stmt_if_else: 'if' '(' expr ')' carry '{' stmt_list '}' 'else' '{' stmt_list '}'
 carry: 'carry' '(' carry_list ')';
 carry_list: var? (',' var)*;
 
-stmt_return: 'return' ID;
+stmt_return: 'return' expr;
 
 
 
 // Expression
 expr: 
-    unary_expr
-    | binary_expr;
+    condition_expr
+    ;
+condition_expr: additive_expr ((COND_OP) additive_expr)* ;
+
+additive_expr: multiplicative_expr ((ADD_SUB) multiplicative_expr)* ;
+
+multiplicative_expr: primary_expr (MUL_DIV_MOD primary_expr)* ;
+
+primary_expr: ('(' expr ')') | unary_expr;
+
 unary_expr: 
     call
     | const_or_var
-    | buffer_slice ;
-binary_expr: unary_expr BINARY_OP unary_expr;
+    | buffer_slice
+    ;
 
 // Slice
 buffer_slice: var '[' slice_list ']';
 slice_list: slice? (',' slice)*;
-slice: slice_offset ':' slice_end;
-slice_offset: expr;
-slice_end: expr;
+slice: slice_scalar | slice_range;
+slice_scalar: expr;
+slice_range: slice_offset ':' slice_end;
+slice_offset: expr?;
+slice_end: expr?;
 
 // Call
 call: ID '(' call_param_list ')';
@@ -75,8 +85,11 @@ var: ID;
 const_array1d: '<' constant (',' constant)* '>';
 array1d: '[' expr (',' expr)* ']';
 
+COND_OP: LE | GE | LT | GT | COND_EQ | COND_NE | AND;
+ADD_SUB: ADD | SUB;
+MUL_DIV_MOD: MUL | DIV | MOD;
 MEMORY: '__'[a-zA-Z_0-9]+'__';
-DATATYPE: ('int1' | 'int8' | 'int32' | 'int64' | 'index' | 'float32') ;
+DATATYPE: ('int1' | 'int8' | 'int32' | 'int64' | 'index' | 'float32' | 'fp16') ;
 BINARY_OP: ADD | SUB | MUL | DIV | MOD | LE | GE | LT | GT | COND_EQ | COND_NE | AND;
 ADD : '+';
 SUB : '-';

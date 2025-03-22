@@ -1,0 +1,12 @@
+{% include 'op/llm/all_gather.cim' %}
+
+def main(){
+    input = Buffer(<{{data_size}}>, fp16, __GLOBAL__);
+    ag_buffer = Buffer(<{{ag_group_size}}, {{data_size}}>, fp16, __GLOBAL__);
+    input_local = Buffer(<{{data_size}}>, fp16, __OUTPUT_MEMORY__);
+    ag_buffer_local = Buffer(<{{ag_group_size}}, {{data_size}}>, fp16, __OUTPUT_MEMORY__);
+    Trans(input, input_local);
+    Trans(input_local, ag_buffer_local[ get_local_rank({{core_id}}, {{ag_group_offset}}, {{ag_group_stride}}), :]);
+    all_gather(ag_buffer_local, {{ag_group_offset}}, {{ag_group_stride}}, {{ag_group_size}});
+    Trans(ag_buffer_local[:, :], ag_buffer[:, :]);
+}

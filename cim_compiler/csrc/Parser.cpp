@@ -141,10 +141,10 @@ void MLIRGenImpl::parse_func(const boost::property_tree::ptree &ast) {
 
   // Parse function return type
   // return null for now.
-  auto ret_type = builder.getNoneType();
+  auto ret_type = builder.getIndexType();
 
   // Make function node
-  auto func_type = builder.getFunctionType(args_types, {});
+  auto func_type = builder.getFunctionType(args_types, {ret_type});
   auto func = builder.create<mlir::func::FuncOp>(loc, func_name, func_type);
   if (func_name != "main") {
     func.setPrivate();
@@ -186,7 +186,13 @@ void MLIRGenImpl::parse_func_body(const boost::property_tree::ptree &ast) {
   LOG_DEBUG << "parse_func_body";
 
   parse_stmt_list(safe_get_child(get_item(ast, 0), "stmt_list"));
-  builder.create<mlir::func::ReturnOp>(loc);
+
+  // Check if the block already has a terminator
+  if (!builder.getInsertionBlock()->mightHaveTerminator()) {
+    mlir::Value zero = builder.create<mlir::arith::ConstantIndexOp>(loc, 0);
+    builder.create<mlir::func::ReturnOp>(loc, zero);
+  }
+
   LOG_DEBUG << "parse_func_body finish.";
 }
 
@@ -204,7 +210,7 @@ void MLIRGenImpl::parse_stmt(const boost::property_tree::ptree &ast) {
   if (is_assign_stmt(ast_stmt)) {
     parse_assign_stmt(safe_get_child(ast_stmt, "stmt_assign"));
   } else if (is_return_stmt(ast_stmt)) {
-    // return nullptr; //parse_return_stmt(ast.begin()->first);
+    parse_return_stmt(safe_get_child(ast_stmt, "stmt_return"));
   } else if (is_call_stmt(ast_stmt)) {
     parse_call_stmt(safe_get_child(ast_stmt, "stmt_call"));
   } else if (is_for_stmt(ast_stmt)) {
@@ -271,6 +277,13 @@ void MLIRGenImpl::parse_assign_stmt(const boost::property_tree::ptree &ast) {
   add_to_sign_table(var_name, expr);
 }
 
+void MLIRGenImpl::parse_return_stmt(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_return_stmt";
+  auto ast_expr = safe_get_child(get_item(ast, 1), "expr");
+  mlir::Value expr = parse_expr(ast_expr);
+  builder.create<mlir::func::ReturnOp>(loc, expr);
+}
+
 void MLIRGenImpl::parse_for_stmt(const boost::property_tree::ptree &ast) {
   LOG_DEBUG << "parse_for_stmt";
 
@@ -299,7 +312,8 @@ void MLIRGenImpl::parse_for_stmt(const boost::property_tree::ptree &ast) {
 
   // mark for_op tag
   if (tag == 1) {
-    unrollForOps.push_back(for_op);
+    // unrollForOps.push_back(for_op);
+    for_op->setAttr("unroll", builder.getUnitAttr());
   }
 
   // Add to sign table
@@ -602,6 +616,12 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree &ast) {
     return;
   } else if (call_func_name == "SpecialRegSet") {
     parse_builtin_special_reg_set(ast);
+    return;
+  } else if (call_func_name == "Send") {
+    parse_builtin_send(ast);
+    return;
+  } else if (call_func_name == "Recv") {
+    parse_builtin_recv(ast);
     return;
   }
 
@@ -1046,6 +1066,49 @@ void MLIRGenImpl::parse_builtin_special_reg_set(
   builder.create<mlir::cim::SpecialRegSetOp>(loc, special_reg, set_value);
 }
 
+void MLIRGenImpl::parse_builtin_send(
+    const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_builtin_special_send";
+  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
+
+  auto ast_src_buffer =
+      safe_get_child(get_item(ast_param_list, 0), "call_param");
+  auto ast_dst_buffer =
+      safe_get_child(get_item(ast_param_list, 2), "call_param");
+  auto ast_core_id =
+      safe_get_child(get_item(ast_param_list, 4), "call_param");
+  auto ast_transfer_id =
+    safe_get_child(get_item(ast_param_list, 6), "call_param");
+
+  mlir::Value src_buffer = parse_expr(safe_get_child(get_item(ast_src_buffer, 0), "expr"));
+  mlir::Value dst_buffer = parse_expr(safe_get_child(get_item(ast_dst_buffer, 0), "expr"));
+  mlir::Value core_id = parse_expr(safe_get_child(get_item(ast_core_id, 0), "expr"));
+  mlir::Value transfer_id = parse_expr(safe_get_child(get_item(ast_transfer_id, 0), "expr"));
+  builder.create<mlir::cim::SendOp>(loc, src_buffer, dst_buffer, core_id, transfer_id);
+}
+
+
+void MLIRGenImpl::parse_builtin_recv(
+    const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_builtin_special_recv";
+  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
+
+  auto ast_src_buffer =
+      safe_get_child(get_item(ast_param_list, 0), "call_param");
+  auto ast_dst_buffer =
+      safe_get_child(get_item(ast_param_list, 2), "call_param");
+  auto ast_core_id =
+      safe_get_child(get_item(ast_param_list, 4), "call_param");
+  auto ast_transfer_id =
+    safe_get_child(get_item(ast_param_list, 6), "call_param");
+
+  mlir::Value src_buffer = parse_expr(safe_get_child(get_item(ast_src_buffer, 0), "expr"));
+  mlir::Value dst_buffer = parse_expr(safe_get_child(get_item(ast_dst_buffer, 0), "expr"));
+  mlir::Value core_id = parse_expr(safe_get_child(get_item(ast_core_id, 0), "expr"));
+  mlir::Value transfer_id = parse_expr(safe_get_child(get_item(ast_transfer_id, 0), "expr"));
+  builder.create<mlir::cim::RecvOp>(loc, src_buffer, dst_buffer, core_id, transfer_id);
+}
+
 /*
  * Built-in Functions End
  */
@@ -1128,7 +1191,7 @@ mlir::Value MLIRGenImpl::parse_buffer_slice(const boost::property_tree::ptree &a
   auto var = parse_var(ast_var);
 
   auto ast_slice_list = safe_get_child(get_item(ast, 2), "slice_list");
-  auto offsets_sizes_strides = parse_slice_list(ast_slice_list);
+  auto offsets_sizes_strides = parse_slice_list(var, ast_slice_list);
 
   mlir::SmallVector<mlir::Value> offsets = std::get<0>(offsets_sizes_strides);
   mlir::SmallVector<mlir::Value> sizes = std::get<1>(offsets_sizes_strides);
@@ -1139,25 +1202,53 @@ mlir::Value MLIRGenImpl::parse_buffer_slice(const boost::property_tree::ptree &a
 }
 
 std::tuple<mlir::SmallVector<mlir::Value>, mlir::SmallVector<mlir::Value>, mlir::SmallVector<mlir::Value>>
-MLIRGenImpl::parse_slice_list(const boost::property_tree::ptree &ast) {
+MLIRGenImpl::parse_slice_list(mlir::Value var, const boost::property_tree::ptree &ast) {
   LOG_DEBUG << "parse_slice_list";
   mlir::SmallVector<mlir::Value> offsets;
   mlir::SmallVector<mlir::Value> sizes;
   mlir::SmallVector<mlir::Value> strides;
   // iter over ast
+  int slice_id = 0;
   for (const auto &pair : ast) {
     if (is_slice(pair.second)) {
       auto ast_slice = safe_get_child(pair.second, "slice");
-      auto ast_slice_offset = safe_get_child(get_item(ast_slice, 0), "slice_offset");
-      auto ast_slice_end = safe_get_child(get_item(ast_slice, 2), "slice_end");
-      
-      auto slice_offset_value = parse_expr(safe_get_child(get_item(ast_slice_offset, 0), "expr"));
-      auto slice_end_value = parse_expr(safe_get_child(get_item(ast_slice_end, 0), "expr"));
-      auto slice_len_value = builder.create<mlir::arith::SubIOp>(loc, slice_end_value, slice_offset_value);
-      
+      mlir::Value slice_offset_value;
+      mlir::Value slice_len_value;
+      if (get_item(ast_slice, 0).count("slice_range")) {
+        auto ast_slice_range = safe_get_child(get_item(ast_slice, 0), "slice_range");
+        auto ast_slice_offset = safe_get_child(get_item(ast_slice_range, 0), "slice_offset");
+        auto ast_slice_end = safe_get_child(get_item(ast_slice_range, 2), "slice_end");
+        
+        if (ast_slice_offset.empty()) {
+          slice_offset_value = builder.create<mlir::arith::ConstantIndexOp>(loc, 0);
+        } else {
+          slice_offset_value = parse_expr(safe_get_child(get_item(ast_slice_offset, 0), "expr"));
+        }
+        mlir::Value slice_end_value;
+        if (ast_slice_end.empty()) {
+          mlir::Value slice_index = builder.create<mlir::arith::ConstantIndexOp>(loc, slice_id);
+          slice_end_value = builder.create<mlir::cim::ShapeOp>(loc, var, slice_index);
+        } else {
+          slice_end_value = parse_expr(safe_get_child(get_item(ast_slice_end, 0), "expr"));
+        }
+        slice_len_value = builder.create<mlir::arith::SubIOp>(loc, slice_end_value, slice_offset_value);
+      } else if (get_item(ast_slice, 0).count("slice_scalar")) {
+        auto ast_slice_scalar = safe_get_child(get_item(ast_slice, 0), "slice_scalar");
+        slice_offset_value = parse_expr(safe_get_child(get_item(ast_slice_scalar, 0), "expr"));
+        slice_len_value = builder.create<mlir::arith::ConstantIndexOp>(loc, 1);
+      } else {
+        // raise: not support yet
+        mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                        "Not support slice: " + ast.begin()->first);
+        std::exit(1);
+      }
+
       offsets.push_back(slice_offset_value);
       sizes.push_back(slice_len_value);
       strides.push_back(builder.create<mlir::arith::ConstantIndexOp>(loc, 1));
+
+      slice_id += 1;
+
     }
   }
   return std::make_tuple(offsets, sizes, strides);
@@ -1253,14 +1344,112 @@ bool MLIRGenImpl::is_binary_expr(const boost::property_tree::ptree &ast) {
 mlir::Value MLIRGenImpl::parse_expr(const boost::property_tree::ptree &ast) {
   LOG_DEBUG << "parse_expr";
   auto expr = get_item(ast, 0);
-  if (is_unary_expr(expr)) {
-    return parse_unary_expr(safe_get_child(expr, "unary_expr"));
-  } else if (is_binary_expr(expr)) {
-    return parse_binary_expr(safe_get_child(expr, "binary_expr"));
+  if (is_condition_expr(expr)) {
+    return parse_condition_expr(safe_get_child(expr, "condition_expr"));
   } else {
     // raise: not support yet
     mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
                     "Not support expr: " + ast.begin()->first);
+    std::exit(1);
+    return nullptr;
+  }
+}
+
+bool MLIRGenImpl::is_condition_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "is_condition_expr";
+  return ast.count("condition_expr");
+}
+
+mlir::Value
+MLIRGenImpl::parse_condition_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_condition_expr";
+  auto lhs = parse_additive_expr(safe_get_child(get_item(ast, 0), "additive_expr"));
+  for (size_t i = 1; i < ast.size(); i += 2) {
+    auto op = safe_get_str(get_item(ast, i), "text");
+    auto rhs = parse_additive_expr(safe_get_child(get_item(ast, i + 1), "additive_expr"));
+    if (op == "==") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::eq, lhs, rhs);
+    } else if (op == "!=") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::ne, lhs, rhs);
+    }else if (op == "<=") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::sle, lhs, rhs);
+    }else if (op == "<<") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::slt, lhs, rhs);
+    }else if (op == ">=") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::sge, lhs, rhs);
+    }else if (op == ">>") {
+      lhs = builder.create<mlir::arith::CmpIOp>(loc,mlir::arith::CmpIPredicate::sgt, lhs, rhs);
+    }else if (op == "&&") {
+      lhs = builder.create<mlir::arith::AndIOp>(loc, lhs, rhs);
+    }else{
+      // raise: not support yet
+      mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                      "Not support condition op: " + op);
+      std::exit(1);
+      return nullptr;
+    }
+  }
+  return lhs;
+}
+
+bool MLIRGenImpl::is_additive_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "is_additive_expr";
+  return ast.count("additive_expr");
+}
+
+mlir::Value
+MLIRGenImpl::parse_additive_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_additive_expr";
+  auto lhs = parse_multiplicative_expr(safe_get_child(get_item(ast, 0), "multiplicative_expr"));
+  for (size_t i = 1; i < ast.size(); i += 2) {
+    auto op = safe_get_str(get_item(ast, i), "text");
+    auto rhs = parse_multiplicative_expr(safe_get_child(get_item(ast, i + 1), "multiplicative_expr"));
+    if (op == "+") {
+      lhs = builder.create<mlir::arith::AddIOp>(loc, lhs, rhs);
+    } else if (op == "-") {
+      lhs = builder.create<mlir::arith::SubIOp>(loc, lhs, rhs);
+    }else{
+      // raise: not support yet
+      mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                      "Not support additive op: " + op);
+      std::exit(1);
+      return nullptr;
+    }
+  }
+  return lhs;
+}
+
+mlir::Value
+MLIRGenImpl::parse_multiplicative_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_multiplicative_expr";
+  auto lhs = parse_primary_expr(safe_get_child(get_item(ast, 0), "primary_expr"));
+  for (size_t i = 1; i < ast.size(); i += 2) {
+    auto op = safe_get_str(get_item(ast, i), "text");
+    auto rhs = parse_primary_expr(safe_get_child(get_item(ast, i + 1), "primary_expr"));
+    if (op == "*") {
+      lhs = builder.create<mlir::arith::MulIOp>(loc, lhs, rhs);
+    } else if (op == "/") {
+      lhs = builder.create<mlir::arith::DivSIOp>(loc, lhs, rhs);
+    } else if (op == "%") {
+      lhs = builder.create<mlir::arith::RemSIOp>(loc, lhs, rhs);
+    }
+  }
+  return lhs;
+}
+
+mlir::Value
+MLIRGenImpl::parse_primary_expr(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_primary_expr";
+  if (ast.size() >= 1 && get_item(ast, 0).count("unary_expr")) {
+    auto primary_expr = get_item(ast, 0);
+    return parse_unary_expr(safe_get_child(primary_expr, "unary_expr"));
+  } else if (ast.size() >= 2 && get_item(ast, 1).count("expr")) {
+    auto primary_expr = get_item(ast, 1);
+    return parse_expr(safe_get_child(primary_expr, "expr"));
+  } else {
+    // raise: not support yet
+    mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
+                    "Not support primary_expr: " + ast.begin()->first);
     std::exit(1);
     return nullptr;
   }
@@ -1334,6 +1523,8 @@ mlir::Type MLIRGenImpl::parse_datatype(std::string datatype) {
     return builder.getIndexType();
   } else if (datatype == "float32") {
     return builder.getF32Type();
+  } else if (datatype == "fp16") {
+    return builder.getF16Type();
   } else {
     // raise: not support yet
     mlir::emitError(mlir::UnknownLoc::get(builder.getContext()),
@@ -1520,6 +1711,6 @@ MLIRGenImpl::cast_to_index_type(mlir::SmallVector<mlir::Value> _index) {
   return _index;
 }
 
-std::vector<mlir::scf::ForOp> MLIRGenImpl::getUnrollForOps() {
-  return unrollForOps;
-}
+// std::vector<mlir::scf::ForOp> MLIRGenImpl::getUnrollForOps() {
+//   return unrollForOps;
+// }

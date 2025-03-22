@@ -1,0 +1,159 @@
+
+
+{# Add parameter validation #}
+{% if head_hidden % N_COMP != 0 %}
+    {% set error_msg = "head_hidden must be divisible by N_COMP" %}
+    {{ raise(error_msg) }}
+{% endif %}
+{% if seqlen % N_GROUP_VCOL != 0 %}
+    {% set error_msg = "seqlen must be divisible by N_GROUP_VCOL" %}
+    {{ raise(error_msg) }}
+{% endif %}
+{% if transpose_col != head_hidden %}
+    {% set error_msg = "transpose_col must equals head_hidden" %}
+    {{ raise(error_msg) }}
+{% endif %}
+{% if not (seqlen >= transpose_row and seqlen % transpose_row == 0) %}
+    {% set error_msg = "seqlen must be greater than transpose_row" %}
+    {{ raise(error_msg) }}
+{% endif %}
+
+def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>, 
+                    macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>
+                    ){
+    src_row = Shape(src, 0);
+    src_col = Shape(src, 1);
+
+    out_row_size = src_row / {{N_COMP}};
+    out_col_size = src_col / {{N_GROUP_VCOL}};
+
+    // TODO: optimize when src_col == N_GROUP_VCOL
+
+    macro_row = Shape(macro, 0);
+    for r_out in range(0, out_row_size) carry () {
+        for c_out in range(0, out_col_size) carry () {
+            @unroll
+            for r_in in range(0, {{N_COMP}}) carry () {
+                sub_src = src[
+                    r_out * {{N_COMP}} + r_in, 
+                    c_out * {{N_GROUP_VCOL}} : (c_out + 1) * {{N_GROUP_VCOL}}
+                ];
+                
+                sub_macro = macro[c_out * out_row_size + r_out, r_in, :, : ];
+
+                Trans(sub_src, sub_macro);
+            };
+        };
+    };
+}
+
+def load_single_transpose_into_macro(
+        transpose_unit< <1, -1>, fp16, __TRANSPOSE_MEMORY__>,
+        macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>,
+        row_outer_src<index>
+    ){
+    transpose_row = {{transpose_row}};
+    transpose_col = {{transpose_col}};
+    @unroll
+    for r_transpose_out in range(0, transpose_col) carry () {
+        transpose_unit_out_line = transpose_unit[:, r_transpose_out * transpose_row : (r_transpose_out + 1) * transpose_row];
+        
+        
+        // A little complicated here.
+        col_outer_macro = row_outer_src % ({{N_GROUP_VCOL}} / transpose_row);
+        row_outer_macro = row_outer_src / ({{N_GROUP_VCOL}} / transpose_row);
+
+        col_macro_begin = col_outer_macro * transpose_row;
+        col_macro_end = (col_outer_macro + 1) * transpose_row;
+        
+        {% if transpose_col % N_COMP == 0 %}
+            row_macro = row_outer_macro * transpose_col / {{N_COMP}} + r_transpose_out / {{N_COMP}};
+            comp_macro = r_transpose_out % {{N_COMP}};
+        {% else %}
+            abs_row_macro = row_outer_macro * transpose_col + r_transpose_out;
+            row_macro = abs_row_macro / {{N_COMP}};
+            comp_macro = abs_row_macro % {{N_COMP}};
+        {% endif %}
+
+        macro_line = macro[row_macro, comp_macro, 0, col_macro_begin:col_macro_end];
+
+        Trans(transpose_unit_out_line, macro_line);
+    };
+}
+
+def load_transpose_into_macro(src< <-1, -1>, fp16, __GLOBAL__>, 
+                    macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>,
+                    transpose_unit< <2, -1>, fp16, __TRANSPOSE_MEMORY__>
+                    ){
+    transpose_row = {{transpose_row}};
+    transpose_col = {{transpose_col}};
+
+    src_row = Shape(src, 0);
+    src_col = Shape(src, 1);
+
+    out_row_size = src_row / transpose_row;
+    out_col_size = src_col / transpose_col;
+
+    // double buffer transpose
+
+    // write 0
+    Trans(src[:transpose_row, :], transpose_unit[0,:]);
+    // @unroll
+    for row_outer_src in range(1, out_row_size) carry () {
+
+        // write row_outer_src % 2
+        Trans(
+            src[row_outer_src * transpose_row: (row_outer_src + 1) * transpose_row, :], 
+            transpose_unit[row_outer_src % 2,:]
+        );
+
+        // read from (row_outer_src % 2) + 1
+        load_single_transpose_into_macro(
+            transpose_unit[(row_outer_src - 1) % 2, :],
+            macro,
+            row_outer_src - 1
+        );
+    };
+
+    // read from (out_row_size - 1) % 2
+    load_single_transpose_into_macro(
+        transpose_unit[(out_row_size - 1) % 2, :],
+        macro,
+        out_row_size - 1
+    );
+}
+
+def gemv(src< <-1>, fp16, __OUTPUT_MEMORY__>, 
+         macro< <-1, {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>,
+         dst< <-1>, fp16, __OUTPUT_MEMORY__>,
+         n_reduce_row<index>,
+         pim_input_reg_buffer< <-1>, fp16, __PIM_INPUT_REG_BUFFER__>,
+         pim_output_reg_buffer< <-1>, fp16, __PIM_OUTPUT_REG_BUFFER__>
+){
+    src_row = Shape(src, 0);
+
+    n_macro_row = Shape(macro, 0);
+    // Print(n_macro_row);
+    n_spatial_row = n_macro_row / n_reduce_row;
+
+    use_input_reg_buffer = pim_input_reg_buffer[0:{{N_COMP}}];
+    use_output_reg_buffer = pim_output_reg_buffer[0:{{N_GROUP_VCOL}}];
+
+    for i_spatial_row in range(0, n_spatial_row) carry () {
+        @unroll
+        for i_reduce_row in range(0, n_reduce_row) carry () {
+            macro_for_compute = macro[i_spatial_row * n_reduce_row + i_reduce_row, :, :, :];
+
+            input_for_compute = src[
+                i_reduce_row * {{N_COMP}} : (i_reduce_row + 1) * {{N_COMP}}
+            ];
+            
+            Trans(input_for_compute, use_input_reg_buffer);
+            CIMComputeDense(use_input_reg_buffer, macro_for_compute);
+        };
+        CIMOutput({{N_GROUP_VCOL}}, 0, use_output_reg_buffer);
+
+        output = dst[i_spatial_row * {{N_GROUP_VCOL}} : (i_spatial_row + 1) * {{N_GROUP_VCOL}}];
+        Trans(use_output_reg_buffer, output);
+    };
+}

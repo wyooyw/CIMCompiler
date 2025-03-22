@@ -595,7 +595,7 @@ struct TransOpLowering : public OpRewritePattern<cim::CopyOp> {
     }
     LOG_DEBUG << "TransOpLowering::matchAndRewrite success";
 
-    rewriter.replaceOpWithNewOp<cimisa::TransOp>(op, addr_src, addr_dst, size);
+    rewriter.replaceOpWithNewOp<cimisa::TransOp>(op, addr_src, addr_dst, size, 0, false, false);
 
     return success();
   }
@@ -852,6 +852,57 @@ struct CIMSetOpLowering : public OpRewritePattern<cim::CIMSetOp> {
   }
 };
 
+struct SendOpLowering : public OpRewritePattern<cim::SendOp> {
+  using OpRewritePattern<cim::SendOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::SendOp op,
+                                PatternRewriter &rewriter) const final {
+    /*
+      Now, all index of load is 0.
+    */
+    LOG_DEBUG << "SendOpLowering::matchAndRewrite begin";
+    Value src_addr = getAddrValue(op.getOperand(0), rewriter);
+    Value dst_addr = getAddrValue(op.getOperand(1), rewriter);
+    Value size = getSizeValue(op.getOperand(0), rewriter);
+    Value core_id = op.getOperand(2);
+    Value transfer_id = op.getOperand(3);
+    if ((!src_addr) || (!dst_addr) || (!core_id) || (!transfer_id) ) {
+      std::cerr << "SendOpLowering::matchAndRewrite fail" << std::endl;
+      std::exit(1);
+    }
+    rewriter.replaceOpWithNewOp<cimisa::SendOp>(op, src_addr, dst_addr, size, core_id, transfer_id);
+    LOG_DEBUG << "SendOpLowering::matchAndRewrite finish";
+    return success();
+  }
+};
+
+struct RecvOpLowering : public OpRewritePattern<cim::RecvOp> {
+  using OpRewritePattern<cim::RecvOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::RecvOp op,
+                                PatternRewriter &rewriter) const final {
+    /*
+      Now, all index of load is 0.
+    */
+    LOG_DEBUG << "RecvOpLowering::matchAndRewrite begin";
+    Value src_addr = getAddrValue(op.getOperand(0), rewriter);
+    LOG_DEBUG << "RecvOpLowering::matchAndRewrite 1";
+    Value dst_addr = getAddrValue(op.getOperand(1), rewriter);
+    LOG_DEBUG << "RecvOpLowering::matchAndRewrite 2";
+    Value size = getSizeValue(op.getOperand(0), rewriter);
+    LOG_DEBUG << "RecvOpLowering::matchAndRewrite 3";
+    Value core_id = op.getOperand(2);
+    Value transfer_id = op.getOperand(3);
+    if ((!src_addr) || (!dst_addr) || (!core_id) || (!transfer_id) ) {
+      std::cerr << "RecvOpLowering::matchAndRewrite fail" << std::endl;
+      std::exit(1);
+    }
+    rewriter.replaceOpWithNewOp<cimisa::RecvOp>(op, src_addr, dst_addr, size, core_id, transfer_id);
+    LOG_DEBUG << "RecvOpLowering::matchAndRewrite finish";
+    return success();
+  }
+};
+
 struct AddrOpLowering : public OpRewritePattern<cim::AddrOp> {
   using OpRewritePattern<cim::AddrOp>::OpRewritePattern;
 
@@ -946,7 +997,7 @@ void CIMLoweringPass::runOnOperation() {
            StoreOpLowering, SpecialRegSetOpLowering,
            CIMOutputOpLowering, CIMOutputSumOpLowering, CIMTransferOpLowering,
            AddrOpLowering, CIMSetOpLowering, ShapeOpLowering,
-           SIMDOpLowering>(&getContext());
+           SIMDOpLowering, SendOpLowering, RecvOpLowering>(&getContext());
   
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`

@@ -1,17 +1,15 @@
-import argparse
 import os
 from cim_compiler.simulator.simulator import Simulator
 from cim_compiler.utils.logger import get_logger
 
-from cim_compiler.precompile import detect_and_replace_macros, remove_comments
 from cim_compiler.simulator.inst import *
-from cim_compiler.simulator.simulator import Memory, MemorySpace, SpecialReg
 from cim_compiler.cli.common import show_args, to_abs_path, uniform_parse_code
+import multiprocessing
+import copy
 
 logger = get_logger(__name__)
 
-def parse_simulate_args(subparsers):
-    parser = subparsers.add_parser('simulate')
+def _add_arguments_for_simulator(parser):
     parser.add_argument("--code-file", "-i", type=str, required=True)
     parser.add_argument("--data-file", "-d", type=str, required=False)
     parser.add_argument("--config-file", "-c", type=str, required=True)
@@ -27,8 +25,11 @@ def parse_simulate_args(subparsers):
     
     parser.add_argument("--predict-cimcompute-count", type=int, required=False, default=-1)
 
+def parse_simulate_args(subparsers):
+    parser = subparsers.add_parser('simulate')
+    _add_arguments_for_simulator(parser)
 
-def run_simulate(args):
+def run_simulate(args, pipes=None, core_id=0):
     
     # update args
     args.code_file = to_abs_path(args.code_file)
@@ -58,6 +59,9 @@ def run_simulate(args):
         pimcompute_count = args.predict_cimcompute_count
 
     simulator = Simulator.from_config(args.config_file)
+    if pipes is not None:
+        simulator.pipes = pipes
+        simulator.core_id = core_id
 
     # load data to global memory
     # TODO: support load data into other memory space
@@ -93,3 +97,32 @@ def run_simulate(args):
         f.write(output_image)
 
     logger.info(f"Simulate finished.")
+
+
+def parse_multi_core_simulate_args(subparsers):
+    parser = subparsers.add_parser('multi-core-simulate')
+    _add_arguments_for_simulator(parser)
+    parser.add_argument("--num-cores", "-n", type=int, required=True)
+
+def run_multi_core_simulate(args):
+    pipes = [[None] * args.num_cores for _ in range(args.num_cores)]
+    for i in range(args.num_cores):
+        for j in range(i+1,args.num_cores):
+            conn_a, conn_b = multiprocessing.Pipe()
+            pipes[i][j] = conn_a
+            pipes[j][i] = conn_b
+    
+    processes = []
+    for i in range(args.num_cores):
+        args_ = copy.deepcopy(args)
+        
+        for key, value in vars(args).items():
+            if isinstance(value, str):
+                args_.__setattr__(key, value.replace('{core_id}', str(i)))
+        
+        process = multiprocessing.Process(target=run_simulate, args=(args_, pipes[i],i))
+        process.start()
+        processes.append(process)
+    
+    for process in processes:
+        process.join()

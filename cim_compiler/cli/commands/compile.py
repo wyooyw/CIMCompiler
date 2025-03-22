@@ -53,26 +53,27 @@ def run_compile(args):
     antlr_home = os.path.join(os.environ["CIM_COMPILER_BASE"], "cim_compiler/java")
     
     with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = os.path.join(os.environ["CIM_COMPILER_BASE"], "build/antlr")
 
         # Generate ANTLR files
         print(f"{antlr_home=}")
-        subprocess.run([
-            "java", "-cp", os.path.join(antlr_home, "antlr-4.7.1-complete.jar"),
-            "org.antlr.v4.Tool", 
-            os.path.join(os.environ["CIM_COMPILER_BASE"], "CIM.g"), 
-            "-o", temp_dir
-        ], check=True)
+        # subprocess.run([
+        #     "java", "-cp", os.path.join(antlr_home, "antlr-4.7.1-complete.jar"),
+        #     "org.antlr.v4.Tool", 
+        #     os.path.join(os.environ["CIM_COMPILER_BASE"], "CIM.g"), 
+        #     "-o", temp_dir
+        # ], check=True)
 
-        # Compile ANTLR Java files
-        # TODO: Only compile once
-        shutil.copy(os.path.join(antlr_home, "AntlrToJson.java"), temp_dir)
-        subprocess.run([
-            "javac", 
-            "-cp", 
-            os.path.join(antlr_home, '*'), 
-            *glob.glob(os.path.join(temp_dir, 'CIM*.java')), 
-            os.path.join(temp_dir, 'AntlrToJson.java')
-        ], check=True)
+        # # Compile ANTLR Java files
+        # # TODO: Only compile once
+        # shutil.copy(os.path.join(antlr_home, "AntlrToJson.java"), temp_dir)
+        # subprocess.run([
+        #     "javac", 
+        #     "-cp", 
+        #     os.path.join(antlr_home, '*'), 
+        #     *glob.glob(os.path.join(temp_dir, 'CIM*.java')), 
+        #     os.path.join(temp_dir, 'AntlrToJson.java')
+        # ], check=True)
         
         # Run ANTLR to generate JSON AST
         subprocess.run([

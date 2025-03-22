@@ -86,7 +86,7 @@ static int getReg(std::unordered_map<llvm::hash_code, int> &regmap,
   }
 }
 
-typedef map<std::string, int> Inst;
+// typedef map<std::string, int> Inst;
 
 static void codeGen(mlir::arith::ConstantOp op,
                     InstructionWriter &writer,
@@ -329,10 +329,13 @@ static void codeGen(mlir::cimisa::TransOp op,
   int rs = getReg(regmap, op.getOperand(0));
   int rd = getReg(regmap, op.getOperand(1));
   int size = getReg(regmap, op.getOperand(2));
+  int32_t imm = op.getImm();
+  bool src_offset_flag = op.getSrcOffsetFlag();
+  bool dst_offset_flag = op.getDstOffsetFlag();
   use.insert(rs);
   use.insert(rd);
   use.insert(size);
-  Inst inst = writer.getTransInst(rs, rd, size);
+  Inst inst = writer.getTransInst(rs, rd, size, imm, src_offset_flag, dst_offset_flag);
   instr_list.push_back(inst);
 }
 
@@ -732,6 +735,64 @@ static void codeGen(mlir::cimisa::SpecialRegAssignOp op,
   Inst inst = writer.getGeneralToSpecialAssignInst(from_general_reg, special_reg);
   instr_list.push_back(inst);
 }
+
+/*
+Communication
+ */
+
+static void codeGen(mlir::cimisa::SendOp op,
+                    InstructionWriter &writer,
+                    std::unordered_map<llvm::hash_code, int> &regmap,
+                    std::vector<Inst> &instr_list, std::set<int> &def,
+                    std::set<int> &use) {
+  int src_addr_reg = getReg(regmap, op.getOperand(0));
+  int dst_addr_reg = getReg(regmap, op.getOperand(1));
+  int size_reg = getReg(regmap, op.getOperand(2));
+  int core_reg = getReg(regmap, op.getOperand(3));
+  int transfer_id_reg = getReg(regmap, op.getOperand(4));
+ 
+  use.insert(src_addr_reg);
+  use.insert(dst_addr_reg);
+  use.insert(size_reg);
+  use.insert(core_reg);
+  use.insert(transfer_id_reg);
+
+  Inst inst = writer.getSendInst(
+    src_addr_reg, 
+    dst_addr_reg, 
+    size_reg,
+    core_reg,
+    transfer_id_reg
+  );
+  instr_list.push_back(inst);
+}
+
+static void codeGen(mlir::cimisa::RecvOp op,
+                    InstructionWriter &writer,
+                    std::unordered_map<llvm::hash_code, int> &regmap,
+                    std::vector<Inst> &instr_list, std::set<int> &def,
+                    std::set<int> &use) {
+  int src_addr_reg = getReg(regmap, op.getOperand(0));
+  int dst_addr_reg = getReg(regmap, op.getOperand(1));
+  int size_reg = getReg(regmap, op.getOperand(2));
+  int core_reg = getReg(regmap, op.getOperand(3));
+  int transfer_id_reg = getReg(regmap, op.getOperand(4));
+ 
+  use.insert(src_addr_reg);
+  use.insert(dst_addr_reg);
+  use.insert(size_reg);
+  use.insert(core_reg);
+  use.insert(transfer_id_reg);
+
+  Inst inst = writer.getRecvInst(
+    src_addr_reg, 
+    dst_addr_reg, 
+    size_reg,
+    core_reg,
+    transfer_id_reg
+  );
+  instr_list.push_back(inst);
+}
 /*
   CodeGen For Operator Finish!
 */
@@ -1063,6 +1124,10 @@ codeGen(std::vector<Block *> &blocks,
         codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::SpecialRegAssignOp>(op)) {
         codeGen(_op, writer, regmap, instr_list, _write, _read);
+      } else if (auto _op = dyn_cast<mlir::cimisa::SendOp>(op)) {
+        codeGen(_op, writer, regmap, instr_list, _write, _read);
+      } else if (auto _op = dyn_cast<mlir::cimisa::RecvOp>(op)) {
+        codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::func::ReturnOp>(op)) {
         // do nothing
       } else {
@@ -1331,7 +1396,16 @@ getRegisterMapping(mlir::func::FuncOp func) {
 static string instToStr(Inst &inst) {
   std::string json = "{";
   for (auto it = inst.begin(); it != inst.end();) {
-    json += "\"" + it->first + "\": " + std::to_string(it->second);
+    std::string value = "";
+    if (std::holds_alternative<int>(it->second)) {
+      value = std::to_string(std::get<int>(it->second));
+    } else if (std::holds_alternative<bool>(it->second)) {
+      value = std::get<bool>(it->second) ? "true" : "false";
+    } else {
+      std::cerr << "error: unknown type" << std::endl;
+      std::exit(1);
+    }
+    json += "\"" + it->first + "\": " + value;
     if ((++it) != inst.end()) {
       json += ", ";
     }
@@ -1563,7 +1637,7 @@ static void mappingRegisterLogicalToPhysical(
       // key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") ||
       // isPrefix(key, "rd")));
       if (writer.isGeneralReg(inst, key)) {
-        int reg_id = value;
+        int reg_id = std::get<int>(value);
         if (!logic_reg_life_begin.count(reg_id)) {
           logic_reg_life_begin[reg_id] = inst_id;
           logic_reg_life_end[reg_id] = inst_id;
@@ -1607,7 +1681,7 @@ static void mappingRegisterLogicalToPhysical(
 
   // Step 2: Construct a mapping from logical register to physical register
   int num_logical_regs = logic_reg_life_begin.size();
-  int num_physical_regs = 64;
+  int num_physical_regs = 32;
   std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
   std::map<int, int> logical_to_physical_mapping;
   int max_physical_reg_used = 0;
@@ -1685,7 +1759,7 @@ static void mappingRegisterLogicalToPhysical(
       // isPrefix(key, "rd")));
 
       if (writer.isGeneralReg(inst, key)) {
-        replace[key] = logical_to_physical_mapping[value];
+        replace[key] = logical_to_physical_mapping[std::get<int>(value)];
       }
     }
     for (const auto &[key, value] : replace) {

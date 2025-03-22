@@ -38,14 +38,43 @@ using namespace cim;
 
 namespace {
 
+static unsigned getNestingDepth(Operation *op) {
+  Operation *currOp = op;
+  unsigned depth = 0;
+  while ((currOp = currOp->getParentOp())) {
+    if (isa<scf::ForOp>(currOp))
+      depth++;
+  }
+  return depth;
+}
+
 struct LoopUnrollPass
     : public mlir::PassWrapper<LoopUnrollPass, OperationPass<mlir::ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(LoopUnrollPass)
 
-  std::vector<mlir::scf::ForOp> unrollForOps;
-
   void runOnOperation() override {
     std::cout << "LoopUnrollPass begin." << std::endl;
+
+    // Clear the vector to ensure it's empty before populating it
+    std::vector<mlir::scf::ForOp> unrollForOps;
+    unrollForOps.clear();
+
+    // Iterate over all operations in the module
+    getOperation().walk([&](mlir::scf::ForOp forOp) {
+        // Check if the 'unroll' attribute is present
+        if (forOp->hasAttr("unroll")) {
+            unrollForOps.push_back(forOp);
+        }
+    });
+
+    // Sort the unrollForOps by their nesting depth (inner loops first)
+    std::sort(unrollForOps.begin(), unrollForOps.end(),
+              [](mlir::scf::ForOp a, mlir::scf::ForOp b) -> bool {
+                  return getNestingDepth(a) < getNestingDepth(b);
+              });
+
+    std::cout << "unrollForOps size: " << unrollForOps.size() << std::endl;
+
     int fail_cnt = unrollForOps.size();
     for (auto it = unrollForOps.rbegin(); it != unrollForOps.rend(); ++it) {
       auto forOp = *it;
@@ -76,9 +105,8 @@ struct LoopUnrollPass
 
 /// Create a Shape Inference pass.
 std::unique_ptr<mlir::Pass>
-mlir::cim::createLoopUnrollPass(std::vector<mlir::scf::ForOp> &unrollForOps) {
+mlir::cim::createLoopUnrollPass() {
   std::cout << "createLoopUnrollPass" << std::endl;
   auto pass = std::make_unique<LoopUnrollPass>();
-  pass->unrollForOps = unrollForOps;
   return pass;
 }
