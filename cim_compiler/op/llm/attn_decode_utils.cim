@@ -32,7 +32,7 @@ def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
     macro_row = Shape(macro, 0);
     for r_out in range(0, out_row_size) carry () {
         for c_out in range(0, out_col_size) carry () {
-            // @unroll
+            @unroll
             for r_in in range(0, {{N_COMP}}) carry () {
                 sub_src = src[
                     r_out * {{N_COMP}} + r_in, 
@@ -138,9 +138,9 @@ def gemv(src< <-1>, fp16, __OUTPUT_MEMORY__>,
 
     use_input_reg_buffer = pim_input_reg_buffer[0:{{N_COMP}}];
     use_output_reg_buffer = pim_output_reg_buffer[0:{{N_GROUP_VCOL}}];
-    
+
     for i_spatial_row in range(0, n_spatial_row) carry () {
-        // @unroll
+        @unroll
         for i_reduce_row in range(0, n_reduce_row) carry () {
             macro_for_compute = macro[i_spatial_row * n_reduce_row + i_reduce_row, :, :, :];
 
