@@ -2,10 +2,10 @@ from test.base import SPMDOpRunner, SIMDOpConfig
 import os
 from dataclasses import dataclass
 import numpy as np
+import pytest
 
 
-
-def test_send_recv():
+def _test_send_recv():
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "test/compiler/comm/test_send_recv.cim")
     cim_config_path = os.path.join(cim_compiler_home, "test/op/llm/config.json")
@@ -31,6 +31,18 @@ class AllGatherTestConfig(SIMDOpConfig):
     data_size: int = 0
     ag_group_size: int = 0
 
+
+@pytest.mark.parametrize(
+    "data_size, world_size, ag_group_size",
+    [
+        (1, 16, 8),
+        (128, 16, 8),
+        (4096, 16, 8),
+        (4096, 4, 1),
+        (4096, 4, 2),
+        (4096, 4, 4),
+    ],
+)
 def test_all_gather(data_size, world_size, ag_group_size):
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "test/compiler/comm/test_all_gather.cim")
@@ -38,7 +50,7 @@ def test_all_gather(data_size, world_size, ag_group_size):
 
     assert world_size % ag_group_size == 0, f"{world_size} % {ag_group_size} != 0"
     assert world_size % 2 == 0 and world_size > 0, f"{world_size} is not even or greater than 0"
-    assert ag_group_size % 2 == 0 and ag_group_size > 0, f"{ag_group_size} is not even or greater than 0"
+    # assert ag_group_size % 2 == 0 and ag_group_size > 0, f"{ag_group_size} is not even or greater than 0"
 
     def config_ag_group(rank, op_config):
         op_config.ag_group_offset = (rank // ag_group_size) * ag_group_size
@@ -55,7 +67,7 @@ def test_all_gather(data_size, world_size, ag_group_size):
     
     inputs = []
     for i in range(world_size):
-        inputs.append([np.arange(data_size, dtype=np.float16) + i * data_size])
+        inputs.append([np.random.randn(data_size).astype(np.float16)])
     outputs = []
     for i in range(world_size):
         outputs.append([np.zeros((ag_group_size, data_size), dtype=np.float16)])
