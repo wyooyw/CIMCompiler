@@ -43,7 +43,7 @@
             "name": "output_memory",
             "type": "sram",
             "addressing": {
-                "size_byte": 262144,
+                "size_byte": 131072,
                 "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte",
                 "offset_byte": 4333568
             }
@@ -52,54 +52,28 @@
             "name": "pim_input_reg_buffer",
             "type": "reg_buffer",
             "addressing": {
-                "size_byte": 1024,
+                "size_byte": 32,
                 "comments": "offset: 256 * 1024 Byte, size: 0.5 * 1024 * 2 Byte",
-                "offset_byte": 4595712
+                "offset_byte": 4464640
             }
         },
         {
             "name": "pim_output_reg_buffer",
             "type": "reg_buffer",
             "addressing": {
-                "size_byte": 4096,
+                "size_byte": 256,
                 "comments": "offset: 257 * 1024 Byte, size: 4 * 1024 Byte",
-                "offset_byte": 4596736
+                "offset_byte": 4464672
             }
         },
-        {
-            "name": "pim_meta_data_reg_buffer",
-            "type": "reg_buffer",
-            "addressing": {
-                "size_byte": 98304,
-                "comments": "offset: 261 * 1024 Byte, size: 96 * 1024 Byte",
-                "offset_byte": 4600832
-            }
-        },
-        {
-            "name": "pim_mask_data_reg_buffer",
-            "type": "reg_buffer",
-            "addressing": {
-                "size_byte": 16384,
-                "comments": "offset: 357 * 1024 Byte, size: 16 * 1024 Byte",
-                "offset_byte": 4699136
-            }
-        },
-        {
-            "name": "pim_output_reg_to_output_memory_buffer",
-            "type": "reg_buffer",
-            "addressing": {
-                "size_byte": 128,
-                "comments": "offset: 373 * 1024 Byte, size: 128 Byte",
-                "offset_byte": 4715520
-            }
-        },
+
         {
             "name": "global",
             "type": "dram",
             "addressing": {
                 "size_byte": 33554432,
                 "comments": "size: 16MB",
-                "offset_byte": 4715648
+                "offset_byte": 4464928
             }
         }
     ]
