@@ -1,6 +1,6 @@
 
-PREFIX=/home/wangyiou/opensource/llvm_new/llvm-project/build
-BUILD_DIR=/home/wangyiou/opensource/llvm_new/llvm-project/build
+PREFIX=./thirdparty/llvm-project/build
+BUILD_DIR=./thirdparty/llvm-project/build
 
 start=$(date +%s)
 
