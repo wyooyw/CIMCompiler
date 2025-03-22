@@ -129,6 +129,8 @@ class SPMDOpRunner(OpRunner):
         assert all(len(output_list[i]) == len(output_list[0]) for i in range(self.num_cores))
 
         with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_dir = os.environ.get("CIM_COMPILER_OUTPUT_DIR", tmp_dir)
+            os.makedirs(tmp_dir, exist_ok=True)
             # tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
             
             processes = []
