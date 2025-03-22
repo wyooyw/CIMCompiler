@@ -1681,7 +1681,7 @@ static void mappingRegisterLogicalToPhysical(
 
   // Step 2: Construct a mapping from logical register to physical register
   int num_logical_regs = logic_reg_life_begin.size();
-  int num_physical_regs = 64;
+  int num_physical_regs = 32;
   std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
   std::map<int, int> logical_to_physical_mapping;
   int max_physical_reg_used = 0;
