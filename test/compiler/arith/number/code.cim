@@ -1,0 +1,12 @@
+def main(){
+    a = 8;
+    b = 2;
+    Print(a+b);
+    Print(a-b);
+    Print(a*b);
+    Print(a/b);
+
+    c = 3;
+    Print(a % c);
+    Print(Min(a, b));
+}
