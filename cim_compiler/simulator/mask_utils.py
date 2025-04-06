@@ -17,6 +17,8 @@ class MaskConfig:
     def from_config(cls, config_path):
         with open(config_path, "r") as f:
             config = json.load(f)
+        if "mask" not in config:
+            return None
         n_from = config["mask"]["n_from"]
         n_to = config["mask"]["n_to"]
         return cls(n_from, n_to)
