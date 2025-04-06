@@ -34,6 +34,21 @@
 {% endif %}
 
 
+def set_special_regs(){
+    SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_GROUP_SIZE, N_MACRO_PER_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, N_USE_GROUP);
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, N_GROUP_VCOL);
+    SpecialRegSet(SPECIAL_REG_GROUP_INPUT_STEP, INPUT_BUFFER_SIZE_PER_GROUP);
+
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+}
+
+
 def main(){
     // prepare input and weight
     {% if IM2COL %}
@@ -83,18 +98,7 @@ def main(){
     local_blank = Buffer(<N_GROUP_VCOL>, int32, __BLANK_MEMORY__);
     local_output_for_temp_sum = Buffer(<N_GROUP_VCOL>, int32, __TEMP_SUM_MEMORY__);
 
-    // TODO: Add 'SPECIAL_REG_' prefix for these macro.
-    SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
-    SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 8);
-    SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 32);
-    SpecialRegSet(SPECIAL_REG_GROUP_SIZE, N_MACRO_PER_GROUP);
-    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, N_USE_GROUP);
-    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, N_GROUP_VCOL);
-    SpecialRegSet(SPECIAL_REG_GROUP_INPUT_STEP, INPUT_BUFFER_SIZE_PER_GROUP);
-
-    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
-    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
-    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+    set_special_regs();
 
     // out_channel_outer_tile_size = OUTPUT_CHANNEL/N_GROUP_VCOL;
     for out_channel_begin in range(0, OUTPUT_CHANNEL, N_GROUP_VCOL) carry () {
@@ -147,8 +151,7 @@ def main(){
                     ];
                     
                     // iter over a sliding window : KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL
-                    t_ = KERNEL_SIZE * KERNEL_SIZE;
-                    sliding_window_size = t_ * INPUT_CHANNEL;
+                    sliding_window_size = KERNEL_SIZE * KERNEL_SIZE * INPUT_CHANNEL;
                     row_to_activate = 0;
                     Save(local_spill, [1], row_to_activate);
 

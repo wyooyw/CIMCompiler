@@ -124,7 +124,7 @@ class StatsUtil:
         with open(save_json_path, "w") as f:
             for reg_data in self._reg_data:
                 f.write(f"pc: {reg_data['pc']}, ins id: {reg_data['idx']}, general reg: {reg_data['general_rf']}\n")
-        print(f"Regs info saved to {save_json_path}")
+        logger.info(f"Regs info saved to {save_json_path}")
 
         pimset_data = {
             # "col_use": self._col_use.item(),

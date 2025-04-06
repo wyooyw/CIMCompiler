@@ -56,7 +56,7 @@ def run_compile(args):
         temp_dir = os.path.join(os.environ["CIM_COMPILER_BASE"], "build/antlr")
 
         # Generate ANTLR files
-        print(f"{antlr_home=}")
+        logger.info(f"{antlr_home=}")
         # subprocess.run([
         #     "java", "-cp", os.path.join(antlr_home, "antlr-4.7.1-complete.jar"),
         #     "org.antlr.v4.Tool", 

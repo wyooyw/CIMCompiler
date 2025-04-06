@@ -284,8 +284,11 @@ class MemorySpace:
         return None
 
     def get_memory_by_name(self, name):
+        if type(name) == str:
+            name = [name]
+        assert type(name) == list
         for memory in self.memory_space:
-            if memory.name == name:
+            if memory.name in name:
                 return memory
         return None
 
@@ -406,15 +409,15 @@ class Simulator:
         """
         This is an internal memory for doing accumulate for macro's output
         """
-        if self.memory_space.get_memory_by_name("pim_output_reg_buffer") is None:
+        if self.memory_space.get_memory_by_name(["pim_output_reg_buffer", "cim_output_reg_buffer"]) is None:
             logger.debug(
-                "[Warning] Can't find pim_output_reg_buffer. Make sure the code has no macro-related instruction."
+                "[Warning] Can't find pim_output_reg_buffer or cim_output_reg_buffer. Make sure the code has no macro-related instruction."
             )
             return
         end_memory = self.memory_space.memory_space[-1]
         end_offset = end_memory.offset + end_memory.size
         output_buffer_size = self.memory_space.get_memory_by_name(
-            "pim_output_reg_buffer"
+            ["pim_output_reg_buffer", "cim_output_reg_buffer"]
         ).size
         internel_macro_output_buffer = Memory(
             "internel_macro_output_reg_buffer",
@@ -986,7 +989,7 @@ class Simulator:
         # Get input vector
         input_byte_size = input_size * input_bw // 8
 
-        self.memory_space.check_memory_name(input_offset, input_byte_size, "pim_input_reg_buffer")
+        self.memory_space.check_memory_name(input_offset, input_byte_size, ["pim_input_reg_buffer", "cim_input_reg_buffer"])
         group_input_data = []
         for group_id in range(activation_group_num):
             group_input_offset = input_offset + group_id * group_input_step
@@ -995,7 +998,7 @@ class Simulator:
                 input_byte_size, 
                 get_dtype_from_bitwidth(input_bw, is_float=self.read_special_reg(SpecialReg.DTYPE_MACRO_IS_FLOAT))
             )
-            self.memory_space.check_memory_name(group_input_offset, input_byte_size, "pim_input_reg_buffer")
+            self.memory_space.check_memory_name(group_input_offset, input_byte_size, ["pim_input_reg_buffer", "cim_input_reg_buffer"])
             group_input_data.append(input_data)
 
         # Get weight matrix

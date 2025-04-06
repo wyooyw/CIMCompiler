@@ -28,6 +28,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include <iostream>
 #include <memory>
+#include "common/macros.h"
 
 #define DEBUG_TYPE "shape-inference"
 
@@ -53,7 +54,7 @@ struct LoopUnrollPass
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(LoopUnrollPass)
 
   void runOnOperation() override {
-    std::cout << "LoopUnrollPass begin." << std::endl;
+    LOG_INFO << "LoopUnrollPass begin." << std::endl;
 
     // Clear the vector to ensure it's empty before populating it
     std::vector<mlir::scf::ForOp> unrollForOps;
@@ -73,7 +74,7 @@ struct LoopUnrollPass
                   return getNestingDepth(a) < getNestingDepth(b);
               });
 
-    std::cout << "unrollForOps size: " << unrollForOps.size() << std::endl;
+    LOG_INFO << "unrollForOps size: " << unrollForOps.size() << std::endl;
 
     int fail_cnt = unrollForOps.size();
     for (auto it = unrollForOps.rbegin(); it != unrollForOps.rend(); ++it) {
@@ -97,8 +98,8 @@ struct LoopUnrollPass
         }
       }
     }
-    std::cout << "LoopUnrollPass end. fail: " << fail_cnt
-              << " total: " << unrollForOps.size() << std::endl;
+    LOG_INFO << "LoopUnrollPass end. fail: " << fail_cnt
+              << " total: " << unrollForOps.size();
   }
 };
 } // namespace
@@ -106,7 +107,6 @@ struct LoopUnrollPass
 /// Create a Shape Inference pass.
 std::unique_ptr<mlir::Pass>
 mlir::cim::createLoopUnrollPass() {
-  std::cout << "createLoopUnrollPass" << std::endl;
   auto pass = std::make_unique<LoopUnrollPass>();
   return pass;
 }

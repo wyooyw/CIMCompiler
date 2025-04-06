@@ -85,25 +85,23 @@ def load_transpose_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
                     macro< <-1,  {{N_COMP}}, 1, {{N_GROUP_VCOL}}>, fp16, __MACRO__>,
                     transpose_unit< <2, -1>, fp16, __TRANSPOSE_MEMORY__>
                     ){
-    transpose_row = {{transpose_row}};
-    transpose_col = {{transpose_col}};
 
-    src_row = Shape(src, 0);
-    src_col = Shape(src, 1);
+//src_row = Shape(src, 0);
+  //  src_col = Shape(src, 1);
 
-    out_row_size = src_row / transpose_row;
-    out_col_size = src_col / transpose_col;
+    out_row_size = Shape(src, 0) / {{transpose_row}};
+    out_col_size = Shape(src, 1) / {{transpose_col}};
 
     // double buffer transpose
 
     // write 0
-    Trans(src[:transpose_row, :], transpose_unit[0,:]);
+    Trans(src[:{{transpose_row}}, :], transpose_unit[0,:]);
     // @unroll
     for row_outer_src in range(1, out_row_size) carry () {
 
         // write row_outer_src % 2
         Trans(
-            src[row_outer_src * transpose_row: (row_outer_src + 1) * transpose_row, :], 
+            src[row_outer_src * {{transpose_row}}: (row_outer_src + 1) * {{transpose_row}}, :], 
             transpose_unit[row_outer_src % 2,:]
         );
 
