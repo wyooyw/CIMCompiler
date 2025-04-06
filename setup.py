@@ -24,5 +24,9 @@ setup(
     },
     install_requires=[
         # 在这里列出你的依赖包
+        'pytest',
+        'pytest-xdist',
+        'bitarray',
+        'ipdb',
     ],
 )

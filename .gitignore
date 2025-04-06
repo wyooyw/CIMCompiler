@@ -4,5 +4,6 @@ build/
 .temp/
 __pycache__/
 models/
+cim_compiler.egg-info/
 *.tar.gz
 *.log
