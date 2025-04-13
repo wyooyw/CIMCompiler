@@ -50,6 +50,18 @@ struct ConstantExpandPass
         }
     });
 
+    // get all operator's position in its BB
+    // Map to store the position of each operation in its block
+    DenseMap<mlir::Operation*, int> opToPositionMap;
+
+    // Iterate over each block in the function
+    for (auto &block : fn.getBlocks()) {
+        int position = 0;
+        for (auto &op : block) {
+            opToPositionMap[&op] = position++;
+        }
+    }
+
     // Iterate over the collected ConstantOps
     for (auto constantOp : constantOps) {
         // Store users in a separate container
@@ -78,20 +90,36 @@ struct ConstantExpandPass
             auto *block = entry.first;
             auto &userList = entry.second;
 
+            mlir::Operation* last_create_user = nullptr;
+
             for (auto *user : userList) {
                 // Map to track if a block has a shared newConstantOp
                 mlir::arith::ConstantOp newConstantOp;
 
                 if (blockToUsersMap[block].size() > 2) {
-                  if (blockToConstantOpMap.count(block) == 0) {
-                      LOG_DEBUG << "miss: " << user->getName().getStringRef().str() << std::endl;
-                      OpBuilder builder(user);
-                      newConstantOp = llvm::cast<mlir::arith::ConstantOp>(builder.clone(*constantOp));
-                      blockToConstantOpMap[block] = newConstantOp;
-                  } else {
-                      LOG_DEBUG << "hit: " << user->getName().getStringRef().str() << std::endl;
-                      newConstantOp = blockToConstantOpMap[block];
-                  }
+                    if (blockToConstantOpMap.count(block) == 0) {
+                        LOG_DEBUG << "miss: " << user->getName().getStringRef().str() << std::endl;
+                        OpBuilder builder(user);
+                        newConstantOp = llvm::cast<mlir::arith::ConstantOp>(builder.clone(*constantOp));
+                        blockToConstantOpMap[block] = newConstantOp;
+                        last_create_user = user;
+                    } else {
+                        LOG_DEBUG << "hit: " << user->getName().getStringRef().str() << std::endl;
+                        
+
+                        // Check the distance between newConstantOp and user
+                        int lastCreateUserPosition = opToPositionMap[last_create_user];
+                        int userPosition = opToPositionMap[user];
+                        if (userPosition - lastCreateUserPosition > 32) {
+                            LOG_DEBUG << "distance > 32, creating new userConstantOp" << std::endl;
+                            OpBuilder builder(user);
+                            newConstantOp = llvm::cast_or_null<mlir::arith::ConstantOp>(builder.clone(*constantOp));
+                            blockToConstantOpMap[block] = newConstantOp;
+                            last_create_user = user;
+                        } else {
+                            newConstantOp = blockToConstantOpMap[block];
+                        }
+                    }
                 } else {
                   LOG_DEBUG << "single: " << user->getName().getStringRef().str() << std::endl;
                   OpBuilder builder(user);
