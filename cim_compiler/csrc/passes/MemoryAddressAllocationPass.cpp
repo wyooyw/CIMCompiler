@@ -25,6 +25,8 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
 #include <iostream>
 #include <memory>
 #include "common/macros.h"
@@ -34,25 +36,61 @@
 using namespace mlir;
 using namespace cim;
 
-/// Include the auto-generated definitions for the shape inference interfaces.
 
 namespace {
-/// The ShapeInferencePass is a pass that performs intra-procedural
-/// shape inference.
-///
-///    Algorithm:
-///
-///   1) Build a worklist containing all the operations that return a
-///      dynamically shaped tensor: these are the operations that need shape
-///      inference.
-///   2) Iterate on the worklist:
-///     a) find an operation to process: the next ready operation in the
-///        worklist has all of its arguments non-generic,
-///     b) if no operation is found, break out of the loop,
-///     c) remove the operation from the worklist,
-///     d) infer the shape of its output from the argument types.
-///   3) If the worklist is empty, the algorithm succeeded.
-///
+
+static const boost::property_tree::ptree &
+get_item(const boost::property_tree::ptree &ast, int index) {
+  auto it = ast.begin();
+  std::advance(it, index);
+  return it->second;
+}
+
+template <typename Ty>
+Ty safe_get_as(const boost::property_tree::ptree &ast, const std::string &key) {
+  if (ast.count(key)) {
+    return ast.get<Ty>(key);
+  } else {
+    // tell user
+    std::cerr << "[safe_get_] Key error: " << key << std::endl;
+    std::exit(1);
+    // return nullptr;
+  }
+}
+const boost::property_tree::ptree &
+safe_get_child(const boost::property_tree::ptree &ast, const std::string &key) {
+  if (ast.count(key)) {
+    return ast.get_child(key);
+  } else {
+    // tell user
+    std::cerr << "[safe_get_child] Key error: " << key << std::endl;
+    std::exit(1);
+    return ast;
+  }
+}
+static std::map<std::string, int> memory_addr_list;
+static std::map<std::string, int> memory_size_list;
+static void getMemoryAddrList(std::string config_path) {
+  boost::property_tree::ptree ast;
+  boost::property_tree::read_json(config_path, ast);
+
+  // std::map<string, int> memory_addr_list;
+  LOG_DEBUG << "getMemoryAddrList";
+  auto json_memory_list = safe_get_child(ast, "memory_list");
+  for (const auto &pair : json_memory_list) {
+    auto json_memory = pair.second;
+    std::string name = safe_get_as<std::string>(json_memory, "name");
+    auto json_address = safe_get_child(json_memory, "addressing");
+    int offset = safe_get_as<int>(json_address, "offset_byte");
+    int size = safe_get_as<int>(json_address, "size_byte");
+
+    memory_addr_list[name] = offset;
+    memory_size_list[name] = size;
+    LOG_DEBUG << "name: " << name << " offset: " << offset << " size: " << size;
+  }
+
+  // return memory_addr_list;
+}
 
 static int getBitWidth(mlir::Type type) {
   if (type.isa<mlir::IntegerType>()) {
@@ -72,9 +110,13 @@ struct MemoryAddressAllocationPass
     : public mlir::PassWrapper<MemoryAddressAllocationPass,
                                OperationPass<mlir::func::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MemoryAddressAllocationPass)
-
+  std::string config_path;
+  
   void runOnOperation() override {
     LOG_DEBUG << "run on operation";
+    getMemoryAddrList(config_path);
+
+
     auto f = getOperation();
 
     // Populate the worklist with the operations that need shape inference:
@@ -160,12 +202,18 @@ struct MemoryAddressAllocationPass
 
 
       address_table[memory] += size;
+      if (address_table[memory] > memory_size_list[memory]) {
+        LOG_ERROR << "Memory address overflow: " << memory;
+        std::exit(1);
+      }
     }
   }
 };
 } // namespace
 
 /// Create a Shape Inference pass.
-std::unique_ptr<mlir::Pass> mlir::cim::createMemoryAddressAllocationPass() {
-  return std::make_unique<MemoryAddressAllocationPass>();
+std::unique_ptr<mlir::Pass> mlir::cim::createMemoryAddressAllocationPass(std::string config_path) {
+  auto pass = std::make_unique<MemoryAddressAllocationPass>();
+  pass->config_path = config_path;
+  return pass;
 }
