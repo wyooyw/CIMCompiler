@@ -26,12 +26,17 @@ class LegacyParser:
     
     def _parse_inst(self, inst):
         class_ = inst.get("class", None)
+        type_ = inst.get("type", None)
         if class_ == 0b01:
             return self._parse_simd_class_inst(inst)
         elif class_ == 0b10:
             return self._parse_scalar_class_inst(inst)
-        elif class_ == 0b110:
+        elif class_ == 0b110 and type_ == 0b0:
             return self._parse_trans_class_inst(inst)
+        elif class_ == 0b110 and type_ == 0b10:
+            return self._parse_send_class_inst(inst)
+        elif class_ == 0b110 and type_ == 0b11:
+            return self._parse_recv_class_inst(inst)
         elif class_ == 0b111:
             return self._parse_control_class_inst(inst)
         elif class_ == 0b00:
@@ -105,13 +110,32 @@ class LegacyParser:
             raise ValueError(f"Unknown scalar instruction type: {type_}")
 
     def _parse_trans_class_inst(self, inst):
+        offset_mask = inst.get("offset_mask", None)
         return TransInst(
             reg_in=inst["rs1"],
             reg_out=inst["rd"],
             reg_size=inst["rs2"],
-            flag_src_offset=inst["source_offset_mask"],
-            flag_dst_offset=inst["destination_offset_mask"],
+            flag_src_offset=inst["source_offset_mask"] if (offset_mask == None) else offset_mask,
+            flag_dst_offset=inst["destination_offset_mask"] if (offset_mask == None) else offset_mask,
             offset=inst["offset"]
+        )
+
+    def _parse_send_class_inst(self, inst):
+        return SendInst(
+            reg_src_addr=inst["rs"],
+            reg_dst_addr=inst["rd2"],
+            reg_size=inst["reg_len"],
+            reg_dst_core=inst["rd1"],
+            reg_transfer_id=inst["reg_id"]
+        )
+
+    def _parse_recv_class_inst(self, inst):
+        return RecvInst(
+            reg_src_addr=inst["rs2"],
+            reg_dst_addr=inst["rd"],
+            reg_size=inst["reg_len"],
+            reg_src_core=inst["rs1"],
+            reg_transfer_id=inst["reg_id"]
         )
 
     def _parse_control_class_inst(self, inst):
@@ -171,7 +195,8 @@ class LegacyParser:
 
 if __name__ == "__main__":
     parser = LegacyParser()
-    with open("/home/wangyiou/project/cim_compiler_frontend/playground/op/dwconv2d/simd/.result/final_code.json", 'r') as file:
+    # with open("/home/wangyiou/project/cim_compiler_frontend/playground/op/dwconv2d/simd/.result/final_code.json", 'r') as file:
+    with open("/home/yingjie/Documents/Projects/CIMFlow/PolyCIM/.save/2025-04-13_10-43-21/each_core/0-old.json", 'r') as file:
         data = json.load(file)
     instructions = parser.parse(data)
     # dumper = LegacyDumper(instructions)

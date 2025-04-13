@@ -211,6 +211,24 @@ class AsmParser:
                 flag_outsum=bool("OSUM" in flags),
                 flag_outsum_move=bool("OSUM_MOVE" in flags)
             )
+        elif op_name == "SEND":
+            reg_src_addr, reg_dst_core, reg_dst_addr, reg_size, reg_transfer_id = match_asm_args(args, ['reg', 'reg', 'reg', 'reg', 'reg'])
+            return SendInst(
+                reg_src_addr=reg_src_addr,
+                reg_dst_addr=reg_dst_addr,
+                reg_size=reg_size,
+                reg_dst_core=reg_dst_core,
+                reg_transfer_id=reg_transfer_id
+            )
+        elif op_name == "RECV":
+            reg_src_core, reg_src_addr, reg_dst_addr, reg_size, reg_transfer_id = match_asm_args(args, ['reg', 'reg', 'reg', 'reg', 'reg'])
+            return RecvInst(
+                reg_dst_addr=reg_dst_addr,
+                reg_src_addr=reg_src_addr,
+                reg_size=reg_size,
+                reg_src_core=reg_src_core,
+                reg_transfer_id=reg_transfer_id
+            )
         else:
             raise ValueError(f"Unknown instruction name: {op_name}")
 

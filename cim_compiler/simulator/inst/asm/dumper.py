@@ -113,9 +113,11 @@ class AsmDumper:
                 terms.append("OSUM_MOVE")
             return f"CIM_OUT {', '.join(terms)}"
         elif isinstance(inst, SendInst):
-            return f"SEND r{inst.reg_src_addr} to r{inst.reg_dst_core}[r{inst.reg_dst_addr}], size: r{inst.reg_size}, trans-id: r{inst.reg_transfer_id}"
+            # return f"SEND r{inst.reg_src_addr} to r{inst.reg_dst_core}[r{inst.reg_dst_addr}], size: r{inst.reg_size}, trans-id: r{inst.reg_transfer_id}"
+            return f"SEND r{inst.reg_src_addr}, r{inst.reg_dst_core}, r{inst.reg_dst_addr}, r{inst.reg_size}, r{inst.reg_transfer_id}"
         elif isinstance(inst, RecvInst):
-            return f"RECV r{inst.reg_src_core}[r{inst.reg_src_addr}] to r{inst.reg_dst_addr}, size: r{inst.reg_size}, trans-id: r{inst.reg_transfer_id}"
+            # return f"RECV r{inst.reg_src_core}[r{inst.reg_src_addr}] to r{inst.reg_dst_addr}, size: r{inst.reg_size}, trans-id: r{inst.reg_transfer_id}"
+            return f"RECV r{inst.reg_src_core}, r{inst.reg_src_addr}, r{inst.reg_dst_addr}, r{inst.reg_size}, r{inst.reg_transfer_id}"
         else:
             raise ValueError(f"Unknown instruction type: {type(inst)}")
         
