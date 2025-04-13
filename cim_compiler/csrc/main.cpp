@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
   init_op_passes.addPass(cim::createFoldMemRefAliasOpsPass());
   init_op_passes.addPass(cim::createExtractAddressComputationPass());
   init_op_passes.addPass(mlir::createLowerAffinePass());
-  init_op_passes.addPass(mlir::cim::createMemoryAddressAllocationPass());
+  init_op_passes.addPass(mlir::cim::createMemoryAddressAllocationPass(configPath));
 
   mlir::PassManager unroll_passes(&context);
   unroll_passes.addPass(cim::createLoopUnrollPass());

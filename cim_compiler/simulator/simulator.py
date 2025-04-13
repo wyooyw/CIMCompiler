@@ -399,7 +399,7 @@ class Simulator:
         group_size = self.read_special_reg(SpecialReg.GROUP_SIZE)
         vcol = self.read_special_reg(SpecialReg.WEIGHT_BIT_WIDTH)
         n_vcol_per_group = self.macro_config.n_vcol(vcol) * group_size
-        return np.ones([n_vcol_per_group], dtype=bool)
+        return np.zeros([n_vcol_per_group], dtype=bool)
         
     
     def set_pimset_mask(self, mask):
