@@ -88,6 +88,15 @@ class AsmParser:
         instructions = []
         for line in data:
             line = line.strip()
+            # Skip empty lines or lines that start with a comment symbol
+            if not line or line.startswith("#"):
+                continue
+            # Optionally, remove inline comments if needed (everything after '#')
+            if "#" in line:
+                line = line.split("#", 1)[0].strip()
+                # If the line becomes empty after removing the comment, skip it.
+                if not line:
+                    continue
             if line:  # Skip empty lines
                 inst = self._parse_inst(line)
                 instructions.append(inst)

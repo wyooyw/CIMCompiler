@@ -162,25 +162,25 @@ class LegacyParser:
                 reg_input_addr=inst["rs1"],
                 reg_input_size=inst["rs2"],
                 reg_activate_row=inst["rs3"],
-                flag_accumulate=inst["accumulate"],
-                flag_value_sparse=inst["value_sparse"],
-                flag_bit_sparse=inst["bit_sparse"],
-                flag_group=inst["group"],
-                flag_group_input_mode=inst["group_input_mode"]
+                flag_accumulate=bool(inst["accumulate"]),
+                flag_value_sparse=bool(inst["value_sparse"]),
+                flag_bit_sparse=bool(inst["bit_sparse"]),
+                flag_group=bool(inst["group"]),
+                flag_group_input_mode=bool(inst["group_input_mode"])
             )
         elif type_ == 0b01:
             return CIMConfigInst(
                 reg_single_group_id=inst["rs1"],
                 reg_mask_addr=inst["rs2"],
-                flag_group_broadcast=inst["group_broadcast"]
+                flag_group_broadcast=bool(inst["group_broadcast"])
             )
         elif type_ == 0b10:
             return CIMOutputInst(
                 reg_out_n=inst["rs1"],
                 reg_out_mask_addr=inst["rs2"],
                 reg_out_addr=inst["rd"],
-                flag_outsum=inst["outsum"],
-                flag_outsum_move=inst["outsum_move"]
+                flag_outsum=bool(inst["outsum"]),
+                flag_outsum_move=bool(inst["outsum_move"])
             )
         elif type_ == 0b11:
             return CIMTransferInst(

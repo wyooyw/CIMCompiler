@@ -19,12 +19,15 @@ class AsmDumper:
         return data
 
     def dump_str(self, instructions, core_id=None):
-        data = self.dump(instructions)
-        return "\n".join(data)
+        data = []
+        if core_id is not None:
+            data.append(f"# Core {core_id}")
+        data.extend(self.dump(instructions))
+        return "\n".join(data) + "\n\n"
 
     def dump_to_file(self, instructions, file_path, core_id=None):
-        with open(file_path, 'w') as file:
-            data_str = self.dump_str(instructions)
+        with open(file_path, 'a') as file:
+            data_str = self.dump_str(instructions, core_id)
             file.write(data_str)
 
     def _arith_funct_to_name(self, funct, is_ri=False):
