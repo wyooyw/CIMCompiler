@@ -42,21 +42,47 @@ def run_convert(args):
 
     data, src_type = uniform_parse_code(args.src_type, args.src_file)
 
-    if args.filter_out_invalid_instructions:
-        data = filter_invalid_instructions(data)
-
     dumper_classes = {
         "legacy": LegacyDumper,
         "asm": AsmDumper,
         "cimflow": CIMFlowDumper
     }
     dumper = dumper_classes[args.dst_type]()
-    if args.add_single_core_id:
-        # if args.dst_type == "asm":
-        #     raise ValueError("ASM does not support adding core id.")
-        dumper.dump_to_file(data, args.dst_file, core_id=0)
+
+    if isinstance(data, dict) and len(data) > 1:
+        # Open the output file once, overwriting any existing content.
+        with open(args.dst_file, "w") as outf:
+            if args.dst_type != "asm":
+                outf.write("{\n")
+            # For legacy or cimflow, we need to write the core_id as the key.
+            # For asm, we need to write the core_id as a comment line.
+            keys = sorted(data.keys())
+            for i, core_id in enumerate(keys):
+                instructions = data[core_id]
+                if args.filter_out_invalid_instructions:
+                    instructions = filter_invalid_instructions(instructions)
+                # For ASM, add a header comment line for each core.
+                if args.dst_type == "asm":
+                    dump_str = dumper.dump_str(instructions, core_id)
+                else:
+                    # For legacy or cimflow, the dumper can take a core_id argument.
+                    dump_str = dumper.dump_str(instructions, core_id=core_id, curly=False)
+                    if i < len(keys) - 1:
+                        dump_str = dump_str[:-1] + ",\n"
+                outf.write(dump_str)
+            if args.dst_type != "asm":
+                outf.write("}\n")
     else:
-        dumper.dump_to_file(data, args.dst_file)
+        if isinstance(data, dict):
+            data = list(data.values())[0]
+        if args.filter_out_invalid_instructions:
+            data = filter_invalid_instructions(data)
+        with open(args.dst_file, "w") as outf:
+            outf.write("")
+        if args.add_single_core_id:
+            dumper.dump_to_file(data, args.dst_file, core_id=0)
+        else:
+            dumper.dump_to_file(data, args.dst_file)
         
     logger.info("Convert done.")
 
@@ -82,3 +108,19 @@ def filter_invalid_instructions(instructions):
         else:
             new_instructions.append(inst)
     return new_instructions
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Convert between different instruction formats.",
+        epilog="Example usage:\npython convert.py convert --src-type asm --dst-type legacy --src-file input.asm --dst-file output.json"
+    )
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    parse_convert_args(subparsers)
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        exit(1)
+        
+    run_convert(args)

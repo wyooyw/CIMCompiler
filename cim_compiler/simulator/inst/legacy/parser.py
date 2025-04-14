@@ -26,12 +26,17 @@ class LegacyParser:
     
     def _parse_inst(self, inst):
         class_ = inst.get("class", None)
+        type_ = inst.get("type", None)
         if class_ == 0b01:
             return self._parse_simd_class_inst(inst)
         elif class_ == 0b10:
             return self._parse_scalar_class_inst(inst)
-        elif class_ == 0b110:
+        elif class_ == 0b110 and type_ == 0b0:
             return self._parse_trans_class_inst(inst)
+        elif class_ == 0b110 and type_ == 0b10:
+            return self._parse_send_class_inst(inst)
+        elif class_ == 0b110 and type_ == 0b11:
+            return self._parse_recv_class_inst(inst)
         elif class_ == 0b111:
             return self._parse_control_class_inst(inst)
         elif class_ == 0b00:
@@ -105,13 +110,31 @@ class LegacyParser:
             raise ValueError(f"Unknown scalar instruction type: {type_}")
 
     def _parse_trans_class_inst(self, inst):
+        offset_mask = inst.get("offset_mask", None)
         return TransInst(
             reg_in=inst["rs1"],
             reg_out=inst["rd"],
             reg_size=inst["rs2"],
-            flag_src_offset=inst["source_offset_mask"],
-            flag_dst_offset=inst["destination_offset_mask"],
-            offset=inst["offset"]
+            flag_src_offset=inst["source_offset_mask"] if (offset_mask is None) else offset_mask,
+            flag_dst_offset=inst["destination_offset_mask"] if (offset_mask is None) else offset_mask,
+        )
+
+    def _parse_send_class_inst(self, inst):
+        return SendInst(
+            reg_src_addr=inst["rs"],
+            reg_dst_addr=inst["rd2"],
+            reg_size=inst["reg_len"],
+            reg_dst_core=inst["rd1"],
+            reg_transfer_id=inst["reg_id"]
+        )
+
+    def _parse_recv_class_inst(self, inst):
+        return RecvInst(
+            reg_src_addr=inst["rs2"],
+            reg_dst_addr=inst["rd"],
+            reg_size=inst["reg_len"],
+            reg_src_core=inst["rs1"],
+            reg_transfer_id=inst["reg_id"]
         )
 
     def _parse_control_class_inst(self, inst):
@@ -138,25 +161,25 @@ class LegacyParser:
                 reg_input_addr=inst["rs1"],
                 reg_input_size=inst["rs2"],
                 reg_activate_row=inst["rs3"],
-                flag_accumulate=inst["accumulate"],
-                flag_value_sparse=inst["value_sparse"],
-                flag_bit_sparse=inst["bit_sparse"],
-                flag_group=inst["group"],
-                flag_group_input_mode=inst["group_input_mode"]
+                flag_accumulate=bool(inst["accumulate"]),
+                flag_value_sparse=bool(inst["value_sparse"]),
+                flag_bit_sparse=bool(inst["bit_sparse"]),
+                flag_group=bool(inst["group"]),
+                flag_group_input_mode=bool(inst["group_input_mode"])
             )
         elif type_ == 0b01:
             return CIMConfigInst(
                 reg_single_group_id=inst["rs1"],
                 reg_mask_addr=inst["rs2"],
-                flag_group_broadcast=inst["group_broadcast"]
+                flag_group_broadcast=bool(inst["group_broadcast"])
             )
         elif type_ == 0b10:
             return CIMOutputInst(
                 reg_out_n=inst["rs1"],
                 reg_out_mask_addr=inst["rs2"],
                 reg_out_addr=inst["rd"],
-                flag_outsum=inst["outsum"],
-                flag_outsum_move=inst["outsum_move"]
+                flag_outsum=bool(inst["outsum"]),
+                flag_outsum_move=bool(inst["outsum_move"])
             )
         elif type_ == 0b11:
             return CIMTransferInst(
@@ -171,7 +194,8 @@ class LegacyParser:
 
 if __name__ == "__main__":
     parser = LegacyParser()
-    with open("/home/wangyiou/project/cim_compiler_frontend/playground/op/dwconv2d/simd/.result/final_code.json", 'r') as file:
+    # with open("/home/wangyiou/project/cim_compiler_frontend/playground/op/dwconv2d/simd/.result/final_code.json", 'r') as file:
+    with open("/home/yingjie/Documents/Projects/CIMFlow/PolyCIM/.save/2025-04-13_10-43-21/each_core/0-old.json", 'r') as file:
         data = json.load(file)
     instructions = parser.parse(data)
     # dumper = LegacyDumper(instructions)

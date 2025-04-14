@@ -19,12 +19,15 @@ class AsmDumper:
         return data
 
     def dump_str(self, instructions, core_id=None):
-        data = self.dump(instructions)
-        return "\n".join(data)
+        data = []
+        if core_id is not None:
+            data.append(f"# Core {core_id}")
+        data.extend(self.dump(instructions))
+        return "\n".join(data) + "\n\n"
 
     def dump_to_file(self, instructions, file_path, core_id=None):
-        with open(file_path, 'w') as file:
-            data_str = self.dump_str(instructions)
+        with open(file_path, 'a') as file:
+            data_str = self.dump_str(instructions, core_id)
             file.write(data_str)
 
     def _arith_funct_to_name(self, funct, is_ri=False):
@@ -113,9 +116,11 @@ class AsmDumper:
                 terms.append("OSUM_MOVE")
             return f"CIM_OUT {', '.join(terms)}"
         elif isinstance(inst, SendInst):
-            return f"SEND r{inst.reg_src_addr} to r{inst.reg_dst_core}[r{inst.reg_dst_addr}], size: r{inst.reg_size}, trans-id: r{inst.reg_transfer_id}"
+            # return f"SEND r{inst.reg_src_addr} to r{inst.reg_dst_core}[r{inst.reg_dst_addr}], size: r{inst.reg_size}, trans-id: r{inst.reg_transfer_id}"
+            return f"SEND r{inst.reg_src_addr}, r{inst.reg_dst_core}, r{inst.reg_dst_addr}, r{inst.reg_size}, r{inst.reg_transfer_id}"
         elif isinstance(inst, RecvInst):
-            return f"RECV r{inst.reg_src_core}[r{inst.reg_src_addr}] to r{inst.reg_dst_addr}, size: r{inst.reg_size}, trans-id: r{inst.reg_transfer_id}"
+            # return f"RECV r{inst.reg_src_core}[r{inst.reg_src_addr}] to r{inst.reg_dst_addr}, size: r{inst.reg_size}, trans-id: r{inst.reg_transfer_id}"
+            return f"RECV r{inst.reg_src_core}, r{inst.reg_src_addr}, r{inst.reg_dst_addr}, r{inst.reg_size}, r{inst.reg_transfer_id}"
         else:
             raise ValueError(f"Unknown instruction type: {type(inst)}")
         
