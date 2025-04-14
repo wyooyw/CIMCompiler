@@ -115,9 +115,8 @@ class LegacyParser:
             reg_in=inst["rs1"],
             reg_out=inst["rd"],
             reg_size=inst["rs2"],
-            flag_src_offset=inst["source_offset_mask"] if (offset_mask == None) else offset_mask,
-            flag_dst_offset=inst["destination_offset_mask"] if (offset_mask == None) else offset_mask,
-            offset=inst["offset"]
+            flag_src_offset=inst["source_offset_mask"] if (offset_mask is None) else offset_mask,
+            flag_dst_offset=inst["destination_offset_mask"] if (offset_mask is None) else offset_mask,
         )
 
     def _parse_send_class_inst(self, inst):
