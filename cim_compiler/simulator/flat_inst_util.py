@@ -5,6 +5,7 @@ from enum import Enum
 
 import numpy as np
 from cim_compiler.simulator.inst.instruction import *
+from cim_compiler.simulator.inst import CIMFlowDumper
 
 class SpecialReg(Enum):
 
@@ -75,6 +76,34 @@ class FlatInstUtil:
                     self._li_general_inst(reg, self.general_rf[reg])
                 )
 
+    def _load_general_regs_local(self, inst, regs_name, idx):
+        """
+        通用寄存器立即数赋值指令：general-li
+        指令字段划分：
+        - [31, 30]，2bit：class，指令类别码，值为10
+        - [29, 28]，2bit：type，指令类型码，值为11
+        - [27, 26]，2bit：opcode，指令操作码，值为00
+        - [25, 21]，5bit：rd，通用寄存器编号，即要赋值的通用寄存器
+        - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
+        """
+        assert type(regs_name) == list, str(regs_name)
+        assert all(isinstance(reg_name, str) for reg_name in regs_name), str(regs_name)
+        inst = copy.deepcopy(inst)
+        # assert type(regs) == list
+        for idx,reg_name in enumerate(regs_name):
+            reg_id = getattr(inst, reg_name)
+            reg_val = self.general_rf[reg_id]
+            self.flat_inst_list.append(
+                self._li_general_inst(idx, reg_val)
+            )
+            setattr(inst, reg_name, idx)
+            # if not self.flat_general_rf[reg] == self.general_rf[reg]:
+            #     self.flat_general_rf[reg] = self.general_rf[reg]
+            #     self.flat_inst_list.append(
+            #         self._li_general_inst(reg, self.general_rf[reg])
+            #     )
+        return inst
+
     def _load_special_regs(self, regs):
         """
         专用寄存器立即数赋值指令：special-li
@@ -130,11 +159,11 @@ class FlatInstUtil:
             ), f"Unsupported instruction type: {type(inst)}"
 
     def _flat_trans(self, inst, idx):
-        self._load_general_regs(inst, [inst.reg_in, inst.reg_size, inst.reg_out], idx)
+        inst = self._load_general_regs_local(inst, ["reg_in", "reg_size", "reg_out"], idx)
         self.flat_inst_list.append(inst)
 
     def _flat_pim_compute(self, inst, idx):
-        self._load_general_regs(inst, [inst.reg_input_addr, inst.reg_input_size, inst.reg_activate_row], idx)
+        inst = self._load_general_regs_local(inst, ["reg_input_addr", "reg_input_size", "reg_activate_row"], idx)
         self._load_special_regs(
             [
                 SpecialReg.INPUT_BIT_WIDTH,
@@ -151,12 +180,12 @@ class FlatInstUtil:
         self.flat_inst_list.append(inst)
 
     def _flat_pim_set(self, inst, idx):
-        self._load_general_regs(inst, [inst.reg_single_group_id, inst.reg_mask_addr], idx)
+        inst = self._load_general_regs_local(inst, ["reg_single_group_id", "reg_mask_addr"], idx)
         self._load_special_regs([SpecialReg.WEIGHT_BIT_WIDTH, SpecialReg.GROUP_SIZE])
         self.flat_inst_list.append(inst)
 
     def _flat_simd(self, inst, idx):
-        self._load_general_regs(inst, [inst.reg_in1, inst.reg_in2, inst.reg_size, inst.reg_out], idx)
+        inst = self._load_general_regs_local(inst, ["reg_in1", "reg_in2", "reg_size", "reg_out"], idx)
         self._load_special_regs(
             [
                 SpecialReg.SIMD_INPUT_1_BIT_WIDTH,
@@ -171,15 +200,15 @@ class FlatInstUtil:
         self.flat_inst_list.append(inst)
 
     def _flat_send(self, inst, idx):
-        self._load_general_regs(inst, [inst.reg_src_addr, inst.reg_size, inst.reg_dst_core, inst.reg_dst_addr, inst.reg_transfer_id], idx)
+        inst = self._load_general_regs_local(inst, ["reg_src_addr", "reg_size", "reg_dst_core", "reg_dst_addr", "reg_transfer_id"], idx)
         self.flat_inst_list.append(inst)
 
     def _flat_recv(self, inst, idx):
-        self._load_general_regs(inst, [inst.reg_dst_addr, inst.reg_size, inst.reg_src_core, inst.reg_src_addr, inst.reg_transfer_id], idx)
+        inst = self._load_general_regs_local(inst, ["reg_dst_addr", "reg_size", "reg_src_core", "reg_src_addr", "reg_transfer_id"], idx)
         self.flat_inst_list.append(inst)
 
     def _flat_pim_output(self, inst, idx):
-        self._load_general_regs(inst, [inst.reg_out_n, inst.reg_out_mask_addr, inst.reg_out_addr], idx)
+        inst = self._load_general_regs_local(inst, ["reg_out_n", "reg_out_mask_addr", "reg_out_addr"], idx)
         self._load_special_regs(
             [
                 SpecialReg.WEIGHT_BIT_WIDTH,
@@ -191,23 +220,26 @@ class FlatInstUtil:
         self.flat_inst_list.append(inst)
 
     def _flat_pim_transfer(self, inst, idx):
-        self._load_general_regs(inst, [inst.reg_src_addr, inst.reg_out_n, inst.reg_out_mask_addr, inst.reg_buffer_addr, inst.reg_dst_addr], idx)
+        inst = self._load_general_regs_local(inst, ["reg_src_addr", "reg_out_n", "reg_out_mask_addr", "reg_buffer_addr", "reg_dst_addr"], idx)
         self._load_special_regs([SpecialReg.OUTPUT_BIT_WIDTH])
         self.flat_inst_list.append(inst)
 
     def dump(self, out_dir):
         file_path = os.path.join(out_dir, "flat_code.json")
-        with open(file_path, "w") as f:
-            f.write("[\n")
-            for i, inst in enumerate(self.flat_inst_list):
-                # print(i, inst)
-                # for key,valye in inst.items():
-                #     print(key, valye, type(valye))
-                # str_inst = json.dumps(inst)
-                str_inst = str(inst)
-                f.write(str_inst)
-                if i < len(self.flat_inst_list) - 1:
-                    f.write(",")
-                f.write("\n")
-            f.write("]\n")
+        # with open(file_path, "w") as f:
+        #     f.write("[\n")
+            
+        #     for i, inst in enumerate(self.flat_inst_list):
+        #         # print(i, inst)
+        #         # for key,valye in inst.items():
+        #         #     print(key, valye, type(valye))
+        #         # str_inst = json.dumps(inst)
+        #         str_inst = str(inst)
+        #         f.write(str_inst)
+        #         if i < len(self.flat_inst_list) - 1:
+        #             f.write(",")
+        #         f.write("\n")
+        #     f.write("]\n")
+        dumper = CIMFlowDumper()
+        dumper.dump_to_file(self.flat_inst_list, file_path, core_id=0)
         print("Flatten code saved to", file_path)
