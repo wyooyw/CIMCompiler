@@ -1,15 +1,13 @@
 import json
 import os
 import subprocess
-from functools import partial
-from test.simulator.utils import InstUtil
 
 import numpy as np
 import pytest
 
-from simulator.macro_utils import MacroConfig
-from simulator.mask_utils import MaskConfig
-from simulator.simulator import Memory, MemorySpace, Simulator, SpecialReg
+from cim_compiler.simulator.macro_utils import MacroConfig
+from cim_compiler.simulator.mask_utils import MaskConfig
+from cim_compiler.simulator.simulator import Memory, MemorySpace, Simulator, SpecialReg
 from cim_compiler.utils.bit_sparse_weight_transform import (
     argsort_filters_threshold,
     find_nonzero_filter,
@@ -17,7 +15,8 @@ from cim_compiler.utils.bit_sparse_weight_transform import (
 from cim_compiler.utils.predict_pimcompute_count import predict_pimcompute_count_for_conv2d_dense
 from cim_compiler.utils.round import banker_round
 import subprocess
-
+from cim_compiler.simulator.inst import CIMFlowParser
+import tempfile
 class Operator:
     def __init__(self, config_path, template_path, op_config):
         self.config_path = config_path
@@ -50,44 +49,45 @@ class Operator:
         assert os.path.isdir(case_dir), f"{case_dir} is not a directory"
 
         # Prepare path
-        input_template_path = os.path.join(case_dir, "code_template.cim")
-        input_path = os.path.join(case_dir, "code.cim")
-        test_helper_path = os.path.join(case_dir, "helper.py")
-        assert os.path.exists(input_template_path), f"{input_template_path} not exists"
-        assert os.path.exists(test_helper_path), f"{test_helper_path} not exists"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_template_path = os.path.join(case_dir, "code_template.cim")
+            input_path = os.path.join(temp_dir, "code.cim")
+            test_helper_path = os.path.join(case_dir, "helper.py")
+            assert os.path.exists(input_template_path), f"{input_template_path} not exists"
+            assert os.path.exists(test_helper_path), f"{test_helper_path} not exists"
 
-        # output_dir = os.path.join(case_dir, ".result")
-        os.makedirs(code_dir, exist_ok=True)
+            # output_dir = os.path.join(case_dir, ".result")
+            os.makedirs(code_dir, exist_ok=True)
 
-        # If there is already files in .result, remove them, to make sure not execute old codes.
-        for filename in os.listdir(code_dir):
-            file_path = os.path.join(code_dir, filename)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-        # return
+            # If there is already files in .result, remove them, to make sure not execute old codes.
+            for filename in os.listdir(code_dir):
+                file_path = os.path.join(code_dir, filename)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            # return
 
-        # load image
-        image = self.helper.get_image(self.simulator, **image_kwargs)
-        global_memory_base = self.simulator.memory_space.get_base_of("global")
-        self.simulator.memory_space.write(image, global_memory_base, len(image))
-        with open(os.path.join(code_dir, "global_image"), "wb") as file:
-            file.write(image)
+            # load image
+            image = self.helper.get_image(self.simulator, **image_kwargs)
+            global_memory_base = self.simulator.memory_space.get_base_of("global")
+            self.simulator.memory_space.write(image, global_memory_base, len(image))
+            with open(os.path.join(code_dir, "global_image"), "wb") as file:
+                file.write(image)
 
-        # fill code template
-        self.helper.fill_template(input_template_path, input_path, self.simulator)
-        # return
+            # fill code template
+            self.helper.fill_template(input_template_path, input_path, self.simulator)
+            # return
 
-        # register debug hook
-        # self.simulator.debug_hook = partial(debug_hook, helper=helper)
+            # register debug hook
+            # self.simulator.debug_hook = partial(debug_hook, helper=helper)
 
-        # run compiler
-        # use CLI to call compile
-        subprocess.run([
-            "python", "cim_compiler/cli/main.py", "compile",
-            "--input-file", input_path,
-            "--output-dir", code_dir,
-            "--config-file", self.config_path
-        ], check=True)
+            # run compiler
+            # use CLI to call compile
+            subprocess.run([
+                "python", "cim_compiler/cli/main.py", "compile",
+                "--input-file", input_path,
+                "--output-dir", code_dir,
+                "--config-file", self.config_path
+            ], check=True)
         
         return image
 
@@ -107,6 +107,9 @@ class Operator:
         else:
             pimcompute_count = None
         print(f"{pimcompute_count=}")
+
+        cimflow_parser = CIMFlowParser()
+        code = cimflow_parser.parse(code)
 
         status, stats, flat = self.simulator.run_code(
             code, total_pim_compute_count=pimcompute_count
