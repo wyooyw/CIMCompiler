@@ -16,7 +16,7 @@ class CIMFlowParser:
 
         if isinstance(data, dict):
             assert len(data.keys()) == 1
-            data = data.values()[0]
+            data = list(data.values())[0]
         
         instructions = []
         for item in data:
