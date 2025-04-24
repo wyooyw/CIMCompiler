@@ -113,6 +113,7 @@ class AttnDecodeCPConfig(SIMDOpConfig, AttnDecodeConfig):
     ],
 )
 def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
+    check_result = os.environ["CHECK_RESULT"] == "1"
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp.cim")
     cim_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
@@ -179,27 +180,28 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
             ])
             outputs.append([output[tp_rank, cp_rank]])
 
-    op_runner.run(inputs, outputs)
+    op_runner.run(inputs, outputs, simulate=check_result)
 
     # print(f"{output=}")
     # print(f"{golden=}")
     # 设置相对误差和绝对误差阈值
-    rtol = 1e-2  # 相对误差：0.1%
-    atol = 1e-2  # 绝对误差：0.001
-    for tp_rank in range(tp_size):
-        for cp_rank in range(cp_group_size):
-            rank = tp_rank * cp_group_size + cp_rank
-            allclose = np.allclose(outputs[rank][0], golden[tp_rank], rtol=rtol, atol=atol)
-            # print("")
-            # print(f"{tp_rank=}, {cp_rank=}, {allclose=}")
-            # print(outputs[rank][0])
-            
-            assert allclose, f"{outputs[rank][0]=} {golden[tp_rank]=}"
+    if check_result:
+        rtol = 1e-2  # 相对误差：0.1%
+        atol = 1e-2  # 绝对误差：0.001
+        for tp_rank in range(tp_size):
+            for cp_rank in range(cp_group_size):
+                rank = tp_rank * cp_group_size + cp_rank
+                allclose = np.allclose(outputs[rank][0], golden[tp_rank], rtol=rtol, atol=atol)
+                # print("")
+                # print(f"{tp_rank=}, {cp_rank=}, {allclose=}")
+                # print(outputs[rank][0])
+                
+                assert allclose, f"{outputs[rank][0]=} {golden[tp_rank]=}"
 
 if __name__=="__main__":
     test_attn_decode_cp(
-        head_hidden=128, 
-        seqlen=4096,
-        world_size=32,
-        cp_group_size=1,
+        head_hidden=int(os.environ["ATTN_HEAD_HIDDEN"]), 
+        seqlen=int(os.environ["ATTN_SEQLEN"]),
+        world_size=int(os.environ["ATTN_WORLD_SIZE"]),
+        cp_group_size=int(os.environ["ATTN_CP_GROUP_SIZE"]),
     )
