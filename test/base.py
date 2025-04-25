@@ -17,6 +17,8 @@ class OpRunner:
     def run(self, input_list:list[np.ndarray], output_list:list[np.ndarray]):
         
         with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_dir = os.environ.get("CIM_COMPILER_OUTPUT_DIR", tmp_dir)
+            os.makedirs(tmp_dir, exist_ok=True)
             # tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
             op_code_path = os.path.join(tmp_dir, "op_code.cim")
             final_code_dir = os.path.join(tmp_dir, "compiler_output")
