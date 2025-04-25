@@ -20,6 +20,7 @@ from cim_compiler.utils.round import banker_round
 from cim_compiler.simulator.inst.instruction import *
 from cim_compiler.simulator.inst import LegacyParser, CIMFlowParser
 from cim_compiler.utils.logger import get_logger
+from cim_compiler.simulator.reduce_util import ReduceSumUtil, ReduceSumConfig
 
 logger = get_logger(__name__)
 
@@ -354,6 +355,7 @@ class Simulator:
         memory_space,
         macro_config,
         mask_config,
+        reduce_sum_config,
         safe_time=999999999,
         mask_memory_name="mask",
     ):
@@ -363,6 +365,7 @@ class Simulator:
         self.memory_space = memory_space
         self.macro_config = macro_config
         self.mask_config = mask_config
+        self.reduce_sum_config = reduce_sum_config
         self.macro_util = MacroUtil(self.memory_space.get_macro_memory(), macro_config)
         self.mask_util = MaskUtil(
             self.memory_space.get_memory_by_name(mask_memory_name),
@@ -372,6 +375,9 @@ class Simulator:
         self.meta_util = MetaUtil(
             self.memory_space.get_memory_by_name("pim_meta_data_reg_buffer"),
             macro_config,
+        )
+        self.reduce_sum_util = ReduceSumUtil(
+            self.reduce_sum_config
         )
         self.jump_offset = None
         self.safe_time = safe_time
@@ -438,15 +444,17 @@ class Simulator:
         memory_space = MemorySpace.from_memory_config(config_path)
         macro_config = MacroConfig.from_config(config_path)
         mask_config = MaskConfig.from_config(config_path)
+        reduce_sum_config = ReduceSumConfig.from_config(config_path)
         if "mask_memory_name" in config:
             return cls(
                 memory_space,
                 macro_config,
                 mask_config,
+                reduce_sum_config,
                 mask_memory_name=config["mask_memory_name"],
             )
         else:
-            return cls(memory_space, macro_config, mask_config)
+            return cls(memory_space, macro_config, mask_config, reduce_sum_config)
 
     def clear(self):
         self.memory_space.clear()
@@ -1567,7 +1575,8 @@ class Simulator:
             output_data = np.max(input_data.astype(output_dtype)).reshape(-1)
         elif inst.opcode == 13:
             # reduce sum
-            output_data = np.sum(input_data.astype(output_dtype)).reshape(-1)
+            # output_data = np.sum(input_data.astype(output_dtype)).reshape(-1)
+            output_data = self.reduce_sum_util.reduce_sum(input_data)
         else:
             assert False, f"Not support: {inst.opcode=}"
 
