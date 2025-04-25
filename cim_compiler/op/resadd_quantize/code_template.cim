@@ -3,15 +3,14 @@
 
 // input
 #define INPUT_SIZE {{ INPUT_SIZE }}
-
+#define BUFFER_SIZE 4096
 def main(){
     // inputs
     global_input_1 = Buffer(<INPUT_SIZE>, int8, __GLOBAL__);
     global_input_2 = Buffer(<INPUT_SIZE>, int8, __GLOBAL__);
-    local_input_1 = Buffer(<INPUT_SIZE>, int8, __INPUT_MEMORY__);
-    local_input_2 = Buffer(<INPUT_SIZE>, int8, __INPUT_MEMORY__);
-    Trans(global_input_1, local_input_1);
-    Trans(global_input_2, local_input_2);
+    local_input_1 = Buffer(<BUFFER_SIZE>, int8, __INPUT_MEMORY__);
+    local_input_2 = Buffer(<BUFFER_SIZE>, int8, __INPUT_MEMORY__);
+    
 
     // prepare quantify buffers
     global_bias_scale = Buffer(<4>, int32, __GLOBAL__);
@@ -22,7 +21,7 @@ def main(){
     Trans(global_out_zp, local_out_zp);
 
     global_output = Buffer(<INPUT_SIZE>, int8, __GLOBAL__);
-    local_output = Buffer(<INPUT_SIZE>, int8, __OUTPUT_MEMORY__);
+    local_output = Buffer(<BUFFER_SIZE>, int8, __OUTPUT_MEMORY__);
 
     // TODO: Add 'SPECIAL_REG_' prefix for these macro.
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8); // input 1
@@ -35,7 +34,16 @@ def main(){
     // local_input_2: rs2
     // local_bias_scale: extra reg 1
     // local_out_zp: extra reg 2
-    SIMD(RESADD_QUANTIZE, local_input_1, local_input_2, local_bias_scale, local_out_zp, local_output);
-    Trans(local_output, global_output);
+    @unroll
+    for i in range(0, INPUT_SIZE, BUFFER_SIZE) carry (){
+        use_global_input_1 = global_input_1[i:Min(i+BUFFER_SIZE, INPUT_SIZE)];
+        use_global_input_2 = global_input_2[i:Min(i+BUFFER_SIZE, INPUT_SIZE)];
+        use_global_output = global_output[i:Min(i+BUFFER_SIZE, INPUT_SIZE)];
+        Trans(use_global_input_1, local_input_1);
+        Trans(use_global_input_2, local_input_2);
+        SIMD(RESADD_QUANTIZE, local_input_1, local_input_2, local_bias_scale, local_out_zp, local_output);
+        Trans(local_output, use_global_output);
+    }
+    // Trans(local_output, global_output);
 
 }

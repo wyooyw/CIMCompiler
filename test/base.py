@@ -123,7 +123,7 @@ class SPMDOpRunner(OpRunner):
         self.compile(op_code_path, final_code_dir)
         self.make_image(input_list, image_path)
 
-    def run(self, input_list:list[list[np.ndarray]], output_list:list[list[np.ndarray]]):
+    def run(self, input_list:list[list[np.ndarray]], output_list:list[list[np.ndarray]], simulate:bool=True):
         assert len(input_list) == len(output_list) == self.num_cores, f"{len(input_list)=}, {len(output_list)=}, {self.num_cores=}"
         assert all(len(input_list[i]) == len(input_list[0]) for i in range(self.num_cores))
         assert all(len(output_list[i]) == len(output_list[0]) for i in range(self.num_cores))
@@ -142,16 +142,17 @@ class SPMDOpRunner(OpRunner):
             for p in processes:
                 p.join()
             
-            core_tmp_dir = os.path.join(tmp_dir, "{core_id}")
-            final_code_dir = os.path.join(core_tmp_dir, "compiler_output")
-            simulator_output_dir = os.path.join(core_tmp_dir, "simulator_output")
-            image_path = os.path.join(core_tmp_dir, "image.bin")
-            self.simulate(image_path, final_code_dir, simulator_output_dir)
-
-            for core_id in range(self.num_cores):
-                core_tmp_dir = os.path.join(tmp_dir, str(core_id))
+            if simulate:
+                core_tmp_dir = os.path.join(tmp_dir, "{core_id}")
+                final_code_dir = os.path.join(core_tmp_dir, "compiler_output")
                 simulator_output_dir = os.path.join(core_tmp_dir, "simulator_output")
-                self.get_output(simulator_output_dir, input_list[core_id], output_list[core_id])
+                image_path = os.path.join(core_tmp_dir, "image.bin")
+                self.simulate(image_path, final_code_dir, simulator_output_dir)
+
+                for core_id in range(self.num_cores):
+                    core_tmp_dir = os.path.join(tmp_dir, str(core_id))
+                    simulator_output_dir = os.path.join(core_tmp_dir, "simulator_output")
+                    self.get_output(simulator_output_dir, input_list[core_id], output_list[core_id])
 
     def simulate(self, image_path:str, final_code_dir:str, simulator_output_dir:str):
         subprocess.run([

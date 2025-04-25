@@ -408,7 +408,17 @@ static std::vector<Value> _getMacroActivatePositionBySubview(
   Value activate_macro_length ;
   Value activate_element_col_num ;
   // get activate row
-  if (allocShapes.size() == 5) {
+  
+  if (allocShapes.size() > 5) {
+    // [row, comp, group, ..., group, vcol]
+    activate_row_begin = getValue(offsets[0], rewriter);
+    activate_group_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
+    for (int i = 2; i < allocShapes.size() - 1; i++) {
+      activate_group_num = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(),
+                                                   activate_group_num, getValue(shapes[i], rewriter));
+    }
+    activate_element_col_num = getValue(shapes[allocShapes.size() - 1], rewriter);
+  }else if (allocShapes.size() == 5) {
       activate_row_begin = getValue(offsets[0], rewriter);
       Value activate_outer_group_num = getValue(shapes[2], rewriter);
       Value activate_inner_group_num = getValue(shapes[3], rewriter);
@@ -453,7 +463,16 @@ static std::vector<Value> _getMacroActivatePositionByAlloc(
   Value activate_macro_length ;
   Value activate_element_col_num ;
   // get activate row
-  if (allocShapes.size() == 5) {
+  if (allocShapes.size() > 5) {
+    // [row, comp, group, ..., group, vcol]
+    activate_row_begin = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 0);
+    activate_group_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
+    for (int i = 2; i < allocShapes.size() - 1; i++) {
+      activate_group_num = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(),
+                                                   activate_group_num, rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[i]));
+    }
+    activate_element_col_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[allocShapes.size() - 1]);
+  }else if (allocShapes.size() == 5) {
       activate_row_begin = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 0);
       activate_group_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[2] * allocShapes[3]);
       // activate_macro_length = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[3]);

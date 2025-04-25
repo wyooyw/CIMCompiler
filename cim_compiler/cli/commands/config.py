@@ -15,6 +15,7 @@ def parse_config_args(subparsers):
     parser = subparsers.add_parser('config')
     parser.add_argument("--config-template-path", "-i", type=str, help="config template path")
     parser.add_argument("--config-output-path", "-o", type=str, help="config output path")
+    parser.add_argument("--yes", action="store_true", default=False, help="yes")
 
 def calculate_macro_size_byte(config):
     """
@@ -63,7 +64,7 @@ def run_config(args):
         last_end += addressing["size_byte"]
     
     # check if config file already exists
-    if os.path.exists(args.config_output_path):
+    if os.path.exists(args.config_output_path) and (not args.yes):
         make_sure = input(
             f"\nConfig file already exists ({args.config_output_path}).\n Do you want to overwrite it? (y/n)"
         )

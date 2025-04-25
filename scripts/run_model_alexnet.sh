@@ -10,13 +10,15 @@ model_path_value_sparse="${CIM_COMPILER_BASE}/models/alexnet/AlexNet_0.6_csd_th2
 model_path_value_bit_sparse_0_6="${CIM_COMPILER_BASE}/models/alexnet/AlexNet_0.6_csd_th2_data_0522"
 model_path_value_bit_sparse_0_4="${CIM_COMPILER_BASE}/models/alexnet/AlexNet_0.4_csd_th2_data_0522"
 model_path_value_bit_sparse_0_2="${CIM_COMPILER_BASE}/models/alexnet/AlexNet_0.2_csd_th2_data_0709"
-quantify=true
+quantify="true"
 
-python engine/model_runner.py \
+python cim_compiler/engine/model_runner.py \
 --model_name $model_name \
+--quantify $quantify \
 --model_path_value_sparse $model_path_value_sparse \
---quantify $quantify
+--model_path_value_bit_sparse_0_6 $model_path_value_bit_sparse_0_6 \
 
+# --model_path_bit_sparse $model_path_bit_sparse \
 # python engine/model_runner.py \
 # --model_name $model_name \
 # --model_path_dense $model_path_dense \

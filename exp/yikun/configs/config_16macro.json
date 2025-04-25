@@ -1,6 +1,6 @@
 {
     "macro": {
-        "n_macro": 32,
+        "n_macro": 16,
         "n_row": 16,
         "n_comp": 16,
         "n_bcol": 16,
@@ -17,7 +17,7 @@
             "type": "macro",
             "addressing": {
                 "offset_byte": 0,
-                "size_byte": 16384,
+                "size_byte": 8192,
                 "comments": "offset: 0 Byte, size: 128 * 1024 Byte"
             }
         },
@@ -27,7 +27,7 @@
             "addressing": {
                 "size_byte": 8192,
                 "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
-                "offset_byte": 16384
+                "offset_byte": 8192
             }
         },
         {
@@ -36,7 +36,7 @@
             "addressing": {
                 "size_byte": 512,
                 "comments": "",
-                "offset_byte": 24576
+                "offset_byte": 16384
             }
         },
         {
@@ -45,7 +45,7 @@
             "addressing": {
                 "size_byte": 512,
                 "comments": "",
-                "offset_byte": 25088
+                "offset_byte": 16896
             }
         },
         {
@@ -54,7 +54,7 @@
             "addressing": {
                 "size_byte": 131072,
                 "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
-                "offset_byte": 25600
+                "offset_byte": 17408
             }
         },
         {
@@ -63,7 +63,7 @@
             "addressing": {
                 "size_byte": 262144,
                 "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte",
-                "offset_byte": 156672
+                "offset_byte": 148480
             }
         },
         {
@@ -72,7 +72,7 @@
             "addressing": {
                 "size_byte": 1024,
                 "comments": "offset: 256 * 1024 Byte, size: 0.5 * 1024 * 2 Byte",
-                "offset_byte": 418816
+                "offset_byte": 410624
             }
         },
         {
@@ -81,7 +81,7 @@
             "addressing": {
                 "size_byte": 4096,
                 "comments": "offset: 257 * 1024 Byte, size: 4 * 1024 Byte",
-                "offset_byte": 419840
+                "offset_byte": 411648
             }
         },
         {
@@ -90,7 +90,7 @@
             "addressing": {
                 "size_byte": 98304,
                 "comments": "offset: 261 * 1024 Byte, size: 96 * 1024 Byte",
-                "offset_byte": 423936
+                "offset_byte": 415744
             }
         },
         {
@@ -99,7 +99,7 @@
             "addressing": {
                 "size_byte": 32768,
                 "comments": "offset: 357 * 1024 Byte, size: 16 * 1024 Byte",
-                "offset_byte": 522240
+                "offset_byte": 514048
             }
         },
         {
@@ -108,7 +108,7 @@
             "addressing": {
                 "size_byte": 128,
                 "comments": "offset: 373 * 1024 Byte, size: 128 Byte",
-                "offset_byte": 555008
+                "offset_byte": 546816
             }
         },
         {
@@ -117,7 +117,7 @@
             "addressing": {
                 "size_byte": 33554432,
                 "comments": "size: 16MB",
-                "offset_byte": 555136
+                "offset_byte": 546944
             }
         }
     ]

@@ -110,8 +110,8 @@ struct ConstantExpandPass
                         // Check the distance between newConstantOp and user
                         int lastCreateUserPosition = opToPositionMap[last_create_user];
                         int userPosition = opToPositionMap[user];
-                        if (userPosition - lastCreateUserPosition > 32) {
-                            LOG_DEBUG << "distance > 32, creating new userConstantOp" << std::endl;
+                        if (userPosition - lastCreateUserPosition > 16) {
+                            LOG_DEBUG << "distance > 16, creating new userConstantOp" << std::endl;
                             OpBuilder builder(user);
                             newConstantOp = llvm::cast_or_null<mlir::arith::ConstantOp>(builder.clone(*constantOp));
                             blockToConstantOpMap[block] = newConstantOp;

@@ -203,7 +203,7 @@ struct MemoryAddressAllocationPass
 
       address_table[memory] += size;
       if (address_table[memory] > memory_size_list[memory]) {
-        LOG_ERROR << "Memory address overflow: " << memory;
+        LOG_ERROR << "Memory address overflow: " << memory << " size: " << size;
         std::exit(1);
       }
     }

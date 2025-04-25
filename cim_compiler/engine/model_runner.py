@@ -4,7 +4,7 @@ import os
 import shutil
 from datetime import datetime
 
-from engine.operator_template import (  # quantify
+from cim_compiler.engine.operator_template import (  # quantify
     BitSparseConv2dQuantifyTemplate,
     BitSparseConv2dTemplate,
     BitSparseLinearQuantifyTemplate,
@@ -85,6 +85,7 @@ class ModelRunner:
         logger.info(f"{is_bit_sparse=}")
         logger.info(f"{is_value_sparse=}")
         logger.info(f"{quantify=}")
+        logger.info(f"{os.environ.get('CONFIG_PATH', None)=}")
 
     def raw_layers_from_json(self):
         json_path = os.path.join(self.model_path, f"{self.model_name}.json")
@@ -232,6 +233,7 @@ class ModelRunner:
         )
 
         # show layer name and check result
+        logger.info(f"{os.environ.get('FAST_MODE', -1)=}")
         logger.info(f"Layer {raw_layer['name']} success: {check_result}")
 
         # self.fill_dense_cache(op_template, raw_layer, code_dir)
