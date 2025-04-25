@@ -113,7 +113,7 @@ class AttnDecodeCPConfig(SIMDOpConfig, AttnDecodeConfig):
     ],
 )
 def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
-    check_result = os.environ["CHECK_RESULT"] == "1"
+    check_result = os.environ.get("CHECK_RESULT", "1") == "1"
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp.cim")
     cim_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
