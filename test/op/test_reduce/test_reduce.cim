@@ -1,0 +1,25 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+{% include 'op/reduce/reduce_sum_inplace.cim' %}
+{% include 'op/reduce/reduce_sum.cim' %}
+
+def set_special_regs(){
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 16);
+
+    SpecialRegSet(SPECIAL_REG_DTYPE_SIMD_IS_FLOAT, 1);
+}
+
+def main(){
+    set_special_regs();
+    
+    x_global = Buffer(<{{vector_len}}>, fp16, __GLOBAL__);
+    x_local = Buffer(<{{vector_len}}>, fp16, __OUTPUT_MEMORY__);
+    x_local_2 = Buffer(<{{vector_len}}>, fp16, __OUTPUT_MEMORY__);
+    sum_x_global = Buffer(<1>, fp16, __GLOBAL__);
+    Trans(x_global, x_local);
+    reduce_sum(x_local, x_local_2);
+    sum_x_local = x_local_2[0];
+    Trans(sum_x_local, sum_x_global);
+}

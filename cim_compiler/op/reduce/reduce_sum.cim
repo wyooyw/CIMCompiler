@@ -1,0 +1,27 @@
+def reduce_sum(
+    vector_in< <-1>, fp16, __OUTPUT_MEMORY__>,
+    vector_out< <-1>, fp16, __OUTPUT_MEMORY__>
+) {
+    reduce_len = {{reduce_config.reduce_len}};
+    reduce_num = {{reduce_config.reduce_num}};
+    big_from = reduce_len * reduce_num;
+    N = Shape(vector_in, 0);
+    M = Shape(vector_out, 0);
+    // assert M = ceil(N/reduce_len)
+    n_step = div_ceil(N, big_from);
+
+    use_vector_out_size = 0;
+    @unroll
+    for i in range(0, n_step) carry (use_vector_out_size) {
+        src_vector_len = Min(big_from, N-i*big_from);
+        src_vector = vector_in[i*big_from:i*big_from+src_vector_len];
+
+        dst_vector_len = div_ceil(src_vector_len, reduce_len);
+        dst_vector = vector_out[i*reduce_num:i*reduce_num+dst_vector_len];
+        SIMD(REDUCE_SUM, src_vector, dst_vector);
+
+        use_vector_out_size = i*reduce_num+dst_vector_len;
+    };
+
+    reduce_sum_inplace(vector_out[:use_vector_out_size]); // save at vector_out[-1]
+}
