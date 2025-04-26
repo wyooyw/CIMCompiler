@@ -1,0 +1,42 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+{% include 'op/reduce/reduce_sum_inplace.cim' %}
+{% include 'op/reduce/reduce_sum.cim' %}
+{% include 'op/llm/layernorm.cim' %}
+
+def set_special_regs(){
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 16);
+
+    SpecialRegSet(SPECIAL_REG_DTYPE_SIMD_IS_FLOAT, 1);
+}
+
+def main(){
+    set_special_regs();
+    
+    x_global = Buffer(<{{hidden}}>, fp16, __GLOBAL__);
+    d_global = Buffer(<1>, fp16, __GLOBAL__);
+    eps_global = Buffer(<1>, fp16, __GLOBAL__);
+    a_global = Buffer(<1>, fp16, __GLOBAL__);
+    b_global = Buffer(<1>, fp16, __GLOBAL__);
+    y_global = Buffer(<{{hidden}}>, fp16, __GLOBAL__);
+
+    x_local = Buffer(<{{hidden}}>, fp16, __OUTPUT_MEMORY__);
+    d_local = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
+    eps_local = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
+    a_local = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
+    b_local = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
+    y_local = Buffer(<{{hidden}}>, fp16, __OUTPUT_MEMORY__);
+    temp1 = Buffer(<{{hidden}}>, fp16, __OUTPUT_MEMORY__);
+    temp2 = Buffer(<{{hidden}}>, fp16, __OUTPUT_MEMORY__);
+
+    Trans(x_global, x_local);
+    Trans(d_global, d_local);
+    Trans(eps_global, eps_local);
+    Trans(a_global, a_local);
+    Trans(b_global, b_local);
+    
+    layernorm_single_token(x_local, y_local, temp1, temp2, d_local, eps_local, a_local, b_local);
+    Trans(y_local, y_global);
+}
