@@ -1,5 +1,7 @@
 {% include 'op/common/def_special_regs.cim' %}
 {% include 'op/common/simd.cim' %}
+{% include 'op/reduce/reduce_sum_inplace.cim' %}
+{% include 'op/reduce/reduce_sum.cim' %}
 {% include 'op/llm/softmax.cim' %}
 
 def set_special_regs(){
@@ -17,9 +19,10 @@ def main(){
     score_global = Buffer(<{{seqlen}}>, fp16, __GLOBAL__);
     x_local = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
     score_local = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
-    max_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__)
-    sum_exp_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__)
+    max_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
+    sum_exp_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
+    temp = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
     Trans(x_global, x_local);
-    softmax(x_local, score_local, max_x, sum_exp_x);
+    softmax(x_local, score_local, max_x, sum_exp_x, temp);
     Trans(score_local, score_global);
 }

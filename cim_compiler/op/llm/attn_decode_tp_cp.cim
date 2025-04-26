@@ -2,6 +2,8 @@
 {% include 'op/common/simd.cim' %}
 {% include 'op/llm/attn_decode_utils.cim' %}
 {% include 'op/llm/all_gather.cim' %}
+{% include 'op/reduce/reduce_sum_inplace.cim' %}
+{% include 'op/reduce/reduce_sum.cim' %}
 {% include 'op/llm/softmax.cim' %}
 {% include 'op/llm/cp_softmax.cim' %}
 {% include 'op/llm/special_regs.cim' %}
@@ -53,7 +55,8 @@ def main(){
 
     // step 3: online softmax
     score = Buffer(<{{seqlen // cp_group_size}}>, fp16, __OUTPUT_MEMORY__);
-    cp_online_softmax(attn_out1, score, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
+    temp = Buffer(<{{seqlen // cp_group_size}}>, fp16, __OUTPUT_MEMORY__);
+    cp_online_softmax(attn_out1, score, temp, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
 
     // step 4: compute softmax(qK^T)V
     attn_out2= Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
