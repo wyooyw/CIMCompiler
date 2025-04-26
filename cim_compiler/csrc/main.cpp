@@ -134,9 +134,6 @@ int main(int argc, char **argv) {
   init_op_passes.addPass(mlir::createLowerAffinePass());
   init_op_passes.addPass(mlir::cim::createMemoryAddressAllocationPass(configPath));
 
-  mlir::PassManager unroll_passes(&context);
-  unroll_passes.addPass(cim::createLoopUnrollPass());
-
   mlir::PassManager lower_passes(&context);
   lower_passes.addPass(mlir::cim::createCIMLoweringPass(configPath));
   lower_passes.addPass(mlir::createCanonicalizerPass());
@@ -145,6 +142,10 @@ int main(int argc, char **argv) {
   lower_passes.addPass(mlir::cim::createCommonSubexpressionExposePass());
   mlir::OpPassManager &cse_passes = lower_passes.nest<mlir::func::FuncOp>();
   cse_passes.addPass(mlir::createCSEPass());
+
+  mlir::PassManager unroll_passes(&context);
+  unroll_passes.addPass(cim::createLoopUnrollPass());
+  unroll_passes.addPass(mlir::createCanonicalizerPass());
 
   mlir::PassManager rr2ri_passes(&context);
   rr2ri_passes.addPass(mlir::cim::createRR2RIPass());
@@ -175,21 +176,21 @@ int main(int argc, char **argv) {
     debugLogIR(module);
   }
 
-  if (mlir::failed(unroll_passes.run(module))) {
-    LOG_ERROR << "Unroll passes fail.";
-    errorLogIR(module);
-    return 1;
-  }else{
-    LOG_INFO << "Unroll Passes success.";
-    debugLogIR(module);
-  }
-
   if (mlir::failed(lower_passes.run(module))) {
     LOG_ERROR << "Lower passes fail.";
     errorLogIR(module);
     return 1;
   }else{
     LOG_INFO << "Lower Passes success.";
+    debugLogIR(module);
+  }
+
+   if (mlir::failed(unroll_passes.run(module))) {
+    LOG_ERROR << "Unroll passes fail.";
+    errorLogIR(module);
+    return 1;
+  }else{
+    LOG_INFO << "Unroll Passes success.";
     debugLogIR(module);
   }
 
