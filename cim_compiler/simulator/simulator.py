@@ -355,7 +355,7 @@ class Simulator:
         memory_space,
         macro_config,
         mask_config,
-        reduce_sum_config,
+        reduce_sum_config = None,
         safe_time=999999999,
         mask_memory_name="mask",
     ):

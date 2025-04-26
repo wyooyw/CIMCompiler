@@ -20,8 +20,13 @@ class ReduceSumConfig:
 class ReduceSumUtil:
     def __init__(self, reduce_sum_config):
         self.reduce_sum_config = reduce_sum_config
-        self.reduce_len = reduce_sum_config.reduce_len
-        self.reduce_num = reduce_sum_config.reduce_num
+        if reduce_sum_config is not None:
+            assert isinstance(reduce_sum_config, ReduceSumConfig)
+            self.reduce_len = reduce_sum_config.reduce_len
+            self.reduce_num = reduce_sum_config.reduce_num
+        else:
+            self.reduce_len = None
+            self.reduce_num = None
 
     def reduce_sum(self, src_vector):
         if self.reduce_sum_config is None or self.reduce_len is None or self.reduce_num is None:
