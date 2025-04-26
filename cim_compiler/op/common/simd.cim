@@ -14,3 +14,5 @@
 #define REDUCE_SUM 13
 #define VS_DIV 14
 #define VS_SUB 15
+#define VSQRT 16
+#define GELU 17

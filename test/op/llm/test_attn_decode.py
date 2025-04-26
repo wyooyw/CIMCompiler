@@ -5,6 +5,8 @@ from cim_compiler.simulator.macro_utils import MacroConfig
 from cim_compiler.utils.df_layout import tensor_bits_to_int8
 import pytest
 from test.base import OpRunner, SIMDOpConfig, SPMDOpRunner
+import math
+from test.op.test_reduce.test_reduce import get_reduce_config
 
 @dataclass
 class AttnDecodeConfig:
@@ -17,6 +19,8 @@ class AttnDecodeConfig:
     N_GROUP: int
     transpose_row: int
     transpose_col: int
+    reduce_config: str
+    math: str
 
 def make_cimset_mask(length: int):
     assert length % 8 == 0, f"{length} is not divisible by 8"
@@ -59,7 +63,9 @@ def test_attn_decode(head_hidden, seqlen):
         N_MACRO_PER_GROUP=cim_config.n_macro_per_group,
         N_GROUP=cim_config.n_group,
         transpose_row=16,
-        transpose_col=128
+        transpose_col=128,
+        reduce_config=get_reduce_config(cim_config_path),
+        math=math
     )
 
     op_runner = OpRunner(op_path, op_config, cim_config_path)
@@ -127,7 +133,9 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
         N_MACRO_PER_GROUP=cim_config.n_macro_per_group,
         N_GROUP=cim_config.n_group,
         transpose_row=16,
-        transpose_col=128
+        transpose_col=128,
+        reduce_config=get_reduce_config(cim_config_path),
+        math=math
     )
 
     def config_cp_group(rank, op_config):

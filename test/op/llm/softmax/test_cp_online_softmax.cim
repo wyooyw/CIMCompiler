@@ -1,5 +1,7 @@
 {% include 'op/common/def_special_regs.cim' %}
 {% include 'op/common/simd.cim' %}
+{% include 'op/reduce/reduce_sum_inplace.cim' %}
+{% include 'op/reduce/reduce_sum.cim' %}
 {% include 'op/llm/softmax.cim' %}
 {% include 'op/llm/all_gather.cim' %}
 {% include 'op/llm/cp_softmax.cim' %}
@@ -18,8 +20,9 @@ def main(){
     x_global = Buffer(<{{seqlen // world_size}}>, fp16, __GLOBAL__);
     score_global = Buffer(<{{seqlen // world_size}}>, fp16, __GLOBAL__);
     x_local = Buffer(<{{seqlen // world_size}}>, fp16, __OUTPUT_MEMORY__);
+    temp = Buffer(<{{seqlen // world_size}}>, fp16, __OUTPUT_MEMORY__);
     score_local = Buffer(<{{seqlen // world_size}}>, fp16, __OUTPUT_MEMORY__);
     Trans(x_global, x_local);
-    cp_online_softmax(x_local, score_local, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
+    cp_online_softmax(x_local, score_local, temp, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
     Trans(score_local, score_global);
 }

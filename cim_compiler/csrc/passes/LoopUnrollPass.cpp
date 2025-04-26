@@ -91,7 +91,7 @@ struct LoopUnrollPass
         int64_t ubCst = ubCstOp.value();
         int64_t stepCst = stepCstOp.value();
         if (stepCst >= 1) {
-          int64_t unrollFactor = (ubCst - lbCst - 1) / stepCst + 1;
+          int64_t unrollFactor = (ubCst - lbCst + stepCst - 1) / stepCst;
           LOG_INFO << "LoopUnrollPass lbCst=" << lbCst << " ubCst=" << ubCst << " stepCst=" << stepCst << " unrollFactor: " << unrollFactor << std::endl;
           if (!failed(mlir::loopUnrollByFactor(forOp, unrollFactor))) {
             fail_cnt -= 1;

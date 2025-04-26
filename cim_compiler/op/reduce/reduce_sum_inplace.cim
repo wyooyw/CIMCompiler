@@ -2,7 +2,7 @@ def div_ceil(
     a<index>,
     b<index>
 ) {
-    return ((a - 1) / b) + 1;
+    return ((a + b - 1) / b);
 }
 
 def reduce_sum_inplace(
@@ -24,9 +24,9 @@ def reduce_sum_inplace(
         SIMD(REDUCE_SUM, src_vector, dst_vector);
     };
 
-    max_i = div_ceil(stage_1_size, stage_1_step) - 1;
-    stage_2_begin = (( max_i * stage_1_step) + big_from) - reduce_num;
-    // Results of stage 1 are in vector[stage_2_begin: N]
+    
+    n_step1 = div_ceil(Max(stage_1_size, 0), stage_1_step);
+    stage_2_begin = n_step1 * stage_1_step;
 
     // stage 2
     k = N - stage_2_begin;

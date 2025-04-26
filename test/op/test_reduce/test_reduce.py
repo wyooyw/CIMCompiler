@@ -55,47 +55,49 @@ class ModifyReduceConfig:
         os.remove(self.modified_config_path)
         return False  # 返回 False 表示异常未处理，会继续传播
 
-# @pytest.mark.parametrize(
-#     "vector_len, reduce_num, reduce_len",
-#     [
-#         (vector_len, reduce_num, reduce_len)
-#         for vector_len in [1, 2, 4, 8]#, 16, 32, 64, 128, 256, 512, 1024, 2048]
-#         for reduce_num in [1, 2, 4, 8, 16, 32]
-#         for reduce_len in [2, 4, 8, 16, 32]
-#     ],
-# )
-# def test_reduce_inplace(vector_len, reduce_num, reduce_len):
-#     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
-#     op_path = os.path.join(cim_compiler_home, "test/op/test_reduce/test_reduce_inplace.cim")
-#     cim_config_path = os.path.join(cim_compiler_home, "test/op/llm/config.json")
-#     with ModifyReduceConfig(cim_config_path, reduce_len, reduce_num) as m:
+@pytest.mark.parametrize(
+    "vector_len, reduce_num, reduce_len",
+    [
+        (vector_len, reduce_num, reduce_len)
+        for vector_len in [1, 2, 4, 8, 16, 32, 64, 2048]
+        for reduce_num in [1, 2, 4, 8, 16, 32]
+        for reduce_len in [2, 4, 8, 16, 32]
+    ],
+)
+def test_reduce_inplace(vector_len, reduce_num, reduce_len):
+    cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
+    op_path = os.path.join(cim_compiler_home, "test/op/test_reduce/test_reduce_inplace.cim")
+    cim_config_path = os.path.join(cim_compiler_home, "test/op/llm/config.json")
+    with ModifyReduceConfig(cim_config_path, reduce_len, reduce_num) as m:
 
-#         op_config = ReduceTestConfig(
-#             vector_len=vector_len,
-#             reduce_config=get_reduce_config(m.modified_config_path),
-#             math=math
-#         )
+        op_config = ReduceTestConfig(
+            vector_len=vector_len,
+            reduce_config=get_reduce_config(m.modified_config_path),
+            math=math
+        )
 
-#         op_runner = OpRunner(op_path, op_config, m.modified_config_path)
+        op_runner = OpRunner(op_path, op_config, m.modified_config_path)
 
-#         """
-#         x_global = Buffer(<{{seqlen}}>, fp16, __GLOBAL__);
-#         """
-#         x = np.random.randint(-2,3, (op_config.vector_len,)).astype(np.float16)
-#         # x = np.zeros((op_config.vector_len,), dtype=np.float16) + 1
-#         output = np.zeros((1,), dtype=np.float16)
+        """
+        x_global = Buffer(<{{seqlen}}>, fp16, __GLOBAL__);
+        """
+        x = np.random.randint(-2,3, (op_config.vector_len,)).astype(np.float16)
+        # x = np.zeros((op_config.vector_len,), dtype=np.float16) + 1
+        output = np.zeros((1,), dtype=np.float16)
         
-#         golden = x.sum()
-#         op_runner.run([x], [output])
+        golden = x.sum()
+        op_runner.run([x], [output])
 
-#     allclose = np.allclose(output, golden, rtol=1e-2, atol=1e-2)
-#     print(f"{allclose=}")
+    allclose = np.allclose(output, golden, rtol=1e-2, atol=1e-2)
+    print(f"{output=}")
+    print(f"{golden=}")
+    print(f"{allclose=}")
 
 @pytest.mark.parametrize(
     "vector_len, reduce_num, reduce_len",
     [
         (vector_len, reduce_num, reduce_len)
-        for vector_len in [1, 2, 4, 512, 1024, 2048]
+        for vector_len in [1, 2, 4, 32, 512, 1024, 2048]
         for reduce_num in [1, 2, 4, 8, 16, 32]
         for reduce_len in [2, 4, 8, 16, 32]
     ],
@@ -125,7 +127,9 @@ def test_reduce(vector_len, reduce_num, reduce_len):
         op_runner.run([x], [output])
 
     allclose = np.allclose(output, golden, rtol=1e-2, atol=1e-2)
+    print(f"{output=}")
+    print(f"{golden=}")
     print(f"{allclose=}")
 
 if __name__=="__main__":
-    test_reduce(16, 1, 4)
+    test_reduce(32, 4, 2)

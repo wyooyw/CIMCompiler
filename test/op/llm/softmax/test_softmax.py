@@ -2,17 +2,28 @@ import os
 import numpy as np
 from dataclasses import dataclass
 from test.base import OpRunner, SIMDOpConfig, SPMDOpRunner
+from test.op.test_reduce.test_reduce import get_reduce_config
+import math
+import pytest
 
 @dataclass
 class SoftmaxOpConfig:
     seqlen: int
     core_id: int
     world_size: int
+    reduce_config: str = ""
+    math: str = ""
 
 def softmax(x, axis=-1):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
+@pytest.mark.parametrize(
+    "seqlen",
+    [
+        4,8,16,32,64,128, 256, 512, 1024
+    ],
+)
 def test_softmax(seqlen):
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "test/op/llm/softmax/test_softmax.cim")
@@ -20,7 +31,9 @@ def test_softmax(seqlen):
     op_config = SoftmaxOpConfig(
         seqlen=seqlen,
         core_id=0,
-        world_size=1
+        world_size=1,
+        reduce_config=get_reduce_config(cim_config_path),
+        math=math
     )
 
     op_runner = OpRunner(op_path, op_config, cim_config_path)
@@ -54,7 +67,17 @@ class CpSoftmaxOpConfig(SIMDOpConfig):
     cp_group_offset: int = 0
     cp_group_stride: int = 1
     cp_group_size: int = 1
+    reduce_config: str = ""
+    math: str = ""
 
+@pytest.mark.parametrize(
+    "seqlen, world_size",
+    [
+        (seqlen, world_size)
+        for seqlen in [128, 256, 512, 1024]
+        for world_size in [1, 2, 4, 8, 16, 32]
+    ],
+)
 def test_cp_softmax(seqlen, world_size):
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "test/op/llm/softmax/test_cp_online_softmax.cim")
@@ -63,7 +86,9 @@ def test_cp_softmax(seqlen, world_size):
         seqlen=seqlen,
         cp_group_offset=0,
         cp_group_stride=1,
-        cp_group_size=world_size
+        cp_group_size=world_size,
+        reduce_config=get_reduce_config(cim_config_path),
+        math=math
     )
 
     op_runner = SPMDOpRunner(op_path, op_config, cim_config_path, world_size)
@@ -100,6 +125,7 @@ def test_cp_softmax(seqlen, world_size):
     for core_id in range(world_size):
         allclose = np.allclose(output_list[core_id][0], golden_list[core_id], rtol=rtol, atol=atol)
         assert allclose, f"{output_list[core_id][0]=} {golden_list[core_id]=}"
+    print("done")
 
 if __name__=="__main__":
-    test_cp_softmax(64, 8)
+    test_softmax(128)
