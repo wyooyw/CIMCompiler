@@ -10,6 +10,10 @@
         "n_from": 128,
         "n_to": 16
     },
+    "reduce": {
+        "reduce_len": 16,
+        "reduce_num": 16
+    },
     "mask_memory_name": "pim_mask_data_reg_buffer",
     "memory_list": [
         {
@@ -66,7 +70,6 @@
                 "offset_byte": 4464672
             }
         },
-
         {
             "name": "global",
             "type": "dram",
