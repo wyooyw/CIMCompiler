@@ -10,18 +10,15 @@ def reduce_sum(
     // assert M = ceil(N/reduce_len)
     n_step = div_ceil(N, big_from);
 
-    use_vector_out_size = 0;
     @unroll
-    for i in range(0, n_step) carry (use_vector_out_size) {
+    for i in range(0, n_step) carry () {
         src_vector_len = Min(big_from, N-i*big_from);
         src_vector = vector_in[i*big_from:i*big_from+src_vector_len];
 
         dst_vector_len = div_ceil(src_vector_len, reduce_len);
         dst_vector = vector_out[i*reduce_num:i*reduce_num+dst_vector_len];
         SIMD(REDUCE_SUM, src_vector, dst_vector);
-
-        use_vector_out_size = i*reduce_num+dst_vector_len;
     };
-
+    use_vector_out_size = div_ceil(N, reduce_len);
     reduce_sum_inplace(vector_out[:use_vector_out_size]); // save at vector_out[-1]
 }
