@@ -6,7 +6,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from dataclasses import dataclass
 import copy
 from multiprocessing import Process
-
+import types
 
 class OpRunner:
     def __init__(self, op_path, op_config, cim_config_path):
@@ -111,9 +111,19 @@ class SPMDOpRunner(OpRunner):
         self.config_for_each_core = config_for_each_core
 
     def _compile_core(self, core_id, tmp_dir, input_list):
-        op_config = copy.deepcopy(self.op_config)
-        op_config.core_id = core_id
-        op_config.world_size = self.num_cores
+        # Create a new config object instead of deepcopy
+        op_config = SIMDOpConfig(
+            core_id=core_id,
+            world_size=self.num_cores
+        )
+        # Copy any additional attributes from original config
+        for key, value in self.op_config.__dict__.items():
+            if not hasattr(op_config, key):
+                if isinstance(value, types.ModuleType):
+                    setattr(op_config, key, value)
+                else:
+                    setattr(op_config, key, copy.deepcopy(value))
+                
         if self.config_for_each_core:
             self.config_for_each_core(core_id, op_config)
         
