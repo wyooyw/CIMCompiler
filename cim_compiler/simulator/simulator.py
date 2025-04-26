@@ -638,6 +638,8 @@ class Simulator:
             12 # vector exp
         ]:
             self._run_simd_class_vector_inst(inst)
+        elif opcode == 16:
+            self._run_simd_class_sqrt_inst(inst)
         else:
             assert False, f"Not support {opcode=} yet."
 
@@ -1523,7 +1525,27 @@ class Simulator:
         output_byte_size = output_data.size * output_bitwidth // 8
         self.memory_space.check_memory_type(output_addr, output_byte_size, "sram")
         self.memory_space.write(output_data, output_addr, output_byte_size)
-        
+    
+    def _run_simd_class_sqrt_inst(self, inst):
+        assert inst.input_num == 1
+
+        input_addr = self.read_general_reg(inst.reg_in1)
+        input_size = self.read_general_reg(inst.reg_size)
+        output_addr = self.read_general_reg(inst.reg_out)
+        input_bitwidth = self.read_special_reg(SpecialReg.SIMD_INPUT_1_BIT_WIDTH)
+        input_byte_size = input_bitwidth * input_size // 8
+        input_dtype = get_dtype_from_bitwidth(input_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
+        output_bitwidth = self.read_special_reg(SpecialReg.SIMD_OUTPUT_BIT_WIDTH)
+        output_dtype = get_dtype_from_bitwidth(output_bitwidth, is_float=self.read_special_reg(SpecialReg.DTYPE_SIMD_IS_FLOAT))
+        self.memory_space.check_memory_type(input_addr, input_byte_size, "sram")
+        input_data = self.memory_space.read_as(
+            input_addr, 
+            input_byte_size, 
+            input_dtype
+        )
+        output_data = np.sqrt(input_data.astype(output_dtype)).astype(output_dtype)
+        output_byte_size = output_data.size * output_bitwidth // 8
+        self.memory_space.write(output_data, output_addr, output_byte_size)
 
     def _run_simd_class_softmax_inst(self, inst):
         assert inst.input_num == 1
@@ -1577,6 +1599,7 @@ class Simulator:
             # reduce sum
             # output_data = np.sum(input_data.astype(output_dtype)).reshape(-1)
             output_data = self.reduce_sum_util.reduce_sum(input_data)
+            logger.debug(f"reduce sum {input_addr=}, {output_addr=}, {output_bitwidth=}, reduce {input_data} to {output_data}")
         else:
             assert False, f"Not support: {inst.opcode=}"
 

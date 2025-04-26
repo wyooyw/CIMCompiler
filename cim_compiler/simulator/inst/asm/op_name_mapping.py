@@ -34,6 +34,7 @@ _simd_funct_name_pair = (
     (13, "VEC_REDUCE_SUM"),
     (14, "VEC_VS_DIV"),
     (15, "VEC_VS_SUB"),
+    (16, "VEC_SQRT"),
 )
 
 _branch_compare_name_pair = (
