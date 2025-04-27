@@ -15,11 +15,14 @@ def dumps_list_of_dict(data):
     content += "]"
     return content
     
-def dumps_dict_of_list_of_dict(data):
+def dumps_dict_of_list_of_dict(data, curly=True):
     assert type(data) == dict
     assert all(isinstance(v, list) for v in data.values())
     assert all(all(isinstance(d, dict) for d in v) for v in data.values())
-    content = "{\n"
+    if curly:
+        content = "{\n"
+    else:
+        content = ""
     for i, (k, v) in enumerate(data.items()):
         content += f"\t\"{k}\": [\n"
 
@@ -28,7 +31,8 @@ def dumps_dict_of_list_of_dict(data):
             content += "\n" if j == len(v) - 1 else ",\n"
         content += f"\t]"
         content += "\n" if i == len(data) - 1 else ",\n"
-    content += "}"
+    if curly:
+        content += "}"
     return content
 
 if __name__ == "__main__":

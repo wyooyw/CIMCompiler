@@ -22,15 +22,15 @@ class CIMFlowDumper:
 
         return data
 
-    def dump_str(self, instructions, core_id=None):
+    def dump_str(self, instructions, core_id=None, curly=True):
         data = self.dump(instructions)
         if core_id is None:
             return dumps_list_of_dict(data)
         else:
-            return dumps_dict_of_list_of_dict({core_id: data})
+            return dumps_dict_of_list_of_dict({core_id: data}, curly=curly)
 
     def dump_to_file(self, instructions, path, core_id=None):
-        with open(path, 'w') as file:
+        with open(path, 'a') as file:
             data_str = self.dump_str(instructions, core_id)
             file.write(data_str)
 

@@ -88,6 +88,15 @@ class AsmParser:
         instructions = []
         for line in data:
             line = line.strip()
+            # Skip empty lines or lines that start with a comment symbol
+            if not line or line.startswith("#"):
+                continue
+            # Optionally, remove inline comments if needed (everything after '#')
+            if "#" in line:
+                line = line.split("#", 1)[0].strip()
+                # If the line becomes empty after removing the comment, skip it.
+                if not line:
+                    continue
             if line:  # Skip empty lines
                 inst = self._parse_inst(line)
                 instructions.append(inst)
@@ -210,6 +219,24 @@ class AsmParser:
                 reg_out_addr=reg_out_addr,
                 flag_outsum=bool("OSUM" in flags),
                 flag_outsum_move=bool("OSUM_MOVE" in flags)
+            )
+        elif op_name == "SEND":
+            reg_src_addr, reg_dst_core, reg_dst_addr, reg_size, reg_transfer_id = match_asm_args(args, ['reg', 'reg', 'reg', 'reg', 'reg'])
+            return SendInst(
+                reg_src_addr=reg_src_addr,
+                reg_dst_addr=reg_dst_addr,
+                reg_size=reg_size,
+                reg_dst_core=reg_dst_core,
+                reg_transfer_id=reg_transfer_id
+            )
+        elif op_name == "RECV":
+            reg_src_core, reg_src_addr, reg_dst_addr, reg_size, reg_transfer_id = match_asm_args(args, ['reg', 'reg', 'reg', 'reg', 'reg'])
+            return RecvInst(
+                reg_dst_addr=reg_dst_addr,
+                reg_src_addr=reg_src_addr,
+                reg_size=reg_size,
+                reg_src_core=reg_src_core,
+                reg_transfer_id=reg_transfer_id
             )
         else:
             raise ValueError(f"Unknown instruction name: {op_name}")

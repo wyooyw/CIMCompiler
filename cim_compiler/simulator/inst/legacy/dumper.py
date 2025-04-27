@@ -22,15 +22,15 @@ class LegacyDumper:
 
         return data
 
-    def dump_str(self, instructions, core_id=None):
+    def dump_str(self, instructions, core_id=None, curly=True):
         data = self.dump(instructions)
         if core_id is None:
             return dumps_list_of_dict(data)
         else:
-            return dumps_dict_of_list_of_dict({core_id: data})
+            return dumps_dict_of_list_of_dict({core_id: data}, curly=curly)
 
     def dump_to_file(self, instructions, path, core_id=None):
-        with open(path, 'w') as file:
+        with open(path, 'a') as file:
             data_str = self.dump_str(instructions, core_id)
             file.write(data_str)
 
@@ -99,8 +99,8 @@ class LegacyDumper:
             return {
                 "class": 0b110,
                 "type": 0b0,
-                "source_offset_mask": inst.flag_src_offset,
-                "destination_offset_mask": inst.flag_dst_offset,
+                "source_offset_mask": int(inst.flag_src_offset),
+                "destination_offset_mask": int(inst.flag_dst_offset),
                 "rs1": inst.reg_in,
                 "rd": inst.reg_out,
                 "offset": inst.offset,
@@ -153,11 +153,11 @@ class LegacyDumper:
             return {
                 "class": 0b00,
                 "type": 0b0,
-                "value_sparse": inst.flag_value_sparse,
-                "bit_sparse": inst.flag_bit_sparse,
-                "group": inst.flag_group,
-                "group_input_mode": inst.flag_group_input_mode,
-                "accumulate": inst.flag_accumulate,
+                "value_sparse": int(inst.flag_value_sparse),
+                "bit_sparse": int(inst.flag_bit_sparse),
+                "group": int(inst.flag_group),
+                "group_input_mode": int(inst.flag_group_input_mode),
+                "accumulate": int(inst.flag_accumulate),
                 "rs1": inst.reg_input_addr,
                 "rs2": inst.reg_input_size,
                 "rs3": inst.reg_activate_row
@@ -166,7 +166,7 @@ class LegacyDumper:
             return {
                 "class": 0b00,
                 "type": 0b01,
-                "group_broadcast": inst.flag_group_broadcast,
+                "group_broadcast": int(inst.flag_group_broadcast),
                 "rs1": inst.reg_single_group_id,
                 "rs2": inst.reg_mask_addr
             }
@@ -174,11 +174,33 @@ class LegacyDumper:
             return {
                 "class": 0b00,
                 "type": 0b10,
-                "outsum_move": inst.flag_outsum_move,
-                "outsum": inst.flag_outsum,
+                "outsum_move": int(inst.flag_outsum_move),
+                "outsum": int(inst.flag_outsum),
                 "rs1": inst.reg_out_n,
                 "rs2": inst.reg_out_mask_addr,
                 "rd": inst.reg_out_addr
+            }
+        elif isinstance(inst, SendInst):
+            return {
+                "class": 0b110,
+                "type": 0b10,
+                "sync": 0,
+                "rs": inst.reg_src_addr,
+                "rd1": inst.reg_dst_core,
+                "rd2": inst.reg_dst_addr,
+                "reg_id": inst.reg_transfer_id,
+                "reg_len": inst.reg_size
+            }
+        elif isinstance(inst, RecvInst):
+            return {
+                "class": 0b110,
+                "type": 0b11,
+                "sync": 0,
+                "rs1": inst.reg_src_core,
+                "rs2": inst.reg_src_addr,
+                "rd": inst.reg_dst_addr,
+                "reg_id": inst.reg_transfer_id,
+                "reg_len": inst.reg_size
             }
         else:
             raise ValueError(f"Unknown instruction type: {type(inst)}")
