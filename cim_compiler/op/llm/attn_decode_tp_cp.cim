@@ -55,7 +55,7 @@ def main(){
 
     // step 3: online softmax
     score = Buffer(<{{seqlen // cp_group_size}}>, fp16, __OUTPUT_MEMORY__);
-    temp = Buffer(<{{seqlen // cp_group_size}}>, fp16, __OUTPUT_MEMORY__);
+    temp = Buffer(<{{seqlen // cp_group_size}}>, fp16, __TEMP_MEMORY_1__);
     cp_online_softmax(attn_out1, score, temp, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
 
     // step 4: compute softmax(qK^T)V

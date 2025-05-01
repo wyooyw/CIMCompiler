@@ -28,8 +28,8 @@ def main(){
     a_local = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
     b_local = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
     y_local = Buffer(<{{hidden}}>, fp16, __OUTPUT_MEMORY__);
-    temp1 = Buffer(<{{hidden}}>, fp16, __OUTPUT_MEMORY__);
-    temp2 = Buffer(<{{hidden}}>, fp16, __OUTPUT_MEMORY__);
+    temp1 = Buffer(<{{hidden}}>, fp16, __TEMP_MEMORY_1__);
+    temp2 = Buffer(<{{hidden}}>, fp16, __TEMP_MEMORY_2__);
 
     Trans(x_global, x_local);
     Trans(d_global, d_local);
