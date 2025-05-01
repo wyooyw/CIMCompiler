@@ -83,7 +83,7 @@ class Operator:
             # run compiler
             # use CLI to call compile
             subprocess.run([
-                "python", "cim_compiler/cli/main.py", "compile",
+                "cim-compiler", "compile",
                 "--input-file", input_path,
                 "--output-dir", code_dir,
                 "--config-file", self.config_path
