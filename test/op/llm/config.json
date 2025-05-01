@@ -71,12 +71,28 @@
             }
         },
         {
+            "name": "temp_memory_1",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 16384,
+                "offset_byte": 4464928
+            }
+        },
+        {
+            "name": "temp_memory_2",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 16384,
+                "offset_byte": 4481312
+            }
+        },
+        {
             "name": "global",
             "type": "dram",
             "addressing": {
                 "size_byte": 33554432,
                 "comments": "size: 16MB",
-                "offset_byte": 4464928
+                "offset_byte": 4497696
             }
         }
     ]

@@ -6,7 +6,7 @@ def div_ceil(
 }
 
 def reduce_sum_inplace(
-    vector< <-1>, fp16, __OUTPUT_MEMORY__>
+    vector< <-1>, fp16, __ANY__>
 ) {
     reduce_len = {{reduce_config.reduce_len}};
     reduce_num = {{reduce_config.reduce_num}};

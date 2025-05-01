@@ -1,12 +1,12 @@
 def layernorm_single_token(
-    x< <-1>, fp16, __OUTPUT_MEMORY__>,
-    out< <-1>, fp16, __OUTPUT_MEMORY__>,
-    temp< <-1>, fp16, __OUTPUT_MEMORY__>,
-    temp2< <-1>, fp16, __OUTPUT_MEMORY__>,
-    d< <1>, fp16, __OUTPUT_MEMORY__>,
-    eps< <1>, fp16, __OUTPUT_MEMORY__>,
-    a< <1>, fp16, __OUTPUT_MEMORY__>,
-    b< <1>, fp16, __OUTPUT_MEMORY__>
+    x< <-1>, fp16, __ANY__>,
+    out< <-1>, fp16, __ANY__>,
+    temp< <-1>, fp16, __ANY__>,
+    temp2< <-1>, fp16, __ANY__>,
+    d< <1>, fp16, __ANY__>,
+    eps< <1>, fp16, __ANY__>,
+    a< <1>, fp16, __ANY__>,
+    b< <1>, fp16, __ANY__>
     ){
     // x: [hidden], out: [hidden], temp[?], eps: [1], a:[1], b:[1]
     // best performance if {x,output},temp,temp2 are on different memorys.
