@@ -80,7 +80,7 @@ class TestBase:
 
             # run compiler
             subprocess.run([
-                "python", "cim_compiler/cli/main.py", "compile",
+                "cim-compiler", "compile",
                 "--input-file", input_path,
                 "--output-dir", output_folder,
                 "--config-file", self.config_path
@@ -136,7 +136,7 @@ class TestBase:
 
             # run compiler
             subprocess.run([
-                "python", "cim_compiler/cli/main.py", "compile",
+                "cim-compiler", "compile",
                 "--input-file", input_path,
                 "--output-dir", output_folder,
                 "--config-file", self.config_path
