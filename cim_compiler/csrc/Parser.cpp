@@ -391,7 +391,9 @@ void MLIRGenImpl::parse_if_else_stmt(const boost::property_tree::ptree &ast) {
   parse_stmt_list(safe_get_child(get_item(ast, 6), "stmt_list"));
   auto yield_variables =
       parse_carry(safe_get_child(get_item(ast, 4), "carry")).second;
-  builder.create<mlir::scf::YieldOp>(loc, yield_variables);
+  if (yield_variables.size() > 0) {
+    builder.create<mlir::scf::YieldOp>(loc, yield_variables);
+  }
 
   block_stack.pop();
   builder.setInsertionPointToEnd(block_stack.top());
@@ -404,7 +406,9 @@ void MLIRGenImpl::parse_if_else_stmt(const boost::property_tree::ptree &ast) {
   parse_stmt_list(safe_get_child(get_item(ast, 10), "stmt_list"));
   auto yield_variables2 =
       parse_carry(safe_get_child(get_item(ast, 4), "carry")).second;
-  builder.create<mlir::scf::YieldOp>(loc, yield_variables2);
+  if (yield_variables2.size() > 0) {
+    builder.create<mlir::scf::YieldOp>(loc, yield_variables2);
+  }
 
   block_stack.pop();
   builder.setInsertionPointToEnd(block_stack.top());
