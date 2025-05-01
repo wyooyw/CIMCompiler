@@ -1,6 +1,6 @@
 def reduce_sum(
-    vector_in< <-1>, fp16, __OUTPUT_MEMORY__>,
-    vector_out< <-1>, fp16, __OUTPUT_MEMORY__>
+    vector_in< <-1>, fp16, __ANY__>,
+    vector_out< <-1>, fp16, __ANY__>
 ) {
     reduce_len = {{reduce_config.reduce_len}};
     reduce_num = {{reduce_config.reduce_num}};

@@ -1,7 +1,7 @@
 def cp_online_softmax(
-    x< <-1>, fp16, __OUTPUT_MEMORY__>,
-    score< <-1>, fp16, __OUTPUT_MEMORY__>,
-    temp< <-1>, fp16, __OUTPUT_MEMORY__>,
+    x< <-1>, fp16, __ANY__>,
+    score< <-1>, fp16, __ANY__>,
+    temp< <-1>, fp16, __ANY__>,
     group_offset<index>,
     group_stride<index>,
     group_size<index>
