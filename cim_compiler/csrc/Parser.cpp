@@ -2,10 +2,11 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
+#include <map>
 #include "cim/Dialect.h"
 #include "cim/Parser.h"
 #include "common/macros.h"
+#include "mlir/IR/Operation.h"
 
 static const boost::property_tree::ptree &
 get_item(const boost::property_tree::ptree &ast, int index) {
@@ -44,9 +45,9 @@ MLIRGenImpl::safe_get_child(const boost::property_tree::ptree &ast,
 MLIRGenImpl::MLIRGenImpl(mlir::MLIRContext &context)
     : builder(&context), loc(builder.getUnknownLoc()) {
 
-  GLOBAL_MEMORY = builder.getStringAttr("global");
-  LOCAL_MEMORY = builder.getStringAttr("local");
-  MACRO_MEMORY = builder.getStringAttr("macro");
+  // GLOBAL_MEMORY = builder.getStringAttr("global");
+  // LOCAL_MEMORY = builder.getStringAttr("local");
+  // MACRO_MEMORY = builder.getStringAttr("macro");
   // loc = builder.getUnknownLoc();
 }
 
@@ -793,6 +794,7 @@ MLIRGenImpl::parse_builtin_buffer(const boost::property_tree::ptree &ast) {
                             mlir::MemRefLayoutAttrInterface(), memory_attr);
   mlir::memref::AllocOp alloc =
       builder.create<mlir::memref::AllocOp>(loc, type);
+  buffer_type[alloc] = parse_memory_type(memory);
   return alloc.getResult();
 }
 
@@ -1534,10 +1536,8 @@ mlir::Type MLIRGenImpl::parse_datatype(std::string datatype) {
   }
 }
 
-mlir::Attribute MLIRGenImpl::parse_device(std::string device) {
-  LOG_DEBUG << "parse_device";
-
-  std::string result = device;
+std::string MLIRGenImpl::parse_memory_type(std::string memory_type) {
+  std::string result = memory_type;
 
   // 去掉前缀下划线
   size_t start = result.find_first_not_of('_');
@@ -1555,17 +1555,18 @@ mlir::Attribute MLIRGenImpl::parse_device(std::string device) {
   for (char &ch : result) {
     ch = std::tolower(ch);
   }
+  LOG_DEBUG << "Convert " << memory_type << " to " << result;
+  return result;
+}
 
-  mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
-  nameAttrs.push_back(
-      builder.getNamedAttr("memory", builder.getStringAttr(result)));
+mlir::Attribute MLIRGenImpl::parse_device(std::string device) {
+  LOG_DEBUG << "parse_device";
+
+  mlir::SmallVector<mlir::NamedAttribute, 1> nameAttrs;
   nameAttrs.push_back(
       builder.getNamedAttr("address", builder.getI64IntegerAttr(-1)));
   mlir::DictionaryAttr attr =
       mlir::DictionaryAttr::get(builder.getContext(), nameAttrs);
-
-  LOG_DEBUG << "Convert " << device << " to " << result;
-
   return attr;
 }
 

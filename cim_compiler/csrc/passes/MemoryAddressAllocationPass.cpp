@@ -111,6 +111,7 @@ struct MemoryAddressAllocationPass
                                OperationPass<mlir::func::FuncOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(MemoryAddressAllocationPass)
   std::string config_path;
+  std::map<mlir::Operation *, std::string> buffer_type;
   
   void runOnOperation() override {
     LOG_DEBUG << "run on operation";
@@ -138,12 +139,12 @@ struct MemoryAddressAllocationPass
       auto context = op.getContext();
       mlir::MemRefType type = op.getResult().getType();
 
-      mlir::DictionaryAttr memory_space =
-          llvm::cast<mlir::DictionaryAttr>(type.getMemorySpace());
-      llvm::StringRef _memory =
-          llvm::cast<mlir::StringAttr>(memory_space.get("memory")).getValue();
-      std::string memory = _memory.str();
-
+      // mlir::DictionaryAttr memory_space =
+      //     llvm::cast<mlir::DictionaryAttr>(type.getMemorySpace());
+      // llvm::StringRef _memory =
+      //     llvm::cast<mlir::StringAttr>(memory_space.get("memory")).getValue();
+      // std::string memory = _memory.str();
+      std::string memory = buffer_type[op];
       auto shape = type.getShape(); // TODO: how to get memref's size?
 
       int size = 1;
@@ -203,7 +204,7 @@ struct MemoryAddressAllocationPass
 
       address_table[memory] += size;
       if (address_table[memory] > memory_size_list[memory]) {
-        LOG_ERROR << "Memory address overflow: " << memory << " size: " << size;
+        LOG_ERROR << "Memory address overflow: " << memory << " total size: " << memory_size_list[memory] << " use size: " << address_table[memory] << " buffer size: " << size;
         std::exit(1);
       }
     }
@@ -212,8 +213,9 @@ struct MemoryAddressAllocationPass
 } // namespace
 
 /// Create a Shape Inference pass.
-std::unique_ptr<mlir::Pass> mlir::cim::createMemoryAddressAllocationPass(std::string config_path) {
+std::unique_ptr<mlir::Pass> mlir::cim::createMemoryAddressAllocationPass(std::string config_path, std::map<mlir::Operation *, std::string> buffer_type) {
   auto pass = std::make_unique<MemoryAddressAllocationPass>();
   pass->config_path = config_path;
+  pass->buffer_type = buffer_type;
   return pass;
 }

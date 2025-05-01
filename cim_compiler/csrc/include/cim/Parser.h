@@ -23,13 +23,14 @@ public:
   mlir::ModuleOp parseJson(std::string json_path);
   mlir::ModuleOp parseModule(const boost::property_tree::ptree &ast);
   // std::vector<mlir::scf::ForOp> getUnrollForOps();
+  std::map<mlir::Operation *, std::string> buffer_type;
 
 private:
   mlir::OpBuilder builder;
   mlir::Location loc;
-  mlir::StringAttr GLOBAL_MEMORY;
-  mlir::StringAttr LOCAL_MEMORY;
-  mlir::StringAttr MACRO_MEMORY;
+  // mlir::StringAttr GLOBAL_MEMORY;
+  // mlir::StringAttr LOCAL_MEMORY;
+  // mlir::StringAttr MACRO_MEMORY;
   std::unordered_map<std::string, std::unordered_map<std::string, mlir::Value>>
       signature_table;
   std::unordered_map<std::string, mlir::func::FuncOp> signature_table_func;
@@ -183,6 +184,8 @@ private:
 
   // return
   void parse_return_stmt(const boost::property_tree::ptree &ast);
+
+  std::string parse_memory_type(std::string memory_type);
 };
 
 #endif // MLIRGENIMPL_H

@@ -3,12 +3,15 @@
 
 #include <memory>
 #include <string>
+#include <map>
+#include "mlir/IR/Operation.h"
+
 namespace mlir {
 class Pass;
 
 namespace cim {
 std::unique_ptr<Pass> createShapeInferencePass();
-std::unique_ptr<Pass> createMemoryAddressAllocationPass(std::string configPath);
+std::unique_ptr<Pass> createMemoryAddressAllocationPass(std::string configPath, std::map<mlir::Operation *, std::string> buffer_type);
 std::unique_ptr<Pass> createTestDecomposeAffineOpPass();
 std::unique_ptr<Pass> createFoldMemRefAliasOpsPass();
 std::unique_ptr<Pass> createExtractAddressComputationPass();
