@@ -1,6 +1,5 @@
 {% include 'op/common/def_special_regs.cim' %}
 {% include 'op/common/simd.cim' %}
-{% include 'op/reduce/reduce_sum_inplace.cim' %}
 {% include 'op/reduce/reduce_sum.cim' %}
 {% include 'op/llm/softmax.cim' %}
 {% include 'op/llm/all_gather.cim' %}
