@@ -1,6 +1,6 @@
 {% include 'op/common/def_special_regs.cim' %}
 {% include 'op/common/simd.cim' %}
-{% include 'op/reduce/reduce_sum_inplace.cim' %}
+{% include 'op/reduce/reduce_sum.cim' %}
 
 def set_special_regs(){
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 16);

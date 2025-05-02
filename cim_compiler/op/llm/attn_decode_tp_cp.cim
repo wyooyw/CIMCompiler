@@ -2,7 +2,6 @@
 {% include 'op/common/simd.cim' %}
 {% include 'op/llm/attn_decode_utils.cim' %}
 {% include 'op/llm/all_gather.cim' %}
-{% include 'op/reduce/reduce_sum_inplace.cim' %}
 {% include 'op/reduce/reduce_sum.cim' %}
 {% include 'op/llm/softmax.cim' %}
 {% include 'op/llm/cp_softmax.cim' %}

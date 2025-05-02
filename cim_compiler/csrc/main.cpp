@@ -127,6 +127,7 @@ int main(int argc, char **argv) {
   mlir::PassManager init_passes(&context);
   init_passes.addPass(mlir::createInlinerPass());
   init_passes.addPass(mlir::createCanonicalizerPass());
+  init_passes.addPass(mlir::createSymbolDCEPass());
   mlir::OpPassManager &init_op_passes = init_passes.nest<mlir::func::FuncOp>();
   init_op_passes.addPass(mlir::createCSEPass());
   init_op_passes.addPass(cim::createFoldMemRefAliasOpsPass());

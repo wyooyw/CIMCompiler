@@ -133,3 +133,4 @@ def test_reduce(vector_len, reduce_num, reduce_len):
 
 if __name__=="__main__":
     test_reduce(32, 4, 2)
+    # test_reduce_inplace(32, 4, 2)
