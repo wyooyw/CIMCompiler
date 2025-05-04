@@ -6,23 +6,17 @@
         "n_bcol": 128,
         "n_group": 1
     },
-    "mask": {
-        "n_from": 128,
-        "n_to": 16
-    },
     "reduce": {
         "reduce_len": 16,
         "reduce_num": 16
     },
-    "mask_memory_name": "pim_mask_data_reg_buffer",
     "memory_list": [
         {
             "name": "macro",
             "type": "macro",
             "addressing": {
                 "offset_byte": 0,
-                "size_byte": 8388608,
-                "comments": "offset: 0 Byte, size: 128 * 1024 Byte"
+                "size_byte": 8388608
             }
         },
         {
@@ -30,7 +24,6 @@
             "type": "sram",
             "addressing": {
                 "size_byte": 8192,
-                "comments": "2 * (16 * 128 * 2) = 8192",
                 "offset_byte": 8388608
             }
         },
@@ -39,7 +32,6 @@
             "type": "sram",
             "addressing": {
                 "size_byte": 131072,
-                "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
                 "offset_byte": 8396800
             }
         },
@@ -48,7 +40,6 @@
             "type": "sram",
             "addressing": {
                 "size_byte": 131072,
-                "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte",
                 "offset_byte": 8527872
             }
         },
@@ -57,7 +48,6 @@
             "type": "reg_buffer",
             "addressing": {
                 "size_byte": 32,
-                "comments": "offset: 256 * 1024 Byte, size: 0.5 * 1024 * 2 Byte",
                 "offset_byte": 8658944
             }
         },
@@ -66,7 +56,6 @@
             "type": "reg_buffer",
             "addressing": {
                 "size_byte": 256,
-                "comments": "offset: 257 * 1024 Byte, size: 4 * 1024 Byte",
                 "offset_byte": 8658976
             }
         },
@@ -91,7 +80,7 @@
             "type": "dram",
             "addressing": {
                 "size_byte": 268435456,
-                "comments": "size: 16MB",
+                "comments": "size: 8MB * 32",
                 "offset_byte": 8692000
             }
         }
