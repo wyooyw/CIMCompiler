@@ -106,7 +106,8 @@ class SIMDOpConfig:
 class SPMDOpRunner(OpRunner):
     def __init__(self, op_path, op_config, cim_config_path, num_cores:int, config_for_each_core = None):
         super().__init__(op_path, op_config, cim_config_path)
-        assert isinstance(op_config, SIMDOpConfig)
+        # assert isinstance(op_config, SIMDOpConfig)
+        assert hasattr(op_config, 'core_id') and hasattr(op_config, 'world_size'), "op_config must have core_id and world_size attributes"
         self.num_cores = num_cores
         self.config_for_each_core = config_for_each_core
 
@@ -135,13 +136,22 @@ class SPMDOpRunner(OpRunner):
         self.compile(op_code_path, final_code_dir)
         self.make_image(input_list, image_path)
 
-    def run(self, input_list:list[list[np.ndarray]], output_list:list[list[np.ndarray]], simulate:bool=True):
+    def run(self, input_list:list[list[np.ndarray]]=None, output_list:list[list[np.ndarray]]=None, simulate:bool=True, save_dir:str=None):
+        if input_list is None:
+            input_list = [[] for _ in range(self.num_cores)]
+        if output_list is None:
+            output_list = [[] for _ in range(self.num_cores)]
+
         assert len(input_list) == len(output_list) == self.num_cores, f"{len(input_list)=}, {len(output_list)=}, {self.num_cores=}"
         assert all(len(input_list[i]) == len(input_list[0]) for i in range(self.num_cores))
         assert all(len(output_list[i]) == len(output_list[0]) for i in range(self.num_cores))
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp_dir = os.environ.get("CIM_COMPILER_OUTPUT_DIR", tmp_dir)
+            if save_dir is not None:
+                tmp_dir = save_dir
+            elif os.environ.get("CIM_COMPILER_OUTPUT_DIR", None) is not None:
+                tmp_dir = os.environ.get("CIM_COMPILER_OUTPUT_DIR")
+
             os.makedirs(tmp_dir, exist_ok=True)
             # tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
             
@@ -153,6 +163,11 @@ class SPMDOpRunner(OpRunner):
 
             for p in processes:
                 p.join()
+
+            for p in processes:
+                if p.exitcode != 0:
+                    print(f"Subprocess {p.pid} failed with exit code {p.exitcode}")
+                    exit()
             
             if simulate:
                 core_tmp_dir = os.path.join(tmp_dir, "{core_id}")

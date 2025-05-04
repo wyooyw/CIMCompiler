@@ -7,20 +7,7 @@ import pytest
 from test.base import OpRunner, SIMDOpConfig, SPMDOpRunner
 import math
 from test.op.test_reduce.test_reduce import get_reduce_config
-
-@dataclass
-class AttnDecodeConfig:
-    head_hidden: int
-    seqlen: int
-    N_ROW: int
-    N_COMP: int
-    N_GROUP_VCOL: int
-    N_MACRO_PER_GROUP: int
-    N_GROUP: int
-    transpose_row: int
-    transpose_col: int
-    reduce_config: str
-    math: str
+from cim_compiler.op.llm.helper import AttnDecodeConfig, AttnDecodeCPConfig
 
 def make_cimset_mask(length: int):
     assert length % 8 == 0, f"{length} is not divisible by 8"
@@ -54,14 +41,11 @@ def test_attn_decode(head_hidden, seqlen):
     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode.cim")
     cim_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
     cim_config = MacroConfig.from_config(cim_config_path)
+    cim_config.set_default_bit_width(16)
     op_config = AttnDecodeConfig(
         head_hidden=head_hidden, 
         seqlen=seqlen, 
-        N_ROW=cim_config.n_row, 
-        N_COMP=cim_config.n_comp, 
-        N_GROUP_VCOL=cim_config.n_group_vcol(16),
-        N_MACRO_PER_GROUP=cim_config.n_macro_per_group,
-        N_GROUP=cim_config.n_group,
+        macro_config=cim_config,
         transpose_row=16,
         transpose_col=128,
         reduce_config=get_reduce_config(cim_config_path),
@@ -76,7 +60,7 @@ def test_attn_decode(head_hidden, seqlen):
     k_T_global = Buffer(<128, 4096>, fp16, __GLOBAL__);
     output_global = Buffer(<128>, fp16, __GLOBAL__);
     """
-    cimset_mask = make_cimset_mask(op_config.N_GROUP_VCOL)
+    cimset_mask = make_cimset_mask(op_config.macro_config.n_group_vcol)
     query = np.random.randint(-1, 2, (op_config.head_hidden,)).astype(np.float16)
     key = np.random.randint(-1, 2, ( op_config.seqlen, op_config.head_hidden)).astype(np.float16)
     value = np.random.randint(-1, 2, (op_config.seqlen, op_config.head_hidden)).astype(np.float16)
@@ -96,13 +80,6 @@ def test_attn_decode(head_hidden, seqlen):
     atol = 1e-2  # 绝对误差：0.001
     allclose = np.allclose(output, golden, rtol=rtol, atol=atol)
     assert allclose, f"{output=} {golden=}"
-
-@dataclass
-class AttnDecodeCPConfig(SIMDOpConfig, AttnDecodeConfig):
-    cp_group_offset: int = -1
-    cp_group_stride: int = -1
-    cp_group_size: int = -1
-
 
 @pytest.mark.parametrize(
     "head_hidden, seqlen, world_size, cp_group_size",
@@ -124,14 +101,11 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp.cim")
     cim_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
     cim_config = MacroConfig.from_config(cim_config_path)
+    cim_config.set_default_bit_width(16)
     op_config = AttnDecodeCPConfig(
         head_hidden=head_hidden, 
         seqlen=seqlen, 
-        N_ROW=cim_config.n_row, 
-        N_COMP=cim_config.n_comp, 
-        N_GROUP_VCOL=cim_config.n_group_vcol(16),
-        N_MACRO_PER_GROUP=cim_config.n_macro_per_group,
-        N_GROUP=cim_config.n_group,
+        macro_config=cim_config,
         transpose_row=16,
         transpose_col=128,
         reduce_config=get_reduce_config(cim_config_path),
@@ -157,7 +131,7 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
     v_global = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, __GLOBAL__);
     output_global = Buffer(<{{head_hidden}}>, fp16, __GLOBAL__);
     """
-    cimset_mask = make_cimset_mask(op_config.N_GROUP_VCOL)
+    cimset_mask = make_cimset_mask(op_config.macro_config.n_group_vcol)
     num_head = tp_size = world_size // cp_group_size
     query = np.random.randint(-1, 2, (num_head, op_config.head_hidden,)).astype(np.float16)
     key = np.random.randint(-1, 2, ( num_head, op_config.seqlen, op_config.head_hidden)).astype(np.float16)
