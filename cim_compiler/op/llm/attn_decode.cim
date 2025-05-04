@@ -7,9 +7,9 @@
 def main(){
     set_special_regs();
 
-    global_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, __GLOBAL__);
-    local_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, __INPUT_MEMORY__);
-    Trans(global_pimset_mask, local_pimset_mask);
+    // global_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, __GLOBAL__);
+    // local_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, __INPUT_MEMORY__);
+    // Trans(global_pimset_mask, local_pimset_mask);
     
     q_global = Buffer(<{{head_hidden}}>, fp16, __GLOBAL__);
     k_global = Buffer(<{{seqlen}}, {{head_hidden}}>, fp16, __GLOBAL__);
