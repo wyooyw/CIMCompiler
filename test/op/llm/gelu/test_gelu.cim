@@ -18,6 +18,6 @@ def main(){
     Trans(x_global, x_local);
     
     y_local = Buffer(<{{hidden}}>, fp16, __OUTPUT_MEMORY__);
-    SIMD(GELU, x_local, y_local);
+    SIMD({{simd.v_gelu}}, x_local, y_local);
     Trans(y_local, y_global);
 }

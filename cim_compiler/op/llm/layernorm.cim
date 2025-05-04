@@ -14,31 +14,31 @@ def layernorm_single_token(
 
     // step 1: mean
     reduce_sum(x, temp);
-    SIMD(VS_DIV, temp[0], d, out[0]); // TODO: save hidden into scalar memory
+    SIMD({{simd.vs_div}}, temp[0], d, out[0]); // TODO: save hidden into scalar memory
     x_mean = out[0];
     
     // step 2: var
     x_sub_mean = temp[:hidden];
-    SIMD(VS_SUB, x, x_mean, x_sub_mean);
-    SIMD(vv_mul, x_sub_mean, x_sub_mean, temp2[:hidden]); // input on temp, output on temp2
+    SIMD({{simd.vs_sub}}, x, x_mean, x_sub_mean);
+    SIMD({{simd.vv_mul}}, x_sub_mean, x_sub_mean, temp2[:hidden]); // input on temp, output on temp2
     reduce_sum_inplace(temp2[:hidden]);
-    SIMD(VS_DIV, temp2[0], d, temp2[0]);
+    SIMD({{simd.vs_div}}, temp2[0], d, temp2[0]);
     var = temp2[0];
     
     // step 3: fenzi
     fenzi = x_sub_mean;
     
     // step 4: fenmu
-    SIMD(VSADD, var, eps, var);
-    SIMD(VSQRT, var, var);
+    SIMD({{simd.vs_add}}, var, eps, var);
+    SIMD({{simd.v_sqrt}}, var, var);
     fenmu = var;
     
     // step 5: div
     y2 = temp2[:hidden];
-    SIMD(VS_DIV, fenzi, fenmu, y2); // input on temp, output on temp2
+    SIMD({{simd.vs_div}}, fenzi, fenmu, y2); // input on temp, output on temp2
     
     // step 6: affine
     y = temp[:hidden];
-    SIMD(vs_mul, y2, a, y); // input on temp2, output on temp
-    SIMD(VSADD, y, b, out); // input on temp, output on temp2
+    SIMD({{simd.vs_mul}}, y2, a, y); // input on temp2, output on temp
+    SIMD({{simd.vs_add}}, y, b, out); // input on temp, output on temp2
 }

@@ -36,14 +36,16 @@ class LayerNormOpConfig:
     hidden: int
     reduce_config: int
     math: int
+    simd: SIMDConfig = None
 
 @dataclass
 class GELUOpConfig:
     hidden: int = 0
     core_id: int = None
     world_size: int = None
-
-
+    simd: SIMDConfig = None
+    global_memory_name: str = None
+    
 def split_global_memory(num_split, src_config_path, dst_config_path, global_memory_name):
     with open(src_config_path, "r") as f:
         src_config = json.load(f)

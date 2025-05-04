@@ -8,12 +8,15 @@ import pytest
 import torch
 import torch.nn.functional as F
 from cim_compiler.op.llm.helper import GELUOpConfig
-
+from cim_compiler.simulator.simd_utils import SIMDConfig
 def gelu(x):
     torch_tensor = torch.tensor(x.astype(np.float32))
     gelu_output = F.gelu(torch_tensor)
     output_data = gelu_output.numpy().astype(x.dtype)
     return output_data
+
+def config_global_memory_name(rank, op_config):
+    op_config.global_memory_name = f"__GLOBAL_{rank}__"
 
 @pytest.mark.parametrize(
     "hidden, world_size",
@@ -29,6 +32,8 @@ def test_gelu(hidden, world_size):
     cim_config_path = os.path.join(cim_compiler_home, "test/op/llm/config.json")
     op_config = GELUOpConfig(
         hidden=hidden // world_size,
+        simd=SIMDConfig.from_config(cim_config_path),
+        global_memory_name=f"__GLOBAL__"
     )
 
     op_runner = SPMDOpRunner(op_path, op_config, cim_config_path, world_size)

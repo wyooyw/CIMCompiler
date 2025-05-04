@@ -10,6 +10,7 @@ from test.base import SPMDOpRunner,OpRunner
 import math
 from datetime import datetime
 from cim_compiler.simulator.simulator import MemorySpace
+from cim_compiler.simulator.simd_utils import SIMDConfig
 import shutil
 import tarfile
 from functools import partial
@@ -92,6 +93,8 @@ def _main_impl(args):
     cim_config = MacroConfig.from_config(args.config_path)
     cim_config.set_default_bit_width(16)
 
+    simd_config = SIMDConfig.from_config(args.config_path)
+
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp.cim")
     
@@ -135,7 +138,8 @@ def _main_impl(args):
                 transpose_col=128,
                 reduce_config=get_reduce_config(args.config_path),
                 math=math,
-                split_stage_config=split_stage_config
+                split_stage_config=split_stage_config,
+                simd=simd_config,
             )
 
             op_runner = SPMDOpRunner(
@@ -154,6 +158,7 @@ def _main_impl(args):
         hidden=args.hidden_size,
         reduce_config=get_reduce_config(args.config_path),
         math=math,
+        simd=simd_config,
     )
     ln_path = os.path.join(cim_compiler_home, "test/op/llm/layernorm/test_layernorm_single_token.cim")
     ln_runner = OpRunner(ln_path, ln_config, args.config_path)
@@ -175,6 +180,7 @@ def _main_impl(args):
     gelu_path = os.path.join(cim_compiler_home, "test/op/llm/gelu/test_gelu.cim")
     gelu_config = GELUOpConfig(
         hidden=args.hidden_size // args.world_size,
+        simd=simd_config,
     )   
     gelu_runner = SPMDOpRunner(
         gelu_path, 
