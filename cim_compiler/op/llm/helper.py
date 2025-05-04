@@ -24,3 +24,15 @@ class AttnDecodeCPConfig(AttnDecodeConfig):
     core_id: int = None
     world_size: int = None
     split_stage_config:SplitStageConfig = None
+
+@dataclass
+class LayerNormOpConfig:
+    hidden: int
+    reduce_config: int
+    math: int
+
+@dataclass
+class GELUOpConfig:
+    hidden: int = 0
+    core_id: int = None
+    world_size: int = None

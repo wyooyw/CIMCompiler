@@ -7,16 +7,13 @@ import math
 import pytest
 import torch
 import torch.nn.functional as F
+from cim_compiler.op.llm.helper import GELUOpConfig
 
 def gelu(x):
     torch_tensor = torch.tensor(x.astype(np.float32))
     gelu_output = F.gelu(torch_tensor)
     output_data = gelu_output.numpy().astype(x.dtype)
     return output_data
-
-@dataclass
-class GELUOpConfig(SIMDOpConfig):
-    hidden: int = 0
 
 @pytest.mark.parametrize(
     "hidden, world_size",

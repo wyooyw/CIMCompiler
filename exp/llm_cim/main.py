@@ -3,10 +3,10 @@ import os
 import time
 import logging
 from pathlib import Path
-from cim_compiler.op.llm.helper import AttnDecodeCPConfig, SplitStageConfig
+from cim_compiler.op.llm.helper import AttnDecodeCPConfig, SplitStageConfig, GELUOpConfig, LayerNormOpConfig
 from cim_compiler.simulator.macro_utils import MacroConfig
 from test.op.test_reduce.test_reduce import get_reduce_config
-from test.base import SPMDOpRunner
+from test.base import SPMDOpRunner,OpRunner
 import math
 from datetime import datetime
 from cim_compiler.simulator.simulator import MemorySpace
@@ -94,6 +94,7 @@ def main():
         input_memory_capacity = MemorySpace.from_memory_config(args.config_path).get_memory_by_name("input_memory").size
         assert k_local_capacity <= input_memory_capacity, f"k_local_capacity {k_local_capacity} more than input_memory_capacity {input_memory_capacity} when CP size is {cp_size}. Please use greater CP sizes."
 
+    # attention
     for i, cp_size in enumerate(args.mapping_cp_sizes):
         n_head_this_round = args.world_size // cp_size
         print(f"CP size: {cp_size}, n_head: {n_head_this_round}, hidden_size_per_head: {hidden_size_per_head}")
@@ -104,8 +105,7 @@ def main():
             ]
         else:
             split_stage_configs = [SplitStageConfig(run_step=0, run_all_steps=True)]
-        
-        # attention
+
         for stage_idx, split_stage_config in enumerate(split_stage_configs):
             op_config = AttnDecodeCPConfig(
                 head_hidden=hidden_size_per_head,
@@ -131,8 +131,41 @@ def main():
                 config_for_each_core=config_cp_group,
             )
 
-            op_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, f"round_{i}", f"attn_stage_{stage_idx}"), gather_multicore_code=True)
+            op_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, "attn", f"round_{i}", f"stage_{stage_idx}"), gather_multicore_code=True)
 
+    # layernorm
+    ln_config = LayerNormOpConfig(
+        hidden=args.hidden_size,
+        reduce_config=get_reduce_config(args.config_path),
+        math=math,
+    )
+    ln_path = os.path.join(cim_compiler_home, "test/op/llm/layernorm/test_layernorm_single_token.cim")
+    ln_runner = OpRunner(ln_path, ln_config, args.config_path)
+    ln_save_dir = os.path.join(args.save_dir, f"layernorm")
+    ln_runner.run(simulate=False, save_dir=ln_save_dir)
+    ln_final_code_path = os.path.join(ln_save_dir, "compiler_output", "final_code.json")
+    with open(ln_final_code_path, "r") as f:
+        ln_final_code = f.read()
+    with open(os.path.join(ln_save_dir, "final_code.json"), "w") as f:
+        f.write("{\n")
+        f.write(f"\"0\": {ln_final_code}, \n")
+        for j in range(1, args.world_size):
+            f.write(f"\"{j}\": {{}}")
+            if j != args.world_size - 1:
+                f.write(",\n")
+        f.write("}")
+
+    gelu_path = os.path.join(cim_compiler_home, "test/op/llm/gelu/test_gelu.cim")
+    gelu_config = GELUOpConfig(
+        hidden=args.hidden_size // args.world_size,
+    )   
+    gelu_runner = SPMDOpRunner(
+        gelu_path, 
+        gelu_config, 
+        args.config_path, 
+        args.world_size
+    )
+    gelu_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, f"gelu"), gather_multicore_code=True)
 
 if __name__ == "__main__":
     main()

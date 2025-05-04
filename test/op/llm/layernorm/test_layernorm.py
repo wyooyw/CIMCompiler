@@ -5,13 +5,7 @@ from test.base import OpRunner
 from test.op.test_reduce.test_reduce import get_reduce_config
 import math
 import pytest
-
-
-@dataclass
-class LayerNormOpConfig:
-    hidden: int
-    reduce_config: int
-    math: int
+from cim_compiler.op.llm.helper import LayerNormOpConfig
 
 def layernorm(x, eps, a, b):
     x_mean = np.mean(x, axis=-1, keepdims=True)
