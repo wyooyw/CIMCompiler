@@ -404,6 +404,7 @@ static std::vector<Value> _getMacroActivatePositionBySubview(
   SmallVector<OpFoldResult> shapes = subViewOp.getMixedSizes();
 
   Value activate_row_begin ;
+  Value activate_row_size ;
   Value activate_group_num ;
   Value activate_macro_length ;
   Value activate_element_col_num ;
@@ -412,6 +413,7 @@ static std::vector<Value> _getMacroActivatePositionBySubview(
   if (allocShapes.size() > 5) {
     // [row, comp, group, ..., group, vcol]
     activate_row_begin = getValue(offsets[0], rewriter);
+    activate_row_size = getValue(shapes[0], rewriter);
     activate_group_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
     for (int i = 2; i < allocShapes.size() - 1; i++) {
       activate_group_num = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(),
@@ -420,6 +422,7 @@ static std::vector<Value> _getMacroActivatePositionBySubview(
     activate_element_col_num = getValue(shapes[allocShapes.size() - 1], rewriter);
   }else if (allocShapes.size() == 5) {
       activate_row_begin = getValue(offsets[0], rewriter);
+      activate_row_size = getValue(shapes[0], rewriter);
       Value activate_outer_group_num = getValue(shapes[2], rewriter);
       Value activate_inner_group_num = getValue(shapes[3], rewriter);
       activate_group_num = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(),
@@ -428,11 +431,13 @@ static std::vector<Value> _getMacroActivatePositionBySubview(
       activate_element_col_num = getValue(shapes[4], rewriter);
   }else if (allocShapes.size() == 4) {
       activate_row_begin = getValue(offsets[0], rewriter);
+      activate_row_size = getValue(shapes[0], rewriter);
       activate_group_num = getValue(shapes[2], rewriter);
       activate_macro_length = getValue(shapes[2], rewriter);
       activate_element_col_num = getValue(shapes[3], rewriter);
   }else if (allocShapes.size() == 2) {
       activate_row_begin = getValue(offsets[0], rewriter);
+      activate_row_size = getValue(shapes[0], rewriter);
       activate_group_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
       activate_macro_length = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
       activate_element_col_num = getValue(shapes[1], rewriter);
@@ -447,18 +452,19 @@ static std::vector<Value> _getMacroActivatePositionBySubview(
   // Value activate_macro_length = getValue(shapes[2], rewriter);
   // Value activate_element_col_num = getValue(shapes[3], rewriter);
 
-  return {activate_row_begin, activate_element_col_num, activate_group_num};
+  return {activate_row_begin, activate_element_col_num, activate_group_num, activate_row_size};
 }
 
 static std::vector<Value> _getMacroActivatePositionByAlloc(
     cim::CIMComputeOp op, PatternRewriter &rewriter, int operand_index) {
   // <N_ROW, N_COMP, N_GROUP, N_MACRO * N_VCOL>
   auto allocOp =
-      op.getOperand(operand_index).getDefiningOp<memref::AllocOp>();
+      op.getOperand(operand_index).template getDefiningOp<memref::AllocOp>();
 
   llvm::ArrayRef<int64_t> allocShapes = allocOp.getType().getShape();
 
   Value activate_row_begin ;
+  Value activate_row_size ;
   Value activate_group_num ;
   Value activate_macro_length ;
   Value activate_element_col_num ;
@@ -466,6 +472,7 @@ static std::vector<Value> _getMacroActivatePositionByAlloc(
   if (allocShapes.size() > 5) {
     // [row, comp, group, ..., group, vcol]
     activate_row_begin = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 0);
+    activate_row_size = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[0]);
     activate_group_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
     for (int i = 2; i < allocShapes.size() - 1; i++) {
       activate_group_num = rewriter.create<arith::MulIOp>(rewriter.getUnknownLoc(),
@@ -474,15 +481,18 @@ static std::vector<Value> _getMacroActivatePositionByAlloc(
     activate_element_col_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[allocShapes.size() - 1]);
   }else if (allocShapes.size() == 5) {
       activate_row_begin = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 0);
+      activate_row_size = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[0]);
       activate_group_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[2] * allocShapes[3]);
       // activate_macro_length = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[3]);
       activate_element_col_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[4]);
   }else if (allocShapes.size() == 4) {
       activate_row_begin = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 0);
+      activate_row_size = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[0]);
       activate_group_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[2]);
       activate_element_col_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[3]);
   }else if (allocShapes.size() == 2) {
       activate_row_begin = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 0);
+      activate_row_size = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[0]);
       activate_group_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
       activate_macro_length = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), 1);
       activate_element_col_num = rewriter.create<arith::ConstantIndexOp>(rewriter.getUnknownLoc(), allocShapes[1]);
@@ -497,7 +507,7 @@ static std::vector<Value> _getMacroActivatePositionByAlloc(
   // Value activate_macro_length = getValue(shapes[2], rewriter);
   // Value activate_element_col_num = getValue(shapes[3], rewriter);
 
-  return {activate_row_begin, activate_element_col_num, activate_group_num};
+  return {activate_row_begin, activate_element_col_num, activate_group_num, activate_row_size};
 }
 
 static std::vector<Value> getMacroActivatePosition(cim::CIMComputeOp op,
@@ -639,10 +649,14 @@ struct CIMComputeOpLowering : public OpRewritePattern<cim::CIMComputeOp> {
     }
     Value row_index = macro_activate[0];
     Value num_group = macro_activate[2];
+    Value batch_size = macro_activate[3];
     Value input_size_all = getLengthValue(op.getOperand(0), rewriter);
     Value input_size =
-        rewriter.create<arith::DivSIOp>(op.getLoc(), input_size_all, num_group);
-
+        rewriter.create<arith::DivSIOp>(op.getLoc(),
+          rewriter.create<arith::DivSIOp>(op.getLoc(), input_size_all, num_group),
+          batch_size
+        );
+    
     if (!addr_input || !row_index || !input_size) {
       LOG_ERROR << "CIMComputeOpLowering::matchAndRewrite fail 2";
       return failure();
@@ -658,6 +672,15 @@ struct CIMComputeOpLowering : public OpRewritePattern<cim::CIMComputeOp> {
         getI1IntegerAttr(op.getValueSparseFlag(), rewriter);
     IntegerAttr bit_sparse_flag =
         getI1IntegerAttr(op.getBitSparseFlag(), rewriter);
+    IntegerAttr batch_flag =
+        getI1IntegerAttr(op.getBatchFlag(), rewriter);
+
+    Value batch_size_value;
+    if (batch_flag.getValue() == 1) {
+        batch_size_value = batch_size;
+    } else {
+        batch_size_value = nullptr;
+    }
 
     rewriter.replaceOpWithNewOp<cimisa::CIMComputeOp>(
         op,
@@ -665,9 +688,11 @@ struct CIMComputeOpLowering : public OpRewritePattern<cim::CIMComputeOp> {
         // addr_output,          // AnyTypeOf<[AnyInteger, Index]>:$output_addr,
         row_index,         // AnyTypeOf<[AnyInteger, Index]>:$row_index,
         input_size,        // AnyTypeOf<[AnyInteger, Index]>:$input_size,
+        batch_size_value,        // AnyTypeOf<[AnyInteger, Index]>:$batch_size,
         acc_flag,          // I1:$acc_flag,
         value_sparse_flag, // I1:$value_sparse_flag,
-        bit_sparse_flag    // I1:$bit_sparse_flag
+        bit_sparse_flag,   // I1:$bit_sparse_flag,
+        batch_flag        // I1:$batch_flag
     );
 
     return success();

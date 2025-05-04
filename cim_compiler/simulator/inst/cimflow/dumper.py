@@ -137,10 +137,12 @@ class CIMFlowDumper:
                 "rs": inst.reg_input_addr,
                 "rt": inst.reg_input_size,
                 "re": inst.reg_activate_row,
+                "rf": inst.reg_batch_size,
                 "SP_V": inst.flag_value_sparse,
                 "SP_B": inst.flag_bit_sparse,
                 "GRP": inst.flag_group,
-                "GRP_I": inst.flag_group_input_mode
+                "GRP_I": inst.flag_group_input_mode,
+                "BATCH": inst.flag_batch
             }
         elif isinstance(inst, CIMConfigInst):
             return {

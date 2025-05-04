@@ -57,9 +57,11 @@ def CIMComputeOp : CIMISA_Op<"cim_compute"> {
     AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
     AnyTypeOf<[AnyInteger, Index]>:$row_index,
     AnyTypeOf<[AnyInteger, Index]>:$input_size,
+    Optional<AnyTypeOf<[AnyInteger, Index]>>:$batch_size,
     I1Attr:$acc_flag,
     I1Attr:$value_sparse_flag,
-    I1Attr:$bit_sparse_flag
+    I1Attr:$bit_sparse_flag,
+    I1Attr:$batch_flag
   );
 
 }

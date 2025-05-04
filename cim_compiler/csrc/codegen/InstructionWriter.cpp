@@ -1,4 +1,5 @@
 #include "codegen/InstructionWriter.h"
+#include "common/macros.h"
 // Implement a concrete InstructionWriter
 Inst LegacyInstructionWriter::getGeneralLIInst(int reg, int value) {
     return {
@@ -179,7 +180,7 @@ bool LegacyInstructionWriter::isSpecialLi(Inst &inst) {
   return false;
 }
 
-Inst LegacyInstructionWriter::getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode) {
+Inst LegacyInstructionWriter::getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int reg_batch_size, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode, int flag_batch) {
     return {
         {"class", 0b00}, 
         {"type", 0b0}, 
@@ -188,11 +189,18 @@ Inst LegacyInstructionWriter::getCIMComputeInst(int reg_input_addr, int reg_inpu
         {"group", flag_group}, 
         {"group_input_mode", flag_group_input_mode}, 
         {"accumulate", flag_accumulate}, 
+        {"batch", flag_batch},
         {"rs1", reg_input_addr}, 
         {"rs2", reg_input_size}, 
         {"rs3", reg_activate_row}, 
+        {"rs4", reg_batch_size}
     };
 }
+
+// Inst LegacyInstructionWriter::getBatchCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int reg_batch_size) {
+//     LOG_ERROR << "Legacy does not support batch instructions.";
+//     return {};
+// }
 
 Inst LegacyInstructionWriter::getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) {
     return {

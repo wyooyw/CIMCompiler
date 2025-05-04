@@ -88,11 +88,13 @@ class CIMComputeInst:
     reg_input_addr: int
     reg_input_size: int
     reg_activate_row: int
+    reg_batch_size: int
     flag_accumulate: bool
     flag_value_sparse: bool
     flag_bit_sparse: bool
     flag_group: bool
     flag_group_input_mode: bool
+    flag_batch: bool
 
 @dataclass
 class CIMConfigInst:

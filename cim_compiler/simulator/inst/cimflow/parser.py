@@ -123,10 +123,12 @@ class CIMFlowParser:
                 reg_input_addr=inst["rs"],
                 reg_input_size=inst["rt"],
                 reg_activate_row=inst["re"],
+                reg_batch_size=inst["rf"],
                 flag_value_sparse=inst["SP_V"],
                 flag_bit_sparse=inst["SP_B"],
                 flag_group=inst["GRP"],
                 flag_group_input_mode=inst["GRP_I"],
+                flag_batch=inst["BATCH"],
                 flag_accumulate=1
             )
         elif opcode == 0b000100:

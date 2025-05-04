@@ -439,10 +439,26 @@ static void codeGen(mlir::cimisa::CIMComputeOp op,
   // int output_addr_reg = getReg(regmap, op.getOperand(1));
   int activate_row_reg = getReg(regmap, op.getOperand(1));
   int input_size_reg = getReg(regmap, op.getOperand(2));
+  Value batch_size_value = op.getBatchSize();
+  int batch_flag = static_cast<int>(op.getBatchFlag());
+  // if (batch_flag==1 && !batch_size_opt.has_value()){
+  //   LOG_ERROR << "batch_size is not set, but batch_flag is 1";
+  //   std::exit(-1);
+  // }else if(batch_flag==0 && batch_size_opt.has_value()){
+  //   LOG_ERROR << "batch_size is set, but batch_flag is 0";
+  //   std::exit(-1);
+  // }
+
   use.insert(input_addr_reg);
   // use.insert(output_addr_reg);
   use.insert(activate_row_reg);
   use.insert(input_size_reg);
+
+  int batch_size_reg = 0;
+  if (batch_flag==1){
+    batch_size_reg = getReg(regmap, batch_size_value);
+    use.insert(batch_size_reg);
+  }
   // Inst inst = {
   //     {"class", 0b00},
   //     {"type", 0b0},
@@ -460,11 +476,13 @@ static void codeGen(mlir::cimisa::CIMComputeOp op,
     input_addr_reg, 
     input_size_reg, 
     activate_row_reg,
+    batch_size_reg,
     static_cast<int>(op.getAccFlag()),
     static_cast<int>(op.getValueSparseFlag()),
     static_cast<int>(op.getBitSparseFlag()),
     1,
-    0
+    0,
+    static_cast<int>(op.getBatchFlag())
   );
   instr_list.push_back(inst);
 }

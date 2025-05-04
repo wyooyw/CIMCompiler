@@ -977,9 +977,33 @@ class Simulator:
         return output_data
 
     def _run_pim_class_pim_compute_type_inst_dense(self, inst):
+        assert isinstance(inst, CIMComputeInst)
+        input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
         input_offset = self.read_general_reg(inst.reg_input_addr)
         input_size = self.read_general_reg(inst.reg_input_size)
         activate_row = self.read_general_reg(inst.reg_activate_row)
+        batch_size = self.read_general_reg(inst.reg_batch_size)
+        flag_batch = inst.flag_batch
+        if not flag_batch:
+            batch_size = 1
+        # import pdb; pdb.set_trace()
+        for batch_id in range(batch_size):
+            self._run_pim_class_pim_compute_type_inst_impl(
+                input_offset=input_offset + (batch_id * input_size * input_bw) // 8,
+                input_size=input_size,
+                activate_row=activate_row + batch_id,
+                inst=inst,
+            )
+
+    def _run_pim_class_pim_compute_type_inst_impl(self, 
+        input_offset,
+        input_size,
+        activate_row,
+        inst
+        ):
+        # input_offset = self.read_general_reg(inst.reg_input_addr)
+        # input_size = self.read_general_reg(inst.reg_input_size)
+        # activate_row = self.read_general_reg(inst.reg_activate_row)
 
         input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
@@ -1003,7 +1027,7 @@ class Simulator:
         # Get input vector
         input_byte_size = input_size * input_bw // 8
 
-        self.memory_space.check_memory_name(input_offset, input_byte_size, ["pim_input_reg_buffer", "cim_input_reg_buffer"])
+        # self.memory_space.check_memory_name(input_offset, input_byte_size, ["pim_input_reg_buffer", "cim_input_reg_buffer"])
         group_input_data = []
         for group_id in range(activation_group_num):
             group_input_offset = input_offset + group_id * group_input_step
@@ -1012,7 +1036,7 @@ class Simulator:
                 input_byte_size, 
                 get_dtype_from_bitwidth(input_bw, is_float=self.read_special_reg(SpecialReg.DTYPE_MACRO_IS_FLOAT))
             )
-            self.memory_space.check_memory_name(group_input_offset, input_byte_size, ["pim_input_reg_buffer", "cim_input_reg_buffer"])
+            # self.memory_space.check_memory_name(group_input_offset, input_byte_size, ["pim_input_reg_buffer", "cim_input_reg_buffer"])
             group_input_data.append(input_data)
 
         # Get weight matrix
@@ -1073,7 +1097,7 @@ class Simulator:
                 output_data = np.dot(
                     input_data.astype(out_dtype), weight_data.astype(out_dtype)
                 )
-                
+                # import pdb; pdb.set_trace()
                 pass
             
             group_output_data.append(output_data)

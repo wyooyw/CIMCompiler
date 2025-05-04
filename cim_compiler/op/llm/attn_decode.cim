@@ -42,7 +42,7 @@ def main(){
 
     // step 2: compute qK^T
     attn_out1 = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
-    gemv(q_local, k_macro, attn_out1, {{ head_hidden // macro_config.n_comp }}, pim_input_reg_buffer, pim_output_reg_buffer);
+    gemv_using_batch_cim_compute(q_local, k_macro, attn_out1, {{ head_hidden // macro_config.n_comp }}, pim_input_reg_buffer, pim_output_reg_buffer);
 
     // step 3: compute softmax(qK^T)
     score = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
@@ -50,7 +50,7 @@ def main(){
 
     // step 4: compute softmax(qK^T)V
     attn_out2= Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
-    gemv(score, v_macro, attn_out2, {{ seqlen // macro_config.n_comp }}, pim_input_reg_buffer, pim_output_reg_buffer);
+    gemv_using_batch_cim_compute(score, v_macro, attn_out2, {{ seqlen // macro_config.n_comp }}, pim_input_reg_buffer, pim_output_reg_buffer);
 
     // step 5: output
     Trans(attn_out2, output_global);

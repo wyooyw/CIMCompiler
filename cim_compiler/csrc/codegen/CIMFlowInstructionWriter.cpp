@@ -119,16 +119,18 @@ Inst CIMFlowInstructionWriter::getSpecialToGeneralAssignInst(int reg_general, in
     };
 }
 
-Inst CIMFlowInstructionWriter::getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode) {
+Inst CIMFlowInstructionWriter::getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int reg_batch_size, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode, int flag_batch) {
     return {
         {"opcode", 0b000000},
         {"rs", reg_input_addr},
         {"rt", reg_input_size},
         {"re", reg_activate_row},
+        {"rf", reg_batch_size},
         {"SP_V", bool(flag_value_sparse)},
         {"SP_B", bool(flag_bit_sparse)},
         {"GRP", bool(flag_group)},
         {"GRP_I", bool(flag_group_input_mode)},
+        {"BATCH", bool(flag_batch)}
     };
 }
 

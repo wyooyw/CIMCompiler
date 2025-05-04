@@ -27,7 +27,8 @@ public:
     virtual Inst getBranchInst(int compare, int reg1, int reg2, int offset) = 0;
     virtual Inst getJumpInst(int offset) = 0;
 
-    virtual Inst getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode) = 0;
+    virtual Inst getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int reg_batch_size, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode, int flag_batch) = 0;
+    // virtual Inst getBatchCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int reg_batch_size) = 0;
     virtual Inst getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) = 0;
     virtual Inst getCIMOutputInst(int reg_out_n, int reg_out_mask_addr, int reg_out_addr, int flag_outsum, int flag_outsum_move ) = 0;
     virtual Inst getCIMTransferInst(int reg_src_addr, int reg_out_n, int reg_out_mask_addr, int reg_buffer_addr, int reg_dst_addr) = 0;
@@ -68,7 +69,8 @@ public:
     void setJumpOffset(Inst &inst, int offset);
     void setBranchOffset(Inst &inst, int offset);
     
-    Inst getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode) override;
+    Inst getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int reg_batch_size, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode, int flag_batch) override;
+    // Inst getBatchCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int reg_batch_size) override;
     Inst getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) override;
     Inst getCIMOutputInst(int reg_out_n, int reg_out_mask_addr, int reg_out_addr, int flag_outsum, int flag_outsum_move ) override;
     Inst getCIMTransferInst(int reg_src_addr, int reg_out_n, int reg_out_mask_addr, int reg_buffer_addr, int reg_dst_addr) override;
@@ -101,7 +103,8 @@ public:
     Inst getSendInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) override;
     Inst getRecvInst(int reg_src_addr, int reg_dst_addr, int reg_size, int reg_core_id, int reg_transfer_id) override;
     
-    Inst getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode) override;
+    Inst getCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int reg_batch_size, int flag_accumulate, int flag_value_sparse, int flag_bit_sparse, int flag_group, int flag_group_input_mode, int flag_batch) override;
+    // Inst getBatchCIMComputeInst(int reg_input_addr, int reg_input_size, int reg_activate_row, int reg_batch_size) override;
     Inst getCIMSetInst(int reg_single_group_id, int reg_mask_addr, int flag_group_broadcast ) override;
     Inst getCIMOutputInst(int reg_out_n, int reg_out_mask_addr, int reg_out_addr, int flag_outsum, int flag_outsum_move ) override;
     Inst getCIMTransferInst(int reg_src_addr, int reg_out_n, int reg_out_mask_addr, int reg_buffer_addr, int reg_dst_addr) override;

@@ -595,6 +595,9 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree &ast) {
   } else if (call_func_name == "CIMComputeDense") {
     parse_builtin_cimcompute_dense(ast);
     return;
+  } else if (call_func_name == "CIMComputeBatch") {
+    parse_builtin_cimcompute_batch(ast);
+    return;
   } else if (call_func_name == "CIMComputeValueSparse") {
     parse_builtin_cimcompute_value_sparse(ast);
     return;
@@ -930,29 +933,34 @@ void MLIRGenImpl::parse_builtin_save(const boost::property_tree::ptree &ast) {
   // return result;
 }
 
+void MLIRGenImpl::parse_builtin_cimcompute_batch(
+    const boost::property_tree::ptree &ast) {
+  parse_builtin_cimcompute(ast, false, false, true);
+}
+
 void MLIRGenImpl::parse_builtin_cimcompute_dense(
     const boost::property_tree::ptree &ast) {
-  parse_builtin_cimcompute(ast, false, false);
+  parse_builtin_cimcompute(ast, false, false, false);
 }
 
 void MLIRGenImpl::parse_builtin_cimcompute_value_sparse(
     const boost::property_tree::ptree &ast) {
-  parse_builtin_cimcompute(ast, true, false);
+  parse_builtin_cimcompute(ast, true, false, false);
 }
 
 void MLIRGenImpl::parse_builtin_cimcompute_bit_sparse(
     const boost::property_tree::ptree &ast) {
-  parse_builtin_cimcompute(ast, false, true);
+  parse_builtin_cimcompute(ast, false, true, false);
 }
 
 void MLIRGenImpl::parse_builtin_cimcompute_value_bit_sparse(
     const boost::property_tree::ptree &ast) {
-  parse_builtin_cimcompute(ast, true, true);
+  parse_builtin_cimcompute(ast, true, true, false);
 }
 
 void MLIRGenImpl::parse_builtin_cimcompute(
     const boost::property_tree::ptree &ast, bool value_sparse,
-    bool bit_sparse) {
+    bool bit_sparse, bool batch) {
   LOG_DEBUG << "parse_builtin_cimcompute";
   auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
 
@@ -971,8 +979,10 @@ void MLIRGenImpl::parse_builtin_cimcompute(
       builder.getIntegerType(1), llvm::APInt(1, value_sparse));
   mlir::IntegerAttr bit_sparse_flag = mlir::IntegerAttr::get(
       builder.getIntegerType(1), llvm::APInt(1, bit_sparse));
+  mlir::IntegerAttr batch_flag = mlir::IntegerAttr::get(
+      builder.getIntegerType(1), llvm::APInt(1, batch));
   builder.create<mlir::cim::CIMComputeOp>(loc, input, macro, value_sparse_flag,
-                                          bit_sparse_flag);
+                                          bit_sparse_flag, batch_flag);
 }
 
 void MLIRGenImpl::parse_builtin_cimoutput(

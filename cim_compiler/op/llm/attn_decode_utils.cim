@@ -155,3 +155,32 @@ def gemv(src< <-1>, fp16, __OUTPUT_MEMORY__>,
         Trans(use_output_reg_buffer, output);
     };
 }
+
+
+def gemv_using_batch_cim_compute(src< <-1>, fp16, __OUTPUT_MEMORY__>, 
+         macro< <-1, {{macro_config.n_comp}}, 1, {{macro_config.n_group_vcol}}>, fp16, __MACRO__>,
+         dst< <-1>, fp16, __OUTPUT_MEMORY__>,
+         n_reduce_row<index>,
+         pim_input_reg_buffer< <-1>, fp16, __PIM_INPUT_REG_BUFFER__>,
+         pim_output_reg_buffer< <-1>, fp16, __PIM_OUTPUT_REG_BUFFER__>
+){
+    src_row = Shape(src, 0);
+
+    n_macro_row = Shape(macro, 0);
+    // Print(n_macro_row);
+    n_spatial_row = n_macro_row / n_reduce_row;
+
+    use_input_reg_buffer = pim_input_reg_buffer[0:{{macro_config.n_comp}}];
+    use_output_reg_buffer = pim_output_reg_buffer[0:{{macro_config.n_group_vcol}}];
+
+    for i_spatial_row in range(0, n_spatial_row) carry () {
+        CIMComputeBatch(
+            src,
+            macro[i_spatial_row * n_reduce_row: (i_spatial_row+1) * n_reduce_row, :, :, :]
+        );
+        CIMOutput({{macro_config.n_group_vcol}}, 0, use_output_reg_buffer);
+
+        output = dst[i_spatial_row * {{macro_config.n_group_vcol}} : (i_spatial_row + 1) * {{macro_config.n_group_vcol}}];
+        Trans(use_output_reg_buffer, output);
+    };
+}

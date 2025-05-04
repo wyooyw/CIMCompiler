@@ -58,7 +58,8 @@ def CIMComputeOp : CIM_Op<"cim_compute"> {
     AnyMemRef:$input, 
     AnyMemRef:$macro, 
     I1Attr:$value_sparse_flag,
-    I1Attr:$bit_sparse_flag
+    I1Attr:$bit_sparse_flag,
+    I1Attr:$batch_flag
   );
 
   let hasFolder = 1;
