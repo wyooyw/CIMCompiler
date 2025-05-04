@@ -105,6 +105,7 @@ def main():
         else:
             split_stage_configs = [SplitStageConfig(run_step=0, run_all_steps=True)]
         
+        # attention
         for stage_idx, split_stage_config in enumerate(split_stage_configs):
             op_config = AttnDecodeCPConfig(
                 head_hidden=hidden_size_per_head,
@@ -130,9 +131,8 @@ def main():
                 config_for_each_core=config_cp_group,
             )
 
-            op_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, f"round_{i}", f"attn_stage_{stage_idx}"))
+            op_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, f"round_{i}", f"attn_stage_{stage_idx}"), gather_multicore_code=True)
 
-    # TODO: add the rest of the logic here
 
 if __name__ == "__main__":
     main()

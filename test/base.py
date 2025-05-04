@@ -136,7 +136,7 @@ class SPMDOpRunner(OpRunner):
         self.compile(op_code_path, final_code_dir)
         self.make_image(input_list, image_path)
 
-    def run(self, input_list:list[list[np.ndarray]]=None, output_list:list[list[np.ndarray]]=None, simulate:bool=True, save_dir:str=None):
+    def run(self, input_list:list[list[np.ndarray]]=None, output_list:list[list[np.ndarray]]=None, simulate:bool=True, save_dir:str=None, gather_multicore_code=False):
         if input_list is None:
             input_list = [[] for _ in range(self.num_cores)]
         if output_list is None:
@@ -180,6 +180,22 @@ class SPMDOpRunner(OpRunner):
                     core_tmp_dir = os.path.join(tmp_dir, str(core_id))
                     simulator_output_dir = os.path.join(core_tmp_dir, "simulator_output")
                     self.get_output(simulator_output_dir, input_list[core_id], output_list[core_id])
+
+            if gather_multicore_code:
+                code_list = []
+                for core_id in range(self.num_cores):
+                    code_path = os.path.join(tmp_dir, str(core_id), "compiler_output", "final_code.json")
+                    with open(code_path, "r") as f:
+                        code = f.read()
+                    code_list.append(code)
+
+                with open(os.path.join(tmp_dir, "final_code.json"), "w") as f:
+                    f.write("{\n")
+                    for i, code in enumerate(code_list):
+                        f.write(f"\"{i}\": {code}")
+                        if i != self.num_cores - 1:
+                            f.write(",\n")
+                    f.write("}")
 
     def simulate(self, image_path:str, final_code_dir:str, simulator_output_dir:str):
         subprocess.run([
