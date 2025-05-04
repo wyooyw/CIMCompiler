@@ -2,7 +2,7 @@
     "macro": {
         "n_macro": 16,
         "n_row": 2048,
-        "n_comp": 8,
+        "n_comp": 16,
         "n_bcol": 128,
         "n_group": 1
     },
@@ -21,7 +21,7 @@
             "type": "macro",
             "addressing": {
                 "offset_byte": 0,
-                "size_byte": 4194304,
+                "size_byte": 8388608,
                 "comments": "offset: 0 Byte, size: 128 * 1024 Byte"
             }
         },
@@ -31,7 +31,7 @@
             "addressing": {
                 "size_byte": 8192,
                 "comments": "2 * (16 * 128 * 2) = 8192",
-                "offset_byte": 4194304
+                "offset_byte": 8388608
             }
         },
         {
@@ -40,7 +40,7 @@
             "addressing": {
                 "size_byte": 131072,
                 "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
-                "offset_byte": 4202496
+                "offset_byte": 8396800
             }
         },
         {
@@ -49,7 +49,7 @@
             "addressing": {
                 "size_byte": 131072,
                 "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte",
-                "offset_byte": 4333568
+                "offset_byte": 8527872
             }
         },
         {
@@ -58,7 +58,7 @@
             "addressing": {
                 "size_byte": 32,
                 "comments": "offset: 256 * 1024 Byte, size: 0.5 * 1024 * 2 Byte",
-                "offset_byte": 4464640
+                "offset_byte": 8658944
             }
         },
         {
@@ -67,7 +67,7 @@
             "addressing": {
                 "size_byte": 256,
                 "comments": "offset: 257 * 1024 Byte, size: 4 * 1024 Byte",
-                "offset_byte": 4464672
+                "offset_byte": 8658976
             }
         },
         {
@@ -75,7 +75,7 @@
             "type": "sram",
             "addressing": {
                 "size_byte": 16384,
-                "offset_byte": 4464928
+                "offset_byte": 8659232
             }
         },
         {
@@ -83,7 +83,7 @@
             "type": "sram",
             "addressing": {
                 "size_byte": 16384,
-                "offset_byte": 4481312
+                "offset_byte": 8675616
             }
         },
         {
@@ -92,7 +92,7 @@
             "addressing": {
                 "size_byte": 268435456,
                 "comments": "size: 16MB",
-                "offset_byte": 4497696
+                "offset_byte": 8692000
             }
         }
     ],
