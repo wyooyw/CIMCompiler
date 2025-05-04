@@ -7,7 +7,7 @@ import pytest
 from test.base import OpRunner, SIMDOpConfig, SPMDOpRunner
 import math
 from test.op.test_reduce.test_reduce import get_reduce_config
-from cim_compiler.op.llm.helper import AttnDecodeConfig, AttnDecodeCPConfig
+from cim_compiler.op.llm.helper import AttnDecodeConfig, AttnDecodeCPConfig, SplitStageConfig
 
 def make_cimset_mask(length: int):
     assert length % 8 == 0, f"{length} is not divisible by 8"
@@ -109,7 +109,8 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
         transpose_row=16,
         transpose_col=128,
         reduce_config=get_reduce_config(cim_config_path),
-        math=math
+        math=math,
+        split_stage_config=SplitStageConfig(run_step=0, run_all_steps=True)
     )
 
     def config_cp_group(rank, op_config):

@@ -3,12 +3,13 @@ import os
 import time
 import logging
 from pathlib import Path
-from cim_compiler.op.llm.helper import AttnDecodeCPConfig
+from cim_compiler.op.llm.helper import AttnDecodeCPConfig, SplitStageConfig
 from cim_compiler.simulator.macro_utils import MacroConfig
 from test.op.test_reduce.test_reduce import get_reduce_config
 from test.base import SPMDOpRunner
 import math
 from datetime import datetime
+from cim_compiler.simulator.simulator import MemorySpace
 
 def parse_args():
     parser = argparse.ArgumentParser(description="LLM CIM Configuration")
@@ -86,33 +87,50 @@ def main():
 
     assert args.hidden_size % args.n_head == 0, f"hidden_size {args.hidden_size} must be divisible by n_head {args.n_head}"
     hidden_size_per_head = args.hidden_size // args.n_head
+
+    # check capacity of input memory
+    for i, cp_size in enumerate(args.mapping_cp_sizes):
+        k_local_capacity = hidden_size_per_head * (args.seqlen // cp_size) * 2
+        input_memory_capacity = MemorySpace.from_memory_config(args.config_path).get_memory_by_name("input_memory").size
+        assert k_local_capacity <= input_memory_capacity, f"k_local_capacity {k_local_capacity} more than input_memory_capacity {input_memory_capacity} when CP size is {cp_size}. Please use greater CP sizes."
+
     for i, cp_size in enumerate(args.mapping_cp_sizes):
         n_head_this_round = args.world_size // cp_size
         print(f"CP size: {cp_size}, n_head: {n_head_this_round}, hidden_size_per_head: {hidden_size_per_head}")
-        op_config = AttnDecodeCPConfig(
-            head_hidden=hidden_size_per_head,
-            seqlen=args.seqlen,
-            macro_config=cim_config,
-            transpose_row=16,
-            transpose_col=128,
-            reduce_config=get_reduce_config(args.config_path),
-            math=math
-        )
+        
+        if args.split_stages:
+            split_stage_configs = [
+                SplitStageConfig(run_step=i, run_all_steps=False) for i in range(5)
+            ]
+        else:
+            split_stage_configs = [SplitStageConfig(run_step=0, run_all_steps=True)]
+        
+        for stage_idx, split_stage_config in enumerate(split_stage_configs):
+            op_config = AttnDecodeCPConfig(
+                head_hidden=hidden_size_per_head,
+                seqlen=args.seqlen,
+                macro_config=cim_config,
+                transpose_row=16,
+                transpose_col=128,
+                reduce_config=get_reduce_config(args.config_path),
+                math=math,
+                split_stage_config=split_stage_config
+            )
 
-        def config_cp_group(rank, op_config):
-            op_config.cp_group_offset = (rank // cp_size) * cp_size
-            op_config.cp_group_stride = 1
-            op_config.cp_group_size = cp_size
+            def config_cp_group(rank, op_config):
+                op_config.cp_group_offset = (rank // cp_size) * cp_size
+                op_config.cp_group_stride = 1
+                op_config.cp_group_size = cp_size
 
-        op_runner = SPMDOpRunner(
-            op_path, 
-            op_config, 
-            args.config_path, 
-            args.world_size,
-            config_for_each_core=config_cp_group,
-        )
+            op_runner = SPMDOpRunner(
+                op_path, 
+                op_config, 
+                args.config_path, 
+                args.world_size,
+                config_for_each_core=config_cp_group,
+            )
 
-        op_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, f"round_{i}"))
+            op_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, f"round_{i}", f"attn_stage_{stage_idx}"))
 
     # TODO: add the rest of the logic here
 

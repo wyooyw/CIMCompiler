@@ -12,9 +12,15 @@ class AttnDecodeConfig:
     math: str = None
 
 @dataclass
+class SplitStageConfig:
+    run_step: int = None
+    run_all_steps: bool = None
+
+@dataclass
 class AttnDecodeCPConfig(AttnDecodeConfig):
     cp_group_offset: int = None
     cp_group_stride: int = None
     cp_group_size: int = None
     core_id: int = None
     world_size: int = None
+    split_stage_config:SplitStageConfig = None
