@@ -235,4 +235,5 @@ class SIMDUtil:
         self._all_vec_op(inst, lambda x: self.simulator.reduce_sum_util.reduce_sum(x))
     
     def _run_reduce_max(self, inst):
-        self._all_vec_op(inst, lambda x: np.max(x))
+        # self._all_vec_op(inst, lambda x: np.max(x))
+        self._all_vec_op(inst, lambda x: self.simulator.reduce_max_util.reduce_max(x))

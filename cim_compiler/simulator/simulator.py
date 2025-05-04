@@ -24,7 +24,7 @@ from cim_compiler.utils.round import banker_round
 from cim_compiler.simulator.inst.instruction import *
 from cim_compiler.simulator.inst import LegacyParser, CIMFlowParser
 from cim_compiler.utils.logger import get_logger
-from cim_compiler.simulator.reduce_util import ReduceSumUtil, ReduceSumConfig
+from cim_compiler.simulator.reduce_util import ReduceSumUtil, ReduceSumConfig, ReduceMaxUtil, ReduceMaxConfig
 
 logger = get_logger(__name__)
 
@@ -297,6 +297,7 @@ class Simulator:
         macro_config,
         mask_config,
         reduce_sum_config = None,
+        reduce_max_config = None,
         simd_config = None,
         safe_time=999999999,
         mask_memory_name="mask",
@@ -308,6 +309,7 @@ class Simulator:
         self.macro_config = macro_config
         self.mask_config = mask_config
         self.reduce_sum_config = reduce_sum_config
+        self.reduce_max_config = reduce_max_config
         self.simd_config = simd_config
         self.macro_util = MacroUtil(self.memory_space.get_macro_memory(), macro_config)
         self.mask_util = MaskUtil(
@@ -321,6 +323,9 @@ class Simulator:
         )
         self.reduce_sum_util = ReduceSumUtil(
             self.reduce_sum_config
+        )
+        self.reduce_max_util = ReduceMaxUtil(
+            self.reduce_max_config
         )
         self.simd_util = SIMDUtil(
             self.simd_config,
@@ -392,6 +397,7 @@ class Simulator:
         macro_config = MacroConfig.from_config(config_path)
         mask_config = MaskConfig.from_config(config_path)
         reduce_sum_config = ReduceSumConfig.from_config(config_path)
+        reduce_max_config = ReduceMaxConfig.from_config(config_path)
         simd_config = SIMDConfig.from_config(config_path)
         if "mask_memory_name" in config:
             return cls(
@@ -399,11 +405,19 @@ class Simulator:
                 macro_config,
                 mask_config,
                 reduce_sum_config,
+                reduce_max_config,
                 simd_config,
                 mask_memory_name=config["mask_memory_name"],
             )
         else:
-            return cls(memory_space, macro_config, mask_config, reduce_sum_config, simd_config)
+            return cls(
+                memory_space, 
+                macro_config, 
+                mask_config, 
+                reduce_sum_config, 
+                reduce_max_config, 
+                simd_config
+            )
 
     def clear(self):
         self.memory_space.clear()

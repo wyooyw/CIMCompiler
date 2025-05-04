@@ -3,6 +3,7 @@
 {% include 'op/llm/attn_decode_utils.cim' %}
 {% include 'op/llm/all_gather.cim' %}
 {% include 'op/reduce/reduce_sum.cim' %}
+{% include 'op/reduce/reduce_max.cim' %}
 {% include 'op/llm/softmax.cim' %}
 {% include 'op/llm/cp_softmax.cim' %}
 {% include 'op/llm/special_regs.cim' %}

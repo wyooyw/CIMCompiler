@@ -6,9 +6,13 @@
         "n_bcol": 128,
         "n_group": 1
     },
-    "reduce": {
+    "reduce_sum": {
         "reduce_len": 16,
         "reduce_num": 16
+    },
+    "reduce_max": {
+        "reduce_len": 32,
+        "reduce_num": 1
     },
     "memory_list": [
         {

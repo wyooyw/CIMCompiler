@@ -13,6 +13,7 @@ class AttnDecodeConfig:
     transpose_row: int = None
     transpose_col: int = None
     reduce_config: str = None
+    reduce_max_config: str = None
     math: str = None
 
 @dataclass
@@ -45,7 +46,7 @@ class GELUOpConfig:
     world_size: int = None
     simd: SIMDConfig = None
     global_memory_name: str = None
-    
+
 def split_global_memory(num_split, src_config_path, dst_config_path, global_memory_name):
     with open(src_config_path, "r") as f:
         src_config = json.load(f)

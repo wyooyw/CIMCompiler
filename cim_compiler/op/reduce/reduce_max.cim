@@ -1,0 +1,74 @@
+def ceil_div(
+    a<index>,
+    b<index>
+) {
+    return ((a + b - 1) / b);
+}
+
+def reduce_max_inplace(
+    vector< <-1>, fp16, __ANY__>
+) {
+    reduce_len = {{reduce_max_config.reduce_len}};
+    reduce_num = {{reduce_max_config.reduce_num}};
+    big_from = reduce_len * reduce_num;
+    N = Shape(vector, 0);
+
+    // stage 1
+    
+    stage_1_size = (N - big_from) + 1;
+    stage_1_step = big_from - reduce_num;
+    @unroll
+    for i in range(0, stage_1_size, stage_1_step) carry () {
+        src_vector = vector[i:i+big_from];
+        dst_vector = vector[i+big_from-reduce_num:i+big_from];
+        SIMD({{simd.reduce_max}}, src_vector, dst_vector);
+    };
+
+    
+    n_step1 = ceil_div(Max(stage_1_size, 0), stage_1_step);
+    stage_2_begin = n_step1 * stage_1_step;
+
+    // stage 2
+    k = N - stage_2_begin;
+
+    stage_2_steps = {{1 + math.ceil(math.log(reduce_max_config.reduce_num) / math.log(reduce_max_config.reduce_len))}};
+    @unroll
+    for i in range(0, stage_2_steps) carry (k) {
+        if (k >= 2) carry () {
+            src_vector = vector[stage_2_begin:stage_2_begin+k];
+            next_k = ceil_div(k, reduce_len);
+            dst_vector = vector[stage_2_begin:stage_2_begin+next_k];
+            SIMD({{simd.reduce_max}}, src_vector, dst_vector);
+        } else {
+            do_nothing = 1;
+        };
+        k = ceil_div(k, reduce_len);
+    };
+    Trans(vector[stage_2_begin], vector[0]);
+}
+
+def reduce_max(
+    vector_in< <-1>, fp16, __ANY__>,
+    vector_out< <-1>, fp16, __ANY__>
+) {
+    reduce_len = {{reduce_max_config.reduce_len}};
+    reduce_num = {{reduce_max_config.reduce_num}};
+    big_from = reduce_len * reduce_num;
+    N = Shape(vector_in, 0);
+    M = Shape(vector_out, 0);
+    // assert M = ceil(N/reduce_len)
+    n_step = ceil_div(N, big_from);
+
+    @unroll
+    for i in range(0, n_step) carry () {
+        src_vector_len = Min(big_from, N-i*big_from);
+        src_vector = vector_in[i*big_from:i*big_from+src_vector_len];
+
+        dst_vector_len = ceil_div(src_vector_len, reduce_len);
+        dst_vector = vector_out[i*reduce_num:i*reduce_num+dst_vector_len];
+        SIMD({{simd.reduce_max}}, src_vector, dst_vector);
+    };
+    use_vector_out_size = ceil_div(N, reduce_len);
+    reduce_max_inplace(vector_out[:use_vector_out_size]); // save at vector_out[-1]
+}
+

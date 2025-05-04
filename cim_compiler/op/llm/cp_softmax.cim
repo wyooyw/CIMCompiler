@@ -21,6 +21,8 @@ def cp_online_softmax(
     all_gather(all_max_x, group_offset, group_stride, group_size);
 
     total_max_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
+    // reduce_max(all_max_x, temp);
+    // Trans(temp[0], total_max_x);
     SIMD({{simd.reduce_max}}, all_max_x, total_max_x);
 
     all_max_x_sub_total_max_x = Buffer(<{{world_size}}, 1>, fp16, __OUTPUT_MEMORY__);
