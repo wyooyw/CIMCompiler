@@ -21,7 +21,7 @@ def reduce_sum_inplace(
     for i in range(0, stage_1_size, stage_1_step) carry () {
         src_vector = vector[i:i+big_from];
         dst_vector = vector[i+big_from-reduce_num:i+big_from];
-        SIMD(REDUCE_SUM, src_vector, dst_vector);
+        SIMD({{simd.reduce_sum}}, src_vector, dst_vector);
     };
 
     
@@ -38,7 +38,7 @@ def reduce_sum_inplace(
             src_vector = vector[stage_2_begin:stage_2_begin+k];
             next_k = div_ceil(k, reduce_len);
             dst_vector = vector[stage_2_begin:stage_2_begin+next_k];
-            SIMD(REDUCE_SUM, src_vector, dst_vector);
+            SIMD({{simd.reduce_sum}}, src_vector, dst_vector);
         } else {
             do_nothing = 1;
         };
@@ -66,7 +66,7 @@ def reduce_sum(
 
         dst_vector_len = div_ceil(src_vector_len, reduce_len);
         dst_vector = vector_out[i*reduce_num:i*reduce_num+dst_vector_len];
-        SIMD(REDUCE_SUM, src_vector, dst_vector);
+        SIMD({{simd.reduce_sum}}, src_vector, dst_vector);
     };
     use_vector_out_size = div_ceil(N, reduce_len);
     reduce_sum_inplace(vector_out[:use_vector_out_size]); // save at vector_out[-1]

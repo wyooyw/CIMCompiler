@@ -12,11 +12,13 @@ import torch
 import torch.nn.functional as F
 
 from cim_compiler.simulator.data_type import get_bitwidth_from_dtype, get_dtype_from_bitwidth
+from cim_compiler.simulator.special_regs import SpecialReg
 from cim_compiler.simulator.flat_inst_util import FlatInstUtil
 from cim_compiler.simulator.macro_utils import MacroConfig, MacroUtil
 from cim_compiler.simulator.mask_utils import MaskConfig, MaskUtil
 from cim_compiler.simulator.meta_utils import MetaUtil
 from cim_compiler.simulator.stats_util import StatsUtil
+from cim_compiler.simulator.simd_utils import SIMDConfig, SIMDUtil
 from cim_compiler.utils.df_layout import tensor_int8_to_bits
 from cim_compiler.utils.round import banker_round
 from cim_compiler.simulator.inst.instruction import *
@@ -25,69 +27,6 @@ from cim_compiler.utils.logger import get_logger
 from cim_compiler.simulator.reduce_util import ReduceSumUtil, ReduceSumConfig
 
 logger = get_logger(__name__)
-
-class SpecialReg(Enum):
-
-    # pim special reg
-    INPUT_BIT_WIDTH = 0
-    OUTPUT_BIT_WIDTH = 1
-    WEIGHT_BIT_WIDTH = 2
-    GROUP_SIZE = 3
-    ACTIVATION_GROUP_NUM = 4
-    ACTIVATION_ELEMENT_COL_NUM = 5
-    GROUP_INPUT_STEP = 6
-    GROUP_INPUT_OFFSET_ADDR = 6
-    VALUE_SPARSE_MASK_ADDR = 7
-    BIT_SPARSE_META_ADDR = 8
-
-    # simd special reg
-    SIMD_INPUT_1_BIT_WIDTH = 16
-    SIMD_INPUT_2_BIT_WIDTH = 17
-    SIMD_INPUT_3_BIT_WIDTH = 18
-    SIMD_INPUT_4_BIT_WIDTH = 19
-    SIMD_OUTPUT_BIT_WIDTH = 20
-    SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 = 21
-    SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 = 22
-
-    # Data type
-    # Only use in this functional simulator, not used in pimsim
-    DTYPE_MACRO_IS_FLOAT = 30
-    DTYPE_SIMD_IS_FLOAT = 31
-
-class InstClass(Enum):
-    PIM_CLASS = 0  # 0b00
-    SIMD_CLASS = 1  # 0b01
-    SCALAR_CLASS = 2  # 0b10
-    TRANS_CLASS = 6  # 0b110
-    CTR_CLASS = 7  # 0b111
-    DEBUG_CLASS = -1
-
-
-class PIMInstType(Enum):
-    PIM_COMPUTE = 0  # 0b00
-    PIM_SET = 1  # 0b01
-    PIM_OUTPUT = 2  # 0b10
-    PIM_TRANSFER = 3  # 0b11
-
-
-class ScalarInstType(Enum):
-    RR = 0  # 0b00
-    RI = 1  # 0b01
-    LOAD_STORE = 2  # 0b10
-    OTHER = 3  # 0b11
-
-
-class ControlInstType(Enum):
-    EQ_BR = 0  # 0b000
-    NE_BR = 1  # 0b001
-    GT_BR = 2  # 0b010
-    LT_BR = 3  # 0b011
-    JUMP = 4  # 0b100
-
-
-class TransInstType(Enum):
-    TRANS = 0  # 0b0
-
 
 class Memory:
     def __init__(self, name, memtype, offset, size):
@@ -358,6 +297,7 @@ class Simulator:
         macro_config,
         mask_config,
         reduce_sum_config = None,
+        simd_config = None,
         safe_time=999999999,
         mask_memory_name="mask",
     ):
@@ -368,6 +308,7 @@ class Simulator:
         self.macro_config = macro_config
         self.mask_config = mask_config
         self.reduce_sum_config = reduce_sum_config
+        self.simd_config = simd_config
         self.macro_util = MacroUtil(self.memory_space.get_macro_memory(), macro_config)
         self.mask_util = MaskUtil(
             self.memory_space.get_memory_by_name(mask_memory_name),
@@ -380,6 +321,10 @@ class Simulator:
         )
         self.reduce_sum_util = ReduceSumUtil(
             self.reduce_sum_config
+        )
+        self.simd_util = SIMDUtil(
+            self.simd_config,
+            self,
         )
         self.jump_offset = None
         self.safe_time = safe_time
@@ -447,16 +392,18 @@ class Simulator:
         macro_config = MacroConfig.from_config(config_path)
         mask_config = MaskConfig.from_config(config_path)
         reduce_sum_config = ReduceSumConfig.from_config(config_path)
+        simd_config = SIMDConfig.from_config(config_path)
         if "mask_memory_name" in config:
             return cls(
                 memory_space,
                 macro_config,
                 mask_config,
                 reduce_sum_config,
+                simd_config,
                 mask_memory_name=config["mask_memory_name"],
             )
         else:
-            return cls(memory_space, macro_config, mask_config, reduce_sum_config)
+            return cls(memory_space, macro_config, mask_config, reduce_sum_config, simd_config)
 
     def clear(self):
         self.memory_space.clear()
@@ -572,7 +519,8 @@ class Simulator:
 
         # SIMD
         elif isinstance(inst, SIMDInst):
-            self._run_simd_class_inst(inst)
+            self.simd_util.run(inst)
+            # self._run_simd_class_inst(inst)
 
         # Scalar
         elif isinstance(inst, RRInst):

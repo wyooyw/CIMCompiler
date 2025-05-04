@@ -20,7 +20,7 @@ def layernorm_single_token(
     // step 2: var
     x_sub_mean = temp[:hidden];
     SIMD(VS_SUB, x, x_mean, x_sub_mean);
-    SIMD(VVMUL, x_sub_mean, x_sub_mean, temp2[:hidden]); // input on temp, output on temp2
+    SIMD(vv_mul, x_sub_mean, x_sub_mean, temp2[:hidden]); // input on temp, output on temp2
     reduce_sum_inplace(temp2[:hidden]);
     SIMD(VS_DIV, temp2[0], d, temp2[0]);
     var = temp2[0];
@@ -39,6 +39,6 @@ def layernorm_single_token(
     
     // step 6: affine
     y = temp[:hidden];
-    SIMD(VSMUL, y2, a, y); // input on temp2, output on temp
+    SIMD(vs_mul, y2, a, y); // input on temp2, output on temp
     SIMD(VSADD, y, b, out); // input on temp, output on temp2
 }

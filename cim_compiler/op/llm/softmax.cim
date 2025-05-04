@@ -7,10 +7,10 @@ def softmax(
     temp< <-1>, fp16, __ANY__>
 ) {
     // local softmax
-    SIMD(REDUCE_MAX, x, max_x);
-    SIMD(VS_SUB, x, max_x, x);
-    SIMD(V_EXP, x, x);
+    SIMD({{simd.reduce_max}}, x, max_x);
+    SIMD({{simd.vs_sub}}, x, max_x, x);
+    SIMD({{simd.v_exp}}, x, x);
     reduce_sum(x, temp);
     Trans(temp[0], sum_exp_x);
-    SIMD(VS_DIV, x, sum_exp_x, score);
+    SIMD({{simd.vs_div}}, x, sum_exp_x, score);
 }

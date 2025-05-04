@@ -1,4 +1,5 @@
 from cim_compiler.simulator.macro_utils import MacroConfig
+from cim_compiler.simulator.simd_utils import SIMDConfig
 from dataclasses import dataclass
 import json
 import tempfile
@@ -28,6 +29,7 @@ class AttnDecodeCPConfig(AttnDecodeConfig):
     world_size: int = None
     split_stage_config:SplitStageConfig = None
     global_memory_name: str = None
+    simd: SIMDConfig = None
 
 @dataclass
 class LayerNormOpConfig:

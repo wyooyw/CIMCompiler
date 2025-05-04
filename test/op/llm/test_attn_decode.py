@@ -2,6 +2,7 @@ import os
 import numpy as np
 from dataclasses import dataclass
 from cim_compiler.simulator.macro_utils import MacroConfig
+from cim_compiler.simulator.simd_utils import SIMDConfig
 from cim_compiler.utils.df_layout import tensor_bits_to_int8
 import pytest
 from test.base import OpRunner, SIMDOpConfig, SPMDOpRunner
@@ -110,7 +111,9 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
         transpose_col=128,
         reduce_config=get_reduce_config(cim_config_path),
         math=math,
-        split_stage_config=SplitStageConfig(run_step=0, run_all_steps=True)
+        split_stage_config=SplitStageConfig(run_step=0, run_all_steps=True),
+        global_memory_name=f"__GLOBAL__",
+        simd=SIMDConfig.from_config(cim_config_path)
     )
 
     def config_cp_group(rank, op_config):

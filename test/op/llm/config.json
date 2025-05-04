@@ -95,5 +95,15 @@
                 "offset_byte": 4497696
             }
         }
+    ],
+    "simd": [
+        "vv_add",
+        "vv_mul",
+        "vs_sub",
+        "v_exp",
+        "vs_div",
+        "vs_mul",
+        "reduce_max",
+        "reduce_sum"
     ]
 }

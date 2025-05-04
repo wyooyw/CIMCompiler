@@ -21,20 +21,20 @@ def cp_online_softmax(
     all_gather(all_max_x, group_offset, group_stride, group_size);
 
     total_max_x = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
-    SIMD(REDUCE_MAX, all_max_x, total_max_x);
+    SIMD({{simd.reduce_max}}, all_max_x, total_max_x);
 
     all_max_x_sub_total_max_x = Buffer(<{{world_size}}, 1>, fp16, __OUTPUT_MEMORY__);
-    SIMD(VS_SUB, all_max_x, total_max_x, all_max_x_sub_total_max_x);
+    SIMD({{simd.vs_sub}}, all_max_x, total_max_x, all_max_x_sub_total_max_x);
     factors = Buffer(<{{world_size}}, 1>, fp16, __OUTPUT_MEMORY__);
-    SIMD(V_EXP, all_max_x_sub_total_max_x, factors);
+    SIMD({{simd.v_exp}}, all_max_x_sub_total_max_x, factors);
 
-    SIMD(VVMUL, factors, all_sum_exp_x, all_sum_exp_x);
+    SIMD({{simd.vv_mul}}, factors, all_sum_exp_x, all_sum_exp_x);
     final_denominator = Buffer(<{{world_size}}>, fp16, __OUTPUT_MEMORY__);
     // SIMD(REDUCE_SUM, all_sum_exp_x, final_denominator);
     Trans(all_sum_exp_x, final_denominator);
     reduce_sum_inplace(final_denominator);
 
     final_factor = Buffer(<1>, fp16, __OUTPUT_MEMORY__);
-    SIMD(VS_DIV, all_sum_exp_x[cp_rank, 0], final_denominator[0], final_factor);
-    SIMD(VSMUL, score, final_factor, score);
+    SIMD({{simd.vs_div}}, all_sum_exp_x[cp_rank, 0], final_denominator[0], final_factor);
+    SIMD({{simd.vs_mul}}, score, final_factor, score);
 }
