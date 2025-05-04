@@ -14,10 +14,18 @@ class OpRunner:
         self.op_config = op_config
         self.cim_config_path = cim_config_path
 
-    def run(self, input_list:list[np.ndarray], output_list:list[np.ndarray]):
+    def run(self, input_list:list[np.ndarray]=None, output_list:list[np.ndarray]=None, simulate:bool=True, save_dir:str=None):
+        if input_list is None:
+            input_list = []
+        if output_list is None:
+            output_list = []
         
         with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp_dir = os.environ.get("CIM_COMPILER_OUTPUT_DIR", tmp_dir)
+            if save_dir is not None:
+                tmp_dir = save_dir
+            elif os.environ.get("CIM_COMPILER_OUTPUT_DIR", None) is not None:
+                tmp_dir = os.environ.get("CIM_COMPILER_OUTPUT_DIR")
+
             os.makedirs(tmp_dir, exist_ok=True)
             # tmp_dir = "/home/wangyiou/project/CIMCompiler/.temp"
             op_code_path = os.path.join(tmp_dir, "op_code.cim")
@@ -26,9 +34,10 @@ class OpRunner:
             image_path = os.path.join(tmp_dir, "image.bin")
             self.fill_template(self.op_path, self.op_config, op_code_path)
             self.compile(op_code_path, final_code_dir)
-            self.make_image(input_list, image_path)
-            self.simulate(image_path, final_code_dir, simulator_output_dir)
-            self.get_output(simulator_output_dir, input_list, output_list)
+            if simulate:
+                self.make_image(input_list, image_path)
+                self.simulate(image_path, final_code_dir, simulator_output_dir)
+                self.get_output(simulator_output_dir, input_list, output_list)
 
     def get_output(self, simulator_output_dir:str, input_list:list[np.ndarray], output_list:list[np.ndarray]):
         # Calculate total size of input arrays in bytes
@@ -189,7 +198,7 @@ class SPMDOpRunner(OpRunner):
                         code = f.read()
                     code_list.append(code)
 
-                with open(os.path.join(tmp_dir, "final_code.json"), "w") as f:
+                with open(os.path.join(tmp_dir, "multi_core_code.json"), "w") as f:
                     f.write("{\n")
                     for i, code in enumerate(code_list):
                         f.write(f"\"{i}\": {code}")

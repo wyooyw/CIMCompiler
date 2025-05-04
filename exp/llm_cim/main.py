@@ -10,6 +10,8 @@ from test.base import SPMDOpRunner,OpRunner
 import math
 from datetime import datetime
 from cim_compiler.simulator.simulator import MemorySpace
+import shutil
+import tarfile
 
 def parse_args():
     parser = argparse.ArgumentParser(description="LLM CIM Configuration")
@@ -94,6 +96,9 @@ def main():
         input_memory_capacity = MemorySpace.from_memory_config(args.config_path).get_memory_by_name("input_memory").size
         assert k_local_capacity <= input_memory_capacity, f"k_local_capacity {k_local_capacity} more than input_memory_capacity {input_memory_capacity} when CP size is {cp_size}. Please use greater CP sizes."
 
+    collect_dir = os.path.join(args.save_dir, "code")
+    os.makedirs(collect_dir, exist_ok=True)
+
     # attention
     for i, cp_size in enumerate(args.mapping_cp_sizes):
         n_head_this_round = args.world_size // cp_size
@@ -132,6 +137,7 @@ def main():
             )
 
             op_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, "attn", f"round_{i}", f"stage_{stage_idx}"), gather_multicore_code=True)
+            shutil.copy(os.path.join(args.save_dir, "attn", f"round_{i}", f"stage_{stage_idx}", "multi_core_code.json"), os.path.join(collect_dir, f"attn_round_{i}_stage_{stage_idx}.json"))
 
     # layernorm
     ln_config = LayerNormOpConfig(
@@ -146,7 +152,7 @@ def main():
     ln_final_code_path = os.path.join(ln_save_dir, "compiler_output", "final_code.json")
     with open(ln_final_code_path, "r") as f:
         ln_final_code = f.read()
-    with open(os.path.join(ln_save_dir, "final_code.json"), "w") as f:
+    with open(os.path.join(ln_save_dir, "multi_core_code.json"), "w") as f:
         f.write("{\n")
         f.write(f"\"0\": {ln_final_code}, \n")
         for j in range(1, args.world_size):
@@ -154,6 +160,7 @@ def main():
             if j != args.world_size - 1:
                 f.write(",\n")
         f.write("}")
+    shutil.copy(os.path.join(ln_save_dir, "multi_core_code.json"), os.path.join(collect_dir, "layernorm.json"))
 
     gelu_path = os.path.join(cim_compiler_home, "test/op/llm/gelu/test_gelu.cim")
     gelu_config = GELUOpConfig(
@@ -166,6 +173,21 @@ def main():
         args.world_size
     )
     gelu_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, f"gelu"), gather_multicore_code=True)
+    shutil.copy(os.path.join(args.save_dir, f"gelu", "multi_core_code.json"), os.path.join(collect_dir, "gelu.json"))
+
+    create_tar_gz(collect_dir, os.path.join(args.save_dir, "code.tar.gz"))
+    
+    
+    
+def delete_unwanted_files(save_dir, keep_files):
+    for root, dirs, files in os.walk(save_dir):
+        for file in files:
+            if file not in keep_files:
+                os.remove(os.path.join(root, file))
+
+def create_tar_gz(source_dir, output_filename):
+    with tarfile.open(output_filename, "w:gz") as tar:
+        tar.add(source_dir, arcname=os.path.basename(source_dir))
 
 if __name__ == "__main__":
     main()
