@@ -90,7 +90,7 @@
             "name": "global",
             "type": "dram",
             "addressing": {
-                "size_byte": 33554432,
+                "size_byte": 268435456,
                 "comments": "size: 16MB",
                 "offset_byte": 4497696
             }

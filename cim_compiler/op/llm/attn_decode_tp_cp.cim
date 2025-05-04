@@ -15,14 +15,14 @@
 def main(){
     set_special_regs();
 
-    // global_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, __GLOBAL__);
+    // global_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, {{global_memory_name}});
     // local_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, __INPUT_MEMORY__);
     // Trans(global_pimset_mask, local_pimset_mask);
     
-    q_global = Buffer(<{{head_hidden}}>, fp16, __GLOBAL__);
-    k_global = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, __GLOBAL__);
-    v_global = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, __GLOBAL__);
-    output_global = Buffer(<{{head_hidden}}>, fp16, __GLOBAL__);
+    q_global = Buffer(<{{head_hidden}}>, fp16, {{global_memory_name}});
+    k_global = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, {{global_memory_name}});
+    v_global = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, {{global_memory_name}});
+    output_global = Buffer(<{{head_hidden}}>, fp16, {{global_memory_name}});
 
     q_local = Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
     k_local = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, __INPUT_MEMORY__);

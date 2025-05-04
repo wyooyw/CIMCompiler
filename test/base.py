@@ -9,10 +9,11 @@ from multiprocessing import Process
 import types
 
 class OpRunner:
-    def __init__(self, op_path, op_config, cim_config_path):
+    def __init__(self, op_path, op_config, cim_config_path, cim_config_path_simulator=None):
         self.op_path = op_path
         self.op_config = op_config
         self.cim_config_path = cim_config_path
+        self.cim_config_path_simulator = cim_config_path_simulator if cim_config_path_simulator is not None else cim_config_path
 
     def run(self, input_list:list[np.ndarray]=None, output_list:list[np.ndarray]=None, simulate:bool=True, save_dir:str=None):
         if input_list is None:
@@ -113,8 +114,8 @@ class SIMDOpConfig:
     world_size: int = -1
 
 class SPMDOpRunner(OpRunner):
-    def __init__(self, op_path, op_config, cim_config_path, num_cores:int, config_for_each_core = None):
-        super().__init__(op_path, op_config, cim_config_path)
+    def __init__(self, op_path, op_config, cim_config_path, num_cores:int, cim_config_path_simulator=None, config_for_each_core = None):
+        super().__init__(op_path, op_config, cim_config_path, cim_config_path_simulator)
         # assert isinstance(op_config, SIMDOpConfig)
         assert hasattr(op_config, 'core_id') and hasattr(op_config, 'world_size'), "op_config must have core_id and world_size attributes"
         self.num_cores = num_cores
@@ -211,7 +212,7 @@ class SPMDOpRunner(OpRunner):
             "cim-compiler", "multi-core-simulate",
             "--code-file", os.path.join(final_code_dir, "final_code.json"),
             "--data-file", image_path,
-            "--config-file", self.cim_config_path,
+            "--config-file", self.cim_config_path_simulator,
             "--output-dir", simulator_output_dir,
             "--code-format", "cimflow",
             "--save-stats",

@@ -12,8 +12,8 @@ def set_special_regs(){
 def main(){
     set_special_regs();
     
-    x_global = Buffer(<{{hidden}}>, fp16, __GLOBAL__);
-    y_global = Buffer(<{{hidden}}>, fp16, __GLOBAL__);
+    x_global = Buffer(<{{hidden}}>, fp16, {{global_memory_name}});
+    y_global = Buffer(<{{hidden}}>, fp16, {{global_memory_name}});
     x_local = Buffer(<{{hidden}}>, fp16, __INPUT_MEMORY__);
     Trans(x_global, x_local);
     

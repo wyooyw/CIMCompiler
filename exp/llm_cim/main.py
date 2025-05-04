@@ -3,7 +3,7 @@ import os
 import time
 import logging
 from pathlib import Path
-from cim_compiler.op.llm.helper import AttnDecodeCPConfig, SplitStageConfig, GELUOpConfig, LayerNormOpConfig
+from cim_compiler.op.llm.helper import AttnDecodeCPConfig, SplitStageConfig, GELUOpConfig, LayerNormOpConfig, ModifyConfigSplitGlobalMemory
 from cim_compiler.simulator.macro_utils import MacroConfig
 from test.op.test_reduce.test_reduce import get_reduce_config
 from test.base import SPMDOpRunner,OpRunner
@@ -12,6 +12,7 @@ from datetime import datetime
 from cim_compiler.simulator.simulator import MemorySpace
 import shutil
 import tarfile
+from functools import partial
 
 def parse_args():
     parser = argparse.ArgumentParser(description="LLM CIM Configuration")
@@ -61,6 +62,15 @@ def setup_logging(debug_mode):
         return debug_dir
     return None
 
+def config_global_memory_name(rank, op_config):
+    op_config.global_memory_name = f"__GLOBAL_{rank}__"
+
+def config_cp_group(rank, op_config, cp_size):
+    op_config.cp_group_offset = (rank // cp_size) * cp_size
+    op_config.cp_group_stride = 1
+    op_config.cp_group_size = cp_size
+    config_global_memory_name(rank, op_config)
+    
 def main():
     args = parse_args()
     debug_dir = setup_logging(args.debug)
@@ -72,7 +82,12 @@ def main():
     logging.info(f"Model parameters: n_head={args.n_head}, hidden_size={args.hidden_size}, seqlen={args.seqlen}")
     logging.info(f"Mapping CP sizes: {args.mapping_cp_sizes}")
     logging.info(f"World size: {args.world_size}, Distributed DRAM type: {args.distributed_dram_type}")
-    
+
+    with ModifyConfigSplitGlobalMemory(args.config_path, "global", args.world_size) as m:
+        args.split_config_path = m.modified_config_path
+        _main_impl(args)
+
+def _main_impl(args):
     # Add the rest of your application logic here
     cim_config = MacroConfig.from_config(args.config_path)
     cim_config.set_default_bit_width(16)
@@ -123,17 +138,12 @@ def main():
                 split_stage_config=split_stage_config
             )
 
-            def config_cp_group(rank, op_config):
-                op_config.cp_group_offset = (rank // cp_size) * cp_size
-                op_config.cp_group_stride = 1
-                op_config.cp_group_size = cp_size
-
             op_runner = SPMDOpRunner(
                 op_path, 
                 op_config, 
-                args.config_path, 
+                args.split_config_path, 
                 args.world_size,
-                config_for_each_core=config_cp_group,
+                config_for_each_core=partial(config_cp_group, cp_size=cp_size),
             )
 
             op_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, "attn", f"round_{i}", f"stage_{stage_idx}"), gather_multicore_code=True)
@@ -169,12 +179,14 @@ def main():
     gelu_runner = SPMDOpRunner(
         gelu_path, 
         gelu_config, 
-        args.config_path, 
-        args.world_size
+        args.split_config_path, 
+        args.world_size,
+        config_for_each_core=config_global_memory_name,
     )
     gelu_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, f"gelu"), gather_multicore_code=True)
     shutil.copy(os.path.join(args.save_dir, f"gelu", "multi_core_code.json"), os.path.join(collect_dir, "gelu.json"))
-
+    shutil.copy(args.config_path, os.path.join(collect_dir, "config.json"))
+    shutil.copy(args.split_config_path, os.path.join(collect_dir, "split_config.json"))
     create_tar_gz(collect_dir, os.path.join(args.save_dir, "code.tar.gz"))
     
     
