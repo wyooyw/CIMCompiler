@@ -1,7 +1,7 @@
 {
     "macro": {
         "n_macro": 16,
-        "n_row": 2048,
+        "n_row": 256,
         "n_comp": 16,
         "n_bcol": 128,
         "n_group": 1
@@ -19,8 +19,8 @@
             "name": "macro",
             "type": "macro",
             "addressing": {
-                "offset_byte": 0,
-                "size_byte": 8388608
+                "size_byte": 1048576,
+                "offset_byte": 0
             }
         },
         {
@@ -28,15 +28,16 @@
             "type": "sram",
             "addressing": {
                 "size_byte": 8192,
-                "offset_byte": 8388608
+                "comments": "16 * 128 * 2 * 2 = 8192 (one transpose unit: 16 * 128 * fp16; there are two transpose units)",
+                "offset_byte": 1048576
             }
         },
         {
             "name": "input_memory",
             "type": "sram",
             "addressing": {
-                "size_byte": 131072,
-                "offset_byte": 8396800
+                "size_byte": 262144,
+                "offset_byte": 1056768
             }
         },
         {
@@ -44,23 +45,7 @@
             "type": "sram",
             "addressing": {
                 "size_byte": 131072,
-                "offset_byte": 8527872
-            }
-        },
-        {
-            "name": "pim_input_reg_buffer",
-            "type": "reg_buffer",
-            "addressing": {
-                "size_byte": 32,
-                "offset_byte": 8658944
-            }
-        },
-        {
-            "name": "pim_output_reg_buffer",
-            "type": "reg_buffer",
-            "addressing": {
-                "size_byte": 256,
-                "offset_byte": 8658976
+                "offset_byte": 1318912
             }
         },
         {
@@ -68,7 +53,7 @@
             "type": "sram",
             "addressing": {
                 "size_byte": 16384,
-                "offset_byte": 8659232
+                "offset_byte": 1449984
             }
         },
         {
@@ -76,7 +61,7 @@
             "type": "sram",
             "addressing": {
                 "size_byte": 16384,
-                "offset_byte": 8675616
+                "offset_byte": 1466368
             }
         },
         {
@@ -85,7 +70,7 @@
             "addressing": {
                 "size_byte": 268435456,
                 "comments": "size: 8MB * 32",
-                "offset_byte": 8692000
+                "offset_byte": 1482752
             }
         }
     ],

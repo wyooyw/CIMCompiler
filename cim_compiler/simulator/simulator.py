@@ -367,16 +367,17 @@ class Simulator:
         """
         This is an internal memory for doing accumulate for macro's output
         """
-        if self.memory_space.get_memory_by_name(["pim_output_reg_buffer", "cim_output_reg_buffer"]) is None:
-            logger.debug(
-                "[Warning] Can't find pim_output_reg_buffer or cim_output_reg_buffer. Make sure the code has no macro-related instruction."
-            )
-            return
+        # if self.memory_space.get_memory_by_name(["pim_output_reg_buffer", "cim_output_reg_buffer"]) is None:
+        #     logger.debug(
+        #         "[Warning] Can't find pim_output_reg_buffer or cim_output_reg_buffer. Make sure the code has no macro-related instruction."
+        #     )
+        #     return
         end_memory = self.memory_space.memory_space[-1]
         end_offset = end_memory.offset + end_memory.size
-        output_buffer_size = self.memory_space.get_memory_by_name(
-            ["pim_output_reg_buffer", "cim_output_reg_buffer"]
-        ).size
+        # output_buffer_size = self.memory_space.get_memory_by_name(
+        #     ["pim_output_reg_buffer", "cim_output_reg_buffer"]
+        # ).size
+        output_buffer_size = self.macro_config.get_n_group_vcol(8) * self.macro_config.n_group
         internel_macro_output_buffer = Memory(
             "internel_macro_output_reg_buffer",
             "reg_buffer",

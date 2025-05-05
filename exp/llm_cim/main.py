@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from cim_compiler.op.llm.helper import AttnDecodeCPConfig, SplitStageConfig, GELUOpConfig, LayerNormOpConfig, ModifyConfigSplitGlobalMemory
 from cim_compiler.simulator.macro_utils import MacroConfig
-from test.op.test_reduce.test_reduce import get_reduce_config
+from test.op.test_reduce.test_reduce import get_reduce_config, get_reduce_max_config
 from test.base import SPMDOpRunner,OpRunner
 import math
 from datetime import datetime
@@ -119,6 +119,7 @@ def _main_impl(args):
 
     # attention
     for i, cp_size in enumerate(args.mapping_cp_sizes):
+        assert args.seqlen // cp_size == 1024, "seqlen on one core must be 1024"
         n_head_this_round = args.world_size // cp_size
         print(f"CP size: {cp_size}, n_head: {n_head_this_round}, hidden_size_per_head: {hidden_size_per_head}")
         
@@ -137,6 +138,7 @@ def _main_impl(args):
                 transpose_row=16,
                 transpose_col=128,
                 reduce_config=get_reduce_config(args.config_path),
+                reduce_max_config=get_reduce_max_config(args.config_path),
                 math=math,
                 split_stage_config=split_stage_config,
                 simd=simd_config,

@@ -178,9 +178,10 @@ def gemv_using_batch_cim_compute(src< <-1>, fp16, __OUTPUT_MEMORY__>,
             src,
             macro[i_spatial_row * n_reduce_row: (i_spatial_row+1) * n_reduce_row, :, :, :]
         );
-        CIMOutput({{macro_config.n_group_vcol}}, 0, use_output_reg_buffer);
-
         output = dst[i_spatial_row * {{macro_config.n_group_vcol}} : (i_spatial_row + 1) * {{macro_config.n_group_vcol}}];
-        Trans(use_output_reg_buffer, output);
+        CIMOutput({{macro_config.n_group_vcol}}, 0, output);
+
+        
+        // Trans(use_output_reg_buffer, output);
     };
 }
