@@ -1,5 +1,6 @@
 from cim_compiler.simulator.macro_utils import MacroConfig
 from cim_compiler.simulator.simd_utils import SIMDConfig
+from cim_compiler.simulator.reduce_utils import ReduceConfig
 from dataclasses import dataclass
 import json
 import tempfile
@@ -31,6 +32,7 @@ class AttnDecodeCPConfig(AttnDecodeConfig):
     split_stage_config:SplitStageConfig = None
     global_memory_name: str = None
     simd: SIMDConfig = None
+    reduce: ReduceConfig = None
 
 @dataclass
 class LayerNormOpConfig:
@@ -38,6 +40,7 @@ class LayerNormOpConfig:
     reduce_config: int
     math: int
     simd: SIMDConfig = None
+    reduce: ReduceConfig = None
 
 @dataclass
 class GELUOpConfig:

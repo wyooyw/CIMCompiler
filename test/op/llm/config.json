@@ -83,7 +83,9 @@
         "v_exp",
         "v_gelu",
         "vs_div",
-        "vs_mul",
+        "vs_mul"
+    ],
+    "reduce": [
         "reduce_max",
         "reduce_sum"
     ]

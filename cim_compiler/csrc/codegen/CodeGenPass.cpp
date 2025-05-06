@@ -278,6 +278,25 @@ static void codeGen(mlir::cimisa::SIMDOp op,
   instr_list.push_back(inst);
 }
 
+static void codeGen(mlir::cimisa::ReduceOp op,
+                    InstructionWriter &writer,
+                    std::unordered_map<llvm::hash_code, int> &regmap,
+                    std::vector<Inst> &instr_list, std::set<int> &def,
+                    std::set<int> &use) {
+
+  int opcode = static_cast<int>(op.getOpCode());
+
+  int src_reg = getReg(regmap, op.getOperand(0));
+  int dst_reg = getReg(regmap, op.getOperand(1));
+  int size_reg = getReg(regmap, op.getOperand(2));
+  use.insert(src_reg);
+  use.insert(dst_reg);
+  use.insert(size_reg);
+
+  Inst inst = writer.getReduceInst(opcode, src_reg, dst_reg, size_reg);
+  instr_list.push_back(inst);
+}
+
 /*
   PrintOp
 */
@@ -1111,6 +1130,8 @@ codeGen(std::vector<Block *> &blocks,
                                            _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::SIMDOp>(op)) {
         codeGen(_op, writer, regmap, instr_list, _write, _read);
+      } else if (auto _op = dyn_cast<mlir::cimisa::ReduceOp>(op)) {
+        codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMComputeOp>(op)) {
         codeGen(_op, writer, regmap, instr_list, _write, _read);
       } else if (auto _op = dyn_cast<mlir::cimisa::CIMOutputOp>(op)) {
@@ -1619,6 +1640,26 @@ static std::pair<int, int> get_twin_physical_reg(
   return twin;
 }
 
+struct Interval {
+  int logical_reg_id;
+  int begin;
+  int end;
+};
+
+// 定义比较函数对象
+struct CompareIntervalByBegin {
+    bool operator()(const Interval& p1, const Interval& p2) {
+        // 从小到大排序
+        return p1.begin < p2.begin;
+    }
+};
+struct CompareIntervalByEnd {
+    bool operator()(const Interval& p1, const Interval& p2) {
+        // 从小到大排序
+        return p1.end > p2.end;
+    }
+};
+
 static void mappingRegisterLogicalToPhysical(
     std::vector<Inst> &instr_list, 
     InstructionWriter &writer,
@@ -1665,7 +1706,7 @@ static void mappingRegisterLogicalToPhysical(
         set_logical_regs.insert(reg_id);
       }
     }
-    LOG_DEBUG << std::endl;
+    // LOG_DEBUG << std::endl;
   }
   for (const auto &[block, regs] : in) {
     for (auto reg_id : regs) {
@@ -1706,49 +1747,86 @@ static void mappingRegisterLogicalToPhysical(
   std::set<int> twin_have_allocated;
   for (int i = 0; i < num_physical_regs; i++)
     physical_regs.push(i);
-  for (int inst_id = 0; inst_id < instr_list.size(); inst_id++) {
-    for (int logical_reg_id : logical_regs) {
-      if (logic_reg_life_begin[logical_reg_id] == inst_id) {
-        if (physical_regs.empty()) {
-          std::cerr << "No more physical_regs can use!" << std::endl;
-          std::exit(1);
-        }
-        if (two_way_twin_reg.count(logical_reg_id)) {
-          int twin_logical_reg_id = two_way_twin_reg[logical_reg_id];
-          int master_reg, salve_reg;
-          if (twin_reg.count(logical_reg_id)) {
-            master_reg = logical_reg_id;
-            salve_reg = twin_logical_reg_id;
-          } else if (twin_reg.count(twin_logical_reg_id)) {
-            master_reg = twin_logical_reg_id;
-            salve_reg = logical_reg_id;
-          } else {
-            std::cerr << "error: can't find master reg" << std::endl;
-            std::exit(1);
-          }
-          if (!twin_have_allocated.count(master_reg)) {
-            std::pair<int, int> twin_physical_reg =
-                get_twin_physical_reg(physical_regs);
-            logical_to_physical_mapping[master_reg] = twin_physical_reg.first;
-            logical_to_physical_mapping[salve_reg] = twin_physical_reg.second;
-            twin_have_allocated.insert(master_reg);
-            max_physical_reg_used =
-                max(max_physical_reg_used, twin_physical_reg.first);
-            max_physical_reg_used =
-                max(max_physical_reg_used, twin_physical_reg.second);
-          }
-          continue;
-        }
-        int physical_reg = physical_regs.top();
-        max_physical_reg_used = max(max_physical_reg_used, physical_reg);
-        physical_regs.pop();
-        logical_to_physical_mapping[logical_reg_id] = physical_reg;
-      } else if (logic_reg_life_end[logical_reg_id] == inst_id) {
-        int physical_reg = logical_to_physical_mapping[logical_reg_id];
-        physical_regs.push(physical_reg);
-      }
-    }
+  
+  std::priority_queue<Interval, std::vector<Interval>, CompareIntervalByEnd> active;
+  std::vector<Interval> intervals;
+  for (int logical_reg_id : logical_regs) {
+    Interval interval = {
+      logical_reg_id,  // Assuming logical_reg_id is a variable
+      logic_reg_life_begin[logical_reg_id],
+      logic_reg_life_end[logical_reg_id]
+    };
+    intervals.push_back(interval);
   }
+  std::sort(intervals.begin(), intervals.end(), CompareIntervalByBegin());
+  // std::cout << "intervals: " << std::endl;
+  // for (int i = 0; i < intervals.size(); i++) {
+  //   Interval interval = intervals[i];
+  //   std::cout << "interval: " << interval.logical_reg_id << " " << interval.begin << " " << interval.end << std::endl;
+  // }
+
+  for (int i = 0; i < intervals.size(); i++) {
+    Interval interval = intervals[i];
+    while (!active.empty() && active.top().end <= interval.begin) {
+      Interval top_interval = active.top();
+      active.pop();
+      int physical_reg = logical_to_physical_mapping[top_interval.logical_reg_id];
+      physical_regs.push(physical_reg);
+    }
+    if (physical_regs.empty()) {
+      std::cerr << "No more physical_regs can use!" << std::endl;
+      std::exit(1);
+    }
+    int physical_reg = physical_regs.top();
+    logical_to_physical_mapping[interval.logical_reg_id] = physical_reg;
+    physical_regs.pop();
+    active.push(interval);
+    max_physical_reg_used = max(max_physical_reg_used, physical_reg);
+  }
+
+  // for (int inst_id = 0; inst_id < instr_list.size(); inst_id++) {
+  //   for (int logical_reg_id : logical_regs) {
+  //     if (logic_reg_life_begin[logical_reg_id] == inst_id) {
+  //       if (physical_regs.empty()) {
+  //         std::cerr << "No more physical_regs can use!" << std::endl;
+  //         std::exit(1);
+  //       }
+  //       if (two_way_twin_reg.count(logical_reg_id)) {
+  //         int twin_logical_reg_id = two_way_twin_reg[logical_reg_id];
+  //         int master_reg, salve_reg;
+  //         if (twin_reg.count(logical_reg_id)) {
+  //           master_reg = logical_reg_id;
+  //           salve_reg = twin_logical_reg_id;
+  //         } else if (twin_reg.count(twin_logical_reg_id)) {
+  //           master_reg = twin_logical_reg_id;
+  //           salve_reg = logical_reg_id;
+  //         } else {
+  //           std::cerr << "error: can't find master reg" << std::endl;
+  //           std::exit(1);
+  //         }
+  //         if (!twin_have_allocated.count(master_reg)) {
+  //           std::pair<int, int> twin_physical_reg =
+  //               get_twin_physical_reg(physical_regs);
+  //           logical_to_physical_mapping[master_reg] = twin_physical_reg.first;
+  //           logical_to_physical_mapping[salve_reg] = twin_physical_reg.second;
+  //           twin_have_allocated.insert(master_reg);
+  //           max_physical_reg_used =
+  //               max(max_physical_reg_used, twin_physical_reg.first);
+  //           max_physical_reg_used =
+  //               max(max_physical_reg_used, twin_physical_reg.second);
+  //         }
+  //         continue;
+  //       }
+  //       int physical_reg = physical_regs.top();
+  //       max_physical_reg_used = max(max_physical_reg_used, physical_reg);
+  //       physical_regs.pop();
+  //       logical_to_physical_mapping[logical_reg_id] = physical_reg;
+  //     } else if (logic_reg_life_end[logical_reg_id] == inst_id) {
+  //       int physical_reg = logical_to_physical_mapping[logical_reg_id];
+  //       physical_regs.push(physical_reg);
+  //     }
+  //   }
+  // }
   LOG_DEBUG << "max_physical_reg_used: " << max_physical_reg_used;
   for (int logical_reg_id : logical_regs) {
     LOG_DEBUG << "logical_reg: " << logical_reg_id << " -> physical_reg: "

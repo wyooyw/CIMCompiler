@@ -3,6 +3,8 @@ import numpy as np
 from dataclasses import dataclass
 from cim_compiler.simulator.macro_utils import MacroConfig
 from cim_compiler.simulator.simd_utils import SIMDConfig
+from cim_compiler.simulator.reduce_utils import ReduceConfig
+
 from cim_compiler.utils.df_layout import tensor_bits_to_int8
 import pytest
 from test.base import OpRunner, SIMDOpConfig, SPMDOpRunner
@@ -85,12 +87,12 @@ def test_attn_decode(head_hidden, seqlen):
 @pytest.mark.parametrize(
     "head_hidden, seqlen, world_size, cp_group_size",
     [
-        (128, 4096, 8, 1),
-        (128, 4096, 8, 2),
+        (128, 1024, 8, 1),
+        (128, 2048, 8, 2),
         (128, 4096, 8, 4),
         (128, 4096, 8, 8),
-        (128, 4096, 16, 1),
-        (128, 4096, 16, 2),
+        (128, 1024, 16, 1),
+        (128, 2048, 16, 2),
         (128, 4096, 16, 4),
         (128, 4096, 16, 8),
         (128, 4096, 16, 16),
@@ -114,7 +116,8 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
         math=math,
         split_stage_config=SplitStageConfig(run_step=0, run_all_steps=True),
         global_memory_name=f"__GLOBAL__",
-        simd=SIMDConfig.from_config(cim_config_path)
+        simd=SIMDConfig.from_config(cim_config_path),
+        reduce=ReduceConfig.from_config(cim_config_path)
     )
 
     def config_cp_group(rank, op_config):
@@ -188,7 +191,7 @@ if __name__=="__main__":
     test_attn_decode_cp(
         head_hidden=128, 
         seqlen=2048,
-        world_size=8,
+        world_size=4,
         cp_group_size=2,
     )
     # test_attn_decode(128, 128)

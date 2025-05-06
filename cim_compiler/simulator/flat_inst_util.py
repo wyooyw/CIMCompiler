@@ -138,6 +138,8 @@ class FlatInstUtil:
                 self._flat_pim_transfer(inst, idx)
         elif isinstance(inst, SIMDInst):
             self._flat_simd(inst, idx)
+        elif isinstance(inst, ReduceInst):
+            self._flat_reduce(inst, idx)
         elif isinstance(inst, SendInst):
             self._flat_send(inst, idx)
         elif isinstance(inst, RecvInst):
@@ -195,6 +197,16 @@ class FlatInstUtil:
                 SpecialReg.SIMD_OUTPUT_BIT_WIDTH,
                 SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1,
                 SpecialReg.SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2,
+            ]
+        )
+        self.flat_inst_list.append(inst)
+
+    def _flat_reduce(self, inst, idx):
+        inst = self._load_general_regs_local(inst, ["reg_in", "reg_size", "reg_out"], idx)
+        self._load_special_regs(
+            [
+                SpecialReg.SIMD_INPUT_1_BIT_WIDTH,
+                SpecialReg.SIMD_OUTPUT_BIT_WIDTH,
             ]
         )
         self.flat_inst_list.append(inst)

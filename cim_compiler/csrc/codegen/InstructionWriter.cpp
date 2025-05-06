@@ -55,6 +55,11 @@ Inst LegacyInstructionWriter::getSIMDInst(int opcode, int input_num, int in1_reg
     };
 }
 
+Inst LegacyInstructionWriter::getReduceInst(int opcode, int reg_src, int reg_dst, int reg_size) {
+    return {
+    };
+}
+
 Inst LegacyInstructionWriter::getTransInst(int reg_addr_in, int reg_addr_out, int size, int imm, bool src_offset_flag, bool dst_offset_flag) {
     return {
         {"class", 0b110}, 

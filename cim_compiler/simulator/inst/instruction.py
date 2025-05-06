@@ -44,6 +44,13 @@ class SIMDInst:
     reg_out: int
 
 @dataclass
+class ReduceInst:
+    opcode: int
+    reg_in: int
+    reg_out: int
+    reg_size: int
+
+@dataclass
 class TransInst:
     reg_in: int
     reg_out: int

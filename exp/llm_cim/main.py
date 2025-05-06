@@ -11,6 +11,7 @@ import math
 from datetime import datetime
 from cim_compiler.simulator.simulator import MemorySpace
 from cim_compiler.simulator.simd_utils import SIMDConfig
+from cim_compiler.simulator.reduce_utils import ReduceConfig
 import shutil
 import tarfile
 from functools import partial
@@ -94,6 +95,7 @@ def _main_impl(args):
     cim_config.set_default_bit_width(16)
 
     simd_config = SIMDConfig.from_config(args.config_path)
+    reduce_config = ReduceConfig.from_config(args.config_path)
 
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp.cim")
@@ -142,6 +144,7 @@ def _main_impl(args):
                 math=math,
                 split_stage_config=split_stage_config,
                 simd=simd_config,
+                reduce=reduce_config
             )
 
             op_runner = SPMDOpRunner(
@@ -161,6 +164,7 @@ def _main_impl(args):
         reduce_config=get_reduce_config(args.config_path),
         math=math,
         simd=simd_config,
+        reduce=reduce_config
     )
     ln_path = os.path.join(cim_compiler_home, "test/op/llm/layernorm/test_layernorm_single_token.cim")
     ln_runner = OpRunner(ln_path, ln_config, args.config_path)

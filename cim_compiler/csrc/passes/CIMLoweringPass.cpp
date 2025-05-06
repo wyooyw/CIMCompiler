@@ -766,6 +766,34 @@ struct SIMDOpLowering : public OpRewritePattern<cim::SIMDOp> {
   }
 };
 
+struct ReduceOpLowering : public OpRewritePattern<cim::ReduceOp> {
+  using OpRewritePattern<cim::ReduceOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(cim::ReduceOp op,
+                                PatternRewriter &rewriter) const final {
+    LOG_DEBUG << "ReduceOpLowering::matchAndRewrite begin";
+    IntegerAttr op_id_ = getConstantInt(op.getOperand(0));
+    IntegerAttr op_id = rewriter.getI32IntegerAttr(op_id_.getInt());
+    if (!op_id) {
+      LOG_ERROR << "SIMDOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+    Value addr_src = getAddrValue(op.getOperand(1), rewriter);
+    Value addr_dst = getAddrValue(op.getOperand(2), rewriter);
+    LOG_DEBUG << "ReduceOpLowering::matchAndRewrite";
+    Value size = getLengthValue(op.getOperand(1), rewriter);
+    if (!addr_src || !addr_dst || !size) {
+      LOG_ERROR << "ReduceOpLowering::matchAndRewrite fail";
+      return failure();
+    }
+    LOG_DEBUG << "ReduceOpLowering::matchAndRewrite success";
+
+    rewriter.replaceOpWithNewOp<cimisa::ReduceOp>(op, op_id, addr_src, addr_dst, size);
+
+    return success();
+  }
+};
+
 struct SpecialRegSetOpLowering : public OpRewritePattern<cim::SpecialRegSetOp> {
   using OpRewritePattern<cim::SpecialRegSetOp>::OpRewritePattern;
 
@@ -1041,7 +1069,7 @@ void CIMLoweringPass::runOnOperation() {
            StoreOpLowering, SpecialRegSetOpLowering,
            CIMOutputOpLowering, CIMOutputSumOpLowering, CIMTransferOpLowering,
            AddrOpLowering, CIMSetOpLowering, ShapeOpLowering,
-           SIMDOpLowering, SendOpLowering, RecvOpLowering>(&getContext());
+           SIMDOpLowering, ReduceOpLowering, SendOpLowering, RecvOpLowering>(&getContext());
   
   // With the target and rewrite patterns defined, we can now attempt the
   // conversion. The conversion will signal failure if any of our `illegal`

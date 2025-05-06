@@ -141,6 +141,7 @@ private:
   void parse_builtin_trans(const boost::property_tree::ptree &ast);
   mlir::Value parse_builtin_slice(const boost::property_tree::ptree &ast);
   void parse_builtin_simd(const boost::property_tree::ptree &ast);
+  void parse_builtin_reduce(const boost::property_tree::ptree &ast);
   mlir::Value parse_builtin_buffer(const boost::property_tree::ptree &ast);
   void parse_builtin_print(const boost::property_tree::ptree &ast);
   void parse_builtin_debug(const boost::property_tree::ptree &ast);

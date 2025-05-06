@@ -66,6 +66,13 @@ class CIMFlowParser:
                 reg_out=inst["rd"],
                 input_num=input_num
             )
+        elif opcode == 0b010001:
+            return ReduceInst(
+                opcode=inst["funct"],
+                reg_in=inst["rs"],
+                reg_out=inst["rd"],
+                reg_size=inst["rt"]
+            )
         elif (opcode & 0b111100) == 0b110000:
             flag_src_offset = (opcode & 0b10) >> 1
             flag_dst_offset = (opcode & 0b1)

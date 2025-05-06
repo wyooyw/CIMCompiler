@@ -44,6 +44,20 @@ def SIMDOp : CIM_Op<"simd"> {
   let hasFolder = 1;
 }
 
+def ReduceOp : CIM_Op<"reduce"> {
+  let summary = "reduce";
+  let description = [{
+    reduce
+  }];
+
+  let arguments = (ins 
+    Index:$op_id,
+    AnyMemRef:$src,
+    AnyMemRef:$dst
+  );
+  let hasFolder = 1;
+}
+
 /////////////////////////////////
 // CIM Compute //
 /////////////////////////////////

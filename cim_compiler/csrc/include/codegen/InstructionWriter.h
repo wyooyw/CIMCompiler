@@ -19,6 +19,7 @@ public:
     virtual Inst getRRInst(int opcode, int reg_in1, int reg_in2, int reg_out) = 0;
     virtual Inst getRIInst(int opcode, int reg_in, int reg_out, int imm) = 0;
     virtual Inst getSIMDInst(int opcode, int input_num, int in1_reg, int in2_reg, int size_reg, int out_reg) = 0;
+    virtual Inst getReduceInst(int opcode, int src_reg, int dst_reg, int size_reg) = 0;
     virtual Inst getTransInst(int reg_addr_in, int reg_addr_out, int size, int imm, bool src_offset_flag, bool dst_offset_flag) = 0;
     virtual Inst getLoadInst(int reg_addr, int reg_value, int offset) = 0;
     virtual Inst getStoreInst(int reg_addr, int reg_value, int offset) = 0;
@@ -56,6 +57,7 @@ public:
     Inst getRRInst(int opcode, int reg_in1, int reg_in2, int reg_out) override;
     Inst getRIInst(int opcode, int reg_in, int reg_out, int imm) override;
     Inst getSIMDInst(int opcode, int input_num, int in1_reg, int in2_reg, int size_reg, int out_reg) override;
+    Inst getReduceInst(int opcode, int src_reg, int dst_reg, int size_reg) override;
     Inst getTransInst(int reg_addr_in, int reg_addr_out, int size, int imm, bool src_offset_flag, bool dst_offset_flag) override;
     Inst getLoadInst(int reg_addr, int reg_value, int offset) override;
     Inst getStoreInst(int reg_addr, int reg_value, int offset) override;
@@ -91,6 +93,7 @@ public:
     Inst getRRInst(int opcode, int reg_in1, int reg_in2, int reg_out) override;
     Inst getRIInst(int opcode, int reg_in, int reg_out, int imm) override;
     Inst getSIMDInst(int opcode, int input_num, int in1_reg, int in2_reg, int size_reg, int out_reg) override;
+    Inst getReduceInst(int opcode, int src_reg, int dst_reg, int size_reg) override;
     Inst getTransInst(int reg_addr_in, int reg_addr_out, int size, int imm, bool src_offset_flag, bool dst_offset_flag) override;
     Inst getLoadInst(int reg_addr, int reg_value, int offset) override;
     Inst getStoreInst(int reg_addr, int reg_value, int offset) override;

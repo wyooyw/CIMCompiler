@@ -24,7 +24,7 @@ from cim_compiler.utils.round import banker_round
 from cim_compiler.simulator.inst.instruction import *
 from cim_compiler.simulator.inst import LegacyParser, CIMFlowParser
 from cim_compiler.utils.logger import get_logger
-from cim_compiler.simulator.reduce_util import ReduceSumUtil, ReduceSumConfig, ReduceMaxUtil, ReduceMaxConfig
+from cim_compiler.simulator.reduce_utils import ReduceSumUtil, ReduceSumConfig, ReduceMaxUtil, ReduceMaxConfig, ReduceUtil, ReduceConfig
 
 logger = get_logger(__name__)
 
@@ -296,6 +296,7 @@ class Simulator:
         memory_space,
         macro_config,
         mask_config,
+        reduce_config = None,
         reduce_sum_config = None,
         reduce_max_config = None,
         simd_config = None,
@@ -308,6 +309,7 @@ class Simulator:
         self.memory_space = memory_space
         self.macro_config = macro_config
         self.mask_config = mask_config
+        self.reduce_config = reduce_config
         self.reduce_sum_config = reduce_sum_config
         self.reduce_max_config = reduce_max_config
         self.simd_config = simd_config
@@ -320,6 +322,10 @@ class Simulator:
         self.meta_util = MetaUtil(
             self.memory_space.get_memory_by_name("pim_meta_data_reg_buffer"),
             macro_config,
+        )
+        self.reduce_util = ReduceUtil(
+            self.reduce_config,
+            self,
         )
         self.reduce_sum_util = ReduceSumUtil(
             self.reduce_sum_config
@@ -397,6 +403,7 @@ class Simulator:
         memory_space = MemorySpace.from_memory_config(config_path)
         macro_config = MacroConfig.from_config(config_path)
         mask_config = MaskConfig.from_config(config_path)
+        reduce_config = ReduceConfig.from_config(config_path)
         reduce_sum_config = ReduceSumConfig.from_config(config_path)
         reduce_max_config = ReduceMaxConfig.from_config(config_path)
         simd_config = SIMDConfig.from_config(config_path)
@@ -405,6 +412,7 @@ class Simulator:
                 memory_space,
                 macro_config,
                 mask_config,
+                reduce_config,
                 reduce_sum_config,
                 reduce_max_config,
                 simd_config,
@@ -415,6 +423,7 @@ class Simulator:
                 memory_space, 
                 macro_config, 
                 mask_config, 
+                reduce_config,
                 reduce_sum_config, 
                 reduce_max_config, 
                 simd_config
@@ -536,6 +545,8 @@ class Simulator:
         elif isinstance(inst, SIMDInst):
             self.simd_util.run(inst)
             # self._run_simd_class_inst(inst)
+        elif isinstance(inst, ReduceInst):
+            self.reduce_util.run(inst)
 
         # Scalar
         elif isinstance(inst, RRInst):

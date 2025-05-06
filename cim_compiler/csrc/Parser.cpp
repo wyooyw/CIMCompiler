@@ -583,7 +583,10 @@ void MLIRGenImpl::parse_call(const boost::property_tree::ptree &ast) {
   } else if (call_func_name == "SIMD") {
     parse_builtin_simd(ast);
     return;
-  }  else if (call_func_name == "Print") {
+  } else if (call_func_name == "Reduce") {
+    parse_builtin_reduce(ast);
+    return;
+  } else if (call_func_name == "Print") {
     parse_builtin_print(ast);
     return;
   } else if (call_func_name == "Debug") {
@@ -767,6 +770,20 @@ void MLIRGenImpl::parse_builtin_simd(const boost::property_tree::ptree &ast) {
   mlir::Value output = parse_expr(safe_get_child(get_item(ast_output, 0), "expr"));
 
   builder.create<mlir::cim::SIMDOp>(loc, op_id, operands, output);
+}
+
+void MLIRGenImpl::parse_builtin_reduce(const boost::property_tree::ptree &ast) {
+  LOG_DEBUG << "parse_builtin_reduce";
+  auto ast_param_list = safe_get_child(get_item(ast, 2), "call_param_list");
+
+  auto ast_op_id = safe_get_child(get_item(ast_param_list, 0), "call_param");
+  auto ast_src = safe_get_child(get_item(ast_param_list, 2), "call_param");
+  auto ast_dst = safe_get_child(get_item(ast_param_list, 4), "call_param");
+
+  mlir::Value op_id = parse_expr(safe_get_child(get_item(ast_op_id, 0), "expr"));
+  mlir::Value src = parse_expr(safe_get_child(get_item(ast_src, 0), "expr"));
+  mlir::Value dst = parse_expr(safe_get_child(get_item(ast_dst, 0), "expr"));
+  builder.create<mlir::cim::ReduceOp>(loc, op_id, src, dst);
 }
 
 mlir::Value
