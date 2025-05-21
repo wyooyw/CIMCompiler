@@ -12,11 +12,43 @@ model_path_value_bit_sparse_0_4="${CIM_COMPILER_BASE}/models/vggnet/VGGNet_0.4_c
 model_path_value_bit_sparse_0_2="${CIM_COMPILER_BASE}/models/vggnet/VGGNet_0.2_csd_th2_data_0525"
 quantify="true"
 
-python cim_compiler/engine/model_runner.py \
+python3 cim_compiler/engine/model_runner.py \
 --model_name $model_name \
 --quantify $quantify \
---model_path_value_bit_sparse_0_6 $model_path_value_bit_sparse_0_6 \
+--model_path_value_bit_sparse_0_2 $model_path_value_bit_sparse_0_2
+
+python3 cim_compiler/engine/model_runner.py \
+--model_name $model_name \
+--quantify $quantify \
+--model_path_value_bit_sparse_0_4 $model_path_value_bit_sparse_0_4
+
+python3 cim_compiler/engine/model_runner.py \
+--model_name $model_name \
+--quantify $quantify \
+--model_path_value_bit_sparse_0_6 $model_path_value_bit_sparse_0_6
+
+python3 cim_compiler/engine/model_runner.py \
+--model_name $model_name \
+--quantify $quantify \
 --model_path_value_sparse $model_path_value_sparse
+
+python3 cim_compiler/engine/model_runner.py \
+--model_name $model_name \
+--quantify $quantify \
+--model_path_bit_sparse $model_path_bit_sparse
+
+python3 cim_compiler/engine/model_runner.py \
+--model_name $model_name \
+--quantify $quantify \
+--model_path_dense $model_path_dense
+
+
+# --model_path_dense $model_path_dense
+# --model_path_bit_sparse $model_path_bit_sparse
+# --model_path_value_bit_sparse_0_6 $model_path_value_bit_sparse_0_6
+# --model_path_value_sparse $model_path_value_sparse
+# --model_path_value_bit_sparse_0_6 $model_path_value_bit_sparse_0_6 \
+
 
 # --model_path_bit_sparse $model_path_bit_sparse \
 # --model_path_dense $model_path_dense \
