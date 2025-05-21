@@ -180,6 +180,17 @@ class LegacyDumper:
                 "rs2": inst.reg_out_mask_addr,
                 "rd": inst.reg_out_addr
             }
+        elif isinstance(inst, CIMTransferInst):
+
+            return {
+                "class": 0b00,
+                "type": 0b11,
+                "rs1": inst.reg_src_addr,
+                "rs2": inst.reg_out_n,
+                "rs3": inst.reg_out_mask_addr,
+                "rs4": inst.reg_buffer_addr,
+                "rd": inst.reg_dst_addr
+            }
         else:
             raise ValueError(f"Unknown instruction type: {type(inst)}")
         

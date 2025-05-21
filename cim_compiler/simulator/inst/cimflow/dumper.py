@@ -168,6 +168,15 @@ class CIMFlowDumper:
                 "OSUM": inst.flag_outsum,
                 "OSUM_MOV": inst.flag_outsum_move
             }
+        elif isinstance(inst, CIMTransferInst):
+            return {
+                "opcode": 0b001100,
+                "rs": inst.reg_src_addr,
+                "rt": inst.reg_out_n,
+                "re": inst.reg_out_mask_addr,
+                "rd": inst.reg_dst_addr,
+                "rf": inst.reg_buffer_addr
+            }
         elif isinstance(inst, SendInst):
             return {
                 "opcode": 0b110100,
