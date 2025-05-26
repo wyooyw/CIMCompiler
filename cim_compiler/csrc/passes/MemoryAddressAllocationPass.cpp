@@ -106,6 +106,35 @@ static int getBitWidth(mlir::Type type) {
   }
 }
 
+// Update the BufferLifetime structure to include first/last operations
+struct BufferLifetime {
+  mlir::Operation *allocOp;
+  mlir::Operation *startOp; // first (earliest) operation where buffer is live (usually alloc)
+  mlir::Operation *endOp;   // last (latest) operation that uses the buffer
+};
+
+// Helper that tries to decide if opA happens strictly before opB.
+static bool opComesBefore(mlir::Operation *opA, mlir::Operation *opB, mlir::DominanceInfo &dom) {
+  if (opA == opB)
+    return false; // same op – treat as not strictly before
+  // Same block – use IR order.
+  if (opA->getBlock() == opB->getBlock())
+    return opA->isBeforeInBlock(opB);
+  // Different blocks – fall back to dominance.
+  if (dom.dominates(opA, opB) && !dom.dominates(opB, opA))
+    return true;
+  return false; // conservatively return false otherwise.
+}
+
+// Determine if two lifetimes overlap.
+static bool lifetimesOverlap(const BufferLifetime &a, const BufferLifetime &b, mlir::DominanceInfo &dom) {
+  // If a ends strictly before b starts, or b ends strictly before a starts, there is NO overlap.
+  if (opComesBefore(a.endOp, b.startOp, dom) || opComesBefore(b.endOp, a.startOp, dom))
+    return false;
+  // Otherwise, conservatively assume they overlap.
+  return true;
+}
+
 struct MemoryAddressAllocationPass
     : public mlir::PassWrapper<MemoryAddressAllocationPass,
                                OperationPass<mlir::func::FuncOp>> {
@@ -117,20 +146,58 @@ struct MemoryAddressAllocationPass
     LOG_DEBUG << "run on operation";
     getMemoryAddrList(config_path);
 
-
     auto f = getOperation();
 
     // Populate the worklist with the operations that need shape inference:
     // these are operations that return a dynamic shape.
     std::vector<mlir::memref::AllocOp> alloc_op_list;
     f.walk([&](mlir::Operation *op) {
-      // std::cout << "Inferring shape for: " c<< *op << std::endl;
       if (mlir::memref::AllocOp alloc_op =
               dyn_cast<mlir::memref::AllocOp>(op)) {
         alloc_op_list.push_back(alloc_op);
       }
     });
     LOG_DEBUG << "alloc_op_list.size()=" << alloc_op_list.size();
+
+    // Initialize dominance info (needed both for ordering across blocks and dominance queries)
+    mlir::DominanceInfo dominanceInfo(f);
+
+    // Track the lifetime of each buffer
+    std::vector<BufferLifetime> bufferLifetimes;
+    for (auto &allocOp : alloc_op_list) {
+      BufferLifetime lifetime;
+      lifetime.allocOp = allocOp;
+      lifetime.startOp = allocOp;
+      lifetime.endOp   = allocOp;
+
+      for (mlir::OpOperand &use : allocOp.getResult().getUses()) {
+        mlir::Operation *user = use.getOwner();
+
+        // Update earliest op.
+        if (opComesBefore(user, lifetime.startOp, dominanceInfo))
+          lifetime.startOp = user;
+
+        // Update latest op.
+        if (opComesBefore(lifetime.endOp, user, dominanceInfo))
+          lifetime.endOp = user;
+      }
+      bufferLifetimes.push_back(lifetime);
+    }
+
+    // Find conflicting buffer pairs
+    std::vector<std::pair<mlir::Operation *, mlir::Operation *>> conflictingPairs;
+    for (size_t i = 0; i < bufferLifetimes.size(); ++i) {
+      for (size_t j = i + 1; j < bufferLifetimes.size(); ++j) {
+        if (lifetimesOverlap(bufferLifetimes[i], bufferLifetimes[j], dominanceInfo)) {
+          conflictingPairs.emplace_back(bufferLifetimes[i].allocOp, bufferLifetimes[j].allocOp);
+        }
+      }
+    }
+
+    // Log the conflicting pairs
+    for (const auto &pair : conflictingPairs) {
+      LOG_DEBUG << "Conflicting pair: " << pair.first << " and " << pair.second;
+    }
 
     std::unordered_map<std::string, int> address_table;
     for (auto iter = alloc_op_list.begin(); iter != alloc_op_list.end();
