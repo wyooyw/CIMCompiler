@@ -31,6 +31,7 @@
 #include <memory>
 #include <unordered_map>
 #include "common/macros.h"
+#include <glpk.h>
 
 #define DEBUG_TYPE "shape-inference"
 
@@ -174,6 +175,131 @@ static bool lifetimesOverlap(const BufferLifetime &a, const BufferLifetime &b, m
   return true;
 }
 
+struct BufferEntry {
+  mlir::memref::AllocOp alloc;
+  int64_t size; // in bytes
+};
+
+// Solve ILP for a set of buffers with given conflict pairs and capacity using GLPK.
+static std::unordered_map<mlir::Operation *, int64_t>
+solveILP(const std::vector<BufferEntry> &buffers,
+         const std::vector<std::pair<int, int>> &conflictIdxPairs,
+         int64_t capacity) {
+
+  glp_prob *prob = glp_create_prob();
+  glp_set_prob_name(prob, "mem_addr_alloc");
+  glp_set_obj_dir(prob, GLP_MIN);
+
+  int nBuf = buffers.size();
+  int nConflict = conflictIdxPairs.size();
+  int nBin = nConflict; // one binary per conflict
+
+  int nCols = nBuf + nBin + 1; // addresses, binaries, maxAddr
+  int nRows = 2 * nBuf           // capacity & maxAddr constraints for each buffer
+            + 2 * nConflict;     // conflict constraints
+
+  glp_add_cols(prob, nCols);
+
+  // column index mapping
+  std::vector<int> addrCol(nBuf);
+  int colIdx = 1;
+  for (int i = 0; i < nBuf; ++i) {
+    addrCol[i] = colIdx;
+    glp_set_col_name(prob, colIdx, ("addr_" + std::to_string(i)).c_str());
+    glp_set_col_kind(prob, colIdx, GLP_IV);
+    glp_set_col_bnds(prob, colIdx, GLP_DB, 0.0, capacity - buffers[i].size);
+    ++colIdx;
+  }
+
+  // binary vars a_ij
+  std::vector<int> binCol(nBin);
+  for (int k = 0; k < nBin; ++k) {
+    binCol[k] = colIdx;
+    glp_set_col_name(prob, colIdx, ("a_" + std::to_string(k)).c_str());
+    glp_set_col_kind(prob, colIdx, GLP_BV);
+    glp_set_col_bnds(prob, colIdx, GLP_DB, 0.0, 1.0);
+    ++colIdx;
+  }
+
+  int maxAddrCol = colIdx;
+  glp_set_col_name(prob, maxAddrCol, "max_addr");
+  glp_set_col_kind(prob, maxAddrCol, GLP_IV);
+  glp_set_col_bnds(prob, maxAddrCol, GLP_DB, 0.0, capacity);
+  glp_set_obj_coef(prob, maxAddrCol, 1.0); // objective
+
+  // Add rows (constraints)
+  glp_add_rows(prob, nRows);
+
+  // Use CSR arrays for coefficients
+  int estNnz = 5 * nBuf + 6 * nConflict; // rough estimation
+  std::vector<int> ia(1 + estNnz);
+  std::vector<int> ja(1 + estNnz);
+  std::vector<double> ar(1 + estNnz);
+  int idx = 1; // 1-based
+  int row = 1;
+
+  // capacity and maxAddr constraints
+  for (int i = 0; i < nBuf; ++i) {
+    // addr_i + size_i <= capacity  (row)
+    glp_set_row_bnds(prob, row, GLP_UP, 0.0, capacity - buffers[i].size);
+    ia[idx] = row; ja[idx] = addrCol[i]; ar[idx++] = 1.0;
+    row++;
+
+    // addr_i + size_i - maxAddr <= 0
+    glp_set_row_bnds(prob, row, GLP_UP, 0.0, 0.0);
+    ia[idx] = row; ja[idx] = addrCol[i]; ar[idx++] = 1.0;
+    ia[idx] = row; ja[idx] = maxAddrCol; ar[idx++] = -1.0;
+    row++;
+  }
+
+  double M = static_cast<double>(capacity);
+  for (int k = 0; k < nConflict; ++k) {
+    int i = conflictIdxPairs[k].first;
+    int j = conflictIdxPairs[k].second;
+    int aCol = binCol[k];
+
+    // addr_i - addr_j + M*a <= M - size_i
+    glp_set_row_bnds(prob, row, GLP_UP, 0.0, M - buffers[i].size);
+    ia[idx] = row; ja[idx] = addrCol[i]; ar[idx++] = 1.0;
+    ia[idx] = row; ja[idx] = addrCol[j]; ar[idx++] = -1.0;
+    ia[idx] = row; ja[idx] = aCol; ar[idx++] = M;
+    row++;
+
+    // addr_j - addr_i - M*a <= -size_j
+    glp_set_row_bnds(prob, row, GLP_UP, 0.0, -buffers[j].size);
+    ia[idx] = row; ja[idx] = addrCol[j]; ar[idx++] = 1.0;
+    ia[idx] = row; ja[idx] = addrCol[i]; ar[idx++] = -1.0;
+    ia[idx] = row; ja[idx] = aCol; ar[idx++] = -M;
+    row++;
+  }
+
+  glp_load_matrix(prob, idx - 1, ia.data(), ja.data(), ar.data());
+
+  // Solve
+  glp_iocp parm;
+  glp_init_iocp(&parm);
+  parm.presolve = GLP_ON;
+  int status = glp_intopt(prob, &parm);
+
+  std::unordered_map<mlir::Operation *, int64_t> result;
+  if (status == 0) {
+    for (int i = 0; i < nBuf; ++i) {
+      double val = glp_mip_col_val(prob, addrCol[i]);
+      result[buffers[i].alloc.getOperation()] = static_cast<int64_t>(val);
+    }
+  } else {
+    LOG_ERROR << "GLPK failed to solve ILP (status=" << status << "). Falling back to sequential allocation.";
+    int64_t next = 0;
+    for (auto &b : buffers) {
+      result[b.alloc.getOperation()] = next;
+      next += b.size;
+    }
+  }
+
+  glp_delete_prob(prob);
+  return result;
+}
+
 struct MemoryAddressAllocationPass
     : public mlir::PassWrapper<MemoryAddressAllocationPass,
                                OperationPass<mlir::func::FuncOp>> {
@@ -224,102 +350,112 @@ struct MemoryAddressAllocationPass
       lifetimesByType[lifetime.bufType].push_back(lifetime);
     }
 
-    // For each buffer_type group, find conflicting buffer pairs
+    // Map from allocOp* to computed address across all groups.
+    std::unordered_map<mlir::Operation *, int64_t> assignedAddr;
+
     for (auto &kv : lifetimesByType) {
       const std::string &typeName = kv.first;
       auto &vec = kv.second;
 
-      std::vector<std::pair<mlir::Operation *, mlir::Operation *>> conflictingPairs;
+      // Generate conflict index pairs and buffer entries.
+      std::vector<std::pair<int, int>> conflictIdxPairs;
+      std::vector<BufferEntry> bufferEntries;
+      bufferEntries.reserve(vec.size());
+
+      for (size_t i = 0; i < vec.size(); ++i) {
+        // compute size in bytes for this alloc
+        auto type = vec[i].allocOp.getResult().getType().cast<mlir::MemRefType>();
+        int64_t size = 1;
+        for (auto dim : type.getShape())
+          size *= dim;
+        int bwidth = getBitWidth(type.getElementType());
+        if (bwidth == 1)
+          size = size / 8;
+        else if (bwidth >= 8 && bwidth % 8 == 0)
+          size = size * bwidth / 8;
+        else {
+          LOG_ERROR << "Unsupported bit width in ILP allocation: " << bwidth;
+          std::exit(1);
+        }
+
+        bufferEntries.push_back(BufferEntry{vec[i].allocOp, size});
+      }
+
+      // Build conflicts by index
       for (size_t i = 0; i < vec.size(); ++i) {
         for (size_t j = i + 1; j < vec.size(); ++j) {
           if (lifetimesOverlap(vec[i], vec[j], dominanceInfo)) {
-            conflictingPairs.emplace_back(vec[i].allocOp, vec[j].allocOp);
+            conflictIdxPairs.emplace_back(i, j);
           }
         }
       }
 
-      for (const auto &pair : conflictingPairs) {
-        LOG_DEBUG << "[bufType=" << typeName << "] Conflicting pair: "
-                  << pair.first << " and " << pair.second;
+      // Debug log of conflicts
+      for (auto &p : conflictIdxPairs) {
+        LOG_DEBUG << "[bufType=" << typeName << "] Conflict idx: " << p.first << "," << p.second;
       }
+
+      int64_t capacity = memory_size_list[typeName];
+
+      auto addrMap = solveILP(bufferEntries, conflictIdxPairs, capacity);
+
+      // Store assigned addresses
+      assignedAddr.insert(addrMap.begin(), addrMap.end());
     }
 
-    std::unordered_map<std::string, int> address_table;
-    for (auto iter = alloc_op_list.begin(); iter != alloc_op_list.end();
-         iter++) {
+    // --------------------------------------------
+    // Address assignment update (uses assignedAddr)
+
+    std::unordered_map<std::string, int> address_table; // not used anymore for assignment but kept for overflow check
+    for (auto iter = alloc_op_list.begin(); iter != alloc_op_list.end(); ++iter) {
       mlir::memref::AllocOp op = *iter;
+
+      std::string memory = buffer_type[op];
+      int64_t address = assignedAddr[op.getOperation()];
+
       auto context = op.getContext();
       mlir::MemRefType type = op.getResult().getType();
 
-      // mlir::DictionaryAttr memory_space =
-      //     llvm::cast<mlir::DictionaryAttr>(type.getMemorySpace());
-      // llvm::StringRef _memory =
-      //     llvm::cast<mlir::StringAttr>(memory_space.get("memory")).getValue();
-      // std::string memory = _memory.str();
-      std::string memory = buffer_type[op];
-      auto shape = type.getShape(); // TODO: how to get memref's size?
-
-      int size = 1;
-      for (auto s = shape.begin(); s != shape.end(); s++) {
-        size *= (*s);
-      }
-
+      // Recompute size for overflow check
+      int64_t size = 1;
+      for (auto dim : type.getShape())
+        size *= dim;
       int bitwidth = getBitWidth(type.getElementType());
-      if (bitwidth == 1) {
+      if (bitwidth == 1)
         size = size / 8;
-      } else if (bitwidth >= 8 && bitwidth % 8 == 0) {
+      else if (bitwidth >= 8 && bitwidth % 8 == 0)
         size = size * bitwidth / 8;
-      } else {
-        LOG_ERROR << "Unsupported bit width: " << bitwidth;
+
+      // overflow check and accumulate
+      if (!address_table.count(memory))
+        address_table[memory] = 0;
+      address_table[memory] = std::max(address_table[memory], static_cast<int>(address + size));
+      if (address + size > memory_size_list[memory]) {
+        LOG_ERROR << "Memory address overflow after ILP: " << memory;
         std::exit(1);
       }
 
-      if (!address_table.count(memory)) {
-        address_table[memory] = 0;
-      }
-      int address = address_table[memory];
-
+      // create memory space attr
       mlir::SmallVector<mlir::NamedAttribute, 2> nameAttrs;
-      nameAttrs.push_back(
-          mlir::NamedAttribute(mlir::StringAttr::get(context, "memory"),
-                               mlir::StringAttr::get(context, memory)));
-      nameAttrs.push_back(mlir::NamedAttribute(
-          mlir::StringAttr::get(context, "address"),
-          mlir::IntegerAttr::get(mlir::IntegerType::get(context, 64),
-                                 address)));
+      nameAttrs.push_back(mlir::NamedAttribute(mlir::StringAttr::get(context, "memory"), mlir::StringAttr::get(context, memory)));
+      nameAttrs.push_back(mlir::NamedAttribute(mlir::StringAttr::get(context, "address"), mlir::IntegerAttr::get(mlir::IntegerType::get(context, 64), address)));
 
-      mlir::DictionaryAttr new_memory_space =
-          mlir::DictionaryAttr::get(op.getContext(), nameAttrs);
-
-      // type.setMemorySpace(new_memory_space);
-      mlir::MemRefType new_type =
-          mlir::MemRefType::get(type.getShape(), type.getElementType(),
-                                type.getLayout(), new_memory_space);
+      mlir::DictionaryAttr new_memory_space = mlir::DictionaryAttr::get(op.getContext(), nameAttrs);
+      mlir::MemRefType new_type = mlir::MemRefType::get(type.getShape(), type.getElementType(), type.getLayout(), new_memory_space);
       op.getResult().setType(new_type);
 
-
-      // get SubviewOp that use this alloc op
-      // set result of SubviewOp to new_type
+      // propagate to subview results
       for (mlir::OpOperand &use : op.getResult().getUses()) {
         if (auto subview = llvm::dyn_cast<mlir::memref::SubViewOp>(use.getOwner())) {
-          // Set the result type of the SubviewOp to use the same memory space
           mlir::MemRefType subview_type = subview.getType();
-          mlir::MemRefType new_subview_type = mlir::MemRefType::get(
-              subview_type.getShape(),
-              subview_type.getElementType(),
-              subview_type.getLayout(),
-              new_memory_space);
+          mlir::MemRefType new_subview_type = mlir::MemRefType::get(subview_type.getShape(), subview_type.getElementType(), subview_type.getLayout(), new_memory_space);
           subview.getResult().setType(new_subview_type);
         }
       }
-
-
-      address_table[memory] += size;
-      if (address_table[memory] > memory_size_list[memory]) {
-        LOG_ERROR << "Memory address overflow: " << memory << " total size: " << memory_size_list[memory] << " use size: " << address_table[memory] << " buffer size: " << size;
-        std::exit(1);
-      }
     }
+
+    // return early since rest of old address allocation is removed/handled
+    return;
   }
 };
 } // namespace
