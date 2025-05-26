@@ -29,6 +29,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 #include "common/macros.h"
 
 #define DEBUG_TYPE "shape-inference"
@@ -109,21 +110,59 @@ static int getBitWidth(mlir::Type type) {
 // Update the BufferLifetime structure to include first/last operations
 struct BufferLifetime {
   mlir::Operation *allocOp;
-  mlir::Operation *startOp; // first (earliest) operation where buffer is live (usually alloc)
-  mlir::Operation *endOp;   // last (latest) operation that uses the buffer
+  std::string bufType;       // group key (e.g., memory name) for this buffer
+  mlir::Operation *startOp;  // earliest op where buffer is live (usually alloc)
+  mlir::Operation *endOp;    // latest op that uses the buffer
 };
 
 // Helper that tries to decide if opA happens strictly before opB.
 static bool opComesBefore(mlir::Operation *opA, mlir::Operation *opB, mlir::DominanceInfo &dom) {
   if (opA == opB)
-    return false; // same op – treat as not strictly before
-  // Same block – use IR order.
+    return false; // same op – not strictly before
+
+  // Fast-path: same block → use insertion order.
   if (opA->getBlock() == opB->getBlock())
     return opA->isBeforeInBlock(opB);
-  // Different blocks – fall back to dominance.
+
+  // If one op is an (proper) ancestor of the other, the ancestor lexically comes first.
+  if (opA->isProperAncestor(opB))
+    return true;
+  if (opB->isProperAncestor(opA))
+    return false;
+
+  // Build ancestor chains up to the root (inclusive).
+  llvm::SmallVector<mlir::Operation *, 8> chainA, chainB;
+  for (auto *cur = opA; cur; cur = cur->getParentOp())
+    chainA.push_back(cur);
+  for (auto *cur = opB; cur; cur = cur->getParentOp())
+    chainB.push_back(cur);
+
+  // Reverse to have root → leaf order.
+  std::reverse(chainA.begin(), chainA.end());
+  std::reverse(chainB.begin(), chainB.end());
+
+  // Find first differing node.
+  size_t minLen = std::min(chainA.size(), chainB.size());
+  size_t idx = 0;
+  while (idx < minLen && chainA[idx] == chainB[idx])
+    ++idx;
+
+  // If one chain is a prefix of the other, earlier prefix op is ancestor – already handled.
+  if (idx == chainA.size() || idx == chainB.size())
+    return false; // should not happen due to ancestor test above
+
+  mlir::Operation *childA = chainA[idx];
+  mlir::Operation *childB = chainB[idx];
+
+  // Both children reside in the same block (their parent's region). Use order in that block.
+  if (childA->getBlock() == childB->getBlock())
+    return childA->isBeforeInBlock(childB);
+
+  // Fallback to dominance when blocks differ and order still unknown.
   if (dom.dominates(opA, opB) && !dom.dominates(opB, opA))
     return true;
-  return false; // conservatively return false otherwise.
+
+  return false; // Unable to decide → treat as not strictly before.
 }
 
 // Determine if two lifetimes overlap.
@@ -162,11 +201,12 @@ struct MemoryAddressAllocationPass
     // Initialize dominance info (needed both for ordering across blocks and dominance queries)
     mlir::DominanceInfo dominanceInfo(f);
 
-    // Track the lifetime of each buffer
-    std::vector<BufferLifetime> bufferLifetimes;
+    // Track the lifetime of each buffer and group by buffer_type
+    std::unordered_map<std::string, std::vector<BufferLifetime>> lifetimesByType;
     for (auto &allocOp : alloc_op_list) {
       BufferLifetime lifetime;
       lifetime.allocOp = allocOp;
+      lifetime.bufType = buffer_type[allocOp];
       lifetime.startOp = allocOp;
       lifetime.endOp   = allocOp;
 
@@ -181,22 +221,27 @@ struct MemoryAddressAllocationPass
         if (opComesBefore(lifetime.endOp, user, dominanceInfo))
           lifetime.endOp = user;
       }
-      bufferLifetimes.push_back(lifetime);
+      lifetimesByType[lifetime.bufType].push_back(lifetime);
     }
 
-    // Find conflicting buffer pairs
-    std::vector<std::pair<mlir::Operation *, mlir::Operation *>> conflictingPairs;
-    for (size_t i = 0; i < bufferLifetimes.size(); ++i) {
-      for (size_t j = i + 1; j < bufferLifetimes.size(); ++j) {
-        if (lifetimesOverlap(bufferLifetimes[i], bufferLifetimes[j], dominanceInfo)) {
-          conflictingPairs.emplace_back(bufferLifetimes[i].allocOp, bufferLifetimes[j].allocOp);
+    // For each buffer_type group, find conflicting buffer pairs
+    for (auto &kv : lifetimesByType) {
+      const std::string &typeName = kv.first;
+      auto &vec = kv.second;
+
+      std::vector<std::pair<mlir::Operation *, mlir::Operation *>> conflictingPairs;
+      for (size_t i = 0; i < vec.size(); ++i) {
+        for (size_t j = i + 1; j < vec.size(); ++j) {
+          if (lifetimesOverlap(vec[i], vec[j], dominanceInfo)) {
+            conflictingPairs.emplace_back(vec[i].allocOp, vec[j].allocOp);
+          }
         }
       }
-    }
 
-    // Log the conflicting pairs
-    for (const auto &pair : conflictingPairs) {
-      LOG_DEBUG << "Conflicting pair: " << pair.first << " and " << pair.second;
+      for (const auto &pair : conflictingPairs) {
+        LOG_DEBUG << "[bufType=" << typeName << "] Conflicting pair: "
+                  << pair.first << " and " << pair.second;
+      }
     }
 
     std::unordered_map<std::string, int> address_table;
