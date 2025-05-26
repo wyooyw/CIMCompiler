@@ -141,6 +141,7 @@ private:
   void parse_builtin_trans(const boost::property_tree::ptree &ast);
   mlir::Value parse_builtin_slice(const boost::property_tree::ptree &ast);
   void parse_builtin_simd(const boost::property_tree::ptree &ast);
+  void parse_builtin_reduce(const boost::property_tree::ptree &ast);
   mlir::Value parse_builtin_buffer(const boost::property_tree::ptree &ast);
   void parse_builtin_print(const boost::property_tree::ptree &ast);
   void parse_builtin_debug(const boost::property_tree::ptree &ast);
@@ -152,14 +153,14 @@ private:
   mlir::Value parse_builtin_select(const boost::property_tree::ptree &ast);
   void parse_builtin_save(const boost::property_tree::ptree &ast);
   void parse_builtin_cimcompute_dense(const boost::property_tree::ptree &ast);
-  void
-  parse_builtin_cimcompute_value_sparse(const boost::property_tree::ptree &ast);
+  void parse_builtin_cimcompute_batch(const boost::property_tree::ptree &ast);
+  void parse_builtin_cimcompute_value_sparse(const boost::property_tree::ptree &ast);
   void
   parse_builtin_cimcompute_bit_sparse(const boost::property_tree::ptree &ast);
   void parse_builtin_cimcompute_value_bit_sparse(
       const boost::property_tree::ptree &ast);
   void parse_builtin_cimcompute(const boost::property_tree::ptree &ast,
-                                bool value_sparse, bool bit_sparse);
+                                bool value_sparse, bool bit_sparse, bool batch);
   void parse_builtin_cimoutput(const boost::property_tree::ptree &ast);
   void parse_builtin_cimoutput_sum(const boost::property_tree::ptree &ast);
   void parse_builtin_cimtransfer(const boost::property_tree::ptree &ast);

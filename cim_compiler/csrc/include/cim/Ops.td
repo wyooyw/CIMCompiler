@@ -44,6 +44,20 @@ def SIMDOp : CIM_Op<"simd"> {
   let hasFolder = 1;
 }
 
+def ReduceOp : CIM_Op<"reduce"> {
+  let summary = "reduce";
+  let description = [{
+    reduce
+  }];
+
+  let arguments = (ins 
+    Index:$op_id,
+    AnyMemRef:$src,
+    AnyMemRef:$dst
+  );
+  let hasFolder = 1;
+}
+
 /////////////////////////////////
 // CIM Compute //
 /////////////////////////////////
@@ -58,7 +72,8 @@ def CIMComputeOp : CIM_Op<"cim_compute"> {
     AnyMemRef:$input, 
     AnyMemRef:$macro, 
     I1Attr:$value_sparse_flag,
-    I1Attr:$bit_sparse_flag
+    I1Attr:$bit_sparse_flag,
+    I1Attr:$batch_flag
   );
 
   let hasFolder = 1;

@@ -5,13 +5,8 @@ from test.base import OpRunner
 from test.op.test_reduce.test_reduce import get_reduce_config
 import math
 import pytest
-
-
-@dataclass
-class LayerNormOpConfig:
-    hidden: int
-    reduce_config: int
-    math: int
+from cim_compiler.op.llm.helper import LayerNormOpConfig
+from cim_compiler.simulator.simd_utils import SIMDConfig
 
 def layernorm(x, eps, a, b):
     x_mean = np.mean(x, axis=-1, keepdims=True)
@@ -35,7 +30,8 @@ def test_layernorm_single_token(hidden):
     op_config = LayerNormOpConfig(
         hidden=hidden,
         reduce_config=get_reduce_config(cim_config_path),
-        math=math
+        math=math,
+        simd=SIMDConfig.from_config(cim_config_path)
     )
 
     op_runner = OpRunner(op_path, op_config, cim_config_path)
