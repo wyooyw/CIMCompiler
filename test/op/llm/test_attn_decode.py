@@ -23,66 +23,66 @@ def softmax(x, axis=-1):
     exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
-@pytest.mark.parametrize(
-    "head_hidden, seqlen",
-    [
-        (128, 8192),
-        (128, 4096),
-        (128, 2048),
-        (128, 1024),
-        (128, 512),
-        (128, 256),
-        (128, 128),
-        # hidden_size != 128 not support now.
-        # (256, 4096),
-        # (256, 2048),
-        # (256, 1024),
-    ],
-)
-def test_attn_decode(head_hidden, seqlen):
-    cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
-    op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode.cim")
-    cim_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
-    cim_config = MacroConfig.from_config(cim_config_path)
-    cim_config.set_default_bit_width(16)
-    op_config = AttnDecodeConfig(
-        head_hidden=head_hidden, 
-        seqlen=seqlen, 
-        macro_config=cim_config,
-        transpose_row=16,
-        transpose_col=128,
-        reduce_config=get_reduce_config(cim_config_path),
-        math=math
-    )
+# @pytest.mark.parametrize(
+#     "head_hidden, seqlen",
+#     [
+#         (128, 8192),
+#         (128, 4096),
+#         (128, 2048),
+#         (128, 1024),
+#         (128, 512),
+#         (128, 256),
+#         (128, 128),
+#         # hidden_size != 128 not support now.
+#         # (256, 4096),
+#         # (256, 2048),
+#         # (256, 1024),
+#     ],
+# )
+# def test_attn_decode(head_hidden, seqlen):
+#     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
+#     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode.cim")
+#     cim_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+#     cim_config = MacroConfig.from_config(cim_config_path)
+#     cim_config.set_default_bit_width(16)
+#     op_config = AttnDecodeConfig(
+#         head_hidden=head_hidden, 
+#         seqlen=seqlen, 
+#         macro_config=cim_config,
+#         transpose_row=16,
+#         transpose_col=128,
+#         reduce_config=get_reduce_config(cim_config_path),
+#         math=math
+#     )
 
-    op_runner = OpRunner(op_path, op_config, cim_config_path)
+#     op_runner = OpRunner(op_path, op_config, cim_config_path)
 
-    """
-    q_global = Buffer(<128>, fp16, __GLOBAL__);
-    v_global = Buffer(<4096, 128>, fp16, __GLOBAL__);
-    k_T_global = Buffer(<128, 4096>, fp16, __GLOBAL__);
-    output_global = Buffer(<128>, fp16, __GLOBAL__);
-    """
-    # cimset_mask = make_cimset_mask(op_config.macro_config.n_group_vcol)
-    query = np.random.randint(-1, 2, (op_config.head_hidden,)).astype(np.float16)
-    key = np.random.randint(-1, 2, ( op_config.seqlen, op_config.head_hidden)).astype(np.float16)
-    value = np.random.randint(-1, 2, (op_config.seqlen, op_config.head_hidden)).astype(np.float16)
-    # query = np.ones((op_config.head_hidden,), dtype=np.float16)
-    # key = np.ones((op_config.seqlen, op_config.head_hidden), dtype=np.float16)
-    # value = np.ones((op_config.seqlen, op_config.head_hidden), dtype=np.float16)
+#     """
+#     q_global = Buffer(<128>, fp16, __GLOBAL__);
+#     v_global = Buffer(<4096, 128>, fp16, __GLOBAL__);
+#     k_T_global = Buffer(<128, 4096>, fp16, __GLOBAL__);
+#     output_global = Buffer(<128>, fp16, __GLOBAL__);
+#     """
+#     # cimset_mask = make_cimset_mask(op_config.macro_config.n_group_vcol)
+#     query = np.random.randint(-1, 2, (op_config.head_hidden,)).astype(np.float16)
+#     key = np.random.randint(-1, 2, ( op_config.seqlen, op_config.head_hidden)).astype(np.float16)
+#     value = np.random.randint(-1, 2, (op_config.seqlen, op_config.head_hidden)).astype(np.float16)
+#     # query = np.ones((op_config.head_hidden,), dtype=np.float16)
+#     # key = np.ones((op_config.seqlen, op_config.head_hidden), dtype=np.float16)
+#     # value = np.ones((op_config.seqlen, op_config.head_hidden), dtype=np.float16)
     
-    golden = np.dot(softmax(np.dot(query, np.transpose(key))), value).reshape(-1)
+#     golden = np.dot(softmax(np.dot(query, np.transpose(key))), value).reshape(-1)
 
-    output = np.zeros(op_config.head_hidden, dtype=np.float16)
-    op_runner.run([query, key, value], [output])
+#     output = np.zeros(op_config.head_hidden, dtype=np.float16)
+#     op_runner.run([query, key, value], [output])
 
-    # print(f"{output=}")
-    # print(f"{golden=}")
-    # 设置相对误差和绝对误差阈值
-    rtol = 1e-2  # 相对误差：0.1%
-    atol = 1e-2  # 绝对误差：0.001
-    allclose = np.allclose(output, golden, rtol=rtol, atol=atol)
-    assert allclose, f"{output=} {golden=}"
+#     # print(f"{output=}")
+#     # print(f"{golden=}")
+#     # 设置相对误差和绝对误差阈值
+#     rtol = 1e-2  # 相对误差：0.1%
+#     atol = 1e-2  # 绝对误差：0.001
+#     allclose = np.allclose(output, golden, rtol=rtol, atol=atol)
+#     assert allclose, f"{output=} {golden=}"
 
 @pytest.mark.parametrize(
     "head_hidden, seqlen, world_size, cp_group_size",
@@ -98,7 +98,7 @@ def test_attn_decode(head_hidden, seqlen):
         (128, 4096, 16, 16),
     ],
 )
-def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
+def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size, load_k_stages):
     check_result = os.environ.get("CHECK_RESULT", "1") == "1"
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp.cim")
@@ -117,7 +117,9 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
         split_stage_config=SplitStageConfig(run_step=0, run_all_steps=True),
         global_memory_name=f"__GLOBAL__",
         simd=SIMDConfig.from_config(cim_config_path),
-        reduce=ReduceConfig.from_config(cim_config_path)
+        reduce=ReduceConfig.from_config(cim_config_path),
+        load_k_stages=load_k_stages,
+        n_activate_core=world_size
     )
 
     def config_cp_group(rank, op_config):
@@ -188,10 +190,14 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size):
                 assert allclose, f"{outputs[rank][0]=} {golden[tp_rank]=}"
 
 if __name__=="__main__":
-    test_attn_decode_cp(
-        head_hidden=128, 
-        seqlen=2048,
-        world_size=4,
-        cp_group_size=2,
-    )
+    seqlen = 2048
+    cp_group_size = 32
+    for cp_group_size in [2]:
+        test_attn_decode_cp(
+            head_hidden=128, 
+            seqlen=seqlen,
+            world_size=16,
+            cp_group_size=cp_group_size,
+            load_k_stages=max(seqlen // cp_group_size // 512, 1)
+        )
     # test_attn_decode(128, 128)

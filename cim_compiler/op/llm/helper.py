@@ -33,6 +33,8 @@ class AttnDecodeCPConfig(AttnDecodeConfig):
     global_memory_name: str = None
     simd: SIMDConfig = None
     reduce: ReduceConfig = None
+    load_k_stages: int = None
+    n_activate_core: int = None
 
 @dataclass
 class LayerNormOpConfig:

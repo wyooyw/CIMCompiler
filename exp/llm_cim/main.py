@@ -47,8 +47,9 @@ def parse_args():
     exp_group.add_argument("--debug", action="store_true", 
                          help="Enable debug logs, save files and logs to .debug/time directory")
     exp_group.add_argument("--save-dir", type=str, 
-                         default=f"result/{datetime.now().strftime('%Y%m%d%H%M%S')}/", 
+                         default=None, 
                          help="Save directory")
+    exp_group.add_argument("--name-prefix", type=str, default="", help="Name prefix for the experiment")
     return parser.parse_args()
 
 def setup_logging(debug_mode):
@@ -76,6 +77,10 @@ def config_cp_group(rank, op_config, cp_size):
 def main():
     args = parse_args()
     debug_dir = setup_logging(args.debug)
+
+    if args.save_dir is None:
+        args.save_dir = f"result/{args.name_prefix}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        print(f"Save directory: {args.save_dir}")
     
     # Your main code logic here
     if args.debug:
@@ -89,6 +94,8 @@ def main():
         args.split_config_path = m.modified_config_path
         _main_impl(args)
 
+    print(f"Save directory: {args.save_dir}")
+
 def _main_impl(args):
     # Add the rest of your application logic here
     cim_config = MacroConfig.from_config(args.config_path)
@@ -100,30 +107,37 @@ def _main_impl(args):
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp.cim")
     
-    n_head = 0
-    for cp_size in args.mapping_cp_sizes:
-        assert args.world_size % cp_size == 0, f"World size {args.world_size} must be divisible by CP size {cp_size}"
-        n_head_per_round = args.world_size // cp_size
-        n_head += n_head_per_round
-    assert n_head == args.n_head, f"n_head {n_head} must be equal to {args.n_head}"
+    # n_head = 0
+    # for cp_size in args.mapping_cp_sizes:
+    #     assert args.world_size % cp_size == 0, f"World size {args.world_size} must be divisible by CP size {cp_size}"
+    #     n_head_per_round = args.world_size // cp_size
+    #     n_head += n_head_per_round
+    # assert n_head == args.n_head, f"n_head {n_head} must be equal to {args.n_head}"
 
     assert args.hidden_size % args.n_head == 0, f"hidden_size {args.hidden_size} must be divisible by n_head {args.n_head}"
     hidden_size_per_head = args.hidden_size // args.n_head
 
     # check capacity of input memory
-    for i, cp_size in enumerate(args.mapping_cp_sizes):
-        k_local_capacity = hidden_size_per_head * (args.seqlen // cp_size) * 2
-        input_memory_capacity = MemorySpace.from_memory_config(args.config_path).get_memory_by_name("input_memory").size
-        assert k_local_capacity <= input_memory_capacity, f"k_local_capacity {k_local_capacity} more than input_memory_capacity {input_memory_capacity} when CP size is {cp_size}. Please use greater CP sizes."
+    # for i, cp_size in enumerate(args.mapping_cp_sizes):
+    #     k_local_capacity = hidden_size_per_head * (args.seqlen // cp_size) * 2
+    #     input_memory_capacity = MemorySpace.from_memory_config(args.config_path).get_memory_by_name("input_memory").size
+    #     assert k_local_capacity <= input_memory_capacity, f"k_local_capacity {k_local_capacity} more than input_memory_capacity {input_memory_capacity} when CP size is {cp_size}. Please use greater CP sizes."
 
     collect_dir = os.path.join(args.save_dir, "code")
     os.makedirs(collect_dir, exist_ok=True)
 
     # attention
+    remain_head = args.n_head
     for i, cp_size in enumerate(args.mapping_cp_sizes):
-        assert args.seqlen // cp_size == 1024, "seqlen on one core must be 1024"
+        # assert args.seqlen // cp_size == 1024, "seqlen on one core must be 1024"
         n_head_this_round = args.world_size // cp_size
-        print(f"CP size: {cp_size}, n_head: {n_head_this_round}, hidden_size_per_head: {hidden_size_per_head}")
+        n_head_this_round = min(n_head_this_round, remain_head)
+        remain_head -= n_head_this_round
+        n_activate_core = n_head_this_round * cp_size
+        assert n_activate_core > 0
+        if n_activate_core < args.world_size:
+            assert remain_head == 0, f"remain_head {remain_head} must be 0"
+        print(f"CP size: {cp_size}, n_head: {n_head_this_round}, hidden_size_per_head: {hidden_size_per_head}, n_activate_core: {n_activate_core}")
         
         if args.split_stages:
             split_stage_configs = [
@@ -133,6 +147,7 @@ def _main_impl(args):
             split_stage_configs = [SplitStageConfig(run_step=0, run_all_steps=True)]
 
         for stage_idx, split_stage_config in enumerate(split_stage_configs):
+            load_k_stages = max(args.seqlen // cp_size // 512, 1)
             op_config = AttnDecodeCPConfig(
                 head_hidden=hidden_size_per_head,
                 seqlen=args.seqlen,
@@ -144,7 +159,9 @@ def _main_impl(args):
                 math=math,
                 split_stage_config=split_stage_config,
                 simd=simd_config,
-                reduce=reduce_config
+                reduce=reduce_config,
+                load_k_stages=load_k_stages,
+                n_activate_core=n_activate_core,
             )
 
             op_runner = SPMDOpRunner(

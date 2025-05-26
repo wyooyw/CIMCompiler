@@ -16,6 +16,8 @@
 def main(){
     set_special_regs();
 
+    {% if core_id < n_activate_core %}
+
     // global_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, {{global_memory_name}});
     // local_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, __INPUT_MEMORY__);
     // Trans(global_pimset_mask, local_pimset_mask);
@@ -26,7 +28,7 @@ def main(){
     output_global = Buffer(<{{head_hidden}}>, fp16, {{global_memory_name}});
 
     q_local = Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
-    k_local = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, __INPUT_MEMORY__);
+    k_local = Buffer(<{{seqlen // cp_group_size // load_k_stages}}, {{head_hidden}}>, fp16, __INPUT_MEMORY__);
     
     macros = Buffer(<{{macro_config.n_row}}, {{macro_config.n_comp}}, 1, {{macro_config.n_group_vcol}}>, fp16, __MACRO__);
     pim_input_reg_buffer = Buffer(<{{macro_config.n_comp}}>, fp16, __PIM_INPUT_REG_BUFFER__);
@@ -43,13 +45,20 @@ def main(){
 
     // step 0: load k into local
     {% if split_stage_config.run_step==0 or split_stage_config.run_all_steps %}
-        Trans(k_global, k_local);
+        // Trans(k_global, k_local);
     {% endif %}
 
     // step 1: transpose and load k into macro
     {% if split_stage_config.run_step==1 or split_stage_config.run_all_steps %}
         transpose_unit = Buffer(<2, {{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY__);
-        load_transpose_into_macro(k_local, k_macro, transpose_unit);
+        @unroll
+        for i in range(0, {{load_k_stages}}) carry () {
+            delta = {{seqlen // cp_group_size // load_k_stages}};
+            Trans(k_global[i*delta:(i+1)*delta,:], k_local);
+            k_row_delta = k_row_size / {{load_k_stages}};
+            use_k_macro = k_macro[k_row_delta*i:k_row_delta*(i+1), :, :, :];
+            load_transpose_into_macro(k_local, use_k_macro, transpose_unit);
+        };
     {% endif %}
 
     // step 2: load q into local
@@ -70,7 +79,7 @@ def main(){
     // step 4: load V and compute SV
     {% if split_stage_config.run_step==4 or split_stage_config.run_all_steps %}
         // load V into macro
-        v_row_begin = k_row_end;
+        v_row_begin = 0;
         v_row_size = {{ ((seqlen // cp_group_size) // macro_config.n_comp) * (head_hidden // macro_config.n_group_vcol) }};
         v_row_end = v_row_begin + v_row_size;
         v_macro = macros[v_row_begin:v_row_end, 0:{{macro_config.n_comp}}, 0:1, 0:{{macro_config.n_group_vcol}}];
@@ -93,5 +102,7 @@ def main(){
         
         // write result back to global
         Trans(attn_out3[0, :], output_global);
+    {% endif %}
+
     {% endif %}
 }
