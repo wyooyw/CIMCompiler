@@ -1,7 +1,7 @@
 
 PREFIX=./thirdparty/llvm-project/build
 BUILD_DIR=./thirdparty/llvm-project/build
-
+export PATH=$PATH:/usr/lib/llvm-12/bin
 start=$(date +%s)
 
 mkdir build
