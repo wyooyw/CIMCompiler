@@ -23,25 +23,25 @@ def main(){
     // Trans(global_pimset_mask, local_pimset_mask);
     
     q_global = Buffer(<{{head_hidden}}>, fp16, {{global_memory_name}});
-    k_global = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, {{global_memory_name}});
-    v_global = Buffer(<{{seqlen // cp_group_size}}, {{head_hidden}}>, fp16, {{global_memory_name}});
+    k_global = Buffer(<{{seqlen}}, {{head_hidden}}>, fp16, {{global_memory_name}});
+    v_global = Buffer(<{{seqlen}}, {{head_hidden}}>, fp16, {{global_memory_name}});
     output_global = Buffer(<{{head_hidden}}>, fp16, {{global_memory_name}});
 
     q_local = Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
-    k_local = Buffer(<{{seqlen // cp_group_size // load_k_stages}}, {{head_hidden}}>, fp16, __INPUT_MEMORY__);
+    k_local = Buffer(<{{seqlen // load_k_stages}}, {{head_hidden}}>, fp16, __INPUT_MEMORY__);
     
     macros = Buffer(<{{macro_config.n_row}}, {{macro_config.n_comp}}, 1, {{macro_config.n_group_vcol}}>, fp16, __MACRO__);
     pim_input_reg_buffer = Buffer(<{{macro_config.n_comp}}>, fp16, __PIM_INPUT_REG_BUFFER__);
     pim_output_reg_buffer = Buffer(<{{macro_config.n_group_vcol}}>, fp16, __PIM_OUTPUT_REG_BUFFER__);
 
     k_row_begin = 0;
-    k_row_size = {{ (head_hidden // macro_config.n_comp) * ((seqlen // cp_group_size) // macro_config.n_group_vcol) }};
+    k_row_size = {{ (head_hidden // macro_config.n_comp) * (seqlen // macro_config.n_group_vcol) }};
     k_row_end = k_row_begin + k_row_size;
     k_macro = macros[k_row_begin:k_row_end, 0:{{macro_config.n_comp}}, 0:1, 0:{{macro_config.n_group_vcol}}];
 
-    attn_out1 = Buffer(<{{seqlen // cp_group_size}}>, fp16, __OUTPUT_MEMORY__);
-    score = Buffer(<{{seqlen // cp_group_size}}>, fp16, __OUTPUT_MEMORY__);
-    temp = Buffer(<{{seqlen // cp_group_size}}>, fp16, __TEMP_MEMORY_1__);
+    attn_out1 = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
+    score = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
+    temp = Buffer(<{{seqlen}}>, fp16, __TEMP_MEMORY_1__);
 
     transpose_unit = Buffer(<2, {{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY__);
 
@@ -49,7 +49,7 @@ def main(){
     // step 1: transpose and load k into macro
     {% for i in range(load_k_stages) %}
         {% if split_stage_config.run_step==("0." ~ i) or split_stage_config.run_all_steps %}
-            delta = {{seqlen // cp_group_size // load_k_stages}};
+            delta = {{seqlen // load_k_stages}};
             Trans(k_global[{{i}} * delta : ( {{i}} + 1 ) * delta, : ], k_local);
         {% endif %}
         {% if split_stage_config.run_step==("1." ~ i) or split_stage_config.run_all_steps %}
@@ -78,14 +78,14 @@ def main(){
     {% if split_stage_config.run_step==4 or split_stage_config.run_all_steps %}
         // load V into macro
         v_row_begin = 0;
-        v_row_size = {{ ((seqlen // cp_group_size) // macro_config.n_comp) * (head_hidden // macro_config.n_group_vcol) }};
+        v_row_size = {{ (seqlen // macro_config.n_comp) * (head_hidden // macro_config.n_group_vcol) }};
         v_row_end = v_row_begin + v_row_size;
         v_macro = macros[v_row_begin:v_row_end, 0:{{macro_config.n_comp}}, 0:1, 0:{{macro_config.n_group_vcol}}];
         load_into_macro(v_global, v_macro);
     
         // compute SV
         attn_out2= Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
-        gemv_using_batch_cim_compute(score, v_macro, attn_out2, {{ (seqlen // cp_group_size) // macro_config.n_comp }}, pim_input_reg_buffer, pim_output_reg_buffer);
+        gemv_using_batch_cim_compute(score, v_macro, attn_out2, {{ seqlen // macro_config.n_comp }}, pim_input_reg_buffer, pim_output_reg_buffer);
 
         // sum over cp group
         // TODO: For now, we use all-gather + sum. In the future, we will use reduce-scatter to get better performance
