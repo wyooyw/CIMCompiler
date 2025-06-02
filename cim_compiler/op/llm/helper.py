@@ -11,7 +11,6 @@ class AttnDecodeConfig:
     head_hidden: int = None
     head_hidden_real: int = None
     seqlen: int = None
-    seqlen_real: int = None
     macro_config: MacroConfig = None
     transpose_row: int = None
     transpose_col: int = None

@@ -36,12 +36,13 @@ def main(){
 
     k_row_begin = 0;
     k_row_size = {{ (head_hidden // macro_config.n_comp) * math.ceil(seqlen / macro_config.n_group_vcol) }};
-    Print(k_row_size);
+    k_row_size_real = {{ math.ceil(head_hidden_real / macro_config.n_comp) * math.ceil(seqlen / macro_config.n_group_vcol) }};
+    Print(k_row_size_real);
     k_row_end = k_row_begin + k_row_size;
     k_macro = macros[k_row_begin:k_row_end, 0:{{macro_config.n_comp}}, 0:1, 0:{{macro_config.n_group_vcol}}];
 
     attn_out1 = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
-    score = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
+    score = Buffer(<{{math.ceil(seqlen / macro_config.n_comp) * macro_config.n_comp}}>, fp16, __OUTPUT_MEMORY__);
     temp = Buffer(<{{seqlen}}>, fp16, __TEMP_MEMORY_1__);
 
     attn_out1_global = Buffer(<{{seqlen}}>, fp16, {{global_memory_name}});
@@ -60,7 +61,7 @@ def main(){
         {% if split_stage_config.run_step==("1." ~ i) or split_stage_config.run_all_steps %}
             k_row_delta = k_row_size / {{load_k_stages}};
             use_k_macro = k_macro[k_row_delta*{{i}}:k_row_delta*({{i}}+1), :, :, :];
-            load_transpose_into_macro(k_local, use_k_macro, transpose_unit);
+            load_transpose_into_macro(k_local, use_k_macro, transpose_unit, {{head_hidden_real}});
         {% endif %}
     {% endfor %}
 
@@ -72,15 +73,21 @@ def main(){
 
     // step 3: compute softmax(qK^T)
     {% if split_stage_config.run_step==3 or split_stage_config.run_all_steps %}
-        
-        gemv_using_batch_cim_compute(q_local, k_macro, attn_out1, {{ head_hidden // macro_config.n_comp }}, pim_input_reg_buffer, pim_output_reg_buffer);
+        gemv_using_batch_cim_compute(
+            q_local[:{{ math.ceil(head_hidden_real / macro_config.n_comp)  * macro_config.n_comp }}], 
+            k_macro[:k_row_size_real, :, :, :], 
+            attn_out1, 
+            {{ math.ceil(head_hidden_real / macro_config.n_comp) }}, 
+            pim_input_reg_buffer, 
+            pim_output_reg_buffer
+        );
         Trans(attn_out1, attn_out1_global);
 
         // online softmax
         cp_online_softmax(
-            attn_out1[:{{seqlen_real}}], 
-            score[:{{seqlen_real}}], 
-            temp[:{{seqlen_real}}], 
+            attn_out1[:{{seqlen}}], 
+            score[:{{seqlen}}], 
+            temp[:{{seqlen}}], 
             {{cp_group_offset}}, 
             {{cp_group_stride}}, 
             {{cp_group_size}}
@@ -92,14 +99,15 @@ def main(){
     {% if split_stage_config.run_step==4 or split_stage_config.run_all_steps %}
         // load V into macro
         v_row_begin = 0;
-        v_row_size = {{ (seqlen // macro_config.n_comp) * (head_hidden // macro_config.n_group_vcol) }};
+        v_row_size = {{ math.ceil(seqlen / macro_config.n_comp) * (head_hidden // macro_config.n_group_vcol) }};
         v_row_end = v_row_begin + v_row_size;
         v_macro = macros[v_row_begin:v_row_end, 0:{{macro_config.n_comp}}, 0:1, 0:{{macro_config.n_group_vcol}}];
-        load_into_macro(v_global, v_macro);
+        blank = Buffer(<{{macro_config.n_group_vcol}}>, fp16, __OUTPUT_MEMORY__);
+        load_into_macro(v_global, v_macro, blank);
     
         // compute SV
         attn_out2= Buffer(<{{head_hidden_real}}>, fp16, __OUTPUT_MEMORY__);
-        gemv_using_batch_cim_compute(score, v_macro, attn_out2, {{ seqlen // macro_config.n_comp }}, pim_input_reg_buffer, pim_output_reg_buffer);
+        gemv_using_batch_cim_compute(score, v_macro, attn_out2, {{ math.ceil(seqlen / macro_config.n_comp) }}, pim_input_reg_buffer, pim_output_reg_buffer);
         Trans(attn_out2, attn_out2_global);
 
         // sum over cp group

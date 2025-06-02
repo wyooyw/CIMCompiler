@@ -9,18 +9,22 @@
     {% set error_msg = "transpose_col must equals head_hidden" %}
     {{ raise(error_msg) }}
 {% endif %}
-{% if not (seqlen >= transpose_row and seqlen % transpose_row == 0) %}
-    {% set error_msg = "seqlen must be greater than transpose_row" %}
-    {{ raise(error_msg) }}
-{% endif %}
+
+def attn_decode_util_ceil_div(
+    a<index>,
+    b<index>
+) {
+    return ((a + b - 1) / b);
+}
 
 def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>, 
-                    macro< <-1,  {{macro_config.n_comp}}, 1, {{macro_config.n_group_vcol}}>, fp16, __MACRO__>
+                    macro< <-1,  {{macro_config.n_comp}}, 1, {{macro_config.n_group_vcol}}>, fp16, __MACRO__>,
+                    blank< <-1>, fp16, __OUTPUT_MEMORY__>
                     ){
     src_row = Shape(src, 0);
     src_col = Shape(src, 1);
 
-    out_row_size = src_row / {{macro_config.n_comp}};
+    out_row_size = attn_decode_util_ceil_div(src_row, {{macro_config.n_comp}});
     out_col_size = src_col / {{macro_config.n_group_vcol}};
 
     // TODO: optimize when src_col == macro_config.n_group_vcol
@@ -28,8 +32,9 @@ def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
     macro_row = Shape(macro, 0);
     for r_out in range(0, out_row_size) carry () {
         for c_out in range(0, out_col_size) carry () {
+            r_in_max = Min(src_row - ( r_out * {{macro_config.n_comp}} ), {{macro_config.n_comp}});
             @unroll
-            for r_in in range(0, {{macro_config.n_comp}}) carry () {
+            for r_in in range(0, r_in_max) carry () {
                 sub_src = src[
                     r_out * {{macro_config.n_comp}} + r_in, 
                     c_out * {{macro_config.n_group_vcol}} : (c_out + 1) * {{macro_config.n_group_vcol}}
@@ -39,6 +44,12 @@ def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
 
                 Trans(sub_src, sub_macro);
             };
+
+            @unroll
+            for r_in in range(r_in_max, {{macro_config.n_comp}}) carry () {
+                sub_macro = macro[c_out * out_row_size + r_out, r_in, :, : ];
+                Trans(blank, sub_macro);
+            };
         };
     };
 }
@@ -46,12 +57,13 @@ def load_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
 def load_single_transpose_into_macro(
         transpose_unit< <1, -1>, fp16, __TRANSPOSE_MEMORY__>,
         macro< <-1,  {{macro_config.n_comp}}, 1, {{macro_config.n_group_vcol}}>, fp16, __MACRO__>,
-        row_outer_src<index>
+        row_outer_src<index>,
+        n_use_transpose_col<index>
     ){
     transpose_row = {{transpose_row}};
     transpose_col = {{transpose_col}};
     @unroll
-    for r_transpose_out in range(0, transpose_col) carry () {
+    for r_transpose_out in range(0, n_use_transpose_col) carry () {
         transpose_unit_out_line = transpose_unit[:, r_transpose_out * transpose_row : (r_transpose_out + 1) * transpose_row];
         
         
@@ -63,10 +75,10 @@ def load_single_transpose_into_macro(
         col_macro_end = (col_outer_macro + 1) * transpose_row;
         
         {% if transpose_col % macro_config.n_comp == 0 %}
-            row_macro = row_outer_macro * transpose_col / {{macro_config.n_comp}} + r_transpose_out / {{macro_config.n_comp}};
+            row_macro = row_outer_macro * n_use_transpose_col / {{macro_config.n_comp}} + r_transpose_out / {{macro_config.n_comp}};
             comp_macro = r_transpose_out % {{macro_config.n_comp}};
         {% else %}
-            abs_row_macro = row_outer_macro * transpose_col + r_transpose_out;
+            abs_row_macro = row_outer_macro * n_use_transpose_col + r_transpose_out;
             row_macro = abs_row_macro / {{macro_config.n_comp}};
             comp_macro = abs_row_macro % {{macro_config.n_comp}};
         {% endif %}
@@ -79,25 +91,27 @@ def load_single_transpose_into_macro(
 
 def load_transpose_into_macro(src< <-1, -1>, fp16, __GLOBAL__>, 
                     macro< <-1,  {{macro_config.n_comp}}, 1, {{macro_config.n_group_vcol}}>, fp16, __MACRO__>,
-                    transpose_unit< <2, -1>, fp16, __TRANSPOSE_MEMORY__>
+                    transpose_unit< <2, -1>, fp16, __TRANSPOSE_MEMORY__>,
+                    n_use_transpose_col<index>
                     ){
 
 //src_row = Shape(src, 0);
   //  src_col = Shape(src, 1);
-
-    out_row_size = Shape(src, 0) / {{transpose_row}};
+    src_seqlen = Shape(src, 0);
+    out_row_size = attn_decode_util_ceil_div(Shape(src, 0), {{transpose_row}});
     out_col_size = Shape(src, 1) / {{transpose_col}};
 
     // double buffer transpose
 
     // write 0
-    Trans(src[:{{transpose_row}}, :], transpose_unit[0,:]);
+    seq_end = Min({{transpose_row}}, src_seqlen);
+    Trans(src[:seq_end, :], transpose_unit[0,:]);
     @unroll
     for row_outer_src in range(1, out_row_size) carry () {
 
         // write row_outer_src % 2
         Trans(
-            src[row_outer_src * {{transpose_row}}: (row_outer_src + 1) * {{transpose_row}}, :], 
+            src[row_outer_src * {{transpose_row}}: Min((row_outer_src + 1) * {{transpose_row}}, src_seqlen), :], 
             transpose_unit[row_outer_src % 2,:]
         );
 
@@ -105,7 +119,8 @@ def load_transpose_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
         load_single_transpose_into_macro(
             transpose_unit[(row_outer_src - 1) % 2, :],
             macro,
-            row_outer_src - 1
+            row_outer_src - 1,
+            n_use_transpose_col
         );
     };
 
@@ -113,7 +128,8 @@ def load_transpose_into_macro(src< <-1, -1>, fp16, __GLOBAL__>,
     load_single_transpose_into_macro(
         transpose_unit[(out_row_size - 1) % 2, :],
         macro,
-        out_row_size - 1
+        out_row_size - 1,
+        n_use_transpose_col
     );
 }
 

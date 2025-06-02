@@ -84,6 +84,9 @@ def softmax(x, axis=-1):
 #     allclose = np.allclose(output, golden, rtol=rtol, atol=atol)
 #     assert allclose, f"{output=} {golden=}"
 
+# def split_cp(seqlen, cp_group_size):
+
+
 @pytest.mark.parametrize(
     "head_hidden, seqlen, world_size, cp_group_size",
     [
@@ -99,6 +102,7 @@ def softmax(x, axis=-1):
     ],
 )
 def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size, load_k_stages):
+    assert world_size >= cp_group_size
     check_result = os.environ.get("CHECK_RESULT", "1") == "1"
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
     op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp_flex.cim")
@@ -107,12 +111,10 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size, load_k_s
     cim_config.set_default_bit_width(16)
     assert head_hidden <= 128 and (head_hidden % 16) == 0, f"{head_hidden=} must be divisible by 16"
     pad_head_hidden = 128
-    pad_seqlen = seqlen
     op_config = AttnDecodeCPConfig(
         head_hidden=pad_head_hidden, 
         head_hidden_real=head_hidden,
         seqlen=seqlen // cp_group_size, 
-        seqlen_real=seqlen // cp_group_size,
         macro_config=cim_config,
         transpose_row=16,
         transpose_col=128,
@@ -160,8 +162,8 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size, load_k_s
     # value = np.ones((num_head, op_config.seqlen, op_config.head_hidden)).astype(np.float16)
     # Pad to op_config.head_hidden by adding zeros
     pad_query = np.zeros((num_head, pad_head_hidden), dtype=np.float16)
-    pad_key = np.zeros((num_head, pad_seqlen, pad_head_hidden), dtype=np.float16)
-    pad_value = np.zeros((num_head, pad_seqlen, pad_head_hidden), dtype=np.float16)
+    pad_key = np.zeros((num_head, seqlen, pad_head_hidden), dtype=np.float16)
+    pad_value = np.zeros((num_head, seqlen, pad_head_hidden), dtype=np.float16)
 
     # Copy original data to the beginning of the padded tensors
     pad_query[:, :head_hidden] = query
@@ -173,25 +175,35 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size, load_k_s
         golden_head = np.dot(softmax(np.dot(query[h], np.transpose(key[h]))), value[h])
         golden[h] = golden_head
     
-    golden_attn_out1= np.zeros((num_head, seqlen // cp_group_size), dtype=np.float16)
+    golden_attn_out1= np.zeros((num_head, cp_group_size, seqlen // cp_group_size), dtype=np.float16)
+    key_split = key.reshape(num_head, cp_group_size, seqlen // cp_group_size, head_hidden)
     for h in range(num_head):
-        golden_attn_out1_head = np.dot(query[h], np.transpose(key[h]))
-        golden_attn_out1[h] = golden_attn_out1_head
+        for c in range(cp_group_size):
+            golden_attn_out1_head = np.dot(query[h], np.transpose(key_split[h][c]))
+            golden_attn_out1[h][c] = golden_attn_out1_head
 
-    golden_score= np.zeros((num_head, seqlen // cp_group_size), dtype=np.float16)
+    golden_score= np.zeros((num_head, cp_group_size, seqlen // cp_group_size), dtype=np.float16)
     for h in range(num_head):
-        golden_score_head = softmax(np.dot(query[h], np.transpose(key[h])))
-        golden_score[h] = golden_score_head
+        score = softmax(np.dot(query[h], np.transpose(key[h])))
+        score = score.reshape(cp_group_size, seqlen//cp_group_size)
+        for c in range(cp_group_size):
+            golden_score_head = score[c]
+            golden_score[h][c] = golden_score_head
     
-    golden_attn_out2 = np.zeros((num_head, head_hidden), dtype=np.float16)
+    golden_attn_out2 = np.zeros((num_head, cp_group_size, head_hidden), dtype=np.float16)
+    value_split = value.reshape(num_head, cp_group_size, seqlen // cp_group_size, head_hidden)
     for h in range(num_head):
-        golden_attn_out2_head = np.dot(softmax(np.dot(query[h], np.transpose(key[h]))), value[h])
-        golden_attn_out2[h] = golden_attn_out2_head
+        score = softmax(np.dot(query[h], np.transpose(key[h])))
+        score = score.reshape(cp_group_size, seqlen//cp_group_size)
+        for c in range(cp_group_size):
+            golden_attn_out2_head = np.dot(score[c], value_split[h][c])
+            golden_attn_out2[h][c] = golden_attn_out2_head
     
     inputs = []
     outputs = []
     key_cp = pad_key.reshape(num_head, cp_group_size, op_config.seqlen, op_config.head_hidden)
     value_cp = pad_value.reshape(num_head, cp_group_size, op_config.seqlen, op_config.head_hidden)
+    # import pdb; pdb.set_trace()
     for tp_rank in range(tp_size):
         for cp_rank in range(cp_group_size):
             rank = tp_rank * cp_group_size + cp_rank
@@ -216,7 +228,7 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size, load_k_s
         for tp_rank in range(tp_size):
             for cp_rank in range(cp_group_size):
                 rank = tp_rank * cp_group_size + cp_rank
-                single_golden_attn_out1 = golden_attn_out1[tp_rank]
+                single_golden_attn_out1 = golden_attn_out1[tp_rank][cp_rank]
                 single_output_attn_out1 = outputs[rank][1]
                 print(f"{tp_rank=}, {cp_rank=}, golden.shape={single_golden_attn_out1.shape}, golden=\n{single_golden_attn_out1}\n")
                 print(f"{tp_rank=}, {cp_rank=}, output.shape={single_output_attn_out1.shape}, output=\n{single_output_attn_out1}\n")
@@ -230,7 +242,7 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size, load_k_s
         for tp_rank in range(tp_size):
             for cp_rank in range(cp_group_size):
                 rank = tp_rank * cp_group_size + cp_rank
-                single_golden_score = golden_score[tp_rank]
+                single_golden_score = golden_score[tp_rank][cp_rank]
                 single_output_score = outputs[rank][2]
                 print(f"{tp_rank=}, {cp_rank=}, golden.shape={single_golden_score.shape}, golden=\n{single_golden_score}\n")
                 print(f"{tp_rank=}, {cp_rank=}, output.shape={single_output_score.shape}, output=\n{single_output_score}\n")
@@ -244,16 +256,17 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size, load_k_s
         for tp_rank in range(tp_size):
             for cp_rank in range(cp_group_size):
                 rank = tp_rank * cp_group_size + cp_rank
-                single_golden_attn_out2 = golden_attn_out2[tp_rank]
+                single_golden_attn_out2 = golden_attn_out2[tp_rank][cp_rank]
                 single_output_attn_out2 = outputs[rank][3]
                 print(f"{tp_rank=}, {cp_rank=}, golden.shape={single_golden_attn_out2.shape}, golden=\n{single_golden_attn_out2}\n")
                 print(f"{tp_rank=}, {cp_rank=}, output.shape={single_output_attn_out2.shape}, output=\n{single_output_attn_out2}\n")
-                allclose = np.allclose(single_output_score, single_golden_score, rtol=rtol, atol=atol)
+                allclose = np.allclose(single_output_attn_out2, single_golden_attn_out2, rtol=rtol, atol=atol)
                 print(f"{allclose=}")
     # exit()
     # print(f"{output=}")
     # print(f"{golden=}")
     # 设置相对误差和绝对误差阈值
+    print("===== Check final output =====")
     if check_result:
         rtol = 1e-2  # 相对误差：0.1%
         atol = 1e-2  # 绝对误差：0.001
@@ -264,25 +277,35 @@ def test_attn_decode_cp(head_hidden, seqlen, world_size, cp_group_size, load_k_s
                 # print("")
                 # print(f"{tp_rank=}, {cp_rank=}, {allclose=}")
                 # print(outputs[rank][0])
-                
+                print(f"{tp_rank=}, {cp_rank=}, {allclose=}")
                 assert allclose, f"{outputs[rank][0]=} {golden[tp_rank]=}"
 
 if __name__=="__main__":
     # seqlen = 2048
     # cp_group_size = 32
     # for cp_group_size in [2]:
-    test_attn_decode_cp(
-        head_hidden=80, 
-        seqlen=80,
-        world_size=1,
-        cp_group_size=1,
-        load_k_stages=1
-    )
     # test_attn_decode_cp(
-    #     head_hidden=80, 
-    #     seqlen=64,
+    #     head_hidden=64, 
+    #     seqlen=1023,
     #     world_size=1,
-    #     cp_group_size=2,
+    #     cp_group_size=1,
+    #     load_k_stages=2
+    # )
+    for head_hidden in [32, 64, 128]:
+        for seqlen in range(16, 64, 2):
+            print(f"test {seqlen=}")
+            test_attn_decode_cp(
+                head_hidden=64, 
+                seqlen=seqlen,
+                world_size=1,
+                cp_group_size=1,
+                load_k_stages=1
+            )
+    # for i in range()
+    # test_attn_decode_cp(
+    #     head_hidden=16, 
+    #     seqlen=144,
+    #     world_size=1,
+    #     cp_group_size=1,
     #     load_k_stages=1
     # )
-    # test_attn_decode(128, 128)
