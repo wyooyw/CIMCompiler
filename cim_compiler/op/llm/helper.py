@@ -9,7 +9,9 @@ import os
 @dataclass
 class AttnDecodeConfig:
     head_hidden: int = None
+    head_hidden_real: int = None
     seqlen: int = None
+    seqlen_real: int = None
     macro_config: MacroConfig = None
     transpose_row: int = None
     transpose_col: int = None
@@ -43,6 +45,11 @@ class LayerNormOpConfig:
     math: int
     simd: SIMDConfig = None
     reduce: ReduceConfig = None
+
+@dataclass
+class ResAddOpConfig:
+    hidden: int
+    simd: SIMDConfig = None
 
 @dataclass
 class GELUOpConfig:

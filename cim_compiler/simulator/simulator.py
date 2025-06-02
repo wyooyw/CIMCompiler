@@ -960,7 +960,7 @@ class Simulator:
         flag_batch = inst.flag_batch
         if not flag_batch:
             batch_size = 1
-        # import pdb; pdb.set_trace()
+        
         for batch_id in range(batch_size):
             self._run_pim_class_pim_compute_type_inst_impl(
                 input_offset=input_offset + (batch_id * input_size * input_bw) // 8,
@@ -1039,10 +1039,12 @@ class Simulator:
             pimset_mask = self.get_pimset_mask()
             assert pimset_mask is not None
             assert (
-                len(pimset_mask) == weight_data.shape[1]
+                len(pimset_mask) >= weight_data.shape[1]
             ), f"{len(pimset_mask)=}, {weight_data.shape[1]=}"
+            pimset_mask = pimset_mask[:weight_data.shape[1]]
             assert pimset_mask.dtype == bool, f"{pimset_mask.dtype=}"
             weight_data[:, pimset_mask] = 0
+            print(f"{weight_data.shape=}")
 
             assert input_data.ndim == 1
             assert weight_data.ndim == 2, f"{weight_data.shape=}"

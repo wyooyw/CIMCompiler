@@ -5,10 +5,6 @@
     {% set error_msg = "head_hidden must be divisible by macro_config.n_comp" %}
     {{ raise(error_msg) }}
 {% endif %}
-{% if seqlen % macro_config.n_group_vcol != 0 %}
-    {% set error_msg = "seqlen must be divisible by macro_config.n_group_vcol" %}
-    {{ raise(error_msg) }}
-{% endif %}
 {% if transpose_col != head_hidden %}
     {% set error_msg = "transpose_col must equals head_hidden" %}
     {{ raise(error_msg) }}
@@ -174,11 +170,17 @@ def gemv_using_batch_cim_compute(src< <-1>, fp16, __OUTPUT_MEMORY__>,
     use_output_reg_buffer = pim_output_reg_buffer[0:{{macro_config.n_group_vcol}}];
 
     for i_spatial_row in range(0, n_spatial_row) carry () {
+        dst_begin = i_spatial_row * {{macro_config.n_group_vcol}};
+        dst_end = Min(Shape(dst, 0), (i_spatial_row + 1) * {{macro_config.n_group_vcol}});
+        use_group_vcol = dst_end - dst_begin;
+        SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, use_group_vcol);
+
         CIMComputeBatch(
             src,
             macro[i_spatial_row * n_reduce_row: (i_spatial_row+1) * n_reduce_row, :, :, :]
         );
-        output = dst[i_spatial_row * {{macro_config.n_group_vcol}} : (i_spatial_row + 1) * {{macro_config.n_group_vcol}}];
+        
+        output = dst[dst_begin : dst_end];
         CIMOutput({{macro_config.n_group_vcol}}, 0, output);
 
         

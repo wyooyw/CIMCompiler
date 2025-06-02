@@ -25,7 +25,7 @@ def main(){
     q_global = Buffer(<{{head_hidden}}>, fp16, {{global_memory_name}});
     k_global = Buffer(<{{seqlen}}, {{head_hidden}}>, fp16, {{global_memory_name}});
     v_global = Buffer(<{{seqlen}}, {{head_hidden}}>, fp16, {{global_memory_name}});
-    output_global = Buffer(<{{head_hidden}}>, fp16, {{global_memory_name}});
+    output_global = Buffer(<{{head_hidden_real}}>, fp16, {{global_memory_name}});
 
     q_local = Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
     k_local = Buffer(<{{seqlen // load_k_stages}}, {{head_hidden}}>, fp16, __INPUT_MEMORY__);
@@ -35,13 +35,18 @@ def main(){
     pim_output_reg_buffer = Buffer(<{{macro_config.n_group_vcol}}>, fp16, __PIM_OUTPUT_REG_BUFFER__);
 
     k_row_begin = 0;
-    k_row_size = {{ (head_hidden // macro_config.n_comp) * (seqlen // macro_config.n_group_vcol) }};
+    k_row_size = {{ (head_hidden // macro_config.n_comp) * math.ceil(seqlen / macro_config.n_group_vcol) }};
+    Print(k_row_size);
     k_row_end = k_row_begin + k_row_size;
     k_macro = macros[k_row_begin:k_row_end, 0:{{macro_config.n_comp}}, 0:1, 0:{{macro_config.n_group_vcol}}];
 
     attn_out1 = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
     score = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
     temp = Buffer(<{{seqlen}}>, fp16, __TEMP_MEMORY_1__);
+
+    attn_out1_global = Buffer(<{{seqlen}}>, fp16, {{global_memory_name}});
+    score_global = Buffer(<{{seqlen}}>, fp16, {{global_memory_name}});
+    attn_out2_global = Buffer(<{{seqlen}}>, fp16, {{global_memory_name}});
 
     transpose_unit = Buffer(<2, {{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY__);
 
@@ -69,9 +74,18 @@ def main(){
     {% if split_stage_config.run_step==3 or split_stage_config.run_all_steps %}
         
         gemv_using_batch_cim_compute(q_local, k_macro, attn_out1, {{ head_hidden // macro_config.n_comp }}, pim_input_reg_buffer, pim_output_reg_buffer);
-    
+        Trans(attn_out1, attn_out1_global);
+
         // online softmax
-        cp_online_softmax(attn_out1, score, temp, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
+        cp_online_softmax(
+            attn_out1[:{{seqlen_real}}], 
+            score[:{{seqlen_real}}], 
+            temp[:{{seqlen_real}}], 
+            {{cp_group_offset}}, 
+            {{cp_group_stride}}, 
+            {{cp_group_size}}
+        );
+        Trans(score, score_global);
     {% endif %}
 
     // step 4: load V and compute SV
@@ -84,12 +98,13 @@ def main(){
         load_into_macro(v_global, v_macro);
     
         // compute SV
-        attn_out2= Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
+        attn_out2= Buffer(<{{head_hidden_real}}>, fp16, __OUTPUT_MEMORY__);
         gemv_using_batch_cim_compute(score, v_macro, attn_out2, {{ seqlen // macro_config.n_comp }}, pim_input_reg_buffer, pim_output_reg_buffer);
+        Trans(attn_out2, attn_out2_global);
 
         // sum over cp group
         // TODO: For now, we use all-gather + sum. In the future, we will use reduce-scatter to get better performance
-        attn_out3 = Buffer(<{{cp_group_size}}, {{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
+        attn_out3 = Buffer(<{{cp_group_size}}, {{head_hidden_real}}>, fp16, __OUTPUT_MEMORY__);
         cp_rank = get_local_rank({{core_id}}, {{cp_group_offset}}, {{cp_group_stride}});
         Trans(attn_out2, attn_out3[cp_rank, :]);
         all_gather(attn_out3, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
