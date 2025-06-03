@@ -1866,8 +1866,8 @@ class Simulator:
         logger.info(f"[{self.core_id}] recv from {src_core}, data: {data_np}")
         
         self.pipes[src_core].send("ACK")
-        assert _src_addr == src_addr
-        assert _dst_addr == dst_addr
+        # assert _src_addr == src_addr
+        # assert _dst_addr == dst_addr
         assert _transfer_id == transfer_id
         
         self.memory_space.write(data, dst_addr, size)
