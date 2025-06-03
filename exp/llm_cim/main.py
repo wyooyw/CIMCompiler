@@ -65,21 +65,32 @@ def setup_logging(debug_mode):
         return debug_dir
     return None
 
+def config_seqlen(rank, op_config, cp_size, total_seqlen):
+    cp_local_rank = rank % cp_size 
+    core_seqlen = total_seqlen // cp_size
+    if cp_local_rank < (total_seqlen % cp_size):
+        core_seqlen += 1
+    op_config.seqlen = core_seqlen
+
 def config_global_memory_name(rank, op_config):
     op_config.global_memory_name = f"__GLOBAL_{rank}__"
 
-def config_cp_group(rank, op_config, cp_size):
+def config_cp_group(rank, op_config, cp_size, total_seqlen):
     op_config.cp_group_offset = (rank // cp_size) * cp_size
     op_config.cp_group_stride = 1
     op_config.cp_group_size = cp_size
     config_global_memory_name(rank, op_config)
+    config_seqlen(rank, op_config, cp_size, total_seqlen)
     
 def main():
     args = parse_args()
     debug_dir = setup_logging(args.debug)
 
+    datetime_str = datetime.now().strftime('%Y%m%d_%H%M')
+    args.datetime_str = datetime_str
+
     if args.save_dir is None:
-        args.save_dir = f"result/{args.name_prefix}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        args.save_dir = f"result/{args.name_prefix}_{datetime_str}"
         print(f"Save directory: {args.save_dir}")
     
     # Your main code logic here
@@ -105,7 +116,7 @@ def _main_impl(args):
     reduce_config = ReduceConfig.from_config(args.config_path)
 
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
-    op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp.cim")
+    op_path = os.path.join(cim_compiler_home, "cim_compiler/op/llm/attn_decode_tp_cp_flex.cim")
     
     # n_head = 0
     # for cp_size in args.mapping_cp_sizes:
@@ -137,7 +148,7 @@ def _main_impl(args):
         assert n_activate_core > 0
         if n_activate_core < args.world_size:
             assert remain_head == 0, f"remain_head {remain_head} must be 0"
-        load_k_stages = max(args.seqlen // cp_size // 1024, 1)
+        load_k_stages = max(math.ceil(math.ceil(args.seqlen / cp_size) / 1024), 1)
 
         print(f"CP size: {cp_size}, n_head: {n_head_this_round}, hidden_size_per_head: {hidden_size_per_head}, n_activate_core: {n_activate_core}, load_k_stages: {load_k_stages}")
         
@@ -158,8 +169,9 @@ def _main_impl(args):
 
         for stage_idx, split_stage_config in enumerate(split_stage_configs):
             op_config = AttnDecodeCPConfig(
-                head_hidden=hidden_size_per_head,
-                seqlen=args.seqlen // cp_size,
+                head_hidden=128,
+                head_hidden_real=hidden_size_per_head,
+                # seqlen=args.seqlen // cp_size,
                 macro_config=cim_config,
                 transpose_row=16,
                 transpose_col=128,
@@ -178,7 +190,7 @@ def _main_impl(args):
                 op_config, 
                 args.split_config_path, 
                 args.world_size,
-                config_for_each_core=partial(config_cp_group, cp_size=cp_size),
+                config_for_each_core=partial(config_cp_group, cp_size=cp_size, total_seqlen=args.seqlen),
             )
             stage_name = split_stage_config.run_step
 
@@ -249,7 +261,7 @@ def _main_impl(args):
     shutil.copy(os.path.join(args.save_dir, f"gelu", "multi_core_code.json"), os.path.join(collect_dir, "gelu.json"))
     shutil.copy(args.config_path, os.path.join(collect_dir, "config.json"))
     shutil.copy(args.split_config_path, os.path.join(collect_dir, "split_config.json"))
-    create_tar_gz(collect_dir, os.path.join(args.save_dir, "code.tar.gz"))
+    create_tar_gz(collect_dir, os.path.join(args.save_dir, f"{args.name_prefix}_{args.datetime_str}_code.tar.gz"))
     
     
     
