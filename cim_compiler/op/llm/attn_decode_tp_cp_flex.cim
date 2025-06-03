@@ -53,17 +53,27 @@ def main(){
 
     // step 0: load k into local
     // step 1: transpose and load k into macro
-    {% for i in range(load_k_stages) %}
-        {% if split_stage_config.run_step==("0." ~ i) or split_stage_config.run_all_steps %}
-            delta = {{seqlen // load_k_stages}};
-            Trans(k_global[{{i}} * delta : ( {{i}} + 1 ) * delta, : ], k_local);
-        {% endif %}
-        {% if split_stage_config.run_step==("1." ~ i) or split_stage_config.run_all_steps %}
-            k_row_delta = k_row_size / {{load_k_stages}};
-            use_k_macro = k_macro[k_row_delta*{{i}}:k_row_delta*({{i}}+1), :, :, :];
-            load_transpose_into_macro(k_local, use_k_macro, transpose_unit, {{head_hidden_real}});
-        {% endif %}
-    {% endfor %}
+    
+    {%- set N = math.ceil(seqlen / macro_config.n_group_vcol) %}
+    {%- set M = math.ceil(N / load_k_stages) %}
+    {%- set subseqlen = M * macro_config.n_group_vcol %}
+    {%- set ns = namespace(begin_row=0, begin_seq=0) %}
+    {%- for i in range(math.ceil(seqlen / subseqlen)) %}
+        {%- set begin_seq = i * subseqlen %}
+        {%- set end_seq = [begin_seq + subseqlen, seqlen] | min %}
+        {%- set len_seq = end_seq - begin_seq %}
+        {%- set n_row = math.ceil((end_seq - begin_seq) / macro_config.n_group_vcol) * math.ceil(head_hidden_real / macro_config.n_comp) %}
+
+        {%- if split_stage_config.run_step==("0." ~ i) or split_stage_config.run_all_steps %}
+            Trans(k_global[{{begin_seq}}: {{end_seq}}, : ], k_local);
+        {%- endif %}
+        {%- if split_stage_config.run_step==("1." ~ i) or split_stage_config.run_all_steps %}
+            use_k_macro = k_macro[{{ns.begin_row}}:{{ns.begin_row + n_row}}, :, :, :];
+            load_transpose_into_macro(k_local[:{{len_seq}}, :], use_k_macro, transpose_unit, {{head_hidden_real}});
+        {%- endif %}
+
+        {%- set ns.begin_row = ns.begin_row + n_row %}
+    {%- endfor %}
 
     // step 2: load q into local
     {% if split_stage_config.run_step==2 or split_stage_config.run_all_steps %}
