@@ -31,7 +31,6 @@ def main(){
     k_row_begin = 0;
     k_row_size = {{ (head_hidden // macro_config.n_comp) * math.ceil(seqlen / macro_config.n_group_vcol) }};
     k_row_size_real = {{ math.ceil(head_hidden_real / macro_config.n_comp) * math.ceil(seqlen / macro_config.n_group_vcol) }};
-    Print(k_row_size_real);
     k_row_end = k_row_begin + k_row_size;
     k_macro = macros[k_row_begin:k_row_end, 0:{{macro_config.n_comp}}, 0:1, 0:{{macro_config.n_group_vcol}}];
 
