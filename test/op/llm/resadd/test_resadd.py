@@ -5,7 +5,7 @@ from test.base import OpRunner
 from test.op.test_reduce.test_reduce import get_reduce_config
 import math
 import pytest
-from cim_compiler.op.llm.helper import LayerNormOpConfig
+from cim_compiler.op.llm.helper import LayerNormOpConfig, ResAddOpConfig
 from cim_compiler.simulator.simd_utils import SIMDConfig
 
 def layernorm(x, eps, a, b):
@@ -23,14 +23,12 @@ def layernorm(x, eps, a, b):
         4, 8, 16, 32, 64, 128, 256, 512, 1024
     ],
 )
-def test_layernorm_single_token(hidden):
+def test_resadd(hidden):
     cim_compiler_home = os.environ["CIM_COMPILER_BASE"]
-    op_path = os.path.join(cim_compiler_home, "test/op/llm/layernorm/test_layernorm_single_token.cim")
+    op_path = os.path.join(cim_compiler_home, "test/op/llm/resadd/test_resadd.cim")
     cim_config_path = os.path.join(cim_compiler_home, "test/op/llm/config.json")
-    op_config = LayerNormOpConfig(
+    op_config = ResAddOpConfig(
         hidden=hidden,
-        reduce_config=get_reduce_config(cim_config_path),
-        math=math,
         simd=SIMDConfig.from_config(cim_config_path)
     )
 
@@ -40,15 +38,12 @@ def test_layernorm_single_token(hidden):
     x_global = Buffer(<{{seqlen}}>, fp16, __GLOBAL__);
     score_global = Buffer(<{{seqlen}}>, fp16, __GLOBAL__);
     """
-    x = np.random.randint(-1, 2, (op_config.hidden,)).astype(np.float16)
-    eps = np.array([1e-5], dtype=np.float16)
-    a = np.array([1], dtype=np.float16)
-    b = np.array([0], dtype=np.float16)
-    d = np.array([op_config.hidden], dtype=np.float16)
+    x1 = np.random.randint(-1, 2, (op_config.hidden,)).astype(np.float16)
+    x2 = np.random.randint(-1, 2, (op_config.hidden,)).astype(np.float16)
     # x = np.zeros((op_config.seqlen,), dtype=np.float16) + 1
     output = np.zeros((op_config.hidden,), dtype=np.float16)
-    golden = layernorm(x, eps, a, b)
-    op_runner.run([x, d, eps, a, b], [output])
+    golden = x1 + x2
+    op_runner.run([x1, x2], [output])
 
     print(f"{output.shape=}")
     print(f"{output=}")
@@ -63,4 +58,4 @@ def test_layernorm_single_token(hidden):
     print(f"{allclose=}")
 
 if __name__=="__main__":
-    test_layernorm_single_token(32)
+    test_resadd(32)

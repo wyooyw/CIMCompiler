@@ -40,6 +40,9 @@ class AsmDumper:
         op_name = mapping_simd_funct_to_name[funct]
         return op_name
 
+    def _reduce_funct_to_name(self, funct):
+        return "REDUCE"
+
     def _branch_compare_to_name(self, compare):
         """
         BEQ 00, BNE 01, BGT 10, BLT 11
@@ -69,6 +72,9 @@ class AsmDumper:
             op_name = self._simd_funct_to_name(inst.opcode)
             input_num = inst.input_num - 1
             return f"{op_name} r{inst.reg_out}, r{inst.reg_in1}, r{inst.reg_in2}, r{inst.reg_size}, {input_num}"
+        elif isinstance(inst, ReduceInst):
+            op_name = self._reduce_funct_to_name(inst.opcode)
+            return f"{op_name} r{inst.reg_out}, r{inst.reg_in}, r{inst.reg_size}"
         elif isinstance(inst, TransInst):
             terms = [f"r{inst.reg_out}", f"r{inst.reg_in}", f"r{inst.reg_size}", f"{inst.offset}"]
             if inst.flag_src_offset:

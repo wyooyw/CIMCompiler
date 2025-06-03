@@ -7,3 +7,6 @@ models/
 cim_compiler.egg-info/
 *.tar.gz
 *.log
+exp_result/
+wyo_result/
+result/

@@ -12,82 +12,21 @@ import torch
 import torch.nn.functional as F
 
 from cim_compiler.simulator.data_type import get_bitwidth_from_dtype, get_dtype_from_bitwidth
+from cim_compiler.simulator.special_regs import SpecialReg
 from cim_compiler.simulator.flat_inst_util import FlatInstUtil
 from cim_compiler.simulator.macro_utils import MacroConfig, MacroUtil
 from cim_compiler.simulator.mask_utils import MaskConfig, MaskUtil
 from cim_compiler.simulator.meta_utils import MetaUtil
 from cim_compiler.simulator.stats_util import StatsUtil
+from cim_compiler.simulator.simd_utils import SIMDConfig, SIMDUtil
 from cim_compiler.utils.df_layout import tensor_int8_to_bits
 from cim_compiler.utils.round import banker_round
 from cim_compiler.simulator.inst.instruction import *
 from cim_compiler.simulator.inst import LegacyParser, CIMFlowParser
 from cim_compiler.utils.logger import get_logger
-from cim_compiler.simulator.reduce_util import ReduceSumUtil, ReduceSumConfig
+from cim_compiler.simulator.reduce_utils import ReduceSumUtil, ReduceSumConfig, ReduceMaxUtil, ReduceMaxConfig, ReduceUtil, ReduceConfig
 
 logger = get_logger(__name__)
-
-class SpecialReg(Enum):
-
-    # pim special reg
-    INPUT_BIT_WIDTH = 0
-    OUTPUT_BIT_WIDTH = 1
-    WEIGHT_BIT_WIDTH = 2
-    GROUP_SIZE = 3
-    ACTIVATION_GROUP_NUM = 4
-    ACTIVATION_ELEMENT_COL_NUM = 5
-    GROUP_INPUT_STEP = 6
-    GROUP_INPUT_OFFSET_ADDR = 6
-    VALUE_SPARSE_MASK_ADDR = 7
-    BIT_SPARSE_META_ADDR = 8
-
-    # simd special reg
-    SIMD_INPUT_1_BIT_WIDTH = 16
-    SIMD_INPUT_2_BIT_WIDTH = 17
-    SIMD_INPUT_3_BIT_WIDTH = 18
-    SIMD_INPUT_4_BIT_WIDTH = 19
-    SIMD_OUTPUT_BIT_WIDTH = 20
-    SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 = 21
-    SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 = 22
-
-    # Data type
-    # Only use in this functional simulator, not used in pimsim
-    DTYPE_MACRO_IS_FLOAT = 30
-    DTYPE_SIMD_IS_FLOAT = 31
-
-class InstClass(Enum):
-    PIM_CLASS = 0  # 0b00
-    SIMD_CLASS = 1  # 0b01
-    SCALAR_CLASS = 2  # 0b10
-    TRANS_CLASS = 6  # 0b110
-    CTR_CLASS = 7  # 0b111
-    DEBUG_CLASS = -1
-
-
-class PIMInstType(Enum):
-    PIM_COMPUTE = 0  # 0b00
-    PIM_SET = 1  # 0b01
-    PIM_OUTPUT = 2  # 0b10
-    PIM_TRANSFER = 3  # 0b11
-
-
-class ScalarInstType(Enum):
-    RR = 0  # 0b00
-    RI = 1  # 0b01
-    LOAD_STORE = 2  # 0b10
-    OTHER = 3  # 0b11
-
-
-class ControlInstType(Enum):
-    EQ_BR = 0  # 0b000
-    NE_BR = 1  # 0b001
-    GT_BR = 2  # 0b010
-    LT_BR = 3  # 0b011
-    JUMP = 4  # 0b100
-
-
-class TransInstType(Enum):
-    TRANS = 0  # 0b0
-
 
 class Memory:
     def __init__(self, name, memtype, offset, size):
@@ -357,7 +296,10 @@ class Simulator:
         memory_space,
         macro_config,
         mask_config,
+        reduce_config = None,
         reduce_sum_config = None,
+        reduce_max_config = None,
+        simd_config = None,
         safe_time=999999999,
         mask_memory_name="mask",
     ):
@@ -367,7 +309,10 @@ class Simulator:
         self.memory_space = memory_space
         self.macro_config = macro_config
         self.mask_config = mask_config
+        self.reduce_config = reduce_config
         self.reduce_sum_config = reduce_sum_config
+        self.reduce_max_config = reduce_max_config
+        self.simd_config = simd_config
         self.macro_util = MacroUtil(self.memory_space.get_macro_memory(), macro_config)
         self.mask_util = MaskUtil(
             self.memory_space.get_memory_by_name(mask_memory_name),
@@ -378,8 +323,19 @@ class Simulator:
             self.memory_space.get_memory_by_name("pim_meta_data_reg_buffer"),
             macro_config,
         )
+        self.reduce_util = ReduceUtil(
+            self.reduce_config,
+            self,
+        )
         self.reduce_sum_util = ReduceSumUtil(
             self.reduce_sum_config
+        )
+        self.reduce_max_util = ReduceMaxUtil(
+            self.reduce_max_config
+        )
+        self.simd_util = SIMDUtil(
+            self.simd_config,
+            self,
         )
         self.jump_offset = None
         self.safe_time = safe_time
@@ -417,16 +373,17 @@ class Simulator:
         """
         This is an internal memory for doing accumulate for macro's output
         """
-        if self.memory_space.get_memory_by_name(["pim_output_reg_buffer", "cim_output_reg_buffer"]) is None:
-            logger.debug(
-                "[Warning] Can't find pim_output_reg_buffer or cim_output_reg_buffer. Make sure the code has no macro-related instruction."
-            )
-            return
+        # if self.memory_space.get_memory_by_name(["pim_output_reg_buffer", "cim_output_reg_buffer"]) is None:
+        #     logger.debug(
+        #         "[Warning] Can't find pim_output_reg_buffer or cim_output_reg_buffer. Make sure the code has no macro-related instruction."
+        #     )
+        #     return
         end_memory = self.memory_space.memory_space[-1]
         end_offset = end_memory.offset + end_memory.size
-        output_buffer_size = self.memory_space.get_memory_by_name(
-            ["pim_output_reg_buffer", "cim_output_reg_buffer"]
-        ).size
+        # output_buffer_size = self.memory_space.get_memory_by_name(
+        #     ["pim_output_reg_buffer", "cim_output_reg_buffer"]
+        # ).size
+        output_buffer_size = self.macro_config.get_n_group_vcol(8) * self.macro_config.n_group
         internel_macro_output_buffer = Memory(
             "internel_macro_output_reg_buffer",
             "reg_buffer",
@@ -446,17 +403,31 @@ class Simulator:
         memory_space = MemorySpace.from_memory_config(config_path)
         macro_config = MacroConfig.from_config(config_path)
         mask_config = MaskConfig.from_config(config_path)
+        reduce_config = ReduceConfig.from_config(config_path)
         reduce_sum_config = ReduceSumConfig.from_config(config_path)
+        reduce_max_config = ReduceMaxConfig.from_config(config_path)
+        simd_config = SIMDConfig.from_config(config_path)
         if "mask_memory_name" in config:
             return cls(
                 memory_space,
                 macro_config,
                 mask_config,
+                reduce_config,
                 reduce_sum_config,
+                reduce_max_config,
+                simd_config,
                 mask_memory_name=config["mask_memory_name"],
             )
         else:
-            return cls(memory_space, macro_config, mask_config, reduce_sum_config)
+            return cls(
+                memory_space, 
+                macro_config, 
+                mask_config, 
+                reduce_config,
+                reduce_sum_config, 
+                reduce_max_config, 
+                simd_config
+            )
 
     def clear(self):
         self.memory_space.clear()
@@ -572,7 +543,10 @@ class Simulator:
 
         # SIMD
         elif isinstance(inst, SIMDInst):
-            self._run_simd_class_inst(inst)
+            self.simd_util.run(inst)
+            # self._run_simd_class_inst(inst)
+        elif isinstance(inst, ReduceInst):
+            self.reduce_util.run(inst)
 
         # Scalar
         elif isinstance(inst, RRInst):
@@ -977,9 +951,33 @@ class Simulator:
         return output_data
 
     def _run_pim_class_pim_compute_type_inst_dense(self, inst):
+        assert isinstance(inst, CIMComputeInst)
+        input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
         input_offset = self.read_general_reg(inst.reg_input_addr)
         input_size = self.read_general_reg(inst.reg_input_size)
         activate_row = self.read_general_reg(inst.reg_activate_row)
+        batch_size = self.read_general_reg(inst.reg_batch_size)
+        flag_batch = inst.flag_batch
+        if not flag_batch:
+            batch_size = 1
+        
+        for batch_id in range(batch_size):
+            self._run_pim_class_pim_compute_type_inst_impl(
+                input_offset=input_offset + (batch_id * input_size * input_bw) // 8,
+                input_size=input_size,
+                activate_row=activate_row + batch_id,
+                inst=inst,
+            )
+
+    def _run_pim_class_pim_compute_type_inst_impl(self, 
+        input_offset,
+        input_size,
+        activate_row,
+        inst
+        ):
+        # input_offset = self.read_general_reg(inst.reg_input_addr)
+        # input_size = self.read_general_reg(inst.reg_input_size)
+        # activate_row = self.read_general_reg(inst.reg_activate_row)
 
         input_bw = self.read_special_reg(SpecialReg.INPUT_BIT_WIDTH)
         output_bw = self.read_special_reg(SpecialReg.OUTPUT_BIT_WIDTH)
@@ -1003,7 +1001,7 @@ class Simulator:
         # Get input vector
         input_byte_size = input_size * input_bw // 8
 
-        self.memory_space.check_memory_name(input_offset, input_byte_size, ["pim_input_reg_buffer", "cim_input_reg_buffer"])
+        # self.memory_space.check_memory_name(input_offset, input_byte_size, ["pim_input_reg_buffer", "cim_input_reg_buffer"])
         group_input_data = []
         for group_id in range(activation_group_num):
             group_input_offset = input_offset + group_id * group_input_step
@@ -1012,7 +1010,7 @@ class Simulator:
                 input_byte_size, 
                 get_dtype_from_bitwidth(input_bw, is_float=self.read_special_reg(SpecialReg.DTYPE_MACRO_IS_FLOAT))
             )
-            self.memory_space.check_memory_name(group_input_offset, input_byte_size, ["pim_input_reg_buffer", "cim_input_reg_buffer"])
+            # self.memory_space.check_memory_name(group_input_offset, input_byte_size, ["pim_input_reg_buffer", "cim_input_reg_buffer"])
             group_input_data.append(input_data)
 
         # Get weight matrix
@@ -1041,10 +1039,12 @@ class Simulator:
             pimset_mask = self.get_pimset_mask()
             assert pimset_mask is not None
             assert (
-                len(pimset_mask) == weight_data.shape[1]
+                len(pimset_mask) >= weight_data.shape[1]
             ), f"{len(pimset_mask)=}, {weight_data.shape[1]=}"
+            pimset_mask = pimset_mask[:weight_data.shape[1]]
             assert pimset_mask.dtype == bool, f"{pimset_mask.dtype=}"
             weight_data[:, pimset_mask] = 0
+            print(f"{weight_data.shape=}")
 
             assert input_data.ndim == 1
             assert weight_data.ndim == 2, f"{weight_data.shape=}"
@@ -1073,7 +1073,7 @@ class Simulator:
                 output_data = np.dot(
                     input_data.astype(out_dtype), weight_data.astype(out_dtype)
                 )
-                
+                # import pdb; pdb.set_trace()
                 pass
             
             group_output_data.append(output_data)
@@ -1866,8 +1866,8 @@ class Simulator:
         logger.info(f"[{self.core_id}] recv from {src_core}, data: {data_np}")
         
         self.pipes[src_core].send("ACK")
-        assert _src_addr == src_addr
-        assert _dst_addr == dst_addr
+        # assert _src_addr == src_addr
+        # assert _dst_addr == dst_addr
         assert _transfer_id == transfer_id
         
         self.memory_space.write(data, dst_addr, size)

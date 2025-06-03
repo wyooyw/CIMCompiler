@@ -2,9 +2,9 @@ def set_special_regs(){
     SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 16);
     SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 16);
     SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 16);
-    SpecialRegSet(SPECIAL_REG_GROUP_SIZE, {{N_MACRO_PER_GROUP}});
-    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, {{N_GROUP}});
-    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, {{N_GROUP_VCOL}});
+    SpecialRegSet(SPECIAL_REG_GROUP_SIZE, {{macro_config.n_macro_per_group}});
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, {{macro_config.n_group}});
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, {{macro_config.n_group_vcol}});
 
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 16);
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 16);

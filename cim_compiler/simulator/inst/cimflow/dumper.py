@@ -73,6 +73,14 @@ class CIMFlowDumper:
                 "re": inst.reg_size,
                 "funct": inst.opcode
             }
+        elif isinstance(inst, ReduceInst):
+            return {
+                "opcode": 0b010001,
+                "rs": inst.reg_in,
+                "rd": inst.reg_out,
+                "rt": inst.reg_size,
+                "funct": inst.opcode
+            }
         elif isinstance(inst, TransInst):
             assert inst.flag_src_offset in [0, 1]
             assert inst.flag_dst_offset in [0, 1]
@@ -137,10 +145,12 @@ class CIMFlowDumper:
                 "rs": inst.reg_input_addr,
                 "rt": inst.reg_input_size,
                 "re": inst.reg_activate_row,
+                "rf": inst.reg_batch_size,
                 "SP_V": inst.flag_value_sparse,
                 "SP_B": inst.flag_bit_sparse,
                 "GRP": inst.flag_group,
-                "GRP_I": inst.flag_group_input_mode
+                "GRP_I": inst.flag_group_input_mode,
+                "BATCH": inst.flag_batch
             }
         elif isinstance(inst, CIMConfigInst):
             return {

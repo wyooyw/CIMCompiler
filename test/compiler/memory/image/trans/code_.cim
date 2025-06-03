@@ -1,0 +1,13 @@
+def main(){
+    a = Buffer(<4>, int8, __GLOBAL__);
+    b = Buffer(<5>, int8, __LOCAL__);
+    Trans(a, b);
+    c = Buffer(<6>, int8, __GLOBAL__);
+    d = Buffer(<7>, int8, __LOCAL__);
+    for i in range(1,3) carry () {
+        Trans(c, d);
+    };
+    f1 = Buffer(<5>, int8, __LOCAL__);
+    f2 = Buffer(<5>, int8, __LOCAL__);
+    Trans(f1, f2);
+}

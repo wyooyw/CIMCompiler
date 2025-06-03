@@ -353,59 +353,59 @@ struct CIMTransferOpConvert : public OpRewritePattern<cimisa::CIMTransferOp> {
   }
 };
 
-struct CIMComputeOpConvert : public OpRewritePattern<cimisa::CIMComputeOp> {
-  using OpRewritePattern<cimisa::CIMComputeOp>::OpRewritePattern;
+// struct CIMComputeOpConvert : public OpRewritePattern<cimisa::CIMComputeOp> {
+//   using OpRewritePattern<cimisa::CIMComputeOp>::OpRewritePattern;
 
-  LogicalResult matchAndRewrite(cimisa::CIMComputeOp op,
-                                PatternRewriter &rewriter) const final {
-    LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite begin";
+//   LogicalResult matchAndRewrite(cimisa::CIMComputeOp op,
+//                                 PatternRewriter &rewriter) const final {
+//     LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite begin";
 
-    Value input_addr = op.getOperand(0);
-    // Value output_addr = op.getOperand(1);
-    Value row_index = op.getOperand(1);
-    Value input_size = op.getOperand(2);
-    LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite 1";
+//     Value input_addr = op.getOperand(0);
+//     // Value output_addr = op.getOperand(1);
+//     Value row_index = op.getOperand(1);
+//     Value input_size = op.getOperand(2);
+//     LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite 1";
 
-    bool change = false;
-    if (isConstant(input_addr)) {
-      IntegerAttr constant = getConstantInt(input_addr);
-      input_addr = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), input_addr.getType(), constant);
-      change = true;
-    }
-    // if (isConstant(output_addr)) {
-    //     IntegerAttr constant = getConstantInt(output_addr);
-    //     output_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
-    //     output_addr.getType(), constant); change = true;
-    // }
-    if (isConstant(row_index)) {
-      IntegerAttr constant = getConstantInt(row_index);
-      row_index = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), row_index.getType(), constant);
-      change = true;
-    }
-    if (isConstant(input_size)) {
-      IntegerAttr constant = getConstantInt(input_size);
-      input_size = rewriter.create<cimisa::GeneralRegLiOp>(
-          op.getLoc(), input_size.getType(), constant);
-      change = true;
-    }
+//     bool change = false;
+//     if (isConstant(input_addr)) {
+//       IntegerAttr constant = getConstantInt(input_addr);
+//       input_addr = rewriter.create<cimisa::GeneralRegLiOp>(
+//           op.getLoc(), input_addr.getType(), constant);
+//       change = true;
+//     }
+//     // if (isConstant(output_addr)) {
+//     //     IntegerAttr constant = getConstantInt(output_addr);
+//     //     output_addr = rewriter.create<cimisa::GeneralRegLiOp>(op.getLoc(),
+//     //     output_addr.getType(), constant); change = true;
+//     // }
+//     if (isConstant(row_index)) {
+//       IntegerAttr constant = getConstantInt(row_index);
+//       row_index = rewriter.create<cimisa::GeneralRegLiOp>(
+//           op.getLoc(), row_index.getType(), constant);
+//       change = true;
+//     }
+//     if (isConstant(input_size)) {
+//       IntegerAttr constant = getConstantInt(input_size);
+//       input_size = rewriter.create<cimisa::GeneralRegLiOp>(
+//           op.getLoc(), input_size.getType(), constant);
+//       change = true;
+//     }
 
-    if (!change) {
-      return failure();
-    }
+//     if (!change) {
+//       return failure();
+//     }
 
-    LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite 2";
-    // MemRefType memtype =
-    // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
-    // memtype.getElementType();
-    rewriter.replaceOpWithNewOp<cimisa::CIMComputeOp>(
-        op, input_addr, row_index, input_size, op.getAccFlag(),
-        op.getValueSparseFlag(), op.getBitSparseFlag());
-    LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite finish";
-    return success();
-  }
-};
+//     LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite 2";
+//     // MemRefType memtype =
+//     // llvm::cast<mlir::MemRefType>(op.getOperand(0).getType()); Type type =
+//     // memtype.getElementType();
+//     rewriter.replaceOpWithNewOp<cimisa::CIMComputeOp>(
+//         op, input_addr, row_index, input_size, op.getAccFlag(),
+//         op.getValueSparseFlag(), op.getBitSparseFlag());
+//     LOG_DEBUG << "CIMComputeOpConvert::matchAndRewrite finish";
+//     return success();
+//   }
+// };
 
 struct SpecialRegAssignOpConvert : public OpRewritePattern<cimisa::SpecialRegAssignOp> {
   using OpRewritePattern<cimisa::SpecialRegAssignOp>::OpRewritePattern;

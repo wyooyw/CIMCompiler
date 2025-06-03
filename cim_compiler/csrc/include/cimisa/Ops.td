@@ -43,6 +43,21 @@ def SIMDOp : CIMISA_Op<"simd"> {
   );
 }
 
+def ReduceOp : CIMISA_Op<"reduce"> {
+  let summary = "reduce";
+  let description = [{
+    reduce
+  }];
+
+  let arguments = (ins 
+    I32Attr:$op_code,
+    AnyTypeOf<[AnyInteger, Index]>:$src_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$dst_addr,
+    AnyTypeOf<[AnyInteger, Index]>:$size
+  );
+  
+}
+
 /////////////////////////////////
 // CIM Compute //
 /////////////////////////////////
@@ -57,9 +72,11 @@ def CIMComputeOp : CIMISA_Op<"cim_compute"> {
     AnyTypeOf<[AnyInteger, Index]>:$input_addr, 
     AnyTypeOf<[AnyInteger, Index]>:$row_index,
     AnyTypeOf<[AnyInteger, Index]>:$input_size,
+    Optional<AnyTypeOf<[AnyInteger, Index]>>:$batch_size,
     I1Attr:$acc_flag,
     I1Attr:$value_sparse_flag,
-    I1Attr:$bit_sparse_flag
+    I1Attr:$bit_sparse_flag,
+    I1Attr:$batch_flag
   );
 
 }

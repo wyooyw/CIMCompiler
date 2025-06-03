@@ -1,0 +1,141 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+{% include 'op/llm/attn_decode_utils.cim' %}
+{% include 'op/llm/all_gather.cim' %}
+{% include 'op/reduce/reduce_sum.cim' %}
+{% include 'op/reduce/reduce_max.cim' %}
+{% include 'op/llm/softmax.cim' %}
+{% include 'op/llm/cp_softmax.cim' %}
+{% include 'op/llm/special_regs.cim' %}
+
+def main(){
+    set_special_regs();
+
+    {% if core_id < n_activate_core %}
+
+    // global_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, {{global_memory_name}});
+    // local_pimset_mask = Buffer(<{{macro_config.n_group_vcol}}>, int1, __INPUT_MEMORY__);
+    // Trans(global_pimset_mask, local_pimset_mask);
+    
+    q_global = Buffer(<{{head_hidden}}>, fp16, {{global_memory_name}});
+    k_global = Buffer(<{{seqlen}}, {{head_hidden}}>, fp16, {{global_memory_name}});
+    v_global = Buffer(<{{seqlen}}, {{head_hidden}}>, fp16, {{global_memory_name}});
+    output_global = Buffer(<{{head_hidden_real}}>, fp16, {{global_memory_name}});
+
+    q_local = Buffer(<{{head_hidden}}>, fp16, __OUTPUT_MEMORY__);
+    
+    macros = Buffer(<{{macro_config.n_row}}, {{macro_config.n_comp}}, 1, {{macro_config.n_group_vcol}}>, fp16, __MACRO__);
+    pim_input_reg_buffer = Buffer(<{{macro_config.n_comp}}>, fp16, __PIM_INPUT_REG_BUFFER__);
+    pim_output_reg_buffer = Buffer(<{{macro_config.n_group_vcol}}>, fp16, __PIM_OUTPUT_REG_BUFFER__);
+
+    k_row_begin = 0;
+    k_row_size = {{ (head_hidden // macro_config.n_comp) * math.ceil(seqlen / macro_config.n_group_vcol) }};
+    k_row_size_real = {{ math.ceil(head_hidden_real / macro_config.n_comp) * math.ceil(seqlen / macro_config.n_group_vcol) }};
+    k_row_end = k_row_begin + k_row_size;
+    k_macro = macros[k_row_begin:k_row_end, 0:{{macro_config.n_comp}}, 0:1, 0:{{macro_config.n_group_vcol}}];
+
+    attn_out1 = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
+    score = Buffer(<{{math.ceil(seqlen / macro_config.n_comp) * macro_config.n_comp}}>, fp16, __OUTPUT_MEMORY__);
+    temp = Buffer(<{{seqlen}}>, fp16, __TEMP_MEMORY_1__);
+
+    {%- if debug_mode %}
+    attn_out1_global = Buffer(<{{seqlen}}>, fp16, {{global_memory_name}});
+    score_global = Buffer(<{{seqlen}}>, fp16, {{global_memory_name}});
+    attn_out2_global = Buffer(<{{seqlen}}>, fp16, {{global_memory_name}});
+    {%- endif %}
+
+    transpose_unit = Buffer(<2, {{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY__);
+
+    // step 0: load k into local
+    // step 1: transpose and load k into macro
+    
+    {%- set N = math.ceil(seqlen / macro_config.n_group_vcol) %}
+    {%- set M = math.ceil(N / load_k_stages) %}
+    {%- set subseqlen = M * macro_config.n_group_vcol %}
+    k_local = Buffer(<{{subseqlen}}, {{head_hidden}}>, fp16, __INPUT_MEMORY__);
+    {%- set ns = namespace(begin_row=0, begin_seq=0) %}
+    {%- for i in range(math.ceil(seqlen / subseqlen)) %}
+        {%- set begin_seq = i * subseqlen %}
+        {%- set end_seq = [begin_seq + subseqlen, seqlen] | min %}
+        {%- set len_seq = end_seq - begin_seq %}
+        {%- set n_row = math.ceil((end_seq - begin_seq) / macro_config.n_group_vcol) * math.ceil(head_hidden_real / macro_config.n_comp) %}
+
+        {%- if split_stage_config.run_step==("0." ~ i) or split_stage_config.run_all_steps %}
+            Trans(k_global[{{begin_seq}}: {{end_seq}}, : ], k_local);
+        {%- endif %}
+        {%- if split_stage_config.run_step==("1." ~ i) or split_stage_config.run_all_steps %}
+            use_k_macro = k_macro[{{ns.begin_row}}:{{ns.begin_row + n_row}}, :, :, :];
+            load_transpose_into_macro(k_local[:{{len_seq}}, :], use_k_macro, transpose_unit, {{head_hidden_real}});
+        {%- endif %}
+
+        {%- set ns.begin_row = ns.begin_row + n_row %}
+    {%- endfor %}
+
+    // step 2: load q into local
+    {% if split_stage_config.run_step==2 or split_stage_config.run_all_steps %}
+        
+        Trans(q_global, q_local);
+    {% endif %}
+
+    // step 3: compute softmax(qK^T)
+    {% if split_stage_config.run_step==3 or split_stage_config.run_all_steps %}
+        gemv_using_batch_cim_compute(
+            q_local[:{{ math.ceil(head_hidden_real / macro_config.n_comp)  * macro_config.n_comp }}], 
+            k_macro[:k_row_size_real, :, :, :], 
+            attn_out1, 
+            {{ math.ceil(head_hidden_real / macro_config.n_comp) }}, 
+            pim_input_reg_buffer, 
+            pim_output_reg_buffer
+        );
+        {%- if debug_mode %}
+        Trans(attn_out1, attn_out1_global);
+        {%- endif %}
+
+        // online softmax
+        cp_online_softmax(
+            attn_out1[:{{seqlen}}], 
+            score[:{{seqlen}}], 
+            temp[:{{seqlen}}], 
+            {{cp_group_offset}}, 
+            {{cp_group_stride}}, 
+            {{cp_group_size}}
+        );
+        {%- if debug_mode %}
+        Trans(score, score_global);
+        {%- endif %}
+    {% endif %}
+
+    // step 4: load V and compute SV
+    {% if split_stage_config.run_step==4 or split_stage_config.run_all_steps %}
+        // load V into macro
+        v_row_begin = 0;
+        v_row_size = {{ math.ceil(seqlen / macro_config.n_comp) * (head_hidden // macro_config.n_group_vcol) }};
+        v_row_end = v_row_begin + v_row_size;
+        v_macro = macros[v_row_begin:v_row_end, 0:{{macro_config.n_comp}}, 0:1, 0:{{macro_config.n_group_vcol}}];
+        blank = Buffer(<{{macro_config.n_group_vcol}}>, fp16, __OUTPUT_MEMORY__);
+        load_into_macro(v_global, v_macro, blank);
+    
+        // compute SV
+        attn_out2= Buffer(<{{head_hidden_real}}>, fp16, __OUTPUT_MEMORY__);
+        gemv_using_batch_cim_compute(score, v_macro, attn_out2, {{ math.ceil(seqlen / macro_config.n_comp) }}, pim_input_reg_buffer, pim_output_reg_buffer);
+        {%- if debug_mode %}
+        Trans(attn_out2, attn_out2_global);
+        {%- endif %}
+
+        // sum over cp group
+        // TODO: For now, we use all-gather + sum. In the future, we will use reduce-scatter to get better performance
+        attn_out3 = Buffer(<{{cp_group_size}}, {{head_hidden_real}}>, fp16, __OUTPUT_MEMORY__);
+        cp_rank = get_local_rank({{core_id}}, {{cp_group_offset}}, {{cp_group_stride}});
+        Trans(attn_out2, attn_out3[cp_rank, :]);
+        all_gather(attn_out3, {{cp_group_offset}}, {{cp_group_stride}}, {{cp_group_size}});
+
+        for i in range(1, {{cp_group_size}}) carry () {
+            SIMD({{simd.vv_add}}, attn_out3[0, :], attn_out3[i, :], attn_out3[0, :]);
+        };
+        
+        // write result back to global
+        Trans(attn_out3[0, :], output_global);
+    {% endif %}
+
+    {% endif %}
+}

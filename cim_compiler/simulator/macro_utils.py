@@ -6,21 +6,34 @@ from cim_compiler.utils.logger import get_logger
 logger = get_logger(__name__)
 
 class MacroConfig:
-    def __init__(self, n_macro, n_row, n_comp, n_bcol, n_group):
+    def __init__(self, n_macro, n_row, n_comp, n_bcol, n_group, default_bit_width=None):
         self.n_macro = n_macro
         self.n_row = n_row
         self.n_comp = n_comp
         self.n_bcol = n_bcol
         self.n_group = n_group
         self.n_macro_per_group = self.n_macro // self.n_group
-        logger.debug(f"Macro config: {n_macro=}, {n_row=}, {n_comp=}, {n_bcol=}, {n_group=}")
+        self.default_bit_width = default_bit_width
+        logger.debug(f"Macro config: {n_macro=}, {n_row=}, {n_comp=}, {n_bcol=}, {n_group=}, {default_bit_width=}")
+
+    def set_default_bit_width(self, default_bit_width):
+        assert isinstance(default_bit_width, int)
+        assert default_bit_width > 0 and default_bit_width <= self.n_bcol
+        assert self.n_bcol % default_bit_width == 0
+        self.default_bit_width = default_bit_width
 
     def n_vcol(self, bitwidth):
         assert self.n_bcol % bitwidth == 0
         return self.n_bcol // bitwidth
 
-    def n_group_vcol(self, bitwidth):
+    def get_n_group_vcol(self, bitwidth):
         return self.n_vcol(bitwidth) * self.n_macro_per_group
+
+    @property
+    def n_group_vcol(self):
+        if self.default_bit_width is None:
+            raise ValueError("default_bit_width is not set")
+        return self.get_n_group_vcol(self.default_bit_width)
 
     def total_size(self):
         return self.n_macro * self.n_row * self.n_comp * self.n_bcol // 8

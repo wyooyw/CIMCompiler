@@ -23,8 +23,16 @@ def get_reduce_config(cim_config_path):
     with open(cim_config_path, "r") as f:
         config = json.load(f)
     return ReduceOpConfig(
-        reduce_num=config["reduce"]["reduce_num"],
-        reduce_len=config["reduce"]["reduce_len"]
+        reduce_num=config["reduce_sum"]["reduce_num"],
+        reduce_len=config["reduce_sum"]["reduce_len"]
+    )
+
+def get_reduce_max_config(cim_config_path):
+    with open(cim_config_path, "r") as f:
+        config = json.load(f)
+    return ReduceOpConfig(
+        reduce_num=config["reduce_max"]["reduce_num"],
+        reduce_len=config["reduce_max"]["reduce_len"]
     )
 
 class ModifyReduceConfig:
@@ -40,9 +48,9 @@ class ModifyReduceConfig:
         
         # modify reduce config
         self.modified_config = self.base_config.copy()
-        self.modified_config["reduce"] = {}
-        self.modified_config["reduce"]["reduce_len"] = self.reduce_len
-        self.modified_config["reduce"]["reduce_num"] = self.reduce_num
+        self.modified_config["reduce_sum"] = {}
+        self.modified_config["reduce_sum"]["reduce_len"] = self.reduce_len
+        self.modified_config["reduce_sum"]["reduce_num"] = self.reduce_num
 
         # create temp config file in a temp dir
         self.modified_config_path = tempfile.mktemp()
