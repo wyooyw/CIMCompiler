@@ -8,11 +8,6 @@
 {% include 'op/llm/cp_softmax.cim' %}
 {% include 'op/llm/special_regs.cim' %}
 
-{% if seqlen % cp_group_size != 0 %}
-    {% set error_msg = "seqlen must be divisible by cp_group_size" %}
-    {{ raise(error_msg) }}
-{% endif %}
-
 def main(){
     set_special_regs();
 
@@ -44,9 +39,11 @@ def main(){
     score = Buffer(<{{math.ceil(seqlen / macro_config.n_comp) * macro_config.n_comp}}>, fp16, __OUTPUT_MEMORY__);
     temp = Buffer(<{{seqlen}}>, fp16, __TEMP_MEMORY_1__);
 
+    {%- if debug_mode %}
     attn_out1_global = Buffer(<{{seqlen}}>, fp16, {{global_memory_name}});
     score_global = Buffer(<{{seqlen}}>, fp16, {{global_memory_name}});
     attn_out2_global = Buffer(<{{seqlen}}>, fp16, {{global_memory_name}});
+    {%- endif %}
 
     transpose_unit = Buffer(<2, {{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY__);
 
@@ -91,7 +88,9 @@ def main(){
             pim_input_reg_buffer, 
             pim_output_reg_buffer
         );
+        {%- if debug_mode %}
         Trans(attn_out1, attn_out1_global);
+        {%- endif %}
 
         // online softmax
         cp_online_softmax(
@@ -102,7 +101,9 @@ def main(){
             {{cp_group_stride}}, 
             {{cp_group_size}}
         );
+        {%- if debug_mode %}
         Trans(score, score_global);
+        {%- endif %}
     {% endif %}
 
     // step 4: load V and compute SV
@@ -118,7 +119,9 @@ def main(){
         // compute SV
         attn_out2= Buffer(<{{head_hidden_real}}>, fp16, __OUTPUT_MEMORY__);
         gemv_using_batch_cim_compute(score, v_macro, attn_out2, {{ math.ceil(seqlen / macro_config.n_comp) }}, pim_input_reg_buffer, pim_output_reg_buffer);
+        {%- if debug_mode %}
         Trans(attn_out2, attn_out2_global);
+        {%- endif %}
 
         // sum over cp group
         // TODO: For now, we use all-gather + sum. In the future, we will use reduce-scatter to get better performance

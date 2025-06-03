@@ -17,6 +17,7 @@ class AttnDecodeConfig:
     reduce_config: str = None
     reduce_max_config: str = None
     math: str = None
+    debug_mode: bool = False
 
 @dataclass
 class SplitStageConfig:
