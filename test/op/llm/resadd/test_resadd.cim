@@ -1,0 +1,26 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+
+def set_special_regs(){
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 16);
+
+    SpecialRegSet(SPECIAL_REG_DTYPE_SIMD_IS_FLOAT, 1);
+}
+
+def main(){
+    set_special_regs();
+    
+    x1_global = Buffer(<{{hidden}}>, fp16, __GLOBAL__);
+    x2_global = Buffer(<{{hidden}}>, fp16, __GLOBAL__);
+    y_global = Buffer(<{{hidden}}>, fp16, __GLOBAL__);
+    x1_local = Buffer(<{{hidden}}>, fp16, __INPUT_MEMORY__);
+    x2_local = Buffer(<{{hidden}}>, fp16, __INPUT_MEMORY__);
+    y_local = Buffer(<{{hidden}}>, fp16, __INPUT_MEMORY__);
+    Trans(x1_global, x1_local);
+    Trans(x2_global, x2_local);
+
+    SIMD({{simd.vv_add}}, x1_local, x2_local, y_local);
+    Trans(y_local, y_global);
+}

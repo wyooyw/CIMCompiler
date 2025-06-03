@@ -3,7 +3,7 @@ import os
 import time
 import logging
 from pathlib import Path
-from cim_compiler.op.llm.helper import AttnDecodeCPConfig, SplitStageConfig, GELUOpConfig, LayerNormOpConfig, ModifyConfigSplitGlobalMemory
+from cim_compiler.op.llm.helper import AttnDecodeCPConfig, SplitStageConfig, GELUOpConfig, LayerNormOpConfig, ResAddOpConfig, ModifyConfigSplitGlobalMemory
 from cim_compiler.simulator.macro_utils import MacroConfig
 from test.op.test_reduce.test_reduce import get_reduce_config, get_reduce_max_config
 from test.base import SPMDOpRunner,OpRunner
@@ -137,20 +137,29 @@ def _main_impl(args):
         assert n_activate_core > 0
         if n_activate_core < args.world_size:
             assert remain_head == 0, f"remain_head {remain_head} must be 0"
-        print(f"CP size: {cp_size}, n_head: {n_head_this_round}, hidden_size_per_head: {hidden_size_per_head}, n_activate_core: {n_activate_core}")
+        load_k_stages = max(args.seqlen // cp_size // 1024, 1)
+
+        print(f"CP size: {cp_size}, n_head: {n_head_this_round}, hidden_size_per_head: {hidden_size_per_head}, n_activate_core: {n_activate_core}, load_k_stages: {load_k_stages}")
         
         if args.split_stages:
-            split_stage_configs = [
-                SplitStageConfig(run_step=i, run_all_steps=False) for i in range(5)
-            ]
+            # split_stage_configs = [
+            #     SplitStageConfig(run_step=i, run_all_steps=False) for i in range(5)
+            # ]
+            split_stage_configs = []
+            for j in range(load_k_stages):
+                split_stage_configs.append(SplitStageConfig(run_step=f"0.{j}", run_all_steps=False))
+                split_stage_configs.append(SplitStageConfig(run_step=f"1.{j}", run_all_steps=False))
+            split_stage_configs.append(SplitStageConfig(run_step=2, run_all_steps=False))
+            split_stage_configs.append(SplitStageConfig(run_step=3, run_all_steps=False))
+            split_stage_configs.append(SplitStageConfig(run_step=4, run_all_steps=False))
+
         else:
             split_stage_configs = [SplitStageConfig(run_step=0, run_all_steps=True)]
 
         for stage_idx, split_stage_config in enumerate(split_stage_configs):
-            load_k_stages = max(args.seqlen // cp_size // 512, 1)
             op_config = AttnDecodeCPConfig(
                 head_hidden=hidden_size_per_head,
-                seqlen=args.seqlen,
+                seqlen=args.seqlen // cp_size,
                 macro_config=cim_config,
                 transpose_row=16,
                 transpose_col=128,
@@ -171,10 +180,34 @@ def _main_impl(args):
                 args.world_size,
                 config_for_each_core=partial(config_cp_group, cp_size=cp_size),
             )
+            stage_name = split_stage_config.run_step
 
-            op_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, "attn", f"round_{i}", f"stage_{stage_idx}"), gather_multicore_code=True)
-            shutil.copy(os.path.join(args.save_dir, "attn", f"round_{i}", f"stage_{stage_idx}", "multi_core_code.json"), os.path.join(collect_dir, f"attn_round_{i}_stage_{stage_idx}.json"))
+            op_runner.run(simulate=False, save_dir=os.path.join(args.save_dir, "attn", f"round_{i}", f"stage_{stage_name}"), gather_multicore_code=True)
+            shutil.copy(os.path.join(args.save_dir, "attn", f"round_{i}", f"stage_{stage_name}", "multi_core_code.json"), os.path.join(collect_dir, f"attn_round_{i}_stage_{stage_name}.json"))
 
+    # resadd
+    resadd_config = ResAddOpConfig(
+        hidden=args.hidden_size,
+        simd=simd_config,
+    )
+    resadd_path = os.path.join(cim_compiler_home, "test/op/llm/resadd/test_resadd.cim")
+    resadd_runner = OpRunner(resadd_path, resadd_config, args.config_path)
+    resadd_save_dir = os.path.join(args.save_dir, f"resadd")
+    resadd_runner.run(simulate=False, save_dir=resadd_save_dir)
+    resadd_final_code_path = os.path.join(resadd_save_dir, "compiler_output", "final_code.json")
+    with open(resadd_final_code_path, "r") as f:
+        resadd_final_code = f.read()
+    with open(os.path.join(resadd_save_dir, "multi_core_code.json"), "w") as f:
+        f.write("{\n")
+        f.write(f"\"0\": {resadd_final_code}, \n")
+        for j in range(1, args.world_size):
+            f.write(f"\"{j}\": []")
+            if j != args.world_size - 1:
+                f.write(",\n")
+        f.write("}")
+    shutil.copy(os.path.join(resadd_save_dir, "multi_core_code.json"), os.path.join(collect_dir, "resadd.json"))
+
+    
     # layernorm
     ln_config = LayerNormOpConfig(
         hidden=args.hidden_size,
@@ -194,7 +227,7 @@ def _main_impl(args):
         f.write("{\n")
         f.write(f"\"0\": {ln_final_code}, \n")
         for j in range(1, args.world_size):
-            f.write(f"\"{j}\": {{}}")
+            f.write(f"\"{j}\": []")
             if j != args.world_size - 1:
                 f.write(",\n")
         f.write("}")
