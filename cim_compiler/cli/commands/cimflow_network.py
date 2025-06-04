@@ -260,7 +260,7 @@ def get_code_conv2d_by_dsl(
         n_weight_duplicate_group=n_weight_duplicate_group,
         n_reduce_group=n_reduce_group
     )
-    op_path = os.path.join(os.environ["CIMCOMPILER_HOME"], "cim_compiler/op/cimflow/conv2d.cim")
+    op_path = os.path.join(os.environ["CIM_COMPILER_BASE"], "cim_compiler/op/cimflow/conv2d.cim")
     op_runner = OpRunner(op_path, op_config, args.config_path)
     temp_dir = tempfile.mkdtemp(dir=cache_dir)
     op_runner.run([], [], simulate=False, save_dir=temp_dir)
@@ -394,8 +394,8 @@ cache_dwconv2d_result = dict()
 
 def get_dwcode_conv2d(args, attr):
     global cache_dwconv2d_result
-    CIMCOMPILER_HOME = os.environ.get("CIMCOMPILER_HOME")
-    template_path = os.path.join(CIMCOMPILER_HOME, "cim_compiler/polycim/template/depthwise_conv.cim")
+    CIM_COMPILER_BASE = os.environ.get("CIM_COMPILER_BASE")
+    template_path = os.path.join(CIM_COMPILER_BASE, "cim_compiler/polycim/template/depthwise_conv.cim")
     temp_dir = tempfile.mkdtemp()
     code_path = os.path.join(temp_dir, "depthwise_conv.cim")
 

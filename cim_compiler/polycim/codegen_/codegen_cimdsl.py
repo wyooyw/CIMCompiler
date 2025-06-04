@@ -25,12 +25,12 @@ class CodeGenerator:
         self.buffer_manager = BufferManager()
 
     def codegen_includes(self, depth):
-        CIMCOMPILER_HOME = os.environ["CIMCOMPILER_HOME"]
+        CIM_COMPILER_BASE = os.environ["CIM_COMPILER_BASE"]
         include_list = [
             os.path.join(
-                CIMCOMPILER_HOME, "cim_compiler/op/common/def_special_regs.cim"
+                CIM_COMPILER_BASE, "cim_compiler/op/common/def_special_regs.cim"
             ),
-            os.path.join(CIMCOMPILER_HOME, "cim_compiler/op/common/simd.cim"),
+            os.path.join(CIM_COMPILER_BASE, "cim_compiler/op/common/simd.cim"),
         ]
         include_code_list = []
         for include_path in include_list:
