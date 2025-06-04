@@ -33,7 +33,7 @@ def test_result(cim_cfg_path, op_id, cim_count):
     # pimsim_cfg_path = os.path.join(polycim_home, " ", cim_cfg_path)
     with tempfile.TemporaryDirectory() as temp_dir:
         cmd = [
-            "polycim",
+            "cim-compiler",
             "op",
             "--op-id",
             op_id,

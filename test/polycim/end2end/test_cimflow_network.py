@@ -51,7 +51,7 @@ def test_cimflow_network(graph_instruction_path, config_path):
 
     with tempfile.TemporaryDirectory() as temp_dir:
         cmd = [
-            "polycim",
+            "cim-compiler",
             "cimflow_network",
             "-i",
             graph_instruction_path,

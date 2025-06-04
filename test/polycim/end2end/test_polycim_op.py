@@ -142,7 +142,7 @@ def test_result(cim_cfg_path, op_id, cim_count, axis_align):
     )
     with tempfile.TemporaryDirectory() as temp_dir:
         cmd = [
-            "polycim",
+            "cim-compiler",
             "op",
             "--op-id",
             op_id,

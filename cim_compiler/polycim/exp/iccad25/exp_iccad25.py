@@ -37,7 +37,7 @@ def save_and_convert(exe_path, data_path, converted_data_path, data_np):
 
 def explore(temp_dir, cim_cfg_path, op_id, axis_align):
     cmd = [
-        "polycim",
+        "cim-compiler",
         "explore",
         "--op-id",
         op_id,
