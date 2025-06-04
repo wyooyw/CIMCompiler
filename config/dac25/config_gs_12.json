@@ -1,0 +1,65 @@
+{
+    "macro": {
+        "n_group": 16,
+        "n_macro": 192,
+        "n_row": 16,
+        "n_comp": 32,
+        "n_bcol": 64
+    },
+    "memory_list": [
+        {
+            "name": "macro",
+            "type": "macro",
+            "addressing": {
+                "offset_byte": 0,
+                "size_byte": 786432,
+                "comments": "offset: 0 Byte, size: 128 * 1024 Byte"
+            }
+        },
+        {
+            "name": "input_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 262144,
+                "comments": "offset: 128 * 1024 Byte, size: 64 * 1024 Byte",
+                "offset_byte": 786432
+            }
+        },
+        {
+            "name": "output_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 262144,
+                "comments": "offset: 192 * 1024 Byte, size: 64 * 1024 Byte",
+                "offset_byte": 1048576
+            }
+        },
+        {
+            "name": "cim_input_reg_buffer",
+            "type": "reg_buffer",
+            "addressing": {
+                "size_byte": 1024,
+                "comments": "offset: 256 * 1024 Byte, size: 0.5 * 1024 * 2 Byte",
+                "offset_byte": 1310720
+            }
+        },
+        {
+            "name": "cim_output_reg_buffer",
+            "type": "reg_buffer",
+            "addressing": {
+                "size_byte": 8192,
+                "comments": "offset: 256 * 1024 Byte, size: 0.5 * 1024 * 2 Byte",
+                "offset_byte": 1311744
+            }
+        },
+        {
+            "name": "global",
+            "type": "dram",
+            "addressing": {
+                "size_byte": 33554432,
+                "comments": "size: 16MB",
+                "offset_byte": 1319936
+            }
+        }
+    ]
+}

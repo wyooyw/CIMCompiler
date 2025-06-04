@@ -394,8 +394,8 @@ cache_dwconv2d_result = dict()
 
 def get_dwcode_conv2d(args, attr):
     global cache_dwconv2d_result
-    POLYCIM_HOME = os.environ.get("POLYCIM_HOME")
-    template_path = os.path.join(POLYCIM_HOME, "polycim/template/depthwise_conv.cim")
+    CIMCOMPILER_HOME = os.environ.get("CIMCOMPILER_HOME")
+    template_path = os.path.join(CIMCOMPILER_HOME, "cim_compiler/polycim/template/depthwise_conv.cim")
     temp_dir = tempfile.mkdtemp()
     code_path = os.path.join(temp_dir, "depthwise_conv.cim")
 

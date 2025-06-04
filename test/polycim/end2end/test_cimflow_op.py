@@ -28,9 +28,8 @@ def ceil(a, b):
 )
 def test_result(cim_cfg_path, op_id, cim_count):
 
-    polycim_home = os.environ["POLYCIM_HOME"]
-    compiler_cfg_path = os.path.join(polycim_home, "config/cimflow_test", cim_cfg_path)
-    # pimsim_cfg_path = os.path.join(polycim_home, " ", cim_cfg_path)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    compiler_cfg_path = os.path.join(current_dir, cim_cfg_path)
     with tempfile.TemporaryDirectory() as temp_dir:
         cmd = [
             "cim-compiler",
