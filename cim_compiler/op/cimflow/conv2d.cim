@@ -30,7 +30,7 @@ def main(){
     @unroll
     for i_batch in range({{batch}}) carry () {
         @unroll
-        for i_outer in range({{math.ceil(in_hw  * in_hw // n_weight_duplicate_group)}}) carry () {
+        for i_outer in range({{math.ceil(out_hw  * out_hw // n_weight_duplicate_group)}}) carry () {
             @unroll
             for i_inner in range(0, {{math.ceil(window_size / (n_reduce_group * macro_config.n_comp))}}) carry () {
                 // step 1: load input
@@ -53,8 +53,8 @@ def main(){
                             i_reduce_height = i_reduce_hw / {{ker_hw}};
                             use_input = input[
                                 i_batch, 
-                                out_h + i_reduce_height, 
-                                out_w + i_reduce_width, 
+                                out_h * {{stride}} + i_reduce_height, 
+                                out_w * {{stride}} + i_reduce_width, 
                                 i_reduce_begin_channel:i_reduce_end_channel
                             ];
                             use_input_reg_buffer = cim_input_reg_buffer[i_group, :];
@@ -82,8 +82,8 @@ def main(){
                                 i_height = i_hw / {{ker_hw}};
                                 use_input = input[
                                     i_batch, 
-                                    out_h + i_width, 
-                                    out_w + i_height, 
+                                    out_h * {{stride}} + i_width, 
+                                    out_w * {{stride}} + i_height, 
                                     :
                                 ];
                                 use_input_reg_buffer = cim_input_reg_buffer[

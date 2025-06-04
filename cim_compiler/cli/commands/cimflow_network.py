@@ -229,6 +229,7 @@ class Conv2dConfig:
     math: int
     n_weight_duplicate_group: int
     n_reduce_group: int
+    stride: int
 
 def get_code_conv2d_by_dsl(
         batch,
@@ -237,6 +238,7 @@ def get_code_conv2d_by_dsl(
         in_hw,
         out_hw,
         ker_hw,
+        stride,
         args,
         cache_dir
 ):      
@@ -255,6 +257,7 @@ def get_code_conv2d_by_dsl(
         in_hw=in_hw,
         out_hw=out_hw,
         ker_hw=ker_hw,
+        stride=stride,
         macro_config=cim_cfg,
         math=math,
         n_weight_duplicate_group=n_weight_duplicate_group,
@@ -310,7 +313,7 @@ def get_code_conv2d(args, attr, cache_dir):
         if input_memory > get_memory_size("input_memory"):
             print(f"input_memory: {input_memory} > input_memory_size: {get_memory_size('input_memory')}")
             # import pdb; pdb.set_trace()
-            assert stride == 1, f"{stride=}"
+            assert stride in [1, 2], f"{stride=}"
             result = get_code_conv2d_by_dsl(
                 batch,
                 in_channel,
@@ -318,6 +321,7 @@ def get_code_conv2d(args, attr, cache_dir):
                 in_height,
                 out_h,
                 kernel_height,
+                stride,
                 args,
                 cache_dir
             )
@@ -677,14 +681,14 @@ def run_cimflow_network(args):
     set_raw_config_by_path(args.config_path)
     each_core_save_dir = os.path.join(args.save_dir, "each_core")
     with tempfile.TemporaryDirectory() as cache_dir:
-        try:
-            total_save_files = parse_noc_tasks(
-                args, args.read_json, each_core_save_dir, cache_dir
-            )
-        except Exception as e:
-            print(f"Error: {e}")
-            import pdb; pdb.set_trace()
-            pass
+        # try:
+        total_save_files = parse_noc_tasks(
+            args, args.read_json, each_core_save_dir, cache_dir
+        )
+        # except Exception as e:
+        #     print(f"Error: {e}")
+        #     import pdb; pdb.set_trace()
+        #     pass
 
     save_file_name = os.path.basename(args.read_json)
     save_file_name = "isa_" + save_file_name
