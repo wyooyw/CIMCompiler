@@ -329,14 +329,14 @@ class Simulator:
         )
         self.reduce_sum_util = ReduceSumUtil(
             self.reduce_sum_config
-        )
+        ) if self.reduce_sum_config is not None else None
         self.reduce_max_util = ReduceMaxUtil(
             self.reduce_max_config
-        )
+        ) if self.reduce_max_config is not None else None
         self.simd_util = SIMDUtil(
             self.simd_config,
             self,
-        )
+        ) if self.simd_config is not None else None
         self.jump_offset = None
         self.safe_time = safe_time
 
@@ -380,10 +380,14 @@ class Simulator:
         #     return
         end_memory = self.memory_space.memory_space[-1]
         end_offset = end_memory.offset + end_memory.size
-        # output_buffer_size = self.memory_space.get_memory_by_name(
-        #     ["pim_output_reg_buffer", "cim_output_reg_buffer"]
-        # ).size
-        output_buffer_size = self.macro_config.get_n_group_vcol(8) * self.macro_config.n_group
+        try_buffer = self.memory_space.get_memory_by_name(
+            ["pim_output_reg_buffer", "cim_output_reg_buffer"]
+        )
+        if try_buffer is None:
+            output_buffer_size = self.macro_config.get_n_group_vcol(8) * self.macro_config.n_group
+        else:
+            output_buffer_size = try_buffer.size
+
         internel_macro_output_buffer = Memory(
             "internel_macro_output_reg_buffer",
             "reg_buffer",
@@ -543,10 +547,15 @@ class Simulator:
 
         # SIMD
         elif isinstance(inst, SIMDInst):
-            self.simd_util.run(inst)
-            # self._run_simd_class_inst(inst)
+            if self.simd_util is not None:
+                self.simd_util.run(inst)
+            else:
+                self._run_simd_class_inst(inst)
         elif isinstance(inst, ReduceInst):
-            self.reduce_util.run(inst)
+            if self.reduce_util is not None:
+                self.reduce_util.run(inst)
+            else:
+                assert False, "ReduceInst is not supported, please check the config file."
 
         # Scalar
         elif isinstance(inst, RRInst):
@@ -1044,7 +1053,6 @@ class Simulator:
             pimset_mask = pimset_mask[:weight_data.shape[1]]
             assert pimset_mask.dtype == bool, f"{pimset_mask.dtype=}"
             weight_data[:, pimset_mask] = 0
-            print(f"{weight_data.shape=}")
 
             assert input_data.ndim == 1
             assert weight_data.ndim == 2, f"{weight_data.shape=}"

@@ -1,0 +1,124 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+
+
+def set_special_regs(){
+    SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_OUTPUT_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_GROUP_SIZE, {{macro_config.n_macro_per_group}});
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_GROUP_NUM, {{macro_config.n_group}});
+    SpecialRegSet(SPECIAL_REG_ACTIVATION_ELEMENT_COL_NUM, {{macro_config.n_group_vcol}});
+    SpecialRegSet(SPECIAL_REG_GROUP_INPUT_STEP, {{macro_config.n_comp}});
+
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+}
+
+def main(){
+    set_special_regs();
+
+
+    input = Buffer(<{{batch}}, {{in_hw}}, {{in_hw}}, {{in_channel}}>, int8, __INPUT_MEMORY__);
+    output = Buffer(<{{batch}}, {{out_hw}}, {{out_hw}}, {{out_channel}}>, int8, __OUTPUT_MEMORY__);
+    macros = Buffer(<{{macro_config.n_row}}, {{macro_config.n_comp}}, {{macro_config.n_group}}, {{macro_config.n_group_vcol}}>, int8, __MACRO__);
+    {% set window_size = ker_hw * ker_hw * in_channel %}
+
+    pim_input_reg_buffer = Buffer(<{{macro_config.n_group}},{{macro_config.n_comp}}>, int8, __PIM_INPUT_REG_BUFFER__);
+    pim_output_reg_buffer = Buffer(<{{macro_config.n_group}}, {{macro_config.n_group_vcol // 4}}>, int32, __PIM_OUTPUT_REG_BUFFER__);
+    @unroll
+    for i_batch in range({{batch}}) carry () {
+        @unroll
+        for i_outer in range({{math.ceil(in_hw  * in_hw // n_weight_duplicate_group)}}) carry () {
+            @unroll
+            for i_inner in range(0, {{math.ceil(window_size / (n_reduce_group * macro_config.n_comp))}}) carry () {
+                // step 1: load input
+                {% if (in_channel % macro_config.n_comp) == 0 %}
+                    @unroll
+                    for i_outer_group in range({{n_weight_duplicate_group}}) carry () {
+                        out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
+                        out_h = out_hw / {{out_hw}};
+                        out_w = out_hw % {{out_hw}};
+                        
+                        @unroll
+                        for i_inner_group in range({{n_reduce_group}}) carry () {
+                            i_group = i_outer_group * {{n_reduce_group}} + i_inner_group;
+                            i_reduce_begin = (i_inner * {{n_reduce_group}} * {{macro_config.n_comp}}) + (i_inner_group * {{macro_config.n_comp}});
+                            i_reduce_end = Min(i_reduce_begin + {{macro_config.n_comp}}, {{window_size}});
+                            i_reduce_begin_channel = i_reduce_begin % {{in_channel}};
+                            i_reduce_end_channel = i_reduce_begin_channel + {{macro_config.n_comp}};
+                            i_reduce_hw = i_reduce_begin / {{in_channel}};
+                            i_reduce_width = i_reduce_hw % {{ker_hw}};
+                            i_reduce_height = i_reduce_hw / {{ker_hw}};
+                            use_input = input[
+                                i_batch, 
+                                out_h + i_reduce_height, 
+                                out_w + i_reduce_width, 
+                                i_reduce_begin_channel:i_reduce_end_channel
+                            ];
+                            use_input_reg_buffer = pim_input_reg_buffer[i_group, :];
+                            Trans(use_input, use_input_reg_buffer);
+                        };
+                    };
+                {% elif (macro_config.n_comp % in_channel) == 0 %}
+                    @unroll
+                    for i_outer_group in range({{n_weight_duplicate_group}}) carry () {
+                        out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
+                        out_h = out_hw / {{out_hw}};
+                        out_w = out_hw % {{out_hw}};
+                        
+                        @unroll
+                        for i_inner_group in range({{n_reduce_group}}) carry () {
+                            i_group = i_outer_group * {{n_reduce_group}} + i_inner_group;
+
+                            i_reduce_base = (i_inner * {{n_reduce_group}} * {{macro_config.n_comp}}) + (i_inner_group * {{macro_config.n_comp}});
+
+                            @unroll
+                            for i_pixel_in_comp in range({{macro_config.n_comp / in_channel}}) carry () {
+                                i_reduce = i_reduce_base + (i_pixel_in_comp * {{in_channel}});
+                                i_hw = i_reduce_begin / {{in_channel}};
+                                i_width = i_hw_begin % {{ker_width}};
+                                i_height = i_hw_begin / {{ker_width}};
+                                use_input = input[
+                                    i_batch, 
+                                    out_h + i_width, 
+                                    out_w + i_height, 
+                                    :
+                                ];
+                                use_input_reg_buffer = pim_input_reg_buffer[
+                                    i_group, 
+                                    i_pixel_in_comp * in_channel : (i_pixel_in_comp + 1) * in_channel
+                                ];
+                                Trans(use_input, use_input_reg_buffer);
+                            };
+                        };
+                    };
+                {% else %}
+                    {% set error_msg = "bad case" %}
+                    {{ raise(error_msg) }}
+                {% endif %}
+
+                // step 2: compute
+                CIMComputeDense(pim_input_reg_buffer, macros[i_inner, :, :, :]);
+            };
+            // step 3: save output and sum
+            CIMOutput({{macro_config.n_group_vcol}}, 0, pim_output_reg_buffer);// save to output reg buffer
+
+            // sum between groups
+            @unroll
+            for i_outer_group in range({{n_weight_duplicate_group}}) carry () {
+                out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
+                out_h = out_hw / {{out_hw}};
+                out_w = out_hw % {{out_hw}};
+                @unroll
+                for i_inner_group in range({{n_reduce_group}}) carry () {
+                    i_group = i_outer_group * {{n_reduce_group}} + i_inner_group;
+                    use_output_reg_buffer = pim_output_reg_buffer[i_group, :];
+                    use_output = output[i_batch, out_h, out_w, :];
+                    SIMD(VVADD, use_output_reg_buffer, use_output, use_output);
+                };
+            };
+        };
+    };
+}

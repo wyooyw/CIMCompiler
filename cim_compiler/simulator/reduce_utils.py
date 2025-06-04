@@ -17,6 +17,8 @@ class ReduceSumConfig:
     def from_config(cls, config_path):
         with open(config_path, "r") as f:
             config = json.load(f)
+        if "reduce_sum" not in config:
+            return None
         return cls(config.get("reduce_sum", {}).get("reduce_len", None), config.get("reduce_sum", {}).get("reduce_num", None))
 
 class ReduceSumUtil:
@@ -56,6 +58,8 @@ class ReduceMaxConfig:
     def from_config(cls, config_path):
         with open(config_path, "r") as f:
             config = json.load(f)
+        if "reduce_max" not in config:
+            return None
         return cls(config.get("reduce_max", {}).get("reduce_len", None), config.get("reduce_max", {}).get("reduce_num", None))
 
 class ReduceMaxUtil:
@@ -95,6 +99,8 @@ class ReduceConfig:
     def from_config(cls, config_path):
         with open(config_path, "r") as f:
             config = json.load(f)
+        if "reduce" not in config:
+            return None
         return cls(config["reduce"])
 
 @dataclass

@@ -17,6 +17,8 @@ class SIMDConfig:
     def from_config(cls, config_path):
         with open(config_path, "r") as f:
             config = json.load(f)
+        if "simd" not in config:
+            return None
         return cls(config["simd"])
 
 @dataclass
