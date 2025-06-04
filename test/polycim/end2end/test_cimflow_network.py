@@ -45,9 +45,9 @@ import pytest
     ],
 )
 def test_cimflow_network(graph_instruction_path, config_path):
-    CIMCOMPILER_HOME = os.environ.get("CIMCOMPILER_HOME")
-    graph_instruction_path = os.path.join(CIMCOMPILER_HOME, graph_instruction_path)
-    config_path = os.path.join(CIMCOMPILER_HOME, config_path)
+    CIM_COMPILER_BASE = os.environ.get("CIM_COMPILER_BASE")
+    graph_instruction_path = os.path.join(CIM_COMPILER_BASE, graph_instruction_path)
+    config_path = os.path.join(CIM_COMPILER_BASE, config_path)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         cmd = [
