@@ -516,6 +516,18 @@ def get_unique_id_from_unique_name(unique_name):
         max_unique_id += 1
         return unique_name_to_unqiue_id[unique_name]
 
+profile_name_to_idx = dict()
+def add_profile_id(args, code_list, profile_name):
+    global profile_name_to_idx
+
+    if profile_name not in profile_name_to_idx:
+        profile_name_to_idx[profile_name] = 0
+    else:
+        profile_name_to_idx[profile_name] += 1
+
+    for inst in code_list:
+        inst[args.profile_attr_name] = f"{profile_name}.{profile_name_to_idx[profile_name]}"
+    return code_list
 
 def parse_instructions(args, core_name, stage_id, instructions, cache_dir):
     code_list = []
@@ -561,6 +573,8 @@ def parse_instructions(args, core_name, stage_id, instructions, cache_dir):
             assert False, f"{instruction=}"
 
         assert code is not None, f"{instruction=}"
+        if args.op_level_profile:
+            code = add_profile_id(args, code, f"{core_name}.stage{stage_id}.{instruction['op']}")
         code_list.extend(code)
     return code_list
 
@@ -674,7 +688,9 @@ def parse_cimflow_network_args(subparsers):
     parser.add_argument("--read-json", "-i", type=str, help="read path")
     parser.add_argument("--save-dir", "-o", type=str, help="save path")
     parser.add_argument("--config-path", "-c", type=str, help="config path")
+    parser.add_argument("--profile-attr-name", "-p", type=str, default="inst_group_tag", help="profile attr name")
     parser.add_argument("--verify", action="store_true", help="verify")
+    parser.add_argument("--op-level-profile", action="store_true", default=True, help="op level profile")
 
 
 def run_cimflow_network(args):

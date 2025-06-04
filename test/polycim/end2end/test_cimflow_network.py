@@ -50,6 +50,7 @@ def test_cimflow_network(graph_instruction_path, config_path):
     config_path = os.path.join(CIM_COMPILER_BASE, config_path)
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        os.makedirs(temp_dir, exist_ok=True)
         cmd = [
             "cim-compiler",
             "cimflow_network",
@@ -59,6 +60,7 @@ def test_cimflow_network(graph_instruction_path, config_path):
             temp_dir,
             "-c",
             config_path,
+            "--op-level-profile",
         ]
         subprocess.run(cmd, check=True)
 
