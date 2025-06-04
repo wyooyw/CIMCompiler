@@ -25,8 +25,8 @@ def main(){
     macros = Buffer(<{{macro_config.n_row}}, {{macro_config.n_comp}}, {{macro_config.n_group}}, {{macro_config.n_group_vcol}}>, int8, __MACRO__);
     {% set window_size = ker_hw * ker_hw * in_channel %}
 
-    pim_input_reg_buffer = Buffer(<{{macro_config.n_group}},{{macro_config.n_comp}}>, int8, __PIM_INPUT_REG_BUFFER__);
-    pim_output_reg_buffer = Buffer(<{{macro_config.n_group}}, {{macro_config.n_group_vcol // 4}}>, int32, __PIM_OUTPUT_REG_BUFFER__);
+    cim_input_reg_buffer = Buffer(<{{macro_config.n_group}},{{macro_config.n_comp}}>, int8, __CIM_INPUT_REG_BUFFER__);
+    cim_output_reg_buffer = Buffer(<{{macro_config.n_group}}, {{macro_config.n_group_vcol // 4}}>, int32, __CIM_OUTPUT_REG_BUFFER__);
     @unroll
     for i_batch in range({{batch}}) carry () {
         @unroll
@@ -57,7 +57,7 @@ def main(){
                                 out_w + i_reduce_width, 
                                 i_reduce_begin_channel:i_reduce_end_channel
                             ];
-                            use_input_reg_buffer = pim_input_reg_buffer[i_group, :];
+                            use_input_reg_buffer = cim_input_reg_buffer[i_group, :];
                             Trans(use_input, use_input_reg_buffer);
                         };
                     };
@@ -75,20 +75,20 @@ def main(){
                             i_reduce_base = (i_inner * {{n_reduce_group}} * {{macro_config.n_comp}}) + (i_inner_group * {{macro_config.n_comp}});
 
                             @unroll
-                            for i_pixel_in_comp in range({{macro_config.n_comp / in_channel}}) carry () {
+                            for i_pixel_in_comp in range({{macro_config.n_comp // in_channel}}) carry () {
                                 i_reduce = i_reduce_base + (i_pixel_in_comp * {{in_channel}});
-                                i_hw = i_reduce_begin / {{in_channel}};
-                                i_width = i_hw_begin % {{ker_width}};
-                                i_height = i_hw_begin / {{ker_width}};
+                                i_hw = i_reduce / {{in_channel}};
+                                i_width = i_hw % {{ker_hw}};
+                                i_height = i_hw / {{ker_hw}};
                                 use_input = input[
                                     i_batch, 
                                     out_h + i_width, 
                                     out_w + i_height, 
                                     :
                                 ];
-                                use_input_reg_buffer = pim_input_reg_buffer[
+                                use_input_reg_buffer = cim_input_reg_buffer[
                                     i_group, 
-                                    i_pixel_in_comp * in_channel : (i_pixel_in_comp + 1) * in_channel
+                                    i_pixel_in_comp * {{in_channel}} : (i_pixel_in_comp + 1) * {{in_channel}}
                                 ];
                                 Trans(use_input, use_input_reg_buffer);
                             };
@@ -100,10 +100,10 @@ def main(){
                 {% endif %}
 
                 // step 2: compute
-                CIMComputeDense(pim_input_reg_buffer, macros[i_inner, :, :, :]);
+                CIMComputeDense(cim_input_reg_buffer, macros[i_inner, :, :, :]);
             };
             // step 3: save output and sum
-            CIMOutput({{macro_config.n_group_vcol}}, 0, pim_output_reg_buffer);// save to output reg buffer
+            CIMOutput({{macro_config.n_group_vcol}}, 0, cim_output_reg_buffer);// save to output reg buffer
 
             // sum between groups
             @unroll
@@ -114,7 +114,7 @@ def main(){
                 @unroll
                 for i_inner_group in range({{n_reduce_group}}) carry () {
                     i_group = i_outer_group * {{n_reduce_group}} + i_inner_group;
-                    use_output_reg_buffer = pim_output_reg_buffer[i_group, :];
+                    use_output_reg_buffer = cim_output_reg_buffer[i_group, :];
                     use_output = output[i_batch, out_h, out_w, :];
                     SIMD(VVADD, use_output_reg_buffer, use_output, use_output);
                 };
