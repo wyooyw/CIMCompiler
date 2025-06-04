@@ -1,0 +1,66 @@
+{% include 'def_special_regs.cim' %}
+{% include 'simd.cim' %}
+
+// input
+#define INPUT_ROW {{ INPUT_ROW }}
+#define INPUT_COL {{ INPUT_COL }}
+#define INPUT_CHANNEL {{ INPUT_CHANNEL }}
+
+#define OUTPUT_ROW {{ OUTPUT_ROW }}
+#define OUTPUT_COL {{ OUTPUT_COL }}
+#define OUTPUT_CHANNEL {{ OUTPUT_CHANNEL }}
+
+#define KERNEL_SIZE {{ KERNEL_SIZE }}
+#define STRIDE {{ STRIDE }}
+#define BATCH {{ BATCH }}
+
+def main(null<int8>){
+    // input, weight, mask and index will be prepared in memory image
+    local_weight = Buffer(<KERNEL_SIZE, KERNEL_SIZE, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+    local_input = Buffer(<BATCH, INPUT_ROW, INPUT_COL, INPUT_CHANNEL>, int8, __INPUT_MEMORY__);
+    local_output_i32 = Buffer(<BATCH, OUTPUT_ROW, OUTPUT_COL, INPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
+    local_output_parial_sum = Buffer(<INPUT_CHANNEL>, int32, __OUTPUT_MEMORY__);
+    quantize_local_output_parial_sum = Buffer(<INPUT_CHANNEL>, int8, __OUTPUT_MEMORY__);
+    
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 8);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+
+    for b in range(0, BATCH) carry (null){
+        for oh in range(0, OUTPUT_ROW, STRIDE) carry (null){
+            for ow in range(0, OUTPUT_COL, STRIDE) carry (null){
+                
+                for kh in range(0, KERNEL_SIZE) carry (null){
+                    for kw in range(0, KERNEL_SIZE) carry (null){
+                        use_input = Slice(local_input, 
+                            [b, oh + kh, ow + kw, 0],
+                            [1, 1, 1, INPUT_CHANNEL],
+                            [1, 1, 1, 1]
+                        );
+                        use_weight = Slice(local_weight, 
+                            [kh, kw, 0],
+                            [1, 1, INPUT_CHANNEL],
+                            [1, 1, 1]
+                        );
+                        use_output_parial_sum = Slice(local_output_parial_sum, 
+                            [0],
+                            [INPUT_CHANNEL],
+                            [1]
+                        );
+                        use_output = Slice(local_output_i32, 
+                            [b, oh, ow, 0],
+                            [1, 1, 1, INPUT_CHANNEL],
+                            [1, 1, 1, 1]
+                        );
+                        SIMD(VVMUL, use_input, use_weight, use_output_parial_sum);
+                        // Assume quantify is used -> quantize_local_output_parial_sum
+                        SIMD(VVADD, use_output, quantize_local_output_parial_sum, use_output);
+                    };
+                };
+
+            };
+        };
+    };
+
+    
+}
