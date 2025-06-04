@@ -1,4 +1,4 @@
-from polycim.passes.base import BreadthFirstPass
+from cim_compiler.polycim.passes.base import BreadthFirstPass
 
 
 class FilterSingleOpPass(BreadthFirstPass):

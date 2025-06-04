@@ -3,9 +3,9 @@ import os
 from collections import OrderedDict
 from dataclasses import asdict
 
-from polycim.config import CIMConfig
-from polycim.passes.base import BreadthFirstPass
-from polycim.utils.draw import extract_frame_info
+from cim_compiler.polycim.config import CIMConfig
+from cim_compiler.polycim.passes.base import BreadthFirstPass
+from cim_compiler.polycim.utils.draw import extract_frame_info
 
 
 def dump_schedules(origin_op, new_op, **kwargs):
@@ -46,9 +46,9 @@ def dump_schedules(origin_op, new_op, **kwargs):
     dump_code += '"""\n'
     dump_code += f"import islpy as isl\n"
     dump_code += f"import time\n"
-    dump_code += f"from polycim.op.base_operator import BasicOperator\n"
-    dump_code += f"from polycim.utils.draw import draw, extract_frame_info\n"
-    dump_code += f"from polycim.config import CIMConfig\n"
+    dump_code += f"from cim_compiler.polycim.op.base_operator import BasicOperator\n"
+    dump_code += f"from cim_compiler.polycim.utils.draw import draw, extract_frame_info\n"
+    dump_code += f"from cim_compiler.polycim.config import CIMConfig\n"
 
     cim_config_str = f"""
 cim_cfg = CIMConfig(

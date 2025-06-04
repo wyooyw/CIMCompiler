@@ -1,8 +1,8 @@
 import islpy as isl
 
-import polycim.utils.utils as utils
-from polycim.utils.dominate import get_dominate_iters_of_pw_multi_aff
-from polycim.utils.draw import (
+import cim_compiler.polycim.utils.utils as utils
+from cim_compiler.polycim.utils.dominate import get_dominate_iters_of_pw_multi_aff
+from cim_compiler.polycim.utils.draw import (
     FrameInfo,
     _extract_frame_info,
     extract_frame_info,
@@ -10,7 +10,7 @@ from polycim.utils.draw import (
     extract_val_from_singleton_set,
     get_macro_hash,
 )
-from polycim.utils.utils import get_mpf_lb_up_from_domain
+from cim_compiler.polycim.utils.utils import get_mpf_lb_up_from_domain
 
 
 def count_minimal_needed_macro(op, cim_cfg):

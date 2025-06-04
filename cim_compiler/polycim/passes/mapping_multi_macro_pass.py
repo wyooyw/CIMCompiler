@@ -4,15 +4,15 @@ from typing import Optional
 
 import islpy as isl
 
-import polycim.utils.utils as utils
+import cim_compiler.polycim.utils.utils as utils
 
-# from polycim.passes.mapping_multiple_macro_pass import mapping_multiple_macro
-from polycim.config import CIMConfig
-from polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
-from polycim.passes.loop_padding import loop_padding_dim
-from polycim.utils.dominate import get_non_dominate_iters_of_pw_multi_aff
-from polycim.utils.logger import get_logger
-from polycim.utils.math import get_factors
+# from cim_compiler.polycim.passes.mapping_multiple_macro_pass import mapping_multiple_macro
+from cim_compiler.polycim.config import CIMConfig
+from cim_compiler.polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
+from cim_compiler.polycim.passes.loop_padding import loop_padding_dim
+from cim_compiler.polycim.utils.dominate import get_non_dominate_iters_of_pw_multi_aff
+from cim_compiler.polycim.utils.logger import get_logger
+from cim_compiler.polycim.utils.math import get_factors
 
 logger = get_logger(__name__)
 

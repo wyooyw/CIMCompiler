@@ -1,6 +1,6 @@
 import islpy as isl
 
-import polycim.utils.utils as utils
+import cim_compiler.polycim.utils.utils as utils
 
 
 class AccessRelation:

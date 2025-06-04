@@ -3,17 +3,17 @@ import os
 
 import islpy as isl
 
-import polycim.utils.utils as utils
-from polycim.codegen_.codegen import CodeStmt, alloc_unique_stmt, alloc_unique_var
-from polycim.config import get_config
-from polycim.op.base_operator import (
+import cim_compiler.polycim.utils.utils as utils
+from cim_compiler.polycim.codegen_.codegen import CodeStmt, alloc_unique_stmt, alloc_unique_var
+from cim_compiler.polycim.config import get_config
+from cim_compiler.polycim.op.base_operator import (
     DataMovement,
     DataMovementOperator,
     PartialSumDataMovement,
     TensorAccessRelation,
 )
-from polycim.op.buffer_manager import BufferManager
-from polycim.utils.logger import get_logger, level_tqdm
+from cim_compiler.polycim.op.buffer_manager import BufferManager
+from cim_compiler.polycim.utils.logger import get_logger, level_tqdm
 
 logger = get_logger(__name__)
 

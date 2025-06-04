@@ -1,6 +1,6 @@
 import islpy as isl
 
-from polycim.codegen_.codegen import Codegen, CodeStmt, alloc_unique_var
+from cim_compiler.polycim.codegen_.codegen import Codegen, CodeStmt, alloc_unique_var
 
 
 class CCodeGenerator(Codegen):

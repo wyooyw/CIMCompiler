@@ -1,8 +1,8 @@
 import copy
 import time
 
-from polycim.op.base_operator import Operator
-from polycim.utils.logger import get_logger
+from cim_compiler.polycim.op.base_operator import Operator
+from cim_compiler.polycim.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

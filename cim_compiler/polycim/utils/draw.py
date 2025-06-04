@@ -1,6 +1,6 @@
 import islpy as isl
 
-from polycim.utils.utils import *
+from cim_compiler.polycim.utils.utils import *
 
 
 class FrameInfo:

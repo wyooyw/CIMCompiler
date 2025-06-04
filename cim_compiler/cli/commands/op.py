@@ -1,7 +1,7 @@
-from polycim.cli.common import show_args, to_abs_path
-from polycim.config import get_config, set_raw_config_by_path
-from polycim.op_compiler import parse_op_list, run_cimflow, run_polycim
-from polycim.utils.logger import get_logger
+from cim_compiler.cli.common import show_args, to_abs_path
+from cim_compiler.polycim.config import get_config, set_raw_config_by_path
+from cim_compiler.polycim.op_compiler import parse_op_list, run_cimflow, run_polycim
+from cim_compiler.polycim.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -53,7 +53,7 @@ def run_operator(args):
     num_macros = cim_cfg.n_macro
     enable_weight_rewrite = True
 
-    from polycim.exp.op_list import get_op_list
+    from cim_compiler.polycim.exp.op_list import get_op_list
 
     op_list = get_op_list()
     op_list = {args.op_id: op_list[args.op_id]}

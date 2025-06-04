@@ -2,7 +2,7 @@ import json
 import os
 import subprocess
 
-from polycim.passes.base import BreadthFirstPass
+from cim_compiler.polycim.passes.base import BreadthFirstPass
 
 
 def profile(temp_dir, pimsim_cfg_path, op_name, op_id):

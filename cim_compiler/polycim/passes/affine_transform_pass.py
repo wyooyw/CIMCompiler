@@ -13,10 +13,10 @@ import numpy as np
 import sympy
 from sympy import Matrix
 
-import polycim.utils.mat_utils as inv
-from polycim.op.base_vector import Base
-from polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
-from polycim.passes.loop_padding import loop_padding_to_box_all
+import cim_compiler.polycim.utils.mat_utils as inv
+from cim_compiler.polycim.op.base_vector import Base
+from cim_compiler.polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
+from cim_compiler.polycim.passes.loop_padding import loop_padding_to_box_all
 
 
 def add_constraints_exclude_null_space(base, exclude_null_space_of):

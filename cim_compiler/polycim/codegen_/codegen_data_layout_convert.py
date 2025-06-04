@@ -6,10 +6,10 @@ import time
 import islpy as isl
 import numpy as np
 
-import polycim.utils.utils as utils
-from polycim.codegen_.codegen import CodeStmt
-from polycim.codegen_.codegen_c import CCodeGenerator
-from polycim.utils.logger import get_logger
+import cim_compiler.polycim.utils.utils as utils
+from cim_compiler.polycim.codegen_.codegen import CodeStmt
+from cim_compiler.polycim.codegen_.codegen_c import CCodeGenerator
+from cim_compiler.polycim.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -9,27 +9,27 @@ import islpy as isl
 import numpy as np
 from tqdm import tqdm
 
-import polycim.utils.utils as utils
-from polycim.codegen_.codegen_data_layout_convert import data_layout_convert_codegen
-from polycim.config import CIMConfig, get_memory_sizes
-from polycim.op.base_operator import (
+import cim_compiler.polycim.utils.utils as utils
+from cim_compiler.polycim.codegen_.codegen_data_layout_convert import data_layout_convert_codegen
+from cim_compiler.polycim.config import CIMConfig, get_memory_sizes
+from cim_compiler.polycim.op.base_operator import (
     AccessRelation,
     BasicOperator,
     DataMovement,
     DataMovementOperator,
     PartialSumDataMovement,
 )
-from polycim.op.buffer_manager import BufferManager
-from polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
-from polycim.passes.multi_level_tiling_pass import multi_level_splitting_combination
-from polycim.passes.reorder import reorder_outer
-from polycim.utils.dominate import (
+from cim_compiler.polycim.op.buffer_manager import BufferManager
+from cim_compiler.polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
+from cim_compiler.polycim.passes.multi_level_tiling_pass import multi_level_splitting_combination
+from cim_compiler.polycim.passes.reorder import reorder_outer
+from cim_compiler.polycim.utils.dominate import (
     get_dominate_iters_of_map,
     get_dominate_iters_of_pw_multi_aff_per_out,
     get_non_dominate_iters_of_pw_multi_aff,
 )
-from polycim.utils.logger import get_logger, level_tqdm
-from polycim.utils.utils import (
+from cim_compiler.polycim.utils.logger import get_logger, level_tqdm
+from cim_compiler.polycim.utils.utils import (
     get_box_hull_shape,
     rename_all_dims_for_basic_map,
     rename_all_dims_for_basic_set,

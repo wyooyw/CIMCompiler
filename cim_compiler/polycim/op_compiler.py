@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 
-from polycim.passes import (
+from cim_compiler.polycim.passes import (
     AffinePass,
     BackendCompilePass,
     BufferMappingPass,
@@ -17,8 +17,8 @@ from polycim.passes import (
     UtilizationEvaluatePass,
     VerifyPass,
 )
-from polycim.passes.base import PassManager
-from polycim.utils.logger import get_logger
+from cim_compiler.polycim.passes.base import PassManager
+from cim_compiler.polycim.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

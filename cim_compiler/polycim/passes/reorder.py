@@ -2,7 +2,7 @@ import itertools
 
 import islpy as isl
 
-from polycim.utils.logger import level_tqdm
+from cim_compiler.polycim.utils.logger import level_tqdm
 
 
 def reorder_outer(operator, inner_level):

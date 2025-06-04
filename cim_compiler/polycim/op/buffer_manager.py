@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 import islpy as isl
 
-from polycim.config import get_memory_names
-from polycim.op.base_operator import (
+from cim_compiler.polycim.config import get_memory_names
+from cim_compiler.polycim.op.base_operator import (
     AccessRelation,
     DataMovement,
     PartialSumDataMovement,

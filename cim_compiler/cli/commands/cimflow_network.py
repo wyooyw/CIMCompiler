@@ -10,14 +10,14 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 import math
 from cim_compiler.runner.runner import OpRunner
 
-from polycim.config import (
+from cim_compiler.polycim.config import (
     get_config,
     get_memory_base,
     get_memory_size,
     set_raw_config_by_path,
 )
-from polycim.op import benchmark
-from polycim.op_compiler import run_cimflow
+from cim_compiler.polycim.op import benchmark
+from cim_compiler.polycim.op_compiler import run_cimflow
 
 
 def get_final_code(final_code):

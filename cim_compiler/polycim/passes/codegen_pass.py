@@ -1,8 +1,8 @@
 from typing import Optional
 
-from polycim.codegen_.codegen_cimdsl import codegen_pass
-from polycim.config import CIMConfig
-from polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
+from cim_compiler.polycim.codegen_.codegen_cimdsl import codegen_pass
+from cim_compiler.polycim.config import CIMConfig
+from cim_compiler.polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
 
 
 class CodegenPass(DepthFirstPass):

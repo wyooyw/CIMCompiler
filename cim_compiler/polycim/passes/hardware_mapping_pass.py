@@ -9,11 +9,11 @@ from typing import Optional
 import islpy as isl
 import numpy as np
 
-import polycim.utils.utils as utils
-from polycim.config import CIMConfig
-from polycim.op.base_operator import BasicOperator
-from polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
-from polycim.utils.timeout import timeout
+import cim_compiler.polycim.utils.utils as utils
+from cim_compiler.polycim.config import CIMConfig
+from cim_compiler.polycim.op.base_operator import BasicOperator
+from cim_compiler.polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
+from cim_compiler.polycim.utils.timeout import timeout
 
 
 def get_cim_operator(n_rows, n_cols):

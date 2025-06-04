@@ -2,7 +2,7 @@ import copy
 import json
 from dataclasses import dataclass
 
-from polycim.utils.logger import get_logger
+from cim_compiler.polycim.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

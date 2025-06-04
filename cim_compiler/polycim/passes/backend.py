@@ -4,11 +4,11 @@ import subprocess
 from dataclasses import dataclass
 from multiprocessing import Pool
 
-from polycim.codegen_.codegen_data_layout_convert import (
+from cim_compiler.polycim.codegen_.codegen_data_layout_convert import (
     gcc_compile_data_layout_convert_code,
 )
-from polycim.config import CIMConfig
-from polycim.passes.base import BreadthFirstPass
+from cim_compiler.polycim.config import CIMConfig
+from cim_compiler.polycim.passes.base import BreadthFirstPass
 
 
 def dump_op_basic_info(op, path):

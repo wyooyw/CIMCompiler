@@ -1,8 +1,8 @@
 from collections import OrderedDict
 from functools import partial
 
-import polycim.op.benchmark as benchmark
-from polycim.op.calculate import conv2d, depth_wise_conv2d, depth_wise_conv3d
+import cim_compiler.polycim.op.benchmark as benchmark
+from cim_compiler.polycim.op.calculate import conv2d, depth_wise_conv2d, depth_wise_conv3d
 
 
 def get_op_list():

@@ -1,6 +1,6 @@
 import islpy as isl
 
-from polycim.op.base_operator import BasicOperator
+from cim_compiler.polycim.op.base_operator import BasicOperator
 
 
 def get_op_dwconv2d(ic, oh, ow, kh, kw, stride, dilation, virtual_axis=True):

@@ -2,11 +2,11 @@ from functools import reduce
 
 import islpy as isl
 
-import polycim.utils.utils as utils
-from polycim.config import CIMConfig
-from polycim.passes.base import BreadthFirstPass
-from polycim.utils.count_minimal_macro import count_minimal_needed_macro
-from polycim.utils.timeout import timeout
+import cim_compiler.polycim.utils.utils as utils
+from cim_compiler.polycim.config import CIMConfig
+from cim_compiler.polycim.passes.base import BreadthFirstPass
+from cim_compiler.polycim.utils.count_minimal_macro import count_minimal_needed_macro
+from cim_compiler.polycim.utils.timeout import timeout
 
 
 @timeout(seconds=4)

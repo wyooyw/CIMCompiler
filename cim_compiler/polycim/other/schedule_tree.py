@@ -6,7 +6,7 @@ Try to use schedule tree to implement dwconv to macro mapping
 
 import islpy as isl
 
-from polycim.utils.utils import get_root, pretty_print_schedule_tree
+from cim_compiler.polycim.utils.utils import get_root, pretty_print_schedule_tree
 
 # domain =
 

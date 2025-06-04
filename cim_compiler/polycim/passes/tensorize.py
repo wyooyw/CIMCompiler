@@ -2,16 +2,16 @@ from typing import Optional
 
 import islpy as isl
 
-import polycim.utils.utils as utils
-from polycim.config import CIMConfig
-from polycim.op.base_operator import (
+import cim_compiler.polycim.utils.utils as utils
+from cim_compiler.polycim.config import CIMConfig
+from cim_compiler.polycim.op.base_operator import (
     AccessRelation,
     DataMovement,
     DataMovementOperator,
     PartialSumDataMovement,
     TensorAccessRelation,
 )
-from polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
+from cim_compiler.polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
 
 
 def pwaffs_to_map(affs):
