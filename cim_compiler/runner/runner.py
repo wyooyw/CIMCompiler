@@ -94,7 +94,7 @@ class OpRunner:
             loader=FileSystemLoader([
                 src_folder, 
                 os.environ["CIM_COMPILER_BASE"],
-                os.environ.get(os.environ["CIM_COMPILER_BASE"], "cim_compiler")
+                os.path.join(os.environ["CIM_COMPILER_BASE"], "cim_compiler")
             ]),
             undefined=StrictUndefined
         )
