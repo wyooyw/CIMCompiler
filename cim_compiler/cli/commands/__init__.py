@@ -6,6 +6,12 @@ from cim_compiler.cli.commands.simulate import parse_simulate_args, run_simulate
 from cim_compiler.cli.commands.config import parse_config_args, run_config
 from cim_compiler.cli.commands.cfg_pimsim import parse_cfg_pimsim_args, run_cfg_pimsim
 from cim_compiler.cli.commands.show import parse_show_args, run_show
+from polycim.cli.commands.cimflow_network import (
+    parse_cimflow_network_args,
+    run_cimflow_network,
+)
+from polycim.cli.commands.operator import parse_operator_args, run_operator
+
 
 __all__ = [
     "parse_convert_args", 
@@ -21,5 +27,9 @@ __all__ = [
     "parse_show_args",
     "run_show",
     "parse_multi_core_simulate_args",
-    "run_multi_core_simulate"
+    "run_multi_core_simulate",
+    "parse_operator_args",
+    "run_operator",
+    "parse_cimflow_network_args",
+    "run_cimflow_network",
 ]

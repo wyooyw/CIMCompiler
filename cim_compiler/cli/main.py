@@ -28,6 +28,8 @@ def parse_args():
     parse_cfg_pimsim_args(subparsers)
     parse_show_args(subparsers)
     parse_multi_core_simulate_args(subparsers)
+    parse_operator_args(subparsers)
+    parse_cimflow_network_args(subparsers)
     args = parser.parse_args()
     return args
 
@@ -47,6 +49,10 @@ def main():
         run_show(args)
     elif args.command == "multi-core-simulate":
         run_multi_core_simulate(args)
+    elif args.command == "op":
+        run_operator(args)
+    elif args.command == "cimflow_network":
+        run_cimflow_network(args)
     else:
         raise ValueError(f"Invalid command: {args.command}")
 
