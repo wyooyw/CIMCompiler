@@ -43,7 +43,7 @@ def main(){
         Trans(use_global_input_2, local_input_2);
         SIMD(RESADD_QUANTIZE, local_input_1, local_input_2, local_bias_scale, local_out_zp, local_output);
         Trans(local_output, use_global_output);
-    }
+    };
     // Trans(local_output, global_output);
 
 }

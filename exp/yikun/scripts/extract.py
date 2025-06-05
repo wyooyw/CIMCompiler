@@ -10,11 +10,13 @@ def extract_values_from_log(log_path):
         'is_value_sparse': None,
         'config': None,
         'model_name': None,
-        'macro_count': None
+        'macro_count': None,
+        'mode_name': None
     }
     
     # Define the patterns to search for in the log file
     patterns = {
+        'mode_name': r'mode_name=\'(.+)\'',
         'model_name': r'model_name=\'(.+)\'',
         'model_path': r'model_path=(.+)',
         'is_bit_sparse': r'is_bit_sparse=(.+)',
@@ -49,9 +51,12 @@ def extract_values_from_log(log_path):
 def build_directory_mapping(base_dir):
     # Initialize the main dictionary to store the mapping
     directory_mapping = {}
-    
+    dirs = os.listdir(base_dir)
+    dirs.sort()
+    dirs = dirs[::-1]
+    visited = set()
     # Iterate over each subdirectory in the base directory
-    for subdir in os.listdir(base_dir):
+    for subdir in dirs:
         subdir_path = os.path.join(base_dir, subdir)
         
         # Check if the path is a directory
@@ -62,6 +67,12 @@ def build_directory_mapping(base_dir):
             if os.path.exists(log_path):
                 # Extract values from the log file
                 values = extract_values_from_log(log_path)
+                visited_key = tuple(values.items())
+                if visited_key in visited:
+                    continue
+                if any(values[key] is None for key in values):
+                    continue
+                visited.add(visited_key)
                 
                 # Map the subdirectory name to the extracted values
                 directory_mapping[subdir] = values
@@ -70,11 +81,15 @@ def build_directory_mapping(base_dir):
 
 # Define the base directory
 base_directory = '.result'
-out_dir = 'wyk_result'
+out_dir = 'exp_result/2025-05-15-1223-opt-reg'
 
 # Build the directory mapping
 mapping = build_directory_mapping(base_directory)
-
+import json
+print(json.dumps(mapping, indent=4))
+for item in mapping.values():
+    print(item['model_name'], item['mode_name'])
+import pdb; pdb.set_trace()
 # Print the mapping
 for dir_name, values in mapping.items():
     print(f"Directory: {dir_name}")
@@ -82,9 +97,18 @@ for dir_name, values in mapping.items():
         print(f"  {key}: {value}")
 from tqdm import tqdm
 for dir_name, values in tqdm(mapping.items()):
-    dense_name = 'dense' if values['is_bit_sparse'] == 'False' else 'bit_sparse'
-    src_dir = os.path.join(base_directory, dir_name, values['model_name'], dense_name)
-    dst_dir = os.path.join(out_dir, dense_name, str(values['macro_count']), values['model_name'])
+    # if values['is_bit_sparse'] == 'True' and values['is_value_sparse'] == 'True':
+    #     dense_name = 'bit_value_sparse_0.6'
+    # elif values['is_bit_sparse'] == 'True':
+    #     dense_name = 'bit_sparse'
+    # elif values['is_value_sparse'] == 'True':
+    #     dense_name = 'value_sparse'
+    # else:
+    #     dense_name = 'dense'
+    mode_name = values['mode_name']
+    # dense_name = 'dense' if values['is_bit_sparse'] == 'False' else 'bit_sparse'
+    src_dir = os.path.join(base_directory, dir_name, values['model_name'], mode_name)
+    dst_dir = os.path.join(out_dir, values['model_name'], mode_name)
     
     # Ensure the destination directory exists
     os.makedirs(dst_dir, exist_ok=True)

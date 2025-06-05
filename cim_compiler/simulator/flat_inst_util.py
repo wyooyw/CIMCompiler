@@ -5,7 +5,7 @@ from enum import Enum
 
 import numpy as np
 from cim_compiler.simulator.inst.instruction import *
-from cim_compiler.simulator.inst import CIMFlowDumper
+from cim_compiler.simulator.inst import CIMFlowDumper, LegacyDumper
 
 class SpecialReg(Enum):
 
@@ -30,11 +30,19 @@ class SpecialReg(Enum):
     SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_1 = 21
     SPECIAL_REG_SIMD_EXTRA_INPUT_ADDR_2 = 22
 
+@dataclass
+class GRegInfo:
+    reg_id: int
+    access_time: int
+    last_access_time: int
 
 class FlatInstUtil:
     def __init__(self, general_rf, special_rf):
         self.general_rf = general_rf
         self.special_rf = special_rf
+
+        self.value_to_greg = {}
+        self.free_greg = set(range(32))
 
         self.flat_general_rf = np.zeros([64], dtype=np.int32)
         self.flat_special_rf = np.zeros([32], dtype=np.int32)
@@ -104,6 +112,59 @@ class FlatInstUtil:
             #     )
         return inst
 
+    def _load_general_regs_local_optimize(self, inst, regs_name, inst_cnt):
+        assert type(regs_name) == list, str(regs_name)
+        assert all(isinstance(reg_name, str) for reg_name in regs_name), str(regs_name)
+        inst = copy.deepcopy(inst)
+        # assert type(regs) == list
+        alloc_reg_ids = set()
+        for _,reg_name in enumerate(regs_name):
+            reg_id = getattr(inst, reg_name)
+            reg_val = int(self.general_rf[reg_id])
+            need_li = None
+
+            if reg_val in self.value_to_greg:
+                self.value_to_greg[reg_val].access_time += 1
+                self.value_to_greg[reg_val].last_access_time = inst_cnt
+                alloc_reg_id = self.value_to_greg[reg_val].reg_id
+                # print("reuse reg ", alloc_reg_id, " for value ", reg_val)
+                need_li = False
+            elif len(self.free_greg) > 0:
+                # 直接分配新寄存器
+                alloc_reg_id = self.free_greg.pop()
+                self.value_to_greg[reg_val] = GRegInfo(alloc_reg_id, 1, inst_cnt)
+                # print("new reg ", alloc_reg_id, " for value ", reg_val)
+                need_li = True
+            else:
+                # 替换掉已有寄存器
+                # find reg with least access time
+                kill_reg_info = None
+                kill_reg_val = None
+                for _reg_val, _reg_info in self.value_to_greg.items():
+                    if _reg_info.reg_id in alloc_reg_ids:
+                        continue
+                    if ( kill_reg_info is None or 
+                        (_reg_info.access_time < kill_reg_info.access_time) or
+                        (_reg_info.access_time == kill_reg_info.access_time and _reg_info.last_access_time < kill_reg_info.last_access_time)
+                    ):
+                        kill_reg_info = _reg_info
+                        kill_reg_val = _reg_val
+
+                assert kill_reg_info is not None
+                alloc_reg_id = kill_reg_info.reg_id
+                self.value_to_greg[reg_val] = GRegInfo(alloc_reg_id, 1, inst_cnt)
+                # print("replace reg ", alloc_reg_id, " for value ", reg_val)
+                if kill_reg_val!=reg_val:
+                    del self.value_to_greg[kill_reg_val]
+                need_li = True
+            if need_li:
+                self.flat_inst_list.append(
+                    self._li_general_inst(alloc_reg_id, reg_val)
+                )
+            setattr(inst, reg_name, alloc_reg_id)
+            alloc_reg_ids.add(alloc_reg_id)
+        return inst
+
     def _load_special_regs(self, regs):
         """
         专用寄存器立即数赋值指令：special-li
@@ -161,11 +222,11 @@ class FlatInstUtil:
             ), f"Unsupported instruction type: {type(inst)}"
 
     def _flat_trans(self, inst, idx):
-        inst = self._load_general_regs_local(inst, ["reg_in", "reg_size", "reg_out"], idx)
+        inst = self._load_general_regs_local_optimize(inst, ["reg_in", "reg_size", "reg_out"], idx)
         self.flat_inst_list.append(inst)
 
     def _flat_pim_compute(self, inst, idx):
-        inst = self._load_general_regs_local(inst, ["reg_input_addr", "reg_input_size", "reg_activate_row"], idx)
+        inst = self._load_general_regs_local_optimize(inst, ["reg_input_addr", "reg_input_size", "reg_activate_row"], idx)
         self._load_special_regs(
             [
                 SpecialReg.INPUT_BIT_WIDTH,
@@ -182,12 +243,12 @@ class FlatInstUtil:
         self.flat_inst_list.append(inst)
 
     def _flat_pim_set(self, inst, idx):
-        inst = self._load_general_regs_local(inst, ["reg_single_group_id", "reg_mask_addr"], idx)
+        inst = self._load_general_regs_local_optimize(inst, ["reg_single_group_id", "reg_mask_addr"], idx)
         self._load_special_regs([SpecialReg.WEIGHT_BIT_WIDTH, SpecialReg.GROUP_SIZE])
         self.flat_inst_list.append(inst)
 
     def _flat_simd(self, inst, idx):
-        inst = self._load_general_regs_local(inst, ["reg_in1", "reg_in2", "reg_size", "reg_out"], idx)
+        inst = self._load_general_regs_local_optimize(inst, ["reg_in1", "reg_in2", "reg_size", "reg_out"], idx)
         self._load_special_regs(
             [
                 SpecialReg.SIMD_INPUT_1_BIT_WIDTH,
@@ -212,15 +273,15 @@ class FlatInstUtil:
         self.flat_inst_list.append(inst)
 
     def _flat_send(self, inst, idx):
-        inst = self._load_general_regs_local(inst, ["reg_src_addr", "reg_size", "reg_dst_core", "reg_dst_addr", "reg_transfer_id"], idx)
+        inst = self._load_general_regs_local_optimize(inst, ["reg_src_addr", "reg_size", "reg_dst_core", "reg_dst_addr", "reg_transfer_id"], idx)
         self.flat_inst_list.append(inst)
 
     def _flat_recv(self, inst, idx):
-        inst = self._load_general_regs_local(inst, ["reg_dst_addr", "reg_size", "reg_src_core", "reg_src_addr", "reg_transfer_id"], idx)
+        inst = self._load_general_regs_local_optimize(inst, ["reg_dst_addr", "reg_size", "reg_src_core", "reg_src_addr", "reg_transfer_id"], idx)
         self.flat_inst_list.append(inst)
 
     def _flat_pim_output(self, inst, idx):
-        inst = self._load_general_regs_local(inst, ["reg_out_n", "reg_out_mask_addr", "reg_out_addr"], idx)
+        inst = self._load_general_regs_local_optimize(inst, ["reg_out_n", "reg_out_mask_addr", "reg_out_addr"], idx)
         self._load_special_regs(
             [
                 SpecialReg.WEIGHT_BIT_WIDTH,
@@ -232,7 +293,7 @@ class FlatInstUtil:
         self.flat_inst_list.append(inst)
 
     def _flat_pim_transfer(self, inst, idx):
-        inst = self._load_general_regs_local(inst, ["reg_src_addr", "reg_out_n", "reg_out_mask_addr", "reg_buffer_addr", "reg_dst_addr"], idx)
+        inst = self._load_general_regs_local_optimize(inst, ["reg_src_addr", "reg_out_n", "reg_out_mask_addr", "reg_buffer_addr", "reg_dst_addr"], idx)
         self._load_special_regs([SpecialReg.OUTPUT_BIT_WIDTH])
         self.flat_inst_list.append(inst)
 
@@ -252,6 +313,8 @@ class FlatInstUtil:
         #             f.write(",")
         #         f.write("\n")
         #     f.write("]\n")
-        dumper = CIMFlowDumper()
-        dumper.dump_to_file(self.flat_inst_list, file_path, core_id=0)
+        # dumper = CIMFlowDumper()
+        # dumper.dump_to_file(self.flat_inst_list, file_path, core_id=0)
+        dumper = LegacyDumper()
+        dumper.dump_to_file(self.flat_inst_list, file_path, core_id=None)
         print("Flatten code saved to", file_path)

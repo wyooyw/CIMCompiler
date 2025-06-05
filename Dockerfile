@@ -88,5 +88,6 @@ RUN mkdir /var/run/sshd && \
     sed -i 's@session required pam_loginuid.so@session optional pam_loginuid.so@g' /etc/pam.d/sshd && \
     /usr/sbin/sshd
 
-# islpy
-RUN pip install islpy==2023.2.5 sympy==1.11.1
+# for polycim
+RUN pip install islpy==2023.2.5 sympy==1.11.1 gurobipy==12.0.1
+RUN apt-get install -y libeigen3-dev
