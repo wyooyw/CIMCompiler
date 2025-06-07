@@ -657,8 +657,8 @@ def get_macro_5d_hardware_tiling_schedule(op, software_schedule, cim_cfg):
     n_reduce = cim_cfg.n_comp * cim_cfg.n_row * n_igroup
     tile_domain_iters = keep_iters + ["h0", "h1", "h2"]
     tile_range_iters = keep_iters + [
-        f"floor(floor(h0/{cim_cfg.n_comp}) / {cim_cfg.n_row}) % {n_igroup}",  # igroup
-        f"floor(h0/{cim_cfg.n_comp}) % {cim_cfg.n_row}",  # row
+        f"floor(h0/{cim_cfg.n_comp}) % {n_igroup}",  # igroup
+        f"floor(floor(h0/{cim_cfg.n_comp})/{n_igroup}) % {cim_cfg.n_row}",  # row
         f"h0 % {cim_cfg.n_comp}",  # comp
         f"h1 % {cim_cfg.n_group_vcol}",  # col
         f"floor(h2 / {n_ogroup})",  # time1
