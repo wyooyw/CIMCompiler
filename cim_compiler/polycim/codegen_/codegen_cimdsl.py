@@ -97,8 +97,13 @@ class CodeGenerator:
             for name, info in buffer_name_to_info.items()
             if info.memory_name == "global"
         }
-        assert len(global_buffer_info) == 3, f"{global_buffer_info=}"
-        for t in ["I", "W", "O"]:
+        # assert len(global_buffer_info) == 3, f"{global_buffer_info=}"
+        if len(global_buffer_info) != 3:
+            logger.warning(f"Expect 3 global buffers, but got {global_buffer_info=}")
+        elif not ("I" in global_buffer_info and "W" in global_buffer_info and "O" in global_buffer_info):
+            logger.warning(f"Expect I, W, O in global buffers, but got {global_buffer_info=}")
+        
+        for t in global_buffer_info.keys():
             buf_info = global_buffer_info[t]
             shape_str = ",".join([str(s) for s in buf_info.shape])
             memory_name_big = "__" + buf_info.memory_name.upper() + "__"
