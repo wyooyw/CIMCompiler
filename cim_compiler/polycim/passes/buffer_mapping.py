@@ -1414,7 +1414,7 @@ def memory_access_satisfy_constraint(op):
 
     # keep space for zero-scalar(4 byte) in input_memory
     # TODO: Too hack here, need to fix in the future.
-    buffer_type_to_size["input_memory"] -= 4
+    # buffer_type_to_size["input_memory"] -= 4
 
 
     satisfy = True
@@ -1585,10 +1585,13 @@ def buffer_strategy_combination(op, n_macro_iters):
     n_dim = op.domain.dim(isl.dim_type.set)
 
     # Memory names are fixed
-    input_memory_names = ["global", "input_memory", "cim_input_reg_buffer"]
-    output_memory_names = ["global", "output_memory", "cim_output_reg_buffer"]
-    # output_memory_names = ["global", "output_memory", "output_memory", "cim_output_reg_buffer"]
-    weight_memory_names = ["global", "macro"]
+    # input_memory_names = ["global", "input_memory", "cim_input_reg_buffer"]
+    # output_memory_names = ["global", "output_memory", "cim_output_reg_buffer"]
+    # weight_memory_names = ["global", "macro"]
+
+    input_memory_names = ["input_memory", "cim_input_reg_buffer"]
+    output_memory_names = ["output_memory", "cim_output_reg_buffer"]
+    weight_memory_names = ["macro"]
 
     # Tiling
     fix_axis = [n_dim - i - 1 for i in range(n_macro_iters)]
@@ -1609,26 +1612,27 @@ def buffer_strategy_combination(op, n_macro_iters):
             I_buffer_level_list = buffer_level_combination(
                 op_reordered,
                 "I",
-                2,
+                1,
                 level_min=0,
                 level_max=new_n_dim - n_macro_iters + 1,
                 force_max=True
             )
-            W_buffer_level_list = buffer_level_combination(
-                op_reordered, "W", 1, level_min=0, level_max=new_n_dim - n_macro_iters
-            )
+            # W_buffer_level_list = buffer_level_combination(
+            #     op_reordered, "W", 1, level_min=0, level_max=new_n_dim - n_macro_iters
+            # )
             O_buffer_level_list = buffer_level_combination(
-                op_reordered, "O", 2, level_min=0, level_max=new_n_dim - n_macro_iters,
+                op_reordered, "O", 1, level_min=0, level_max=new_n_dim - n_macro_iters,
                 force_max=True
             )
 
             shape = utils.get_box_hull_shape(op_reordered.domain)
             # Conbine
-            weight_buffer_level = (W_buffer_level_list[-1][0],)
+            # weight_buffer_level = (W_buffer_level_list[-1][0],)
+            weight_buffer_level = tuple()
             buffer_level_combines = list(
                 itertools.product(I_buffer_level_list, O_buffer_level_list)
             )
-            # import pdb; pdb.set_trace()
+
             for i_buffer_level, (input_buffer_level, output_buffer_level) in enumerate(
                 buffer_level_combines
             ):
@@ -1705,7 +1709,7 @@ def buffer_strategy_combination(op, n_macro_iters):
                 if any(
                     [
                         not (
-                            output_buffer_level[0] <= i and i <= output_buffer_level[1]
+                            i <= output_buffer_level[0]
                         )
                         for i in share_output_iters_time
                     ]
@@ -1727,23 +1731,23 @@ def buffer_strategy_combination(op, n_macro_iters):
                 ), f"{share_output_iters_time=}"
                 share_output_iters_time = sorted(share_output_iters_time)
                 new_output_buffer_level = [
-                    output_buffer_level[0],
+                    # output_buffer_level[0],
                     *share_output_iters_time,
-                    output_buffer_level[1],
+                    output_buffer_level[0],
                 ]
-                new_output_buffer_reduce_level = [None, *reduce_levels, None]
+                new_output_buffer_reduce_level = [*reduce_levels, None]
                 new_output_is_partial_sum = [
-                    False,
+                    # False,
                     *([True] * len(share_output_iters_time)),
                     # *([True] * len(share_output_iters_group)),
                     False,
                 ]
                 new_output_memory_names = [
-                    output_memory_names[0],
+                    # output_memory_names[0],
                     *(["output_memory"] * (len(share_output_iters_time))),
                     # *(["output_memory"] * (len(share_output_iters_group))),
+                    output_memory_names[0],
                     output_memory_names[1],
-                    output_memory_names[2],
                 ]
                 # import pdb; pdb.set_trace()
 
@@ -1805,13 +1809,16 @@ def multi_level_buffer_insersion(op, n_macro_iters, buffer_strategy):
         ],
         reduce_levels=buffer_strategy.output_reduce_level,
     )
-    new_op, layout_convert_code_W = insert_single_buffer_multi_level(
-        op=new_op,
-        buffer_name="W",
-        buffer_levels=buffer_strategy.weight_buffer_level,
-        memory_names=buffer_strategy.weight_memory_names,
-        force_inner_level=n_macro_iters,
-    )
+    if buffer_strategy.weight_buffer_level is not None:
+        new_op, layout_convert_code_W = insert_single_buffer_multi_level(
+            op=new_op,
+            buffer_name="W",
+            buffer_levels=buffer_strategy.weight_buffer_level,
+            memory_names=buffer_strategy.weight_memory_names,
+            force_inner_level=n_macro_iters,
+        )
+    else:
+        layout_convert_code_W = None
     new_op = new_op.convex_hull()
     new_op.attr["n_tensorize_cim_compute_level"] = n_macro_iters - 1
 
