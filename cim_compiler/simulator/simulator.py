@@ -1493,7 +1493,8 @@ class Simulator:
 
         elif opcode==9:
             # Compute
-            scalar = input2_data[0]
+            # scalar = input2_data[0]
+            scalar = 0
             output_data = np.full(input_size, scalar, dtype=output_dtype)
         elif opcode == 14: # VS_DIV
             output_data = (
