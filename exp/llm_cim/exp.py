@@ -49,12 +49,7 @@ def main():
     save_list = []
     for seqlen_out in tqdm([1, 16, 32, 64, 128, 256, 512, 1024]):
         seqlen = seqlen_in + seqlen_out - 1
-        if seqlen <= 1024:
-            mapping_cp_sizes = [1, 4]
-        elif seqlen <= 2048:
-            mapping_cp_sizes = [2, 2, 4]
-        else:
-            assert False, f"seqlen {seqlen} is too large"
+        mapping_cp_sizes = [1, 4]
         run_exp_model(model_name, seqlen, mapping_cp_sizes)
         save_list.append(f"result/{model_name}_{seqlen}")
     # create a tar file for all the result
