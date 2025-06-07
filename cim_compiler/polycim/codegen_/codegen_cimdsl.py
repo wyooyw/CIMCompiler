@@ -466,7 +466,7 @@ class CodeGenerator:
         )
         zero_scalar_var = "zero_scalar_buffer"
         clear_code = CodeStmt(
-            code=f"SIMD(VSET, {slice_var_O}, {zero_scalar_var}, {slice_var_O});",
+            code=f"SIMD(VSET, {slice_var_O}, {slice_var_O}, {slice_var_O});",
             depth=depth,
         )
         return [*code_list_O, clear_code]
@@ -653,7 +653,7 @@ class CodeGenerator:
             + special_reg_settings
             # + cimset_code_list
             + buffer_define_code_list
-            + const_buffer_define_code_list
+            # + const_buffer_define_code_list
             + execute_code_list
             + main_end
         ):
