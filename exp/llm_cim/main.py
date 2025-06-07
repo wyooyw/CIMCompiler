@@ -91,7 +91,7 @@ def main():
 
     if args.save_dir is None:
         args.save_dir = f"result/{args.name_prefix}_{datetime_str}"
-        print(f"Save directory: {args.save_dir}")
+    print(f"Save directory: {args.save_dir}")
     
     # Your main code logic here
     if args.debug:
@@ -140,6 +140,7 @@ def _main_impl(args):
     # attention
     remain_head = args.n_head
     for i, cp_size in enumerate(args.mapping_cp_sizes):
+        assert math.ceil(args.seqlen / cp_size) <= 4096, "seqlen on one core must <= 4096"
         # assert args.seqlen // cp_size == 1024, "seqlen on one core must be 1024"
         n_head_this_round = args.world_size // cp_size
         n_head_this_round = min(n_head_this_round, remain_head)
