@@ -27,7 +27,13 @@ def run_single_exp(n_head, hidden_size, seqlen, mapping_cp_sizes, world_size, co
 def run_exp_model(model_name, seqlen, mapping_cp_sizes):
     config_path = "/app/CIMCompiler/CIMCompiler/test/op/llm/config.json"
     world_size = 32
-    if model_name == "opt_6b7":
+    if model_name == "opt_350m":
+        n_head = 16
+        hidden_size = 1024
+    elif model_name == "opt_1b3":
+        n_head = 32
+        hidden_size = 2048
+    elif model_name == "opt_6b7":
         n_head = 32
         hidden_size = 4096
     elif model_name == "opt_13b":
@@ -58,30 +64,39 @@ def main():
         print(f"{i}:  {path}")
 
 def main2():
-    seqlen_in = 512
-    seqlen_out = 32
-    seqlen = seqlen_in + seqlen_out - 1
-    save_list = []
+    for seqlen_in, seqlen_out in [(256, 64), (256, 512)]:
+        seqlen = seqlen_in + seqlen_out - 1
+        save_list = []
 
-    model_name = "opt_6b7"
-    mapping_cp_sizes = [1]
-    run_exp_model(model_name, seqlen, mapping_cp_sizes)
-    save_list.append(f"result/{model_name}_{seqlen}")
+        model_name = "opt_350m"
+        mapping_cp_sizes = [2]
+        run_exp_model(model_name, seqlen, mapping_cp_sizes)
+        save_list.append(f"result/{model_name}_{seqlen}")
 
-    model_name = "opt_13b"
-    mapping_cp_sizes = [1, 4]
-    run_exp_model(model_name, seqlen, mapping_cp_sizes)
-    save_list.append(f"result/{model_name}_{seqlen}")
+        model_name = "opt_1b3"
+        mapping_cp_sizes = [1]
+        run_exp_model(model_name, seqlen, mapping_cp_sizes)
+        save_list.append(f"result/{model_name}_{seqlen}")
 
-    model_name = "opt_30b"
-    mapping_cp_sizes = [1, 2, 4]
-    run_exp_model(model_name, seqlen, mapping_cp_sizes)
-    save_list.append(f"result/{model_name}_{seqlen}")
+        model_name = "opt_6b7"
+        mapping_cp_sizes = [1]
+        run_exp_model(model_name, seqlen, mapping_cp_sizes)
+        save_list.append(f"result/{model_name}_{seqlen}")
 
-    # create a tar file for all the result
-    print("Save to:")
-    for i, path in enumerate(save_list):
-        print(f"{i}:  {path}")
+        model_name = "opt_13b"
+        mapping_cp_sizes = [1, 4]
+        run_exp_model(model_name, seqlen, mapping_cp_sizes)
+        save_list.append(f"result/{model_name}_{seqlen}")
+
+        model_name = "opt_30b"
+        mapping_cp_sizes = [1, 2, 4]
+        run_exp_model(model_name, seqlen, mapping_cp_sizes)
+        save_list.append(f"result/{model_name}_{seqlen}")
+
+        # create a tar file for all the result
+        print("Save to:")
+        for i, path in enumerate(save_list):
+            print(f"{i}:  {path}")
 
 if __name__ == "__main__":
     main2()
