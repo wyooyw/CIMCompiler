@@ -35,7 +35,7 @@ def main(){
     {% set window_size = ker_hw * ker_hw * in_channel %}
 
     cim_input_reg_buffer = Buffer(<{{macro_config.n_group}},{{macro_config.n_comp}}>, int8, __CIM_INPUT_REG_BUFFER__);
-    cim_output_reg_buffer = Buffer(<{{macro_config.n_group}}, {{macro_config.n_group_vcol // 4}}>, int32, __CIM_OUTPUT_REG_BUFFER__);
+    cim_output_reg_buffer = Buffer(<{{macro_config.n_group}}, {{macro_config.n_group_vcol}}>, int32, __CIM_OUTPUT_REG_BUFFER__);
 
     for i_batch in range({{batch}}) carry () {
         @unroll
@@ -94,8 +94,8 @@ def main(){
                                 i_height = i_hw / {{ker_hw}};
                                 use_input = input[
                                     i_batch, 
-                                    out_h * {{stride}} + i_width, 
-                                    out_w * {{stride}} + i_height, 
+                                    out_h * {{stride}} + i_height, 
+                                    out_w * {{stride}} + i_width, 
                                     :
                                 ];
                                 use_input_reg_buffer = cim_input_reg_buffer[
