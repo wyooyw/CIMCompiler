@@ -100,7 +100,7 @@ def load_input_case_2(
     };
 }
 
-def load_input_case_3(
+def load_input(
     input< <-1,-1,-1,-1>, int8, __ANY__>,
     cim_input_reg_buffer< <-1,-1>, int8, __ANY__>,
     i_batch<index>,
@@ -175,33 +175,13 @@ def main(){
             @unroll
             for i_inner in range(0, {{math.ceil(window_size / (n_reduce_group * macro_config.n_comp))}}) carry () {
                 // step 1: load input
-                {% if (in_channel % macro_config.n_comp) == 0 %}
-                    // case 1： in_channel % macro_config.n_comp == 0
-                    load_input_case_1(
-                        input,
-                        cim_input_reg_buffer,
-                        i_batch,
-                        i_outer,
-                        i_inner
-                    );
-                {% elif (macro_config.n_comp % in_channel) == 0 %}
-                    // case 2： macro_config.n_comp % in_channel == 0
-                    load_input_case_2(
-                        input,
-                        cim_input_reg_buffer,
-                        i_batch,
-                        i_outer,
-                        i_inner
-                    );                    
-                {% else %}
-                    load_input_case_3(
-                        input,
-                        cim_input_reg_buffer,
-                        i_batch,
-                        i_outer,
-                        i_inner
-                    );    
-                {% endif %}
+                load_input(
+                    input,
+                    cim_input_reg_buffer,
+                    i_batch,
+                    i_outer,
+                    i_inner
+                );    
 
                 // step 2: compute
                 CIMComputeDense(cim_input_reg_buffer, macros[i_inner, :, :, :]);
