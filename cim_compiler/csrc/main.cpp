@@ -148,6 +148,13 @@ int main(int argc, char **argv) {
   mlir::PassManager unroll_passes(&context);
   unroll_passes.addPass(cim::createLoopUnrollPass());
   unroll_passes.addPass(mlir::createCanonicalizerPass());
+  unroll_passes.addPass(cim::createLoopUnrollPass());
+  unroll_passes.addPass(mlir::createCanonicalizerPass());
+  unroll_passes.addPass(mlir::createLoopInvariantCodeMotionPass());
+  unroll_passes.addPass(mlir::cim::createCommonSubexpressionExposePass());
+  mlir::OpPassManager &unroll_cse_passes = unroll_passes.nest<mlir::func::FuncOp>();
+  unroll_cse_passes.addPass(mlir::createCSEPass());
+  unroll_passes.addPass(mlir::createCanonicalizerPass());
 
   mlir::PassManager rr2ri_passes(&context);
   rr2ri_passes.addPass(mlir::cim::createRR2RIPass());
