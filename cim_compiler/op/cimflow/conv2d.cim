@@ -1,6 +1,7 @@
 {% include 'op/common/def_special_regs.cim' %}
 {% include 'op/common/simd.cim' %}
 
+{% set window_size = ker_hw * ker_hw * in_channel %}
 
 def set_special_regs(){
     SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
@@ -14,6 +15,82 @@ def set_special_regs(){
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
     SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
     SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+}
+
+def load_input_case_1(
+    input< <-1,-1,-1,-1>, int8, __ANY__>,
+    cim_input_reg_buffer< <-1,-1>, int8, __ANY__>,
+    i_batch<index>,
+    i_outer<index>,
+    i_inner<index>
+) {
+    @unroll
+    for i_outer_group in range({{n_weight_duplicate_group}}) carry () {
+        out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
+        out_h = out_hw / {{out_hw}};
+        out_w = out_hw % {{out_hw}};
+        
+        @unroll
+        for i_inner_group in range({{n_reduce_group}}) carry () {
+            i_group = i_outer_group * {{n_reduce_group}} + i_inner_group;
+            i_reduce_begin = (i_inner * {{n_reduce_group}} * {{macro_config.n_comp}}) + (i_inner_group * {{macro_config.n_comp}});
+            i_reduce_end = Min(i_reduce_begin + {{macro_config.n_comp}}, {{window_size}});
+            i_reduce_begin_channel = i_reduce_begin % {{in_channel}};
+            i_reduce_end_channel = i_reduce_begin_channel + {{macro_config.n_comp}};
+            i_reduce_hw = i_reduce_begin / {{in_channel}};
+            i_reduce_width = i_reduce_hw % {{ker_hw}};
+            i_reduce_height = i_reduce_hw / {{ker_hw}};
+            use_input = input[
+                i_batch, 
+                out_h * {{stride}} + i_reduce_height, 
+                out_w * {{stride}} + i_reduce_width, 
+                i_reduce_begin_channel:i_reduce_end_channel
+            ];
+            use_input_reg_buffer = cim_input_reg_buffer[i_group, :];
+            Trans(use_input, use_input_reg_buffer);
+        };
+    };
+}
+
+def load_input_case_2(
+    input< <-1,-1,-1,-1>, int8, __ANY__>,
+    cim_input_reg_buffer< <-1,-1>, int8, __ANY__>,
+    i_batch<index>,
+    i_outer<index>,
+    i_inner<index>
+) {
+    @unroll
+    for i_outer_group in range({{n_weight_duplicate_group}}) carry () {
+        out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
+        out_h = out_hw / {{out_hw}};
+        out_w = out_hw % {{out_hw}};
+        
+        @unroll
+        for i_inner_group in range({{n_reduce_group}}) carry () {
+            i_group = i_outer_group * {{n_reduce_group}} + i_inner_group;
+
+            i_reduce_base = (i_inner * {{n_reduce_group}} * {{macro_config.n_comp}}) + (i_inner_group * {{macro_config.n_comp}});
+
+            @unroll
+            for i_pixel_in_comp in range({{macro_config.n_comp // in_channel}}) carry () {
+                i_reduce = i_reduce_base + (i_pixel_in_comp * {{in_channel}});
+                i_hw = i_reduce / {{in_channel}};
+                i_width = i_hw % {{ker_hw}};
+                i_height = i_hw / {{ker_hw}};
+                use_input = input[
+                    i_batch, 
+                    out_h * {{stride}} + i_height, 
+                    out_w * {{stride}} + i_width, 
+                    :
+                ];
+                use_input_reg_buffer = cim_input_reg_buffer[
+                    i_group, 
+                    i_pixel_in_comp * {{in_channel}} : (i_pixel_in_comp + 1) * {{in_channel}}
+                ];
+                Trans(use_input, use_input_reg_buffer);
+            };
+        };
+    };
 }
 
 def main(){
@@ -31,8 +108,7 @@ def main(){
         Trans(input_global, input);
         Trans(macros_global, macros);
     {% endif %}
-    
-    {% set window_size = ker_hw * ker_hw * in_channel %}
+
 
     cim_input_reg_buffer = Buffer(<{{macro_config.n_group}},{{macro_config.n_comp}}>, int8, __CIM_INPUT_REG_BUFFER__);
     cim_output_reg_buffer = Buffer(<{{macro_config.n_group}}, {{macro_config.n_group_vcol}}>, int32, __CIM_OUTPUT_REG_BUFFER__);
@@ -45,67 +121,22 @@ def main(){
                 // step 1: load input
                 {% if (in_channel % macro_config.n_comp) == 0 %}
                     // case 1： in_channel % macro_config.n_comp == 0
-                    @unroll
-                    for i_outer_group in range({{n_weight_duplicate_group}}) carry () {
-                        out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
-                        out_h = out_hw / {{out_hw}};
-                        out_w = out_hw % {{out_hw}};
-                        
-                        @unroll
-                        for i_inner_group in range({{n_reduce_group}}) carry () {
-                            i_group = i_outer_group * {{n_reduce_group}} + i_inner_group;
-                            i_reduce_begin = (i_inner * {{n_reduce_group}} * {{macro_config.n_comp}}) + (i_inner_group * {{macro_config.n_comp}});
-                            i_reduce_end = Min(i_reduce_begin + {{macro_config.n_comp}}, {{window_size}});
-                            i_reduce_begin_channel = i_reduce_begin % {{in_channel}};
-                            i_reduce_end_channel = i_reduce_begin_channel + {{macro_config.n_comp}};
-                            i_reduce_hw = i_reduce_begin / {{in_channel}};
-                            i_reduce_width = i_reduce_hw % {{ker_hw}};
-                            i_reduce_height = i_reduce_hw / {{ker_hw}};
-                            use_input = input[
-                                i_batch, 
-                                out_h * {{stride}} + i_reduce_height, 
-                                out_w * {{stride}} + i_reduce_width, 
-                                i_reduce_begin_channel:i_reduce_end_channel
-                            ];
-                            use_input_reg_buffer = cim_input_reg_buffer[i_group, :];
-                            Trans(use_input, use_input_reg_buffer);
-                        };
-                    };
+                    load_input_case_1(
+                        input,
+                        cim_input_reg_buffer,
+                        i_batch,
+                        i_outer,
+                        i_inner
+                    );
                 {% elif (macro_config.n_comp % in_channel) == 0 %}
                     // case 2： macro_config.n_comp % in_channel == 0
-
-                    @unroll
-                    for i_outer_group in range({{n_weight_duplicate_group}}) carry () {
-                        out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
-                        out_h = out_hw / {{out_hw}};
-                        out_w = out_hw % {{out_hw}};
-                        
-                        @unroll
-                        for i_inner_group in range({{n_reduce_group}}) carry () {
-                            i_group = i_outer_group * {{n_reduce_group}} + i_inner_group;
-
-                            i_reduce_base = (i_inner * {{n_reduce_group}} * {{macro_config.n_comp}}) + (i_inner_group * {{macro_config.n_comp}});
-
-                            @unroll
-                            for i_pixel_in_comp in range({{macro_config.n_comp // in_channel}}) carry () {
-                                i_reduce = i_reduce_base + (i_pixel_in_comp * {{in_channel}});
-                                i_hw = i_reduce / {{in_channel}};
-                                i_width = i_hw % {{ker_hw}};
-                                i_height = i_hw / {{ker_hw}};
-                                use_input = input[
-                                    i_batch, 
-                                    out_h * {{stride}} + i_height, 
-                                    out_w * {{stride}} + i_width, 
-                                    :
-                                ];
-                                use_input_reg_buffer = cim_input_reg_buffer[
-                                    i_group, 
-                                    i_pixel_in_comp * {{in_channel}} : (i_pixel_in_comp + 1) * {{in_channel}}
-                                ];
-                                Trans(use_input, use_input_reg_buffer);
-                            };
-                        };
-                    };
+                    load_input_case_2(
+                        input,
+                        cim_input_reg_buffer,
+                        i_batch,
+                        i_outer,
+                        i_inner
+                    );
                 {% else %}
                     {% set error_msg = "bad case" %}
                     {{ raise(error_msg) }}
