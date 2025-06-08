@@ -3,6 +3,13 @@
 
 {% set window_size = ker_hw * ker_hw * in_channel %}
 
+def ceil_div(
+    a<index>,
+    b<index>
+) {
+    return ((a + b - 1) / b);
+}
+
 def set_special_regs(){
     SpecialRegSet(SPECIAL_REG_INPUT_BIT_WIDTH, 8);
     SpecialRegSet(SPECIAL_REG_WEIGHT_BIT_WIDTH, 8);
@@ -93,6 +100,55 @@ def load_input_case_2(
     };
 }
 
+def load_input_case_3(
+    input< <-1,-1,-1,-1>, int8, __ANY__>,
+    cim_input_reg_buffer< <-1,-1>, int8, __ANY__>,
+    i_batch<index>,
+    i_outer<index>,
+    i_inner<index>
+) {
+    @unroll
+    for i_outer_group in range({{n_weight_duplicate_group}}) carry () {
+        out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
+        out_h = out_hw / {{out_hw}};
+        out_w = out_hw % {{out_hw}};
+        
+        @unroll
+        for i_inner_group in range({{n_reduce_group}}) carry () {
+            i_group = i_outer_group * {{n_reduce_group}} + i_inner_group;
+
+            pos_begin = (i_inner * {{n_reduce_group}} * {{macro_config.n_comp}}) + (i_inner_group * {{macro_config.n_comp}});
+            pos_end = pos_begin + {{macro_config.n_comp}};
+
+            pixel_size = {{in_channel}};
+            pixel_begin = pos_begin / pixel_size;
+            pixel_end = ceil_div(pos_end, pixel_size);
+
+            buf_begin = 0;
+            @unroll
+            for i_pixel in range(pixel_begin, pixel_end) carry(buf_begin){
+                n_before_pixel = i_pixel * {{in_channel}};
+                in_pixel_begin = Max(0, pos_begin - n_before_pixel);
+                in_pixel_end = Min({{in_channel}}, pos_end - n_before_pixel);
+                in_pixel_len = in_pixel_end - in_pixel_begin;
+                ker_row_id = i_pixel / {{ker_hw}};
+                ker_col_id = i_pixel % {{ker_hw}};
+                ih = out_h * {{stride}};
+                iw = out_w * {{stride}};
+                row_id = ih + ker_row_id;
+                col_id = iw + ker_col_id;
+
+                use_local_input = input[i_batch, row_id, col_id, in_pixel_begin:in_pixel_end];
+
+                use_use_input_buffer = cim_input_reg_buffer[i_group, buf_begin:buf_begin+in_pixel_len];
+                Trans(use_local_input, use_use_input_buffer);
+
+                buf_begin = buf_begin + in_pixel_len;
+            };
+        };
+    };
+}
+
 def main(){
     set_special_regs();
 
@@ -136,10 +192,15 @@ def main(){
                         i_batch,
                         i_outer,
                         i_inner
-                    );
+                    );                    
                 {% else %}
-                    {% set error_msg = "bad case" %}
-                    {{ raise(error_msg) }}
+                    load_input_case_3(
+                        input,
+                        cim_input_reg_buffer,
+                        i_batch,
+                        i_outer,
+                        i_inner
+                    );    
                 {% endif %}
 
                 // step 2: compute
