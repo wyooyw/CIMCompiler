@@ -19,10 +19,19 @@ def set_special_regs(){
 def main(){
     set_special_regs();
 
+    input_global = Buffer(<{{batch}}, {{in_hw}}, {{in_hw}}, {{in_channel}}>, int8, __GLOBAL__);
+    macros_global = Buffer(<{{macro_config.n_row}}, {{macro_config.n_comp}}, {{macro_config.n_group}}, {{macro_config.n_group_vcol}}>, int8, __GLOBAL__);
+    output_global = Buffer(<{{batch}}, {{out_hw}}, {{out_hw}}, {{out_channel}}>, int32, __GLOBAL__);
 
     input = Buffer(<{{batch}}, {{in_hw}}, {{in_hw}}, {{in_channel}}>, int8, __INPUT_MEMORY__);
-    output = Buffer(<{{batch}}, {{out_hw}}, {{out_hw}}, {{out_channel}}>, int8, __OUTPUT_MEMORY__);
+    output = Buffer(<{{batch}}, {{out_hw}}, {{out_hw}}, {{out_channel}}>, int32, __OUTPUT_MEMORY__);
     macros = Buffer(<{{macro_config.n_row}}, {{macro_config.n_comp}}, {{macro_config.n_group}}, {{macro_config.n_group_vcol}}>, int8, __MACRO__);
+    
+    {% if test_mode %}
+        Trans(input_global, input);
+        Trans(macros_global, macros);
+    {% endif %}
+    
     {% set window_size = ker_hw * ker_hw * in_channel %}
 
     cim_input_reg_buffer = Buffer(<{{macro_config.n_group}},{{macro_config.n_comp}}>, int8, __CIM_INPUT_REG_BUFFER__);
@@ -35,6 +44,7 @@ def main(){
             for i_inner in range(0, {{math.ceil(window_size / (n_reduce_group * macro_config.n_comp))}}) carry () {
                 // step 1: load input
                 {% if (in_channel % macro_config.n_comp) == 0 %}
+                    // case 1： in_channel % macro_config.n_comp == 0
                     @unroll
                     for i_outer_group in range({{n_weight_duplicate_group}}) carry () {
                         out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
@@ -62,6 +72,8 @@ def main(){
                         };
                     };
                 {% elif (macro_config.n_comp % in_channel) == 0 %}
+                    // case 2： macro_config.n_comp % in_channel == 0
+
                     @unroll
                     for i_outer_group in range({{n_weight_duplicate_group}}) carry () {
                         out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
@@ -121,4 +133,9 @@ def main(){
             };
         };
     };
+
+    {% if test_mode %}
+        Trans(output, output_global);
+    {% endif %}
+    
 }

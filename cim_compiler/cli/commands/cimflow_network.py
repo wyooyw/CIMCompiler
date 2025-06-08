@@ -230,6 +230,7 @@ class Conv2dConfig:
     n_weight_duplicate_group: int
     n_reduce_group: int
     stride: int
+    test_mode: bool = False
 
 def get_code_conv2d_by_dsl(
         batch,
@@ -239,6 +240,7 @@ def get_code_conv2d_by_dsl(
         out_hw,
         ker_hw,
         stride,
+        padding,
         args,
         cache_dir
 ):      
@@ -254,7 +256,7 @@ def get_code_conv2d_by_dsl(
         batch=batch,
         in_channel=in_channel,
         out_channel=out_channel,
-        in_hw=in_hw,
+        in_hw=in_hw + 2 * padding,
         out_hw=out_hw,
         ker_hw=ker_hw,
         stride=stride,
@@ -322,6 +324,7 @@ def get_code_conv2d(args, attr, cache_dir):
                 out_h,
                 kernel_height,
                 stride,
+                padding,
                 args,
                 cache_dir
             )
