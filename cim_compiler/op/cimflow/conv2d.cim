@@ -170,7 +170,6 @@ def main(){
     cim_output_reg_buffer = Buffer(<{{macro_config.n_group}}, {{macro_config.n_group_vcol}}>, int32, __CIM_OUTPUT_REG_BUFFER__);
 
     for i_batch in range({{batch}}) carry () {
-        @unroll
         for i_outer in range({{math.ceil(out_hw  * out_hw // n_weight_duplicate_group)}}) carry () {
             @unroll
             for i_inner in range(0, {{math.ceil(window_size / (n_reduce_group * macro_config.n_comp))}}) carry () {
