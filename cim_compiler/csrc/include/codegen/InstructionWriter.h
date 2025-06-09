@@ -41,6 +41,7 @@ public:
     virtual void setBranchOffset(Inst &inst, int offset) = 0;
 
     virtual bool isGeneralReg(Inst &inst, std::string key) = 0; 
+    virtual bool isWriteGeneralReg(Inst &inst, std::string key) = 0; 
     virtual bool isGeneralToSpecialAssign(Inst &inst) = 0;
     virtual bool isSpecialToGeneralAssign(Inst &inst) = 0;
     virtual bool isSpecialLi(Inst &inst) = 0;
@@ -78,6 +79,7 @@ public:
     Inst getCIMTransferInst(int reg_src_addr, int reg_out_n, int reg_out_mask_addr, int reg_buffer_addr, int reg_dst_addr) override;
     
     bool isGeneralReg(Inst &inst, std::string key) override; 
+    bool isWriteGeneralReg(Inst &inst, std::string key) override;
     bool isGeneralToSpecialAssign(Inst &inst) override;
     bool isSpecialToGeneralAssign(Inst &inst) override;
     bool isSpecialLi(Inst &inst) override;
@@ -113,6 +115,7 @@ public:
     Inst getCIMTransferInst(int reg_src_addr, int reg_out_n, int reg_out_mask_addr, int reg_buffer_addr, int reg_dst_addr) override;
 
     bool isGeneralReg(Inst &inst, std::string key) override; 
+    bool isWriteGeneralReg(Inst &inst, std::string key) override;
     bool isGeneralToSpecialAssign(Inst &inst) override;
     bool isSpecialToGeneralAssign(Inst &inst) override;
     bool isSpecialLi(Inst &inst) override;

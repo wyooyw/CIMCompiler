@@ -176,6 +176,10 @@ bool LegacyInstructionWriter::isGeneralReg(Inst &inst, std::string key) {
   return is_reg_general;
 }
 
+bool LegacyInstructionWriter::isWriteGeneralReg(Inst &inst, std::string key) {
+  return false;
+}
+
 bool LegacyInstructionWriter::isSpecialLi(Inst &inst) {
   if ((inst.count("class") && std::holds_alternative<int>(inst["class"]) && std::get<int>(inst["class"]) == 0b10) &&
       (inst.count("type") && std::holds_alternative<int>(inst["type"]) && std::get<int>(inst["type"]) == 0b11) &&

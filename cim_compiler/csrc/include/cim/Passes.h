@@ -17,7 +17,7 @@ std::unique_ptr<Pass> createFoldMemRefAliasOpsPass();
 std::unique_ptr<Pass> createExtractAddressComputationPass();
 std::unique_ptr<Pass> createCIMLoweringPass(std::string configPath);
 std::unique_ptr<Pass> createCIMBranchConvertPass();
-std::unique_ptr<Pass> createCodeGenerationPass(std::string outputFilePath);
+std::unique_ptr<Pass> createCodeGenerationPass(std::string outputFilePath, std::string config_path);
 std::unique_ptr<Pass> createRR2RIPass();
 std::unique_ptr<Pass> createConstantExpandPass();
 std::unique_ptr<Pass> createLoopUnrollPass();

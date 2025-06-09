@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
   mlir::PassManager codegen_passes(&context);
   mlir::OpPassManager &codegen_op_passes =
       codegen_passes.nest<mlir::func::FuncOp>();
-  codegen_op_passes.addPass(cim::createCodeGenerationPass(outputFilePath));
+  codegen_op_passes.addPass(cim::createCodeGenerationPass(outputFilePath, configPath));
 
 
   if (mlir::failed(init_passes.run(module))) {

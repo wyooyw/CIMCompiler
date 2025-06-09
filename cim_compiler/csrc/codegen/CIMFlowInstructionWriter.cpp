@@ -223,6 +223,21 @@ bool CIMFlowInstructionWriter::isGeneralReg(Inst &inst, std::string key) {
   return key=="rs" || key=="rt" || key=="re" || key=="rf" || key=="rd";
 }
 
+bool CIMFlowInstructionWriter::isWriteGeneralReg(Inst &inst, std::string key) {
+  if (
+    inst.count("opcode") && (
+        std::get<int>(inst["opcode"]) == 0b100000 || // SC_RR
+        std::get<int>(inst["opcode"]) == 0b100100 || // SC_RI
+        std::get<int>(inst["opcode"]) == 0b101000 || // SC_LD
+        std::get<int>(inst["opcode"]) == 0b101100 || // G_LI
+        std::get<int>(inst["opcode"]) == 0b101111 // SG_MOV
+    )
+  ) {
+    return key == "rd";
+  }
+  return false;
+}
+
 bool CIMFlowInstructionWriter::isSpecialLi(Inst &inst) {
   return inst.count("opcode") && std::holds_alternative<int>(inst["opcode"]) && std::get<int>(inst["opcode"]) == 0b101101;
 }

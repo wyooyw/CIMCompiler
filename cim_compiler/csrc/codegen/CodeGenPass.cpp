@@ -28,6 +28,8 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
 
 #include <algorithm>
 #include <fstream>
@@ -76,6 +78,59 @@ namespace {
 ///   3) If the worklist is empty, the algorithm succeeded.
 ///
 using namespace std;
+
+static const boost::property_tree::ptree &
+get_item(const boost::property_tree::ptree &ast, int index) {
+  auto it = ast.begin();
+  std::advance(it, index);
+  return it->second;
+}
+
+template <typename Ty>
+Ty safe_get_as(const boost::property_tree::ptree &ast, const std::string &key) {
+  if (ast.count(key)) {
+    return ast.get<Ty>(key);
+  } else {
+    // tell user
+    std::cerr << "[safe_get_] Key error: " << key << std::endl;
+    std::exit(1);
+    // return nullptr;
+  }
+}
+const boost::property_tree::ptree &
+safe_get_child(const boost::property_tree::ptree &ast, const std::string &key) {
+  if (ast.count(key)) {
+    return ast.get_child(key);
+  } else {
+    // tell user
+    std::cerr << "[safe_get_child] Key error: " << key << std::endl;
+    std::exit(1);
+    return ast;
+  }
+}
+static std::map<std::string, int> memory_addr_list;
+static std::map<std::string, int> memory_size_list;
+static void getMemoryAddrList(std::string config_path) {
+  boost::property_tree::ptree ast;
+  boost::property_tree::read_json(config_path, ast);
+
+  // std::map<string, int> memory_addr_list;
+  LOG_DEBUG << "getMemoryAddrList";
+  auto json_memory_list = safe_get_child(ast, "memory_list");
+  for (const auto &pair : json_memory_list) {
+    auto json_memory = pair.second;
+    std::string name = safe_get_as<std::string>(json_memory, "name");
+    auto json_address = safe_get_child(json_memory, "addressing");
+    int offset = safe_get_as<int>(json_address, "offset_byte");
+    int size = safe_get_as<int>(json_address, "size_byte");
+
+    memory_addr_list[name] = offset;
+    memory_size_list[name] = size;
+    LOG_DEBUG << "name: " << name << " offset: " << offset << " size: " << size;
+  }
+
+  // return memory_addr_list;
+}
 
 static int getReg(std::unordered_map<llvm::hash_code, int> &regmap,
                   mlir::Value value) {
@@ -1772,13 +1827,11 @@ struct Interval {
 // 定义比较函数对象
 struct CompareIntervalByBegin {
     bool operator()(const Interval& p1, const Interval& p2) {
-        // 从小到大排序
         return p1.begin < p2.begin;
     }
 };
 struct CompareIntervalByEnd {
     bool operator()(const Interval& p1, const Interval& p2) {
-        // 从小到大排序
         return p1.end > p2.end;
     }
 };
@@ -1889,7 +1942,7 @@ static void mappingRegisterLogicalToPhysical(
   //   Interval interval = intervals[i];
   //   std::cout << "interval: " << interval.logical_reg_id << " " << interval.begin << " " << interval.end << std::endl;
   // }
-
+  std::vector<int> spill_logical_regs;
   for (int i = 0; i < intervals.size(); i++) {
     Interval interval = intervals[i];
     while (!active.empty() && active.top().end <= interval.begin) {
@@ -1899,14 +1952,27 @@ static void mappingRegisterLogicalToPhysical(
       physical_regs.push(physical_reg);
     }
     if (physical_regs.empty()) {
-      std::cerr << "No more physical_regs can use!" << std::endl;
-      std::exit(1);
+      // std::cerr << "No more physical_regs can use!" << std::endl;
+      // std::exit(1);
+      Interval top_interval = active.top();
+      if (top_interval.end > interval.end) {
+        int physical_reg = logical_to_physical_mapping[top_interval.logical_reg_id];
+        logical_to_physical_mapping[interval.logical_reg_id] = physical_reg;
+        logical_to_physical_mapping.erase(top_interval.logical_reg_id);
+        LOG_DEBUG << "erase logical_reg_id:" << top_interval.logical_reg_id;
+        active.pop();
+        active.push(interval);
+        spill_logical_regs.push_back(top_interval.logical_reg_id);
+      } else {
+        spill_logical_regs.push_back(interval.logical_reg_id);
+      }
+    } else {
+      int physical_reg = physical_regs.top();
+      logical_to_physical_mapping[interval.logical_reg_id] = physical_reg;
+      physical_regs.pop();
+      active.push(interval);
+      max_physical_reg_used = max(max_physical_reg_used, physical_reg);
     }
-    int physical_reg = physical_regs.top();
-    logical_to_physical_mapping[interval.logical_reg_id] = physical_reg;
-    physical_regs.pop();
-    active.push(interval);
-    max_physical_reg_used = max(max_physical_reg_used, physical_reg);
   }
 
   // for (int inst_id = 0; inst_id < instr_list.size(); inst_id++) {
@@ -1954,13 +2020,19 @@ static void mappingRegisterLogicalToPhysical(
   // }
   LOG_DEBUG << "max_physical_reg_used: " << max_physical_reg_used;
   for (int logical_reg_id : logical_regs) {
-    LOG_DEBUG << "logical_reg: " << logical_reg_id << " -> physical_reg: "
-              << logical_to_physical_mapping[logical_reg_id];
+    if (logical_to_physical_mapping.find(logical_reg_id)!=logical_to_physical_mapping.end()) {
+      LOG_DEBUG << "logical_reg: " << logical_reg_id << " -> physical_reg: "
+                << logical_to_physical_mapping.at(logical_reg_id);
+    }
   }
   for (int logical_reg_id : logical_regs) {
     LOG_DEBUG << "logical_reg:" << logical_reg_id << " begin: "
               << logic_reg_life_begin[logical_reg_id] << " end: "
               << logic_reg_life_end[logical_reg_id];
+  }
+  LOG_DEBUG << "num of spill_logical_regs: " << spill_logical_regs.size();
+  for (int logical_reg_id : spill_logical_regs) {
+    LOG_DEBUG << "spill: " << logical_reg_id;
   }
   // return;
   // Step 3: replace logical register to physical register
@@ -1979,8 +2051,8 @@ static void mappingRegisterLogicalToPhysical(
       // key=="rs1") || ((!is_special_assign) && (isPrefix(key, "rs") ||
       // isPrefix(key, "rd")));
 
-      if (writer.isGeneralReg(inst, key)) {
-        replace[key] = logical_to_physical_mapping[std::get<int>(value)];
+      if (writer.isGeneralReg(inst, key) && logical_to_physical_mapping.count(std::get<int>(value))) {
+        replace[key] = logical_to_physical_mapping.at(std::get<int>(value));
       }
     }
     for (const auto &[key, value] : replace) {
@@ -1988,6 +2060,96 @@ static void mappingRegisterLogicalToPhysical(
     }
     instr_list.setInst(inst, inst_id);
   }
+
+  // Step 4: spill logical register
+  LOG_DEBUG << "Begin to do spill";
+  int spill_base_addr = memory_addr_list.at("spill_memory");
+  LOG_DEBUG << "spill_base_addr:" <<spill_base_addr;
+  int temp_save_memory_base_addr = spill_base_addr;// addr = spill_memory_base_addr + spill_offset
+  int spill_memory_base_addr = spill_base_addr + 32 * 32;// addr = spill_memory_base_addr + spill_offset
+  std::map<int, int> spill_to_offset_mapping;
+  for (int i = 0; i < spill_logical_regs.size(); i++) {
+    int logical_reg_id = spill_logical_regs[i];
+    spill_to_offset_mapping[logical_reg_id] = spill_memory_base_addr + i * 4;
+  }
+  std::vector<std::unordered_map<string, int>> replace_list;
+  int inst_size = instr_list.size();
+  for (int inst_id = inst_size - 1; inst_id >= 0; inst_id--) {
+    Inst ori_inst = instr_list.getInst(inst_id);
+    if (writer.isSpecialLi(ori_inst))
+      continue;
+
+    std::vector<std::pair<string, int>> spill_read;
+    std::vector<std::pair<string, int>> spill_write;
+    for (const auto &[key, value] : ori_inst) {
+      if (writer.isGeneralReg(ori_inst, key) && !logical_to_physical_mapping.count(std::get<int>(value))) {
+        if (writer.isWriteGeneralReg(ori_inst, key)) {
+          spill_write.push_back({key, spill_to_offset_mapping.at(std::get<int>(value))});
+        } else {
+          spill_read.push_back({key, spill_to_offset_mapping.at(std::get<int>(value))});
+        }
+      }
+    }
+    int spill_reg_num = 0;
+    int addr_reg = num_physical_regs;
+    std::map<std::string, int> key_to_reg;
+    std::vector<Inst> insert_before;
+    for (auto [key, addr] : spill_read) {
+      insert_before.push_back(writer.getGeneralLIInst(addr_reg, temp_save_memory_base_addr + spill_reg_num * 4));
+      insert_before.push_back(writer.getStoreInst(addr_reg, spill_reg_num, 0));
+      insert_before.push_back(writer.getGeneralLIInst(addr_reg, addr));
+      insert_before.push_back(writer.getLoadInst(addr_reg, spill_reg_num, 0));
+      key_to_reg[key] = spill_reg_num;
+      spill_reg_num += 1; 
+    }
+    for (auto [key, addr] : spill_write) {
+      insert_before.push_back(writer.getGeneralLIInst(addr_reg, temp_save_memory_base_addr + spill_reg_num * 4));
+      insert_before.push_back(writer.getStoreInst(addr_reg, spill_reg_num, spill_reg_num * 4));
+      key_to_reg[key] = spill_reg_num;
+      spill_reg_num += 1;
+    }
+    std::vector<Inst> insert_after;
+    // save output reg
+    for (auto [key, addr] : spill_write) {
+      int reg = key_to_reg[key];
+      insert_after.push_back(writer.getGeneralLIInst(addr_reg, addr));
+      insert_after.push_back(writer.getStoreInst(addr_reg, reg, 0));  
+    }
+    // recover origin regs
+    for (auto [key, addr] : spill_read) {
+      int reg = key_to_reg[key];
+      insert_after.push_back(writer.getGeneralLIInst(addr_reg, temp_save_memory_base_addr + reg * 4));
+      insert_after.push_back(writer.getLoadInst(addr_reg, reg, 0));
+    }
+    for (auto [key, addr] : spill_write) {
+      int reg = key_to_reg[key];
+      insert_after.push_back(writer.getGeneralLIInst(addr_reg, temp_save_memory_base_addr + reg * 4));
+      insert_after.push_back(writer.getLoadInst(addr_reg, reg, 0));
+    }
+    std::reverse(insert_before.begin(), insert_before.end());
+    std::reverse(insert_after.begin(), insert_after.end());
+    // do the insersion
+    for (const auto &[key, value] : spill_read) {
+      ori_inst[key] = key_to_reg.at(key);
+    }
+    for (const auto &[key, value] : spill_write) {
+      ori_inst[key] = key_to_reg.at(key);
+    }
+    instr_list.setInst(ori_inst, inst_id);
+    for (auto inst : insert_after) {
+      instr_list.insertInst(inst, inst_id + 1);
+    }
+    for (auto inst : insert_before) {
+      instr_list.insertInst(inst, inst_id);
+    }
+    if (insert_before.size() > 0) {
+      LOG_DEBUG << "insert_before.size()=" <<insert_before.size() << ", insert_after.size()=" <<insert_after.size();
+    }
+    if (insert_after.size() > 0) {
+      LOG_DEBUG << "insert_after.size()=" <<insert_after.size();
+    }
+  }
+  LOG_DEBUG << "Finish spill!";
 }
 
 struct CodeGenerationPass
@@ -1996,10 +2158,12 @@ struct CodeGenerationPass
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CodeGenerationPass)
 
   std::string outputFilePath;
+  std::string config_path;
 
   void runOnOperation() override {
     LOG_DEBUG << "run on operation";
     LOG_DEBUG << "code generation pass!";
+    getMemoryAddrList(config_path);
     auto f = getOperation();
     if (f.getName() != "main") {
       return;
@@ -2062,8 +2226,9 @@ struct CodeGenerationPass
 
 /// Create a Shape Inference pass.
 std::unique_ptr<mlir::Pass>
-mlir::cim::createCodeGenerationPass(std::string outputFilePath) {
+mlir::cim::createCodeGenerationPass(std::string outputFilePath, std::string config_path) {
   auto pass = std::make_unique<CodeGenerationPass>();
   pass->outputFilePath = outputFilePath;
+  pass->config_path = config_path;
   return pass;
 }
