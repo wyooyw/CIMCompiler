@@ -1918,7 +1918,7 @@ static void mappingRegisterLogicalToPhysical(
 
   // Step 2: Construct a mapping from logical register to physical register
   int num_logical_regs = logic_reg_life_begin.size();
-  int num_physical_regs = 32;
+  int num_physical_regs = 34;
   std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
   std::map<int, int> logical_to_physical_mapping;
   int max_physical_reg_used = 0;
@@ -2066,7 +2066,7 @@ static void mappingRegisterLogicalToPhysical(
   int spill_base_addr = memory_addr_list.at("spill_memory");
   LOG_DEBUG << "spill_base_addr:" <<spill_base_addr;
   int temp_save_memory_base_addr = spill_base_addr;// addr = spill_memory_base_addr + spill_offset
-  int spill_memory_base_addr = spill_base_addr + 32 * 32;// addr = spill_memory_base_addr + spill_offset
+  int spill_memory_base_addr = spill_base_addr + 64 * 32;// addr = spill_memory_base_addr + spill_offset
   std::map<int, int> spill_to_offset_mapping;
   for (int i = 0; i < spill_logical_regs.size(); i++) {
     int logical_reg_id = spill_logical_regs[i];
@@ -2081,48 +2081,77 @@ static void mappingRegisterLogicalToPhysical(
 
     std::vector<std::pair<string, int>> spill_read;
     std::vector<std::pair<string, int>> spill_write;
+    std::unordered_map<string, int> origin_use_physical_reg_map;
+    std::set<int> origin_use_physical_reg;
     for (const auto &[key, value] : ori_inst) {
-      if (writer.isGeneralReg(ori_inst, key) && !logical_to_physical_mapping.count(std::get<int>(value))) {
-        if (writer.isWriteGeneralReg(ori_inst, key)) {
-          spill_write.push_back({key, spill_to_offset_mapping.at(std::get<int>(value))});
+      if (writer.isGeneralReg(ori_inst, key) ) {
+        if (logical_to_physical_mapping.count(std::get<int>(value))) {
+          origin_use_physical_reg.insert(logical_to_physical_mapping.at(std::get<int>(value)));
+          origin_use_physical_reg_map[key] = logical_to_physical_mapping.at(std::get<int>(value));
         } else {
-          spill_read.push_back({key, spill_to_offset_mapping.at(std::get<int>(value))});
+          if (writer.isWriteGeneralReg(ori_inst, key)) {
+            spill_write.push_back({key, spill_to_offset_mapping.at(std::get<int>(value))});
+          } else {
+            spill_read.push_back({key, spill_to_offset_mapping.at(std::get<int>(value))});
+          }
         }
       }
     }
+    std::cout << "origin_use_physical_reg: ";
+    for (int reg : origin_use_physical_reg) {
+      std::cout << reg << " ";
+    }
+    std::cout << std::endl;
+
+    std::vector<int> can_use_phy_regs;
+    std::cout << "can_use_phy_regs: ";
+    for (int i = 0; i < num_physical_regs; i++) {
+      if (!origin_use_physical_reg.count(i)) {
+        can_use_phy_regs.push_back(i);
+        std::cout << i << " ";
+      }
+    }
+    std::cout << std::endl;
+
+    
     int spill_reg_num = 0;
     int addr_reg = num_physical_regs;
     std::map<std::string, int> key_to_reg;
     std::vector<Inst> insert_before;
     for (auto [key, addr] : spill_read) {
-      insert_before.push_back(writer.getGeneralLIInst(addr_reg, temp_save_memory_base_addr + spill_reg_num * 4));
-      insert_before.push_back(writer.getStoreInst(addr_reg, spill_reg_num, 0));
+      insert_before.push_back(writer.getGeneralLIInst(addr_reg, temp_save_memory_base_addr + can_use_phy_regs[spill_reg_num] * 4));
+      insert_before.push_back(writer.getStoreInst(addr_reg, can_use_phy_regs[spill_reg_num], 0));
       insert_before.push_back(writer.getGeneralLIInst(addr_reg, addr));
-      insert_before.push_back(writer.getLoadInst(addr_reg, spill_reg_num, 0));
-      key_to_reg[key] = spill_reg_num;
+      insert_before.push_back(writer.getLoadInst(addr_reg, can_use_phy_regs[spill_reg_num], 0));
+      key_to_reg[key] = can_use_phy_regs[spill_reg_num];
       spill_reg_num += 1; 
     }
     for (auto [key, addr] : spill_write) {
-      insert_before.push_back(writer.getGeneralLIInst(addr_reg, temp_save_memory_base_addr + spill_reg_num * 4));
-      insert_before.push_back(writer.getStoreInst(addr_reg, spill_reg_num, spill_reg_num * 4));
-      key_to_reg[key] = spill_reg_num;
+      insert_before.push_back(writer.getGeneralLIInst(addr_reg, temp_save_memory_base_addr + can_use_phy_regs[spill_reg_num] * 4));
+      insert_before.push_back(writer.getStoreInst(addr_reg, can_use_phy_regs[spill_reg_num], 0));
+      key_to_reg[key] = can_use_phy_regs[spill_reg_num];
       spill_reg_num += 1;
     }
+    for (const auto& pair : key_to_reg) {
+      std::cout << pair.first << ":" << pair.second << ", ";
+    }
+    std::cout << std::endl;
+
     std::vector<Inst> insert_after;
     // save output reg
     for (auto [key, addr] : spill_write) {
-      int reg = key_to_reg[key];
+      int reg = key_to_reg.at(key);
       insert_after.push_back(writer.getGeneralLIInst(addr_reg, addr));
       insert_after.push_back(writer.getStoreInst(addr_reg, reg, 0));  
     }
     // recover origin regs
     for (auto [key, addr] : spill_read) {
-      int reg = key_to_reg[key];
+      int reg = key_to_reg.at(key);
       insert_after.push_back(writer.getGeneralLIInst(addr_reg, temp_save_memory_base_addr + reg * 4));
       insert_after.push_back(writer.getLoadInst(addr_reg, reg, 0));
     }
     for (auto [key, addr] : spill_write) {
-      int reg = key_to_reg[key];
+      int reg = key_to_reg.at(key);
       insert_after.push_back(writer.getGeneralLIInst(addr_reg, temp_save_memory_base_addr + reg * 4));
       insert_after.push_back(writer.getLoadInst(addr_reg, reg, 0));
     }
