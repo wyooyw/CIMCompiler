@@ -690,7 +690,7 @@ def parse_cimflow_network_args(subparsers):
     parser.add_argument("--config-path", "-c", type=str, help="config path")
     parser.add_argument("--profile-attr-name", "-p", type=str, default="inst_group_tag", help="profile attr name")
     parser.add_argument("--verify", action="store_true", help="verify")
-    parser.add_argument("--op-level-profile", action="store_true", default=True, help="op level profile")
+    parser.add_argument("--op-level-profile", action="store_true", help="op level profile")
 
 
 def run_cimflow_network(args):

@@ -39,8 +39,8 @@ if(MLIR_ENABLE_BINDINGS_PYTHON)
   mlir_configure_python_dev_packages()
 endif()
 
-set(glog_DIR thirdparty/glog/build)
-find_package (glog REQUIRED)
+# set(glog_DIR thirdparty/glog/build)
+# find_package (glog REQUIRED)
 
 set(STANDALONE_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 set(STANDALONE_BINARY_DIR ${PROJECT_BINARY_DIR})
@@ -63,7 +63,7 @@ add_subdirectory(cim_compiler/csrc/include)
 # add_subdirectory(standalone-translate)
 
 add_subdirectory(cim_compiler/csrc)
-# add_subdirectory(thirdparty/glog)
+add_subdirectory(thirdparty/glog)
 target_link_libraries(main PRIVATE glog::glog)
 
 #find_package(PkgConfig REQUIRED)
