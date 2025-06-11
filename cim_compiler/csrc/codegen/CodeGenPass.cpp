@@ -1582,7 +1582,7 @@ getRegisterMapping(mlir::func::FuncOp func) {
   */
   std::unordered_map<llvm::hash_code, int> mapping;
   std::unordered_map<llvm::hash_code, int> block_args_special_reg_map;
-  int reg_cnt = 0;
+  int reg_cnt = 1024;
 
   // _getRegisterMappingAliasBetweenBasicBlock(func, mapping, reg_cnt);
   _getRegisterMappingForBlockArgs(func, mapping, block_args_special_reg_map,
@@ -1918,7 +1918,7 @@ static void mappingRegisterLogicalToPhysical(
 
   // Step 2: Construct a mapping from logical register to physical register
   int num_logical_regs = logic_reg_life_begin.size();
-  int num_physical_regs = 34;
+  int num_physical_regs = 31;
   std::priority_queue<int, std::vector<int>, std::greater<int>> physical_regs;
   std::map<int, int> logical_to_physical_mapping;
   int max_physical_reg_used = 0;
@@ -2066,7 +2066,7 @@ static void mappingRegisterLogicalToPhysical(
   int spill_base_addr = memory_addr_list.at("spill_memory");
   LOG_DEBUG << "spill_base_addr:" <<spill_base_addr;
   int temp_save_memory_base_addr = spill_base_addr;// addr = spill_memory_base_addr + spill_offset
-  int spill_memory_base_addr = spill_base_addr + 64 * 32;// addr = spill_memory_base_addr + spill_offset
+  int spill_memory_base_addr = spill_base_addr + 8 * 4;// addr = spill_memory_base_addr + spill_offset
   std::map<int, int> spill_to_offset_mapping;
   for (int i = 0; i < spill_logical_regs.size(); i++) {
     int logical_reg_id = spill_logical_regs[i];
@@ -2074,23 +2074,26 @@ static void mappingRegisterLogicalToPhysical(
   }
   std::vector<std::unordered_map<string, int>> replace_list;
   int inst_size = instr_list.size();
+  std::set<std::string> spill_inst_and_key;
   for (int inst_id = inst_size - 1; inst_id >= 0; inst_id--) {
     Inst ori_inst = instr_list.getInst(inst_id);
     if (writer.isSpecialLi(ori_inst))
       continue;
-
     std::vector<std::pair<string, int>> spill_read;
     std::vector<std::pair<string, int>> spill_write;
     std::unordered_map<string, int> origin_use_physical_reg_map;
     std::set<int> origin_use_physical_reg;
     for (const auto &[key, value] : ori_inst) {
       if (writer.isGeneralReg(ori_inst, key) ) {
+        if (std::get<int>(value) < 1024) continue;
         if (logical_to_physical_mapping.count(std::get<int>(value))) {
           origin_use_physical_reg.insert(logical_to_physical_mapping.at(std::get<int>(value)));
           origin_use_physical_reg_map[key] = logical_to_physical_mapping.at(std::get<int>(value));
         } else {
+          spill_inst_and_key.insert(std::to_string(std::get<int>(ori_inst["opcode"])) + "_" + key);
           if (writer.isWriteGeneralReg(ori_inst, key)) {
-            spill_write.push_back({key, spill_to_offset_mapping.at(std::get<int>(value))});
+            int spill_addr = spill_to_offset_mapping.at(std::get<int>(value));
+            spill_write.push_back({key, spill_addr});
           } else {
             spill_read.push_back({key, spill_to_offset_mapping.at(std::get<int>(value))});
           }
