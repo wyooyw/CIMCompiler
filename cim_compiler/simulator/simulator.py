@@ -640,12 +640,16 @@ class Simulator:
         opcode = inst.opcode
         if opcode == 0b000:  # add
             result = value1 + value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) + {value2}(r{inst.reg_rhs})")
         elif opcode == 0b001:  # sub
             result = value1 - value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) - {value2}(r{inst.reg_rhs})")
         elif opcode == 0b010:  # mul
             result = value1 * value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) * {value2}(r{inst.reg_rhs})")
         elif opcode == 0b011:  # div
             result = value1 // value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) // {value2}(r{inst.reg_rhs})")
         elif opcode == 0b100:  # sll
             assert False, "Not support sll yet"
         elif opcode == 0b101:  # srl
@@ -654,22 +658,31 @@ class Simulator:
             assert False, "Not support sra yet"
         elif opcode == 0b111:  # mod
             result = value1 % value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) mod {value2}(r{inst.reg_rhs})")
         elif opcode == 0b1000:  # min
             result = min(value1, value2)
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) min {value2}(r{inst.reg_rhs})")
         elif opcode == 0b1001:  # max
             result = max(value1, value2)
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) max {value2}(r{inst.reg_rhs})")
         elif opcode == 0b1010:  # and
             result = value1 & value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) & {value2}(r{inst.reg_rhs})")
         elif opcode == 0b1011:  # or
             result = value1 | value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) | {value2}(r{inst.reg_rhs})")
         elif opcode == 0b1100:  # comp
             result = value1 == value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) == {value2}(r{inst.reg_rhs})")
         elif opcode == 0b1101:  # comp
             result = value1 != value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) != {value2}(r{inst.reg_rhs})")
         elif opcode == 0b1110:  # comp
             result = value1 > value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) > {value2}(r{inst.reg_rhs})")
         elif opcode == 0b1111:  # comp
             result = value1 < value2
+            logger.debug(f"RR {result}(r{inst.reg_out}) = {value1}(r{inst.reg_lhs}) < {value2}(r{inst.reg_rhs})")
         else:
             assert False, f"Not support {opcode=}."
         self.write_general_reg(inst.reg_out, result)
@@ -680,16 +693,22 @@ class Simulator:
         opcode = inst.opcode
         if opcode == 0b000:  # add
             result = value + imm
+            logger.debug(f"addi: {result}(r{inst.reg_out}) = {value}(r{inst.reg_in}) + {imm}(imm)")
         elif opcode == 0b001:  # sub
             result = value - imm
+            logger.debug(f"subi: {result}(r{inst.reg_out}) = {value}(r{inst.reg_in}) - {imm}(imm)")
         elif opcode == 0b010:  # mul
             result = value * imm
+            logger.debug(f"muli: {result}(r{inst.reg_out}) = {value}(r{inst.reg_in}) * {imm}(imm)")
         elif opcode == 0b011:  # div
             result = value / imm
+            logger.debug(f"divi: {result}(r{inst.reg_out}) = {value}(r{inst.reg_in}) / {imm}(imm)")
         elif opcode == 0b111:  # mod
             result = value % imm
+            logger.debug(f"modi: {result}(r{inst.reg_out}) = {value}(r{inst.reg_in}) % {imm}(imm)")
         elif opcode == 0b1000:  # min
             result = min(value, imm)
+            logger.debug(f"mini: {result}(r{inst.reg_out}) = {value}(r{inst.reg_in}) min {imm}(imm)")
         else:
             assert False, f"Not support {opcode=}."
         self.write_general_reg(inst.reg_out, result)
@@ -701,8 +720,8 @@ class Simulator:
             addr = self.read_general_reg(inst.reg_addr)
             offset = inst.offset
             addr += offset
-            self.memory_space.check_memory_type(
-                addr, 4, ["rf", "reg_buffer", "sram"]
+            self.memory_space.check_memory_name(
+                addr, 4, ["spill_memory"]
             )
             value = self.memory_space.read_as(addr, 4, np.int32).item()
             self.write_general_reg(inst.reg_value, value)
@@ -713,8 +732,8 @@ class Simulator:
             value = self.read_general_reg(inst.reg_value)
             offset = inst.offset
             addr += offset
-            self.memory_space.check_memory_type(
-                addr, 4, ["rf", "reg_buffer", "sram"]
+            self.memory_space.check_memory_name(
+                addr, 4, ["spill_memory"]
             )
             self.memory_space.write(np.array([value], dtype=np.int32), addr, 4)
 
@@ -984,6 +1003,8 @@ class Simulator:
         activate_row,
         inst
         ):
+
+        logger.debug(f"CIMCompute {input_offset=}, {input_size=}, {activate_row=}")
         # input_offset = self.read_general_reg(inst.reg_input_addr)
         # input_size = self.read_general_reg(inst.reg_input_size)
         # activate_row = self.read_general_reg(inst.reg_activate_row)
@@ -1274,6 +1295,9 @@ class Simulator:
 
         internel_buffer.clear()
 
+        logger.debug(f"CIMOutput: {dst_offset=}")
+
+
     def _outsum(self, inst):
         out_n = self.read_general_reg(inst.reg_out_n)
         assert out_n % 8 == 0
@@ -1422,6 +1446,8 @@ class Simulator:
             output_data = input1_data.astype(output_dtype) + input2_data.astype(
                 output_dtype
             )
+            logger.debug(f"VVAdd: {input1_addr=}, {input2_addr=}, {output_addr=}, {input_size=}")
+
         elif opcode == 0x02:
             # assert input1_bitwidth == 8
             # assert input2_bitwidth == 8
