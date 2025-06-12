@@ -72,6 +72,15 @@
                 "comments": "size: 8MB * 32",
                 "offset_byte": 1482752
             }
+        },
+        {
+            "name": "spill_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 2048,
+                "comments": "size: 2KB",
+                "offset_byte": 269918208
+            }
         }
     ],
     "simd": [
