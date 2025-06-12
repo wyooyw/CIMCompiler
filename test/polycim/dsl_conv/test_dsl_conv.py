@@ -80,8 +80,10 @@ def test_dsl_conv(batch, in_channel, in_hw, ker_hw, out_hw, out_channel, stride,
     assert outputs.shape == golden.shape, f"{outputs.shape=} != {golden.shape=}"
     print(f"golden:\n{golden}")
     print(f"outputs:\n{outputs}")
-    assert np.allclose(outputs, golden)
-    print("Check Pass")
+    num_all_close = np.sum(np.abs(outputs - golden) <= 0.01)
+    correct_rate_str = f"{num_all_close}/{outputs.size} ({num_all_close/outputs.size*100:.2f}%)"
+    print(f"Correct Rate: {correct_rate_str}")
+    assert np.allclose(outputs, golden), f"Correct Rate: {correct_rate_str}"
 
 if __name__ == "__main__":
     test_dsl_conv(
