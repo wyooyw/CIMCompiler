@@ -6,6 +6,7 @@ from cim_compiler.cli.commands.cimflow_network import OpRunner
 import tempfile
 import numpy as np
 from cim_compiler.polycim.op.calculate import conv2d
+import pytest
 
 def pad_to_multiple(x, dim, multiple):
     pad_to = math.ceil(x.shape[dim] / multiple) * multiple
@@ -36,6 +37,33 @@ def calc_conv(inputs, weight, padding, stride):
     conv_output = np.transpose(conv_output, (0,2,3,1))
     return conv_output
 
+"""
+batch=1, 
+in_channel=in_channel,
+in_hw=16, 
+ker_hw=3,
+out_hw=16,
+out_channel=32, 
+stride=1, 
+padding=1, 
+config_path="/app/CIMCompiler/CIMCompiler/config/dac25/config_gs_4.json"
+"""
+@pytest.mark.parametrize(
+    "batch, in_channel, in_hw, ker_hw, out_hw, out_channel, stride, padding, config_path",
+    [
+        *[(
+            1, 
+            in_channel, 
+            in_hw, 
+            3, 
+            in_hw,
+            out_channel,
+            1,
+            1,
+            "/app/CIMCompiler/CIMCompiler/config/dac25/config_gs_4.json"
+        ) for in_channel in [3, 8, 16, 24, 32, 40, 64] for out_channel in [8,16,24,32] for in_hw in [4, 8, 16]]
+    ],
+)
 def test_dsl_conv(batch, in_channel, in_hw, ker_hw, out_hw, out_channel, stride, padding, config_path):
     set_raw_config_by_path(config_path)
     cim_cfg = get_config()
