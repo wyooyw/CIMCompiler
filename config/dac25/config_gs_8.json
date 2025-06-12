@@ -60,6 +60,15 @@
                 "comments": "size: 16MB",
                 "offset_byte": 1057792
             }
+        },
+        {
+            "name": "spill_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 2048,
+                "comments": "spill: 2KB",
+                "offset_byte": 34612224
+            }
         }
     ]
 }
