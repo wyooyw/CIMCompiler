@@ -632,7 +632,7 @@ static void codeGen(mlir::cimisa::CIMComputeOp op,
   use.insert(activate_row_reg);
   use.insert(input_size_reg);
 
-  int batch_size_reg = 0;
+  int batch_size_reg = 1024;
   if (batch_flag==1){
     batch_size_reg = getReg(regmap, batch_size_value);
     use.insert(batch_size_reg);
@@ -1831,8 +1831,9 @@ struct CompareIntervalByBegin {
     }
 };
 struct CompareIntervalByEnd {
-    bool operator()(const Interval& p1, const Interval& p2) {
-        return p1.end > p2.end;
+    bool operator()(const Interval& p1, const Interval& p2) const {
+        if (p1.end != p2.end) return p1.end < p2.end;
+        return p1.logical_reg_id < p2.logical_reg_id;
     }
 };
 
@@ -1926,7 +1927,7 @@ static void mappingRegisterLogicalToPhysical(
   for (int i = 0; i < num_physical_regs; i++)
     physical_regs.push(i);
   
-  std::priority_queue<Interval, std::vector<Interval>, CompareIntervalByEnd> active;
+  std::set<Interval,  CompareIntervalByEnd> active;
   std::vector<Interval> intervals;
   for (int logical_reg_id : logical_regs) {
     Interval interval = {
@@ -1937,31 +1938,27 @@ static void mappingRegisterLogicalToPhysical(
     intervals.push_back(interval);
   }
   std::sort(intervals.begin(), intervals.end(), CompareIntervalByBegin());
-  // std::cout << "intervals: " << std::endl;
-  // for (int i = 0; i < intervals.size(); i++) {
-  //   Interval interval = intervals[i];
-  //   std::cout << "interval: " << interval.logical_reg_id << " " << interval.begin << " " << interval.end << std::endl;
-  // }
+
   std::vector<int> spill_logical_regs;
   for (int i = 0; i < intervals.size(); i++) {
     Interval interval = intervals[i];
-    while (!active.empty() && active.top().end <= interval.begin) {
-      Interval top_interval = active.top();
-      active.pop();
+    while (!active.empty() && active.begin()->end <= interval.begin) {
+      Interval top_interval = *active.begin();
+      active.erase(active.begin());
       int physical_reg = logical_to_physical_mapping[top_interval.logical_reg_id];
       physical_regs.push(physical_reg);
     }
     if (physical_regs.empty()) {
-      // std::cerr << "No more physical_regs can use!" << std::endl;
-      // std::exit(1);
-      Interval top_interval = active.top();
+      Interval top_interval = *active.rbegin();
       if (top_interval.end > interval.end) {
         int physical_reg = logical_to_physical_mapping[top_interval.logical_reg_id];
         logical_to_physical_mapping[interval.logical_reg_id] = physical_reg;
         logical_to_physical_mapping.erase(top_interval.logical_reg_id);
         LOG_DEBUG << "erase logical_reg_id:" << top_interval.logical_reg_id;
-        active.pop();
-        active.push(interval);
+        auto end = active.end();
+        --end;
+        active.erase(end);
+        active.insert(interval);
         spill_logical_regs.push_back(top_interval.logical_reg_id);
       } else {
         spill_logical_regs.push_back(interval.logical_reg_id);
@@ -1970,7 +1967,7 @@ static void mappingRegisterLogicalToPhysical(
       int physical_reg = physical_regs.top();
       logical_to_physical_mapping[interval.logical_reg_id] = physical_reg;
       physical_regs.pop();
-      active.push(interval);
+      active.insert(interval);
       max_physical_reg_used = max(max_physical_reg_used, physical_reg);
     }
   }
@@ -2085,11 +2082,18 @@ static void mappingRegisterLogicalToPhysical(
     std::set<int> origin_use_physical_reg;
     for (const auto &[key, value] : ori_inst) {
       if (writer.isGeneralReg(ori_inst, key) ) {
-        if (std::get<int>(value) < 1024) continue;
-        if (logical_to_physical_mapping.count(std::get<int>(value))) {
-          origin_use_physical_reg.insert(logical_to_physical_mapping.at(std::get<int>(value)));
-          origin_use_physical_reg_map[key] = logical_to_physical_mapping.at(std::get<int>(value));
+        if (std::get<int>(value) < 1024) { // phsical regs
+          origin_use_physical_reg.insert(std::get<int>(value));
+          origin_use_physical_reg_map[key] = std::get<int>(value);
+          // continue;
+        // if (logical_to_physical_mapping.count(std::get<int>(value))) {
+        //   origin_use_physical_reg.insert(logical_to_physical_mapping.at(std::get<int>(value)));
+        //   origin_use_physical_reg_map[key] = logical_to_physical_mapping.at(std::get<int>(value));
         } else {
+          if (logical_to_physical_mapping.count(std::get<int>(value))) {
+            std::cerr << "Should not happen!" << std::endl;
+            std::exit(1);
+          }
           spill_inst_and_key.insert(std::to_string(std::get<int>(ori_inst["opcode"])) + "_" + key);
           if (writer.isWriteGeneralReg(ori_inst, key)) {
             int spill_addr = spill_to_offset_mapping.at(std::get<int>(value));
@@ -2100,21 +2104,12 @@ static void mappingRegisterLogicalToPhysical(
         }
       }
     }
-    std::cout << "origin_use_physical_reg: ";
-    for (int reg : origin_use_physical_reg) {
-      std::cout << reg << " ";
-    }
-    std::cout << std::endl;
-
     std::vector<int> can_use_phy_regs;
-    std::cout << "can_use_phy_regs: ";
     for (int i = 0; i < num_physical_regs; i++) {
       if (!origin_use_physical_reg.count(i)) {
         can_use_phy_regs.push_back(i);
-        std::cout << i << " ";
       }
     }
-    std::cout << std::endl;
 
     
     int spill_reg_num = 0;
@@ -2135,10 +2130,6 @@ static void mappingRegisterLogicalToPhysical(
       key_to_reg[key] = can_use_phy_regs[spill_reg_num];
       spill_reg_num += 1;
     }
-    for (const auto& pair : key_to_reg) {
-      std::cout << pair.first << ":" << pair.second << ", ";
-    }
-    std::cout << std::endl;
 
     std::vector<Inst> insert_after;
     // save output reg
