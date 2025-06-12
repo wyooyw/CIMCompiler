@@ -26,9 +26,9 @@ def parse_convert_args(subparsers):
     parser.add_argument("--dst-type", "--dt", type=str, choices=["legacy", "cimflow", "asm"], required=True)
     parser.add_argument("--src-file", "--sf", type=str, required=True)
     parser.add_argument("--dst-file", "--df", type=str, required=True)
-    parser.add_argument("--filter-out-invalid-instructions", action="store_true", default=True,
+    parser.add_argument("--filter-out-invalid-instructions", action="store_true",
                        help="Filter out invalid instructions from the conversion result")
-    parser.add_argument("--add-single-core-id", action="store_true", default=True,
+    parser.add_argument("--add-single-core-id", action="store_true",
                        help="Add core id 0 to the conversion result. Only when dst-type is legacy or cimflow can use this.")
 
 
