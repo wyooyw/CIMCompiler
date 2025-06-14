@@ -252,13 +252,6 @@ static void codeGen(mlir::arith::ConstantOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     InstList &instr_list, std::set<int> &def,
                     std::set<int> &use) {
-  /*
-    - [31, 30]，2bit：class，指令类别码，值为10
-    - [29, 28]，2bit：type，指令类型码，值为11
-    - [27, 26]，2bit：opcode，指令操作码，值为00
-    - [25, 21]，5bit：rd，通用寄存器编号，即要赋值的通用寄存器
-    - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
-  */
   int value = cast<IntegerAttr>(op.getValueAttr()).getInt();
   int reg = getReg(regmap, op.getResult());
   def.insert(reg);
@@ -271,13 +264,6 @@ static void codeGen(mlir::cimisa::GeneralRegLiOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     InstList &instr_list, std::set<int> &def,
                     std::set<int> &use) {
-  /*
-    - [31, 30]，2bit：class，指令类别码，值为10
-    - [29, 28]，2bit：type，指令类型码，值为11
-    - [27, 26]，2bit：opcode，指令操作码，值为00
-    - [25, 21]，5bit：rd，通用寄存器编号，即要赋值的通用寄存器
-    - [20, 0]，21bit：imm，立即数，表示将要赋给寄存器的值
-  */
   int64_t value = op.getValue().getSExtValue();
   int reg = getReg(regmap, op.getResult());
   def.insert(reg);
@@ -291,23 +277,6 @@ static void codeGenArith(Ty op,
                          std::unordered_map<llvm::hash_code, int> &regmap,
                          InstList &instr_list, std::set<int> &def,
                          std::set<int> &use) {
-  /*
-  - [31, 30]，2bit：class，指令类别码，值为10
-  - [29, 28]，2bit：type，指令类型码，值为00
-  - [27, 26]，2bit：reserve，保留字段
-  - [25, 21]，5bit：rs1，通用寄存器1，表示运算数1的值
-  - [20, 16]，5bit：rs2，通用寄存器2，表示运算数2的值
-  - [15, 11]，5bit：rd，通用寄存器3，即运算结果写回的寄存器
-  - [10, 3]，8bit：reserve，保留字段
-  - [2, 0]，3bit：opcode，操作类别码，表示具体计算的类型
-    - 000：add，整型加法
-    - 001：sub，整型减法
-    - 010：mul，整型乘法，结果寄存器仅保留低32位
-    - 011：div，整型除法，结果寄存器仅保留商
-    - 100：sll，逻辑左移
-    - 101：srl，逻辑右移
-    - 110：sra，算数右移
-  */
   int rs1 = getReg(regmap, op.getOperand(0));
   int rs2 = getReg(regmap, op.getOperand(1));
   int rd = getReg(regmap, op.getResult());
@@ -366,19 +335,6 @@ static void codeGenRI(Ty op,
                       std::unordered_map<llvm::hash_code, int> &regmap,
                       InstList &instr_list, std::set<int> &def,
                       std::set<int> &use) {
-  /*
-    R-I型整数运算指令：scalar-RI
-    指令字段划分：
-    - [31, 30]，2bit：class，指令类别码，值为10
-    - [29, 28]，2bit：type，指令类型码，值为01
-    - [27, 26]，2bit：opcode，操作类别码，表示具体计算的类型
-      - 00：addi，整型立即数加法
-      - 01：muli，整型立即数乘法，结果寄存器仅保留低32位
-      - 10：lui，高16位立即数赋值
-    - [25, 21]，5bit：rs，通用寄存器1，表示运算数1的值
-    - [20, 16]，5bit：rd，通用寄存器2，即运算结果写回的寄存器
-    - [15, 0]，16bit：imm，立即数，表示运算数2的值
-  */
   int rs = getReg(regmap, op.getOperand());
   int rd = getReg(regmap, op.getResult());
   int64_t imm = op.getConstant().getSExtValue();
@@ -491,19 +447,6 @@ static void codeGen(mlir::cimisa::TransOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     InstList &instr_list, std::set<int> &def,
                     std::set<int> &use) {
-  /*
-  - [31, 29]，3bit：class，指令类别码，值为110
-  - [28, 28]，1bit：type，指令类型码，值为0
-  - [27, 26]，1bit：offset
-  mask，偏移值掩码，0表示该地址不使用偏移值，1表示使用偏移值
-    - [27]，1bit：source offset mask，源地址偏移值掩码
-    - [26]，1bit：destination offset mask，目的地址偏移值掩码
-  - [25, 21]，5bit：rs，通用寄存器1，表示传输源地址的基址
-  - [20, 16]，5bit：rd，通用寄存器2，表示传输目的地址的基址
-  - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
-    - 源地址计算公式：$rs + offset * [27]
-    - 目的地址计算公式：$rd + offset * [26]
-  */
   int rs = getReg(regmap, op.getOperand(0));
   int rd = getReg(regmap, op.getOperand(1));
   int size = getReg(regmap, op.getOperand(2));
@@ -522,21 +465,6 @@ static void codeGen(mlir::cimisa::LoadOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     InstList &instr_list, std::set<int> &def,
                     std::set<int> &use) {
-  /*
-    Load/Store指令：scalar-SL
-    指令字段划分：
-    - [31, 30]，2bit：class，指令类别码，值为10
-    - [29, 28]，2bit：type，指令类型码，值为10
-    - [27, 26]，2bit：opcode，操作类别码，表示具体操作的类型
-      - 00：本地存储load至寄存器
-      - 01：寄存器值store至本地存储
-      - 10：全局存储load至寄存器
-      - 11：寄存器值store至全局存储
-    - [25, 21]，5bit：rs1，通用寄存器1，即寻址的基址寄存器base
-    - [20, 16]，5bit：rs2，通用寄存器2，即存储load/store值的寄存器
-    - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
-      - 地址计算公式：$rs + offset
-  */
   int rs1 = getReg(regmap, op.getOperand());
   int rs2 = getReg(regmap, op.getResult());
   int64_t imm = op.getConstant().getSExtValue();
@@ -551,21 +479,6 @@ static void codeGen(mlir::cimisa::StoreOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     InstList &instr_list, std::set<int> &def,
                     std::set<int> &use) {
-  /*
-    Load/Store指令：scalar-SL
-    指令字段划分：
-    - [31, 30]，2bit：class，指令类别码，值为10
-    - [29, 28]，2bit：type，指令类型码，值为10
-    - [27, 26]，2bit：opcode，操作类别码，表示具体操作的类型
-      - 00：本地存储load至寄存器
-      - 01：寄存器值store至本地存储
-      - 10：全局存储load至寄存器
-      - 11：寄存器值store至全局存储
-    - [25, 21]，5bit：rs1，通用寄存器1，即寻址的基址寄存器base
-    - [20, 16]，5bit：rs2，通用寄存器2，即存储load/store值的寄存器
-    - [15, 0]，16bit：offset，立即数，表示寻址的偏移值
-      - 地址计算公式：$rs + offset
-  */
   int rs1 = getReg(regmap, op.getOperand(0));
   int rs2 = getReg(regmap, op.getOperand(1));
   int64_t imm = op.getConstant().getSExtValue();
@@ -584,35 +497,6 @@ static void codeGen(mlir::cimisa::CIMComputeOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     InstList &instr_list, std::set<int> &def,
                     std::set<int> &use) {
-  // TODO: 这里没加上input_size寄存器
-  /*
-    - [31, 30]，2bit：class，指令类别码，值为00
-    - [29, 29]，1bit：type，指令类型码，值为0
-    - [28, 25]，4bit：reserve，保留字段
-    - [24, 20]，5bit：flag，功能扩展字段
-      - [24]，1bit：value
-    sparse，表示是否使用值稀疏，稀疏掩码Mask的起始地址由专用寄存器给出
-      - [23]，1bit：bit
-    sparse，表示是否使用bit级稀疏，稀疏Meta数据的起始地址由专用寄存器给出
-      -
-    [22]，1bit：group，表示是否进行分组，组大小及激活的组数量由专用寄存器给出
-      - [21]，1bit：group input mode，表示多组输入的模式
-        -
-    0：每一组输入向量的起始地址相对于上一组的增量（步长，step）是一个定值，由专用寄存器给出
-        -
-    1：每一组输入向量的起始地址相对于上一组的增量不是定值，其相对于rs1的偏移量（offset）在存储器中给出，地址（offset
-    addr）由专用寄存器给出
-      - [20]，1bit：accumulate，表示是否进行累加
-    - [19, 15]，5bit：rs1，通用寄存器1，表示input向量起始地址
-    - [14, 10]，5bit：rs2，通用寄存器2，表示input向量长度
-    - [9, 5]，5bit：rs3，通用寄存器3，表示激活的row的index
-    - [4, 0]，5bit：rd，通用寄存器4，表示output写入的起始地址
-
-    - input bit width：输入的bit长度
-    - output bit width：输出的bit长度
-    - weight bit width：权重的bit长度
-    - activation element col num：每个group内激活的element列的数量
-  */
   int input_addr_reg = getReg(regmap, op.getOperand(0));
   // int output_addr_reg = getReg(regmap, op.getOperand(1));
   int activate_row_reg = getReg(regmap, op.getOperand(1));
@@ -670,19 +554,12 @@ static void codeGen(mlir::cimisa::CIMOutputOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     InstList &instr_list, std::set<int> &def,
                     std::set<int> &use) {
-  /*
-
-  */
   int out_n = getReg(regmap, op.getOperand(0));
   int out_mask_addr = getReg(regmap, op.getOperand(1));
   int output_addr_reg = getReg(regmap, op.getOperand(2));
   use.insert(out_n);
   use.insert(out_mask_addr);
   use.insert(output_addr_reg);
-  // Inst inst = {
-  //     {"class", 0b00}, {"type", 0b10}, {"outsum_move", 0},      {"outsum", 0},
-  //     {"rs1", out_n},  {"rs2", 0},     {"rd", output_addr_reg},
-  // };
   Inst inst = writer.getCIMOutputInst(
     /*reg_out_n=*/ out_n,
     /*reg_out_mask_addr=*/ out_mask_addr,
@@ -698,20 +575,12 @@ static void codeGen(mlir::cimisa::CIMOutputSumOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     InstList &instr_list, std::set<int> &def,
                     std::set<int> &use) {
-  /*
-
-  */
   int out_n = getReg(regmap, op.getOperand(0));
   int out_mask_addr = getReg(regmap, op.getOperand(1));
   int output_addr_reg = getReg(regmap, op.getOperand(2));
   use.insert(out_n);
   use.insert(out_mask_addr);
   use.insert(output_addr_reg);
-  // Inst inst = {
-  //     {"class", 0b00},         {"type", 0b10}, {"outsum_move", 0},
-  //     {"outsum", 1},           {"rs1", out_n}, {"rs2", out_mask_addr},
-  //     {"rd", output_addr_reg},
-  // };
   Inst inst = writer.getCIMOutputInst(
     /*reg_out_n=*/ out_n,
     /*reg_out_mask_addr=*/ out_mask_addr,
@@ -759,23 +628,6 @@ static void codeGen(mlir::cimisa::CIMSetOp op,
                     std::unordered_map<llvm::hash_code, int> &regmap,
                     InstList &instr_list, std::set<int> &def,
                     std::set<int> &use) {
-  /*
-  pim设置：pim-set
-  设置pim单元的一些参数，以每个MacroGroup为单位进行设置，设置的参数包括每个macro激活的element列等
-  - [31, 30]，2bit：class，指令类别码，值为00
-  - [29, 28]，2bit：type，指令类型码，值为01
-  - [27, 21]，7bit：reserve，保留字段
-  - [20, 20]，1bit：group broadcast，表示是否进行设置的组广播
-    -
-  0：不进行组广播，即仅对单个MacroGroup进行设置，MacroGroup编号由寄存器rs1给出
-    - 1：进行组广播，即对所有MacroGroup进行该次设置，此时忽略寄存器rs1
-  - [19, 15]，5bit：rs1，通用寄存器1，表示单播时设置的MacroGroup编号
-  - [14,
-  10]，5bit：rs2，通用寄存器2，表示一个MacroGroup内所有Macro激活element列的掩码mask地址
-    - 每个element列对应1bit mask，0表示不激活，1表示激活
-    - 每个Macro的mask从前到后依次排布，连续存储
-  - [9, 0]，10bit：reserve，保留字段
-  */
   int mask_addr = getReg(regmap, op.getOperand());
   use.insert(mask_addr);
   Inst inst = writer.getCIMSetInst(
