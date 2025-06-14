@@ -929,7 +929,7 @@ def data_movement_operator_to_dsl(op):
     ast = utils.gen_ast(union_domain, union_schedule, None)
     code_generator = CodeGenerator(op, name_to_op)
     code = code_generator.codegen_str(ast, 4)
-    logger.info(code)
+    logger.debug(code)
     buffer_manager = code_generator.buffer_manager
     return code, buffer_manager
 
