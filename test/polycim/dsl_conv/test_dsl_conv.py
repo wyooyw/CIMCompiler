@@ -102,7 +102,7 @@ def test_dsl_conv(batch, in_channel, in_hw, ker_hw, out_hw, out_channel, stride,
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir = "test_result"
         os.makedirs(temp_dir, exist_ok=True)
-        op_runner.run([inputs, macros], [outputs], simulate=True, save_dir=temp_dir)
+        op_runner.run([inputs, macros], [outputs], simulate=True)
 
     golden = calc_conv(inputs, weight, padding, stride)
     assert outputs.shape == golden.shape, f"{outputs.shape=} != {golden.shape=}"
@@ -116,12 +116,12 @@ def test_dsl_conv(batch, in_channel, in_hw, ker_hw, out_hw, out_channel, stride,
 if __name__ == "__main__":
     test_dsl_conv(
         batch=1, 
-        in_channel=48, 
+        in_channel=32, 
         in_hw=8, 
         ker_hw=3, 
         out_hw=8, 
         out_channel=8, 
         stride=1, 
         padding=1, 
-        config_path="/app/CIMCompiler/CIMCompiler/test/polycim/end2end/g4r32c32b64.json"
+        config_path="/app/CIMCompiler/CIMCompiler/config/dac25/config_gs_4.json"
     )

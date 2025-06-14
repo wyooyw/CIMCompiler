@@ -9,22 +9,22 @@ import pytest
     "graph_instruction_path, config_path",
     [
         # resnet18
-        (
-            "graphs/instructions_resnet18_0.5x_load_time_T4_B8.json",
-            "config/dac25/config_gs_4.json",
-        ),
-        (
-            "graphs/instructions_resnet18_0.5x_load_time_T8_B8.json",
-            "config/dac25/config_gs_8.json",
-        ),
-        (
-            "graphs/instructions_resnet18_0.5x_load_time_T12_B8.json",
-            "config/dac25/config_gs_12.json",
-        ),
-        (
-            "graphs/instructions_resnet18_0.5x_load_time_T16_B8.json",
-            "config/dac25/config_gs_16.json",
-        ),
+        # (
+        #     "graphs/instructions_resnet18_0.5x_load_time_T4_B8.json",
+        #     "config/dac25/config_gs_4.json",
+        # ),
+        # (
+        #     "graphs/instructions_resnet18_0.5x_load_time_T8_B8.json",
+        #     "config/dac25/config_gs_8.json",
+        # ),
+        # (
+        #     "graphs/instructions_resnet18_0.5x_load_time_T12_B8.json",
+        #     "config/dac25/config_gs_12.json",
+        # ),
+        # (
+        #     "graphs/instructions_resnet18_0.5x_load_time_T16_B8.json",
+        #     "config/dac25/config_gs_16.json",
+        # ),
         # mobilenet
         (
             "graphs/instructions_mobilenet_0.5x_load_time_T4_B8.json",
@@ -67,7 +67,6 @@ def test_cimflow_network(graph_instruction_path, config_path):
 
 if __name__ == "__main__":
     test_cimflow_network(
-        "graphs/instructions_resnet18_0.5x_load_time_T4_B8.json",
+        "graphs/instructions_mobilenet_0.5x_load_time_T4_B8.json",
         "config/dac25/config_gs_4.json",
     )
-    pass

@@ -53,12 +53,30 @@
             }
         },
         {
+            "name": "quant_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 512,
+                "comments": "spill: 2KB",
+                "offset_byte": 532608
+            }
+        },
+        {
+            "name": "spill_memory",
+            "type": "sram",
+            "addressing": {
+                "size_byte": 2048,
+                "comments": "size: 2KB",
+                "offset_byte": 533120
+            }
+        },
+        {
             "name": "global",
             "type": "dram",
             "addressing": {
                 "size_byte": 33554432,
                 "comments": "size: 16MB",
-                "offset_byte": 532608
+                "offset_byte": 535168
             }
         }
     ]

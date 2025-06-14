@@ -6,12 +6,15 @@ from cim_compiler.simulator.inst import *
 from cim_compiler.cli.common import show_args, to_abs_path, uniform_parse_code
 import multiprocessing
 import copy
+import json
+import base64
 
 logger = get_logger(__name__)
 
 def _add_arguments_for_simulator(parser):
     parser.add_argument("--code-file", "-i", type=str, required=True)
     parser.add_argument("--data-file", "-d", type=str, required=False)
+    parser.add_argument("--multi-image-data-file", "-m", type=str, required=False)
     parser.add_argument("--config-file", "-c", type=str, required=True)
     parser.add_argument("--output-dir", "-o", type=str, required=True)
 
@@ -72,6 +75,15 @@ def run_simulate(args, pipes=None, core_id=0):
         data = bytearray(data)
         global_memory_base = simulator.memory_space.get_base_of("global")
         simulator.memory_space.write(data, global_memory_base, len(data))
+    
+    if args.multi_image_data_file is not None:
+        with open(args.multi_image_data_file, "r") as file:
+            multi_image_data_file = json.load(file)
+        for memory_name, image in multi_image_data_file.items():
+            data = base64.b64decode(image)
+            data = bytearray(data)
+            memory_base = simulator.memory_space.get_base_of(memory_name)
+            simulator.memory_space.write(data, memory_base, len(data))
 
     # run code
     status, stats, flat = simulator.run_code(
@@ -95,6 +107,13 @@ def run_simulate(args, pipes=None, core_id=0):
     output_image = simulator.memory_space.get_memory_by_name("global").read_all()
     with open(os.path.join(args.output_dir, "image.bin"), "wb") as f:
         f.write(output_image)
+
+    all_images = {}
+    for memory in simulator.memory_space.memory_space:
+        image = memory.read_all()
+        all_images[memory.name] = base64.b64encode(image).decode("utf-8")
+    with open(os.path.join(args.output_dir, "all_images.json"), "w") as f:
+        json.dump(all_images, f)
 
     logger.info(f"Simulate finished.")
 

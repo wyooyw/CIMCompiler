@@ -8,6 +8,7 @@ from cim_compiler.polycim.codegen_.codegen import CodeStmt, alloc_unique_stmt, a
 from cim_compiler.polycim.config import get_config
 from cim_compiler.polycim.op.base_operator import (
     DataMovement,
+    QuantizeDataMovement,
     DataMovementOperator,
     PartialSumDataMovement,
     TensorAccessRelation,
@@ -114,14 +115,32 @@ class CodeGenerator:
             )
             code_list.append(code)
 
-        for name, info in buffer_name_to_info.items():
+        buffer_names = {"I":[], "W":[], "O":[]}
+        for name, _ in buffer_name_to_info.items():
+            if name[0] not in ["I", "W", "O"]:
+                continue
+            buffer_names[name[0]].append(name)
+        buffer_names["I"].sort()
+        buffer_names["W"].sort()
+        buffer_names["O"].sort()
+        
+        # for name, info in buffer_name_to_info.items():
+        for name in [*buffer_names["I"],*buffer_names["W"],*buffer_names["O"] ]:
+            info = buffer_name_to_info[name]
             if info.memory_name == "global":
                 continue
             if name[0] not in ["I", "W", "O"]:
                 continue
             shape_str = ",".join([str(s) for s in info.shape])
             memory_name_big = "__" + info.memory_name.upper() + "__"
-            dtype = "int32" if name[0] == "O" else "int8"
+            if name[0] == "O":
+                if name==buffer_names["O"][0]:
+                    dtype = "int8"
+                else:
+                    dtype = "int32"
+            else:
+                dtype = "int8"
+
             code = CodeStmt(
                 code=f"{name} = Buffer(<{shape_str}>, {dtype}, {memory_name_big});",
                 depth=depth,
@@ -138,6 +157,21 @@ class CodeGenerator:
         )
         self.buffer_manager.add_buffer(zero_scalar_buffer_name, [1], "input_memory")
         return [code]
+    
+    def codegen_quantize_buffer_define(self, depth):
+        codes = [
+            CodeStmt(
+                code=f"bias_scale = Buffer(<2>, int32, __QUANT_MEMORY__);",
+                depth=depth,
+            ),
+            CodeStmt(
+                code=f"out_zp = Buffer(<1>, int32, __QUANT_MEMORY__);",
+                depth=depth,
+            )
+        ]
+        self.buffer_manager.add_buffer("bias_scale", [2], "quant_memory")
+        self.buffer_manager.add_buffer("out_zp", [1], "quant_memory")
+        return [*codes]
 
     def codegen_cimset(self, depth):
         cim_cfg = get_config()
@@ -430,7 +464,11 @@ class CodeGenerator:
 
         op = self.name_to_op[call_name]
 
-        if type(op) == DataMovement:
+        if isinstance(op, QuantizeDataMovement):
+
+            call_code = self.codegen_call_quantize(op, call_args, depth)
+
+        elif type(op) == DataMovement:
 
             call_code = self.codegen_call_data_movement(op, call_args, depth)
 
@@ -512,6 +550,34 @@ class CodeGenerator:
         trans_code = CodeStmt(code=f"Trans({slice_var_I}, {slice_var_O});", depth=depth)
 
         return [*code_list_I, *code_list_O, trans_code]
+
+    def codegen_call_quantize(self, op, call_args, depth):
+        assert isinstance(op, QuantizeDataMovement)
+
+        # generate offset for each array
+        code_list_I, slice_var_I = self.codegen_tensor_access_from_pw_multi_aff(
+            op.access_I, call_args, depth
+        )
+        code_list_O, slice_var_O = self.codegen_tensor_access_from_pw_multi_aff(
+            op.access_O, call_args, depth
+        )
+        before_quantize = [
+            CodeStmt(code="SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);", depth=depth),
+            CodeStmt(code="SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);", depth=depth),
+            CodeStmt(code="SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);", depth=depth),
+            CodeStmt(code="SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);", depth=depth),
+        ]
+        
+        trans_code = CodeStmt(code=f"SIMD(QUANTIZE, {slice_var_I}, bias_scale, out_zp, {slice_var_O});", depth=depth)
+
+        
+        after_quantize = [
+            CodeStmt(code="SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);", depth=depth),
+            CodeStmt(code="SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);", depth=depth),
+            CodeStmt(code="SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);", depth=depth),
+        ]
+
+        return [*code_list_I, *code_list_O, *before_quantize, trans_code, *after_quantize]
 
     def codegen_call_cim_compute(self, op, call_args, depth):
         assert type(op) == DataMovementOperator
@@ -644,6 +710,7 @@ class CodeGenerator:
         main_begin, main_end = self.codegen_main_and_end(0)
         # cimset_code_list = self.codegen_cimset(1)
         buffer_define_code_list = self.codegen_buffer_define(1)
+        quantize_buffer_define_code_list = self.codegen_quantize_buffer_define(1)
         const_buffer_define_code_list = self.codegen_const_buffer_define(1)
         execute_code_list = self.codegen(node, 1)
         code_str = ""
@@ -654,6 +721,7 @@ class CodeGenerator:
             # + cimset_code_list
             + buffer_define_code_list
             # + const_buffer_define_code_list
+            + quantize_buffer_define_code_list
             + execute_code_list
             + main_end
         ):
@@ -841,6 +909,8 @@ def data_movement_operator_to_dsl(op):
                 assign_schedule_list.append(assign_schedule)
                 level_list.append(data_movement.level)
                 type_list.append(data_movement.type_)
+                # if name == "O":
+                #     import pdb; pdb.set_trace()
                 name_to_op[stmt_name] = data_movement
 
     # make union_domain

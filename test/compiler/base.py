@@ -74,6 +74,11 @@ class TestBase:
 
         with tempfile.TemporaryDirectory() as output_folder:
 
+            if os.environ.get("CIM_COMPILER_OUTPUT_DIR", None) is not None:
+                output_folder = os.environ.get("CIM_COMPILER_OUTPUT_DIR")
+
+            os.makedirs(output_folder, exist_ok=True)
+
             # fill template
             input_path = os.path.join(output_folder, "code.cim")
             fill_template(origin_input_path, input_path)

@@ -39,6 +39,14 @@
                 "offset_byte": 384,
                 "size_byte": 64
             }
+        },
+        {
+            "name": "spill_memory",
+            "type": "sram",
+            "addressing": {
+                "offset_byte": 448,
+                "size_byte": 2048
+            }
         }
     ]
 }

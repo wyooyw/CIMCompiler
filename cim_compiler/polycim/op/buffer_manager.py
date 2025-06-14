@@ -7,6 +7,7 @@ from cim_compiler.polycim.op.base_operator import (
     AccessRelation,
     DataMovement,
     PartialSumDataMovement,
+    QuantizeDataMovement,
     TensorAccessRelation,
 )
 
@@ -114,7 +115,7 @@ class BufferManager:
 
         for buffer in ["I", "W", "O"]:
             for data_movement in op.data_movement[buffer]:
-                assert type(data_movement) in [DataMovement, PartialSumDataMovement]
+                assert type(data_movement) in [DataMovement, QuantizeDataMovement, PartialSumDataMovement]
 
                 name, shape = get_name_and_shape(data_movement.access_I)
                 _update_shape(name, shape)

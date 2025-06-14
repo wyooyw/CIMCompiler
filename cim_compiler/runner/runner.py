@@ -7,7 +7,8 @@ from dataclasses import dataclass
 import copy
 from multiprocessing import Process
 import types
-
+import base64
+import json
 class OpRunner:
     def __init__(self, op_path, op_config, cim_config_path, cim_config_path_simulator=None):
         self.op_path = op_path
@@ -218,3 +219,63 @@ class SPMDOpRunner(OpRunner):
             "--save-stats",
             "--num-cores", str(self.num_cores)
         ], check=True)
+
+class FromLocalRunner(OpRunner):
+    def get_output(self, simulator_output_dir:str, input_list:list[np.ndarray], output_list:list[np.ndarray]):
+        # Calculate total size of input arrays in bytes
+        input_size = sum(arr.nbytes for arr in input_list)
+        
+        # Read the output data from image.bin
+        image_path = os.path.join(simulator_output_dir, "all_images.json")
+        with open(image_path, 'r') as f:
+            all_images = json.load(f)
+            image = all_images["global"]
+            data = base64.b64decode(image)
+            data = bytearray(data)
+            
+            # Read output data for each output array
+            offset = 0
+            for output_arr in output_list:
+                output_bytes = data[offset: offset + output_arr.nbytes]
+                # Copy bytes directly into the output array
+                output = np.frombuffer(output_bytes, dtype=output_arr.dtype).reshape(output_arr.shape)
+                output_arr[:] = output
+
+                offset += output_arr.nbytes
+
+    def simulate(self, image_path:str, final_code_dir:str, simulator_output_dir:str):
+        subprocess.run([
+            "cim-compiler", "simulate",
+            "--code-file", os.path.join(final_code_dir, "final_code.json"),
+            "--data-file", image_path,
+            "--multi-image-data-file", image_path,
+            "--config-file", self.cim_config_path,
+            "--output-dir", simulator_output_dir,
+            "--code-format", "cimflow",
+            "--save-stats"
+        ], check=True)
+
+    def simulate(self, image_path:str, final_code_dir:str, simulator_output_dir:str):
+        subprocess.run([
+            "cim-compiler", "simulate",
+            "--code-file", os.path.join(final_code_dir, "final_code.json"),
+            "--multi-image-data-file", image_path,
+            "--config-file", self.cim_config_path,
+            "--output-dir", simulator_output_dir,
+            "--code-format", "cimflow",
+            "--save-stats"
+        ], check=True)
+
+    def make_image(self, input_list:list[np.ndarray], image_path:str):
+        # 将所有输入张量转换为字节数组并拼接
+        image_byte_array = bytearray()
+        for tensor in input_list:
+            tensor_byte_array = bytearray(tensor)
+            image_byte_array += tensor_byte_array
+        
+        # 将拼接后的字节数组写入文件
+        with open(image_path, 'w') as f:
+            data = {
+                "input_memory": base64.b64encode(image_byte_array).decode("utf-8")
+            }
+            json.dump(data, f)

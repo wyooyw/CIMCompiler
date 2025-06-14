@@ -297,14 +297,14 @@ if __name__=="__main__":
     # cp_group_size = 32
     # for cp_group_size in [2]:
     # for seqlen in range(1000, 1200, 33):
-    for seqlen in range(258, 512, 33):
-        test_attn_decode_cp(
-            head_hidden=64, 
-            seqlen=seqlen,
-            world_size=4,
-            cp_group_size=4,
-            load_k_stages=1
-        )
+    # for seqlen in range(258, 512, 33):
+    test_attn_decode_cp(
+        head_hidden=64, 
+        seqlen=512,
+        world_size=4,
+        cp_group_size=2,
+        load_k_stages=1
+    )
     # for head_hidden in [32, 64, 128]:
     #     for seqlen in range(16, 64, 2):
     #         print(f"test {seqlen=}")

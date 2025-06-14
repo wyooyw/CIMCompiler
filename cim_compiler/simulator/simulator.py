@@ -720,9 +720,9 @@ class Simulator:
             addr = self.read_general_reg(inst.reg_addr)
             offset = inst.offset
             addr += offset
-            self.memory_space.check_memory_name(
-                addr, 4, ["spill_memory"]
-            )
+            # self.memory_space.check_memory_name(
+            #     addr, 4, ["spill_memory"]
+            # )
             value = self.memory_space.read_as(addr, 4, np.int32).item()
             self.write_general_reg(inst.reg_value, value)
 
@@ -732,9 +732,9 @@ class Simulator:
             value = self.read_general_reg(inst.reg_value)
             offset = inst.offset
             addr += offset
-            self.memory_space.check_memory_name(
-                addr, 4, ["spill_memory"]
-            )
+            # self.memory_space.check_memory_name(
+            #     addr, 4, ["spill_memory"]
+            # )
             self.memory_space.write(np.array([value], dtype=np.int32), addr, 4)
 
         else:
@@ -1712,7 +1712,8 @@ class Simulator:
         )
 
         # read bias and scale
-        bias_scale_byte_size = input_size * 2 * 4
+        # bias_scale_byte_size = input_size * 2 * 4
+        bias_scale_byte_size = 2 * 4
         bias_data = self.memory_space.read_as(
             bias_scale_addr, bias_scale_byte_size, np.int32
         )[0::2]

@@ -18,6 +18,7 @@ from cim_compiler.polycim.op.base_operator import (
     DataMovement,
     DataMovementOperator,
     PartialSumDataMovement,
+    QuantizeDataMovement
 )
 from cim_compiler.polycim.op.buffer_manager import BufferManager
 from cim_compiler.polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
@@ -928,6 +929,7 @@ def insert_single_buffer_multi_level(
     force_nondominate_iters=None,
     force_layout_inner_iters=None,
     buffer_is_partial_sum=None,
+    buffer_is_quantize=None,
     reduce_levels=None,
 ):
     assert buffer_name in ["I", "O", "W"]
@@ -946,6 +948,17 @@ def insert_single_buffer_multi_level(
             assert not any(
                 buffer_is_partial_sum
             ), f"{buffer_name=}, {buffer_is_partial_sum=}"
+
+    if buffer_is_quantize is None:
+        buffer_is_quantize = [False] * len(buffer_levels)
+    else:
+        assert isinstance(buffer_is_quantize, list)
+        assert len(buffer_is_quantize) == len(buffer_levels)
+        assert all([isinstance(i, bool) for i in buffer_is_quantize])
+        if buffer_name in ("I", "W"):
+            assert not any(
+                buffer_is_quantize
+            ), f"{buffer_name=}, {buffer_is_quantize=}"
 
     # Align data layout
     ori_acc_rel = op.get_access_by_name(buffer_name)
@@ -1071,6 +1084,14 @@ def insert_single_buffer_multi_level(
             datamove = PartialSumDataMovement(
                 domain=assign_domain,
                 domain_partial_sum=assign_domain_partial_sum,
+                access_I=access_I,
+                access_O=access_O,
+                level=buffer_level,
+                type_=buffer_name,
+            )
+        elif buffer_is_quantize[idx]:
+            datamove = QuantizeDataMovement(
+                domain=assign_domain,
                 access_I=access_I,
                 access_O=access_O,
                 level=buffer_level,
@@ -1570,6 +1591,7 @@ class BufferStrategy:
     output_buffer_level: tuple[int, int]
     weight_buffer_level: tuple[int, int]
     output_is_partial_sum: list[bool]
+    output_is_quantize: list[bool]
     output_reduce_level: list[int]
 
 
@@ -1732,18 +1754,29 @@ def buffer_strategy_combination(op, n_macro_iters):
                 share_output_iters_time = sorted(share_output_iters_time)
                 new_output_buffer_level = [
                     # output_buffer_level[0],
+                    output_buffer_level[0], # quantize
                     *share_output_iters_time,
                     output_buffer_level[0],
                 ]
-                new_output_buffer_reduce_level = [*reduce_levels, None]
+                new_output_buffer_reduce_level = [
+                    None, # quantize
+                    *reduce_levels, 
+                    None
+                ]
                 new_output_is_partial_sum = [
                     # False,
+                    False, # quantize
                     *([True] * len(share_output_iters_time)),
                     # *([True] * len(share_output_iters_group)),
                     False,
                 ]
+                output_is_quantize = [
+                    True,
+                    *([False] * len(share_output_iters_time)),
+                    False,
+                ]
                 new_output_memory_names = [
-                    # output_memory_names[0],
+                    output_memory_names[0], # quantize
                     *(["output_memory"] * (len(share_output_iters_time))),
                     # *(["output_memory"] * (len(share_output_iters_group))),
                     output_memory_names[0],
@@ -1760,6 +1793,7 @@ def buffer_strategy_combination(op, n_macro_iters):
                     output_buffer_level=new_output_buffer_level,
                     weight_buffer_level=weight_buffer_level,
                     output_is_partial_sum=new_output_is_partial_sum,
+                    output_is_quantize=output_is_quantize,
                     output_reduce_level=new_output_buffer_reduce_level,
                 )
                 logger.debug(f"\t{buffer_strategy=}")
@@ -1802,6 +1836,7 @@ def multi_level_buffer_insersion(op, n_macro_iters, buffer_strategy):
         buffer_levels=buffer_strategy.output_buffer_level,
         memory_names=buffer_strategy.output_memory_names,
         buffer_is_partial_sum=buffer_strategy.output_is_partial_sum,
+        buffer_is_quantize=buffer_strategy.output_is_quantize,
         force_nondominate_iters=[n_dim - n_macro_iters, n_dim - n_macro_iters + 1],
         force_dominate_iters=[
             n_dim - 1,  # compartment
@@ -1840,11 +1875,14 @@ def multi_level_buffer_insersion(op, n_macro_iters, buffer_strategy):
     #     print(f"{data_movement.access_I=}\n")
 
     # print("output:")
-    # for data_movement in new_op.data_movement["O"]:
-    #     print(f"is partial sum: {isinstance(data_movement, PartialSumDataMovement)}")
-    #     print(f"{data_movement.level=}")
-    #     print(f"{data_movement.access_O=}")
-    #     print(f"{data_movement.access_I=}\n")
+    for data_movement in new_op.data_movement["O"]:
+        print(f"is partial sum: {isinstance(data_movement, PartialSumDataMovement)}")
+        print(f"is quantize: {isinstance(data_movement, QuantizeDataMovement)}")
+        print(f"{data_movement.level=}")
+        print(f"{data_movement.access_O=}")
+        print(f"{data_movement.access_I=}\n")
+
+    # import pdb; pdb.set_trace()            
 
     # import pdb; pdb.set_trace()
     data_layout_convert_code = {

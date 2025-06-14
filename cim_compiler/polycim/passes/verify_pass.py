@@ -12,6 +12,9 @@ from cim_compiler.polycim.codegen_.codegen_data_layout_convert import (
 from cim_compiler.polycim.exp.op_list import get_op_list
 from cim_compiler.polycim.passes.base import BreadthFirstPass
 from cim_compiler.polycim.utils.logger import get_logger
+import base64
+from cim_compiler.utils.round import banker_round
+
 
 logger = get_logger(__name__)
 
@@ -27,6 +30,15 @@ def get_verify_fn(op_id):
     op_info = get_op_list()[op_id]
     return op_info["verify_fn"]
 
+def quantize(input_data, bias_data, scale_data, out_zp_data):
+    clip_min = -128
+    clip_max = 127
+    output_data = input_data + bias_data
+    output_data = banker_round(output_data * scale_data) + out_zp_data
+    output_data = banker_round(np.clip(output_data, clip_min, clip_max))
+    # output_data = banker_round(np.clip(output_data, 0, 127))
+    output_data = output_data.astype("int8")
+    return output_data
 
 def verify(temp_dir, cim_cfg_path, op_name, op_id):
     op_dir = os.path.join(temp_dir, op_name, op_id)
@@ -81,6 +93,20 @@ def verify(temp_dir, cim_cfg_path, op_name, op_id):
     with open(global_memory_image_path, "wb") as f:
         f.write(total_data)
 
+    bias = np.array([0], dtype=np.int32)
+    scale = np.array([1], dtype=np.float32)
+    out_zp = np.array([0], dtype=np.int32)
+    quant_data = bytearray(bias) + bytearray(scale) + bytearray(out_zp)
+    multi_image_data = {
+        "input_memory": base64.b64encode(I_converted_data).decode("utf-8"),
+        "macro": base64.b64encode(W_converted_data).decode("utf-8"),
+        "quant_memory": base64.b64encode(quant_data).decode("utf-8")
+    }
+    multi_image_path = os.path.join(data_dir, "multi_image.json")
+    with open(multi_image_path, "w") as f:
+        json.dump(multi_image_data, f)
+    
+
     # run the simulator
     code_path = os.path.join(op_dir, "final_code.json")
     sim_output_dir = os.path.join(op_dir, "sim_output")
@@ -90,8 +116,10 @@ def verify(temp_dir, cim_cfg_path, op_name, op_id):
             "simulate",
             "--code-file",
             code_path,
-            "--data-file",
-            global_memory_image_path,
+            # "--data-file",
+            # global_memory_image_path,
+            "--multi-image-data-file",
+            multi_image_path,
             "--config-file",
             cim_cfg_path,
             "--output-dir",
@@ -124,6 +152,18 @@ def verify(temp_dir, cim_cfg_path, op_name, op_id):
     logger.info(f"{output_np=}")
     # np.savetxt(os.path.join(sim_output_dir, "output.txt"), output_np.reshape(-1), fmt="%d")
 
+    # get output from output memory
+    output_path = os.path.join(sim_output_dir, "all_images.json")
+    assert os.path.exists(output_path), f"{output_path=}"
+    with open(output_path, 'r') as f:
+        all_images = json.load(f)
+        image = all_images["output_memory"]
+        data = base64.b64decode(image)
+        data = bytearray(data)
+        output_size = reduce(lambda x, y: x * y, buffer_info["O_aligned"]["shape"])
+        output_data = data[:output_size]
+        output_np = np.frombuffer(output_data, dtype=np.int8)
+
     O_exe_path = os.path.join(op_dir, "convert_O.o")
     O_data_path = os.path.join(data_dir, "O.txt")
     O_converted_data_path = os.path.join(data_dir, "O_converted.txt")
@@ -139,7 +179,8 @@ def verify(temp_dir, cim_cfg_path, op_name, op_id):
     )
     # import pdb; pdb.set_trace()
     verify_fn = get_verify_fn(op_name)
-    golden = verify_fn(input_np, weight_np)
+    golden_i32 = verify_fn(input_np, weight_np)
+    golden = quantize(golden_i32, bias, scale, out_zp)
     logger.info(
         f"golden shape={golden.shape}, dtype={golden.dtype}, max={golden.max()}, min={golden.min()}"
     )

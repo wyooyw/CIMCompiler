@@ -9,6 +9,7 @@ from cim_compiler.polycim.op.base_operator import (
     DataMovement,
     DataMovementOperator,
     PartialSumDataMovement,
+    QuantizeDataMovement,
     TensorAccessRelation,
 )
 from cim_compiler.polycim.passes.base import DepthFirstPass, Schedule, SchedulePassResult
@@ -123,13 +124,23 @@ def vectorize_data_movement(args, data_movement):
             level=data_movement.level,
             type_=data_movement.type_,
         )
-    return DataMovement(
-        domain=outer_domain,
-        access_I=access_I,
-        access_O=access_O,
-        level=data_movement.level,
-        type_=data_movement.type_,
-    )
+    elif isinstance(data_movement, QuantizeDataMovement):
+
+        return QuantizeDataMovement(
+            domain=outer_domain,
+            access_I=access_I,
+            access_O=access_O,
+            level=data_movement.level,
+            type_=data_movement.type_,
+        )
+    else:
+        return DataMovement(
+            domain=outer_domain,
+            access_I=access_I,
+            access_O=access_O,
+            level=data_movement.level,
+            type_=data_movement.type_,
+        )
 
 
 def vectorize_data_movement_for_op(args, op):
