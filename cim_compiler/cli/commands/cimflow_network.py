@@ -245,9 +245,9 @@ def get_code_conv2d_by_dsl(
         cache_dir
 ):      
     cim_cfg = get_config()
-    if (in_channel % cim_cfg.n_comp != 0) and (cim_cfg.n_comp % in_channel != 0):
-        assert in_channel == 3
-        in_channel = 4
+    # if (in_channel % cim_cfg.n_comp != 0) and (cim_cfg.n_comp % in_channel != 0):
+    #     assert in_channel == 3
+    #     in_channel = 4
 
     kernel_size = in_channel * ker_hw * ker_hw
     n_reduce_group = math.ceil(kernel_size / (cim_cfg.n_comp * cim_cfg.n_row))
