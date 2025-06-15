@@ -88,7 +88,7 @@ class CIMFlowParser:
         elif opcode == 0b101000:
             return LoadInst(
                 reg_addr=inst["rs"],
-                reg_value=inst["rt"],
+                reg_value=inst["rd"],
                 offset=inst["imm"]
             )
         elif opcode == 0b101001:

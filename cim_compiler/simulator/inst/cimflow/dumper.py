@@ -95,7 +95,7 @@ class CIMFlowDumper:
             return {
                 "opcode": 0b101000,
                 "rs": inst.reg_addr,
-                "rt": inst.reg_value,
+                "rd": inst.reg_value,
                 "imm": inst.offset
             }
         elif isinstance(inst, StoreInst):

@@ -71,7 +71,7 @@ Inst CIMFlowInstructionWriter::getLoadInst(int reg_addr, int reg_value, int offs
     return {
         {"opcode", 0b101000}, 
         {"rs", reg_addr},
-        {"rt", reg_value},
+        {"rd", reg_value},
         {"imm", offset}
     };
 }
