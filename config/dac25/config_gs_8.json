@@ -58,7 +58,7 @@
             "addressing": {
                 "size_byte": 512,
                 "comments": "spill: 2KB",
-                "offset_byte": 795648
+                "offset_byte": 1057792
             }
         },
         {
@@ -67,7 +67,7 @@
             "addressing": {
                 "size_byte": 2048,
                 "comments": "spill: 2KB",
-                "offset_byte": 1057792
+                "offset_byte": 1058304
             }
         },
         {
@@ -76,7 +76,7 @@
             "addressing": {
                 "size_byte": 33554432,
                 "comments": "size: 16MB",
-                "offset_byte": 1059840
+                "offset_byte": 1060352
             }
         }
     ]
