@@ -45,12 +45,17 @@ class LayerNormOpConfig:
     math: int
     simd: SIMDConfig = None
     reduce: ReduceConfig = None
+    core_id: int = None
+    world_size: int = None
+    global_memory_name: str = None
 
 @dataclass
 class ResAddOpConfig:
     hidden: int
     simd: SIMDConfig = None
-
+    core_id: int = None
+    world_size: int = None
+    global_memory_name: str = None
 @dataclass
 class GELUOpConfig:
     hidden: int = 0
