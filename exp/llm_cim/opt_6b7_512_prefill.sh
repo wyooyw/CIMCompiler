@@ -5,8 +5,10 @@ export CIM_COMPILER_BASE=${PWD}
 export LD_LIBRARY_PATH=${PWD}/thirdparty/glog/build:$LD_LIBRARY_PATH
 
 python3 exp/llm_cim/prefill.py \
---hidden-size 256 \
---seqlen 1024 \
---world-size 2 \
+--hidden-size 4096 \
+--n-head 32 \
+--seqlen 512 \
+--mapping-cp-sizes 1 \
+--world-size 32 \
 --config-path ${PWD}/test/op/llm/config.json \
 --name-prefix opt_6b7_1k_prefill

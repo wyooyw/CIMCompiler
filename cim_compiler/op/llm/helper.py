@@ -56,6 +56,16 @@ class ResAddOpConfig:
     core_id: int = None
     world_size: int = None
     global_memory_name: str = None
+
+@dataclass
+class ResAddPrefillOpConfig:
+    hidden: int
+    local_seqlen: int
+    simd: SIMDConfig = None
+    core_id: int = None
+    world_size: int = None
+    global_memory_name: str = None
+
 @dataclass
 class GELUOpConfig:
     hidden: int = 0
@@ -63,6 +73,33 @@ class GELUOpConfig:
     world_size: int = None
     simd: SIMDConfig = None
     global_memory_name: str = None
+
+@dataclass
+class TransposePrefillOpConfig:
+    head_hidden: int = None
+    head_hidden_real: int = None
+    local_seqlen: int = None
+    simd: SIMDConfig = None
+    global_memory_name: str = None
+    debug_mode: bool = False
+    core_id: int = None
+    world_size: int = None
+    macro_config: MacroConfig = None
+    transpose_row: int = None
+    transpose_col: int = None
+
+@dataclass
+class SoftmaxPrefillOpConfig:
+    seqlen: int = 0
+    local_seqlen: int = 0
+    reduce_config: str = ""
+    simd: SIMDConfig = None
+    reduce: ReduceConfig = None
+    math: str = ""
+    debug_mode: bool = False
+    reduce_max_config: str = None
+    core_id: int = -1
+    world_size: int = -1
 
 def split_global_memory(num_split, src_config_path, dst_config_path, global_memory_name):
     with open(src_config_path, "r") as f:

@@ -1,0 +1,46 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+{% include 'op/reduce/reduce_sum.cim' %}
+{% include 'op/reduce/reduce_max.cim' %}
+{% include 'op/llm/softmax.cim' %}
+{% include 'op/llm/all_gather.cim' %}
+
+def set_special_regs(){
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 16);
+
+    SpecialRegSet(SPECIAL_REG_DTYPE_SIMD_IS_FLOAT, 1);
+}
+
+def main(){
+    set_special_regs();
+
+    {% if debug_mode %}
+        x_global = Buffer(<{{local_seqlen}}, {{seqlen}}>, fp16, __GLOBAL__);
+        score_global = Buffer(<{{local_seqlen}}, {{seqlen}}>, fp16, __GLOBAL__);
+    {% endif %}
+
+    x_local = Buffer(<{{local_seqlen}}, {{seqlen}}>, fp16, __MACRO__);
+    // score_local = Buffer(<{{local_seqlen}}, {{seqlen}}>, fp16, __MACRO__);
+
+    x_local_buf = Buffer(<{{seqlen}}>, fp16, __INPUT_MEMORY__);
+    score_local_buf = Buffer(<{{seqlen}}>, fp16, __OUTPUT_MEMORY__);
+    
+    max_x = Buffer(<1>, fp16, __INPUT_MEMORY__);
+    sum_exp_x = Buffer(<1>, fp16, __INPUT_MEMORY__);
+    temp = Buffer(<{{seqlen}}>, fp16, __INPUT_MEMORY__);
+
+    {% if debug_mode %}
+        Trans(x_global, x_local);
+    {% endif %}
+
+    for i in range({{local_seqlen}}) carry () {
+        Trans(x_local[i, :], x_local_buf);
+        softmax(x_local_buf, score_local_buf, max_x, sum_exp_x, temp);
+        Trans(score_local_buf, x_local[i, :]);
+    };
+    {% if debug_mode %}
+        Trans(x_local, score_global);
+    {% endif %}
+}

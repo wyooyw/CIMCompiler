@@ -1,0 +1,29 @@
+{% include 'op/common/def_special_regs.cim' %}
+{% include 'op/common/simd.cim' %}
+{% include 'op/llm/attn_decode_utils.cim' %}
+
+def set_special_regs(){
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 16);
+    SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 16);
+
+    SpecialRegSet(SPECIAL_REG_DTYPE_SIMD_IS_FLOAT, 1);
+}
+
+def main(){
+    set_special_regs();
+    
+    K_global = Buffer(<{{local_seqlen}}, {{head_hidden}}>, fp16, {{global_memory_name}});
+    {% if debug_mode %}
+        K_transpose_global = Buffer(<{{head_hidden}}, {{local_seqlen}}>, fp16, {{global_memory_name}});
+    {% endif %}
+
+    K_transpose_local = Buffer(<{{head_hidden}}, {{local_seqlen}}>, fp16, __INPUT_MEMORY__);
+
+    transpose_unit = Buffer(<2, {{transpose_row * transpose_col}}>, fp16, __TRANSPOSE_MEMORY__);
+    transpose_into_memory(K_global, K_transpose_local, transpose_unit, {{head_hidden_real}});
+    
+    {% if debug_mode %}
+        Trans(K_transpose_local, K_transpose_global);
+    {% endif %}
+}

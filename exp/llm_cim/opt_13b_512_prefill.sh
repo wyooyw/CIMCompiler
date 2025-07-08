@@ -1,0 +1,14 @@
+source log_config.sh
+
+export PYTHONPATH=${PWD}
+export CIM_COMPILER_BASE=${PWD}
+export LD_LIBRARY_PATH=${PWD}/thirdparty/glog/build:$LD_LIBRARY_PATH
+
+python3 exp/llm_cim/prefill.py \
+--hidden-size 5120 \
+--n-head 40 \
+--seqlen 512 \
+--mapping-cp-sizes 1 4 \
+--world-size 32 \
+--config-path ${PWD}/test/op/llm/config.json \
+--name-prefix opt_13b_512_prefill

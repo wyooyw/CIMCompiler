@@ -7,6 +7,9 @@
 #include "cim/Parser.h"
 #include "common/macros.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "llvm/Support/Casting.h"
+#include <stdexcept>
 
 static const boost::property_tree::ptree &
 get_item(const boost::property_tree::ptree &ast, int index) {
