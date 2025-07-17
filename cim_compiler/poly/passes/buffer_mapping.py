@@ -32,8 +32,6 @@ from cim_compiler.poly.utils.dominate import (
 from cim_compiler.poly.utils.logger import get_logger, level_tqdm
 from cim_compiler.poly.utils.utils import (
     get_box_hull_shape,
-    rename_all_dims_for_basic_map,
-    rename_all_dims_for_basic_set,
     rename_out_dims_for_basic_map,
 )
 
@@ -651,54 +649,6 @@ def map_prefix_domain_aligned_buffer_to_aligned_buffer_for_weight(
 
     return assign_domain, local_buffer_acc_rel, assign_buffer_acc_rel
 
-
-def apply_skew(domain, acc_rel):
-    skew_map = isl.BasicMap("{ [i,j,k] -> [i,j+k,k] }")
-    new_domain = skew_map.intersect_domain(domain).range()
-    new_acc_rel = skew_map.reverse().apply_range(acc_rel)
-
-    new_acc_rel = rename_all_dims_for_basic_map(new_acc_rel)
-    new_domain = rename_all_dims_for_basic_set(new_domain)
-    return new_domain, new_acc_rel
-
-
-def apply_tile(domain, acc_rel):
-    tile_map = isl.BasicMap(
-        "{ [i,j,k] -> [floor(i/2),floor(j/2),floor(k/2),i%2,j%2,k%2] }"
-    )
-    new_domain = tile_map.intersect_domain(domain).range()
-    new_acc_rel = tile_map.reverse().apply_range(acc_rel)
-
-    new_acc_rel = rename_all_dims_for_basic_map(new_acc_rel)
-    new_domain = rename_all_dims_for_basic_set(new_domain)
-    return new_domain, new_acc_rel
-
-
-def get_range_dim_size(acc_rel, pos, return_int=True):
-    assert type(acc_rel) == isl.BasicMap
-    dim_min_pw_aff = acc_rel.dim_min(pos)
-    dim_max_pw_aff = acc_rel.dim_max(pos)
-
-    dim_len = dim_max_pw_aff.sub(dim_min_pw_aff)
-    dim_len = dim_len.add_constant_val(isl.Val.one(dim_len.get_ctx()))
-
-    dim_len_ub = dim_len.max_val()
-    assert dim_len_ub.is_int()
-    if return_int:
-        dim_len_ub = int(str(dim_len_ub))
-
-    return dim_len_ub
-
-
-def get_static_shape_from_dynamic_map(isl_map, return_list_int=True):
-    # num dim in out
-    n_out = isl_map.dim(isl.dim_type.out)
-    shape = [get_range_dim_size(isl_map, pos, return_list_int) for pos in range(n_out)]
-    if return_list_int:
-        shape = [shape_i for shape_i in shape]
-    return shape
-
-
 def insert_const_dim_in_range(map_, pos, si):
     map_ = map_.insert_dims(isl.dim_type.out, pos, 1)
     val = isl.Val.int_from_si(map_.get_ctx(), si)
@@ -835,67 +785,6 @@ def map_access_to_buffer(
         local_buffer_access = local_buffer_access.add_constraint(cons)
 
     return local_buffer_access
-
-
-def insert_single_buffer_single_level(op, buffer_name, buffer_level):
-    map_buf_align_to_ori, aligned_acc_rel = (
-        map_domain_aligned_buffer_to_origin_buffer_v2(
-            op.domain, op.get_access_by_name(buffer_name)
-        )
-    )
-    assign_domain, assign_local_buffer_acc_rel, assign_global_buffer_acc_rel = (
-        map_prefix_domain_aligned_buffer_to_aligned_buffer_v2(
-            op.domain, aligned_acc_rel, buffer_level
-        )
-    )
-    compute_local_buffer_acc_rel = map_access_to_buffer(
-        aligned_acc_rel,
-        assign_global_buffer_acc_rel,
-        assign_local_buffer_acc_rel,
-        buffer_level,
-    )
-
-    accesses = {"I": op.access_I, "O": op.access_O, "W": op.access_W}
-    accesses[buffer_name] = compute_local_buffer_acc_rel
-    new_op = DataMovementOperator(
-        domain=op.domain,
-        access_I=accesses["I"],
-        access_O=accesses["O"],
-        access_W=accesses["W"],
-    )
-    datamove = DataMovement(
-        domain=assign_domain,
-        access_I=assign_global_buffer_acc_rel.intersect_domain(assign_domain),
-        access_O=assign_local_buffer_acc_rel.intersect_domain(assign_domain),
-        level=buffer_level,
-        type_=buffer_name,
-    )
-    new_op.insert_buffer(buffer_name, datamove)
-
-    # compute_schedule = utils.identity_map_from_set(op.domain)
-    # assign_schedule = utils.identity_map_from_set(assign_domain)
-
-    # compute_domain = op.domain.set_tuple_name("S")
-    # compute_schedule = compute_schedule.set_tuple_name(isl.dim_type.in_, "S")
-
-    # assign_domain = assign_domain.set_tuple_name("T")
-    # assign_schedule = assign_schedule.set_tuple_name(isl.dim_type.in_, "T")
-
-    # union_domain = compute_domain.add_set(assign_domain) #.add_set(assign_domain2)
-    # union_schedule = align_compute_and_assign_schedules(compute_schedule, [assign_schedule], [buffer_level])
-
-    # ast = utils.gen_ast(union_domain,union_schedule,None)
-    # code = utils.gen_code(union_domain,union_schedule,None)
-    return new_op
-
-
-def insert_single_buffer_single_level_pass(op_list, buffer_name, buffer_level):
-    new_codes = []
-    for op in tqdm(op_list):
-        new_op = insert_single_buffer_single_level(op, buffer_name, buffer_level)
-        new_codes.append(new_op)
-    return new_codes
-
 
 def parse_buffer_levels(op, buffer_levels):
     """
@@ -1231,54 +1120,6 @@ def buffer_level_combination(
     return buffer_level_combinations
 
 
-def get_macro_level(op, buffer_name, buffer_compute_level):
-    acc_rel = op.get_access_by_name(buffer_name)
-    valid_buffer_positions = get_valid_buffer_positions(acc_rel)
-    valid_buffer_positions = [0] + valid_buffer_positions
-
-    buffer_compute_level = parse_buffer_levels(op, (buffer_compute_level,))[0]
-    # find biggest level in valid_buffer_positions smaller or equal with buffer_compute_level
-    max_level = None
-    for idx, level in enumerate(valid_buffer_positions):
-        if level <= buffer_compute_level:
-            max_level = level
-        else:
-            break
-
-    assert max_level is not None
-    assert (
-        max_level in valid_buffer_positions and max_level <= buffer_compute_level
-    ), f"{max_level=}, {valid_buffer_positions=}, {buffer_compute_level=}"
-
-    return max_level
-
-
-def multi_level_buffer_insersion_pass(op_list, macro_compute_level):
-    num_input_buffer_level = 2
-    input_memory_names = ["input_memory", "cim_input_reg_buffer"]
-    weight_memory_names = ["macro"]
-
-    new_ops = []
-    for op in tqdm(op_list):
-        input_buffer_level_combinations = buffer_level_combination(
-            op, "I", num_buffer_level=1, level_min=0, level_max=macro_compute_level + 1
-        )
-        # input_buffer_level_combinations = input_buffer_level_combinations[2:]
-        weight_buffer_level = get_macro_level(op, "W", macro_compute_level)
-        for buffer_levels in input_buffer_level_combinations:
-            op = op.convex_hull()  # Is this safe?
-            new_op = insert_single_buffer_multi_level(
-                op, "I", buffer_levels, input_memory_names
-            )
-            new_op = insert_single_buffer_multi_level(
-                new_op, "W", [], weight_memory_names
-            )
-            new_op = new_op.convex_hull()
-            # import pdb; pdb.set_trace()
-            new_ops.append(new_op)
-    return new_ops
-
-
 def memory_access_cost(op):
     bandwidth_factor = {
         # input
@@ -1502,85 +1343,6 @@ if __name__ == "__main__":
     )
     new_op = insert_single_buffer_multi_level(operator, "I", [4])
     # print(code)
-
-
-def test():
-    domain = isl.BasicSet("{ [i,j,k]: 0 <= i < 4 and 0 <= j < 4 and 0 <= k < 4}")
-    acc_rel = isl.BasicMap("{ [i,j,k] -> A[j,k] }")
-    # acc_rel2=isl.BasicMap("{ [i,j,k] -> B[i,j] }")
-    domain, acc_rel = apply_skew(domain, acc_rel)
-    domain, acc_rel = apply_tile(domain, acc_rel)
-    print(f"{domain = }")
-    print(f"{acc_rel = }")
-    print("----------------------------")
-    # acc_rel=isl.BasicMap("{ [i,j,k] -> A[i * 2, k] }")
-    map_buf_align_to_ori, aligned_acc_rel = (
-        map_domain_aligned_buffer_to_origin_buffer_v2(domain, acc_rel)
-    )
-    # map_buf_align_to_ori2, aligned_acc_rel2 = map_domain_aligned_buffer_to_origin_buffer_v2(domain, acc_rel2)
-    print(f"{aligned_acc_rel = }")
-    print("----------------------------")
-    assign_domain, local_buffer_acc_rel, assign_buffer_acc_rel = (
-        map_prefix_domain_aligned_buffer_to_aligned_buffer_v2(
-            domain, aligned_acc_rel, 4
-        )
-    )
-    # assign_domain2, local_buffer_acc_rel2, assign_buffer_acc_rel2 = map_prefix_domain_aligned_buffer_to_aligned_buffer_v2(domain, aligned_acc_rel2, 4)
-    print(f"{assign_domain = }")
-    print(f"{local_buffer_acc_rel = }")
-    print(f"{assign_buffer_acc_rel = }")
-
-    print("----------------------------")
-    print(f"{domain=}")
-    print(f"{assign_domain=}")
-    compute_schedule = utils.identity_map_from_set(domain)
-    print(f"{compute_schedule=}")
-    assign_schedule = utils.identity_map_from_set(assign_domain)
-    # assign_schedule2 = utils.identity_map_from_set(assign_domain2)
-    print(f"{assign_schedule=}")
-
-    compute_domain = domain.set_tuple_name("S")
-    compute_schedule = compute_schedule.set_tuple_name(isl.dim_type.in_, "S")
-
-    assign_domain = assign_domain.set_tuple_name("T")
-    assign_schedule = assign_schedule.set_tuple_name(isl.dim_type.in_, "T")
-
-    # assign_domain2 = assign_domain2.set_tuple_name("P")
-    # assign_schedule2 = assign_schedule2.set_tuple_name(isl.dim_type.in_, "P")
-
-    union_domain = compute_domain.add_set(assign_domain)  # .add_set(assign_domain2)
-    # assign_schedule2
-    union_schedule = align_compute_and_assign_schedules(
-        compute_schedule, [assign_schedule], [4]
-    )
-    print("--------------------------------------------")
-    print(f"{type(union_domain)}, {union_domain=}\n")
-    print(f"{type(union_schedule)}, {union_schedule=}\n")
-    ast = utils.gen_ast(union_domain, union_schedule, None)
-    code = utils.gen_code(union_domain, union_schedule, None)
-    print(ast, "\n")
-    print(code)
-    print(type(ast), ast.get_type())
-    print("\n-------------------------------------\n")
-
-    from ast_ import codegen_str
-
-    print(codegen_str(ast))
-
-    exit()
-    print(f"{assign_buffer_acc_rel = }")
-    print("----------------------------------")
-    pma = assign_buffer_acc_rel.as_pw_multi_aff()
-
-    def show(cond, ma):
-        print(f"- {cond = }")
-        print(f"- {ma = }")
-        filter_acc_rel = assign_buffer_acc_rel.intersect_domain(cond)
-        print(f"- {filter_acc_rel = }")
-        print("")
-
-    pma.foreach_piece(show)
-
 
 @dataclass
 class BufferStrategy:
