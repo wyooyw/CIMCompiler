@@ -10,14 +10,14 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 import math
 from cim_compiler.runner.runner import OpRunner
 
-from cim_compiler.polycim.config import (
+from cim_compiler.poly.config import (
     get_config,
     get_memory_base,
     get_memory_size,
     set_raw_config_by_path,
 )
-from cim_compiler.polycim.op import benchmark
-from cim_compiler.polycim.op_compiler import run_cimflow
+from cim_compiler.poly.op import benchmark
+from cim_compiler.poly.op_compiler import run_cimflow
 
 
 def get_final_code(final_code):
@@ -402,7 +402,7 @@ cache_dwconv2d_result = dict()
 def get_dwcode_conv2d(args, attr):
     global cache_dwconv2d_result
     CIM_COMPILER_BASE = os.environ.get("CIM_COMPILER_BASE")
-    template_path = os.path.join(CIM_COMPILER_BASE, "cim_compiler/polycim/template/depthwise_conv.cim")
+    template_path = os.path.join(CIM_COMPILER_BASE, "cim_compiler/poly/template/depthwise_conv.cim")
     temp_dir = tempfile.mkdtemp()
     code_path = os.path.join(temp_dir, "depthwise_conv.cim")
 
