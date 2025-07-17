@@ -1,6 +1,8 @@
 # Ignore build folder
 build/
 .result/
+.save/
+graphs/
 .temp/
 __pycache__/
 models/
