@@ -1,16 +1,3 @@
-//===- Dialect.cpp - Toy IR Dialect registration in MLIR ------------------===//
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//
-//===----------------------------------------------------------------------===//
-//
-// This file implements the dialect for the Toy IR: custom type parsing and
-// operation verification.
-//
-//===----------------------------------------------------------------------===//
-
 #include "cim/Dialect.h"
 
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
@@ -266,87 +253,10 @@ static MemRefType convertTensorToMemRef(RankedTensorType type) {
   return MemRefType::get(type.getShape(), type.getElementType());
 }
 
-/// Bufferization of cim.vv_add. Replace with cim.b_vv_add
-// struct VVAddOpInterface
-//     : public
-//     bufferization::BufferizableOpInterface::ExternalModel<VVAddOpInterface,
-//                                                     cim::VVAddOp> {
-//   bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
-//                               const bufferization::AnalysisState &state)
-//                               const {
-//     return false;
-//   }
-
-//   bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
-//                                const bufferization::AnalysisState &state)
-//                                const {
-//     return false;
-//   }
-
-//   bufferization::AliasingValueList getAliasingValues(Operation *op, OpOperand
-//   &opOperand,
-//                                       const bufferization::AnalysisState
-//                                       &state) const {
-//     return {{op->getOpResult(0), bufferization::BufferRelation::Unknown}};
-//   }
-
-//   LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
-//                           const bufferization::BufferizationOptions &options)
-//                           const {
-//     auto vv_add_op = cast<cim::VVAddOp>(op);
-//     Location loc = vv_add_op.getLoc();
-
-//     // Get source buffer.
-//     FailureOr<Value> src0Memref =
-//         getBuffer(rewriter, vv_add_op.getOperand(0), options);
-//     FailureOr<Value> src1Memref =
-//         getBuffer(rewriter, vv_add_op.getOperand(1), options);
-//     if (failed(src0Memref) || failed(src1Memref))
-//       return failure();
-
-//     // Take a subview of the source buffer.
-//     auto resultMemrefType =
-//         convertTensorToMemRef(vv_add_op.getResult().getType().cast<RankedTensorType>());
-//     auto alloc = rewriter.create<memref::AllocOp>(loc, resultMemrefType);
-//     // if (failed(resultMemrefType))
-//     //   return failure();
-//     rewriter.create<cim::BufVVAddOp>(
-//         loc, *src0Memref, *src1Memref, alloc);
-
-//     bufferization::replaceOpWithBufferizedValues(rewriter, vv_add_op,
-//     ValueRange({alloc})); return success();
-//   }
-
-// FailureOr<BaseMemRefType>
-// getBufferType(Operation *op, Value value, const BufferizationOptions
-// &options,
-//               SmallVector<Value> &invocationStack) const {
-//   auto extractSliceOp = cast<tensor::ExtractSliceOp>(op);
-//   assert(value == extractSliceOp.getResult() && "invalid value");
-//   auto srcMemrefType = bufferization::getBufferType(
-//       extractSliceOp.getSource(), options, invocationStack);
-//   if (failed(srcMemrefType))
-//     return failure();
-//   SmallVector<OpFoldResult> mixedOffsets = extractSliceOp.getMixedOffsets();
-//   SmallVector<OpFoldResult> mixedSizes = extractSliceOp.getMixedSizes();
-//   SmallVector<OpFoldResult> mixedStrides = extractSliceOp.getMixedStrides();
-//   return cast<BaseMemRefType>(memref::SubViewOp::inferRankReducedResultType(
-//       extractSliceOp.getType().getShape(),
-//       llvm::cast<MemRefType>(*srcMemrefType), mixedOffsets, mixedSizes,
-//       mixedStrides));
-// }
-// };
-
 void mlir::cim::registerBufferizableOpInterfaceExternalModels(
     DialectRegistry &registry) {
-  // registry.addExtension(+[](MLIRContext *ctx, cim::CIMDialect *dialect) {
-  //   VVAddOp::attachInterface<VVAddOpInterface>(*ctx);
-  // });
-}
 
-//===----------------------------------------------------------------------===//
-// TableGen'd op method definitions
-//===----------------------------------------------------------------------===//
+}
 
 #define GET_OP_CLASSES
 #include "cim/Ops.cpp.inc"

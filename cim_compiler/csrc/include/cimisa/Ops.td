@@ -8,18 +8,11 @@ include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/CastInterfaces.td"
 
-// Provide a definition of the 'toy' dialect in the ODS framework so that we
-// can define our operations.
 def CIMISA_Dialect : Dialect {
   let name = "cimisa";
   let cppNamespace = "::mlir::cimisa";
 }
 
-// Base class for toy dialect operations. This operation inherits from the base
-// `Op` class in OpBase.td, and provides:
-//   * The parent dialect of the operation.
-//   * The mnemonic for the operation, or the name without the dialect prefix.
-//   * A list of traits for the operation.
 class CIMISA_Op<string mnemonic, list<Trait> traits = []> :
     Op<CIMISA_Dialect, mnemonic, traits>;
 
