@@ -547,7 +547,10 @@ def parse_instructions(args, core_name, stage_id, instructions, cache_dir):
 
         assert code is not None, f"{instruction=}"
         if args.op_level_profile:
-            code = add_profile_id(args, code, f"{core_name}.stage{stage_id}.{instruction['op']}")
+            if "inst_group_id" in instruction["attr"]:
+                code = add_profile_id(args, code, instruction["attr"]["inst_group_id"])
+            else:
+                code = add_profile_id(args, code, f"{core_name}.stage{stage_id}.{instruction['op']}")
         code_list.extend(code)
     return code_list
 
