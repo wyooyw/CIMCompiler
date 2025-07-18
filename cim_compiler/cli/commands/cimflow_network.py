@@ -82,16 +82,6 @@ def get_code_single_receive(dst_addr, src_core, data_size, unqiue_id):
         ]
     )
 
-    # code_recv = {
-    #     "class": 0b110,
-    #     "type": 0b11,
-    #     "sync": 0,
-    #     "rs1": reg_src_core,
-    #     "rs2": 0,
-    #     "rd": reg_dst_addr,
-    #     "reg_id": reg_unique_id,
-    #     "reg_len": reg_data_size,
-    # }
     code_recv = {
         "opcode": 0b110110,
         "rs": reg_src_core,
@@ -115,15 +105,7 @@ def get_code_trans(src_addr, dst_addr, data_size):
             (reg_data_size, data_size),
         ]
     )
-    # code_trans = {
-    #     "class": 0b110,
-    #     "type": 0,
-    #     "offset_mask": 0b00,
-    #     "rs1": reg_src_addr,
-    #     "rs2": reg_data_size,
-    #     "rd": reg_dst_addr,
-    #     "offset": 0,
-    # }
+
     code_trans = {
         "opcode": 0b110000,
         "rs": reg_src_addr,
@@ -174,15 +156,7 @@ def get_code_add(attr):
             (reg_output_addr, get_memory_base("output_memory")),
         ]
     )
-    # code_add = {
-    #     "class": 0b01,
-    #     "input_num": 0b01,
-    #     "opcode": 0b00,
-    #     "rs1": reg_input_1_addr,
-    #     "rs2": reg_input_2_addr,
-    #     "rs3": reg_data_size,
-    #     "rd": reg_output_addr,
-    # }
+
     input_num = 2
     code_add = {
         "opcode": 0b010000 + ((input_num - 1) << 2),
@@ -445,10 +419,6 @@ def get_dwcode_conv2d(args, attr):
 
         fill_template(template_path, code_path, context)
 
-        # backend_compile_cmd = (
-        #     f"input_file={code_path} output_path={temp_dir} bash run.sh "
-        # )
-        # os.system(backend_compile_cmd)
         subprocess.run(
             [
                 "cim-compiler",
