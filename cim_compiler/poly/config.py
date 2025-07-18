@@ -89,9 +89,9 @@ def get_memory_sizes(use_capital_name=False):
     memory_type_to_sizes = {}
     for memory in memory_list:
         if use_capital_name:
-            name = "__" + memory["name"].upper() + "__"
+            name = "__" + memory["identifier"].upper() + "__"
         else:
-            name = memory["name"].lower()
+            name = memory["identifier"].lower()
         memory_type_to_sizes[name] = memory["addressing"]["size_byte"]
     return memory_type_to_sizes
 
@@ -106,7 +106,7 @@ def get_memory_base(memory_name):
 
     memory_list = config["memory_list"]
     for memory in memory_list:
-        if memory["name"] == memory_name:
+        if memory["identifier"] == memory_name:
             return memory["addressing"]["offset_byte"]
     assert False, f"{memory_name=} not found"
 
@@ -116,5 +116,5 @@ def get_memory_names():
     memory_list = config["memory_list"]
     memory_names = []
     for memory in memory_list:
-        memory_names.append(memory["name"])
+        memory_names.append(memory["identifier"])
     return memory_names

@@ -75,7 +75,7 @@ static void getMemoryAddrList(std::string config_path) {
   auto json_memory_list = safe_get_child(ast, "memory_list");
   for (const auto &pair : json_memory_list) {
     auto json_memory = pair.second;
-    std::string name = safe_get_as<std::string>(json_memory, "name");
+    std::string name = safe_get_as<std::string>(json_memory, "identifier");
     auto json_address = safe_get_child(json_memory, "addressing");
     int offset = safe_get_as<int>(json_address, "offset_byte");
     int size = safe_get_as<int>(json_address, "size_byte");

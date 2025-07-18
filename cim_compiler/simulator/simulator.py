@@ -274,7 +274,7 @@ class MemorySpace:
             memory_config = json.load(f)
         memory_space = cls()
         for memory in memory_config["memory_list"]:
-            name = memory["name"]
+            name = memory["identifier"]
             memtype = memory["type"]
             offset = memory["addressing"]["offset_byte"]
             size = memory["addressing"]["size_byte"]

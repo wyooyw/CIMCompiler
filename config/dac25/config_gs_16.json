@@ -9,6 +9,7 @@
     "memory_list": [
         {
             "name": "macro",
+            "identifier": "macro",
             "type": "macro",
             "addressing": {
                 "offset_byte": 0,
@@ -18,6 +19,7 @@
         },
         {
             "name": "input_memory",
+            "identifier": "input_memory",
             "type": "sram",
             "addressing": {
                 "size_byte": 262144,
@@ -27,6 +29,7 @@
         },
         {
             "name": "output_memory",
+            "identifier": "output_memory",
             "type": "sram",
             "addressing": {
                 "size_byte": 262144,
@@ -36,6 +39,7 @@
         },
         {
             "name": "cim_input_reg_buffer",
+            "identifier": "cim_input_reg_buffer",
             "type": "reg_buffer",
             "addressing": {
                 "size_byte": 1024,
@@ -45,6 +49,7 @@
         },
         {
             "name": "cim_output_reg_buffer",
+            "identifier": "cim_output_reg_buffer",
             "type": "reg_buffer",
             "addressing": {
                 "size_byte": 8192,
@@ -54,6 +59,7 @@
         },
         {
             "name": "quant_memory",
+            "identifier": "quant_memory",
             "type": "sram",
             "addressing": {
                 "size_byte": 512,
@@ -63,6 +69,7 @@
         },
         {
             "name": "spill_memory",
+            "identifier": "spill_memory",
             "type": "sram",
             "addressing": {
                 "size_byte": 2048,
@@ -72,6 +79,7 @@
         },
         {
             "name": "global",
+            "identifier": "global",
             "type": "dram",
             "addressing": {
                 "size_byte": 33554432,
