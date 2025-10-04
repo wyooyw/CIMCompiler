@@ -154,15 +154,23 @@ def main(){
 
     input_global = Buffer(<{{batch}}, {{in_hw}}, {{in_hw}}, {{in_channel}}>, int8, __GLOBAL__);
     macros_global = Buffer(<{{macro_config.n_row}}, {{macro_config.n_comp}}, {{macro_config.n_group}}, {{macro_config.n_group_vcol}}>, int8, __GLOBAL__);
-    output_global = Buffer(<{{batch}}, {{out_hw}}, {{out_hw}}, {{out_channel}}>, int32, __GLOBAL__);
+    bias_scale_global = Buffer(<2>, int32, __GLOBAL__);
+    out_zp_global = Buffer(<1>, int32, __GLOBAL__);
+    output_global = Buffer(<{{batch}}, {{out_hw}}, {{out_hw}}, {{out_channel}}>, int8, __GLOBAL__);
 
     input = Buffer(<{{batch}}, {{in_hw}}, {{in_hw}}, {{in_channel}}>, int8, __INPUT_MEMORY__);
-    output = Buffer(<{{batch}}, {{out_hw}}, {{out_hw}}, {{out_channel}}>, int32, __OUTPUT_MEMORY__);
+    output = Buffer(<{{batch}}, {{out_hw}}, {{out_hw}}, {{out_channel}}>, int8, __OUTPUT_MEMORY__);
+    output_i32 = Buffer(<{{out_channel}}>, int32, __OUTPUT_MEMORY__);
     macros = Buffer(<{{macro_config.n_row}}, {{macro_config.n_comp}}, {{macro_config.n_group}}, {{macro_config.n_group_vcol}}>, int8, __MACRO__);
+
+    bias_scale = Buffer(<2>, int32, __QUANT_MEMORY__);
+    out_zp = Buffer(<1>, int32, __QUANT_MEMORY__);
     
     {% if test_mode %}
         Trans(input_global, input);
         Trans(macros_global, macros);
+        Trans(bias_scale_global, bias_scale);
+        Trans(out_zp_global, out_zp);
     {% endif %}
 
 
@@ -194,13 +202,32 @@ def main(){
                 out_hw = i_outer * {{n_weight_duplicate_group}} + i_outer_group;
                 out_h = out_hw / {{out_hw}};
                 out_w = out_hw % {{out_hw}};
+
+                
+                SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+                SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 32);
+                SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 32);
+
+                // write first partial sum into output_i32
+                i_group = i_outer_group * {{n_reduce_group}};
+                use_output_reg_buffer = cim_output_reg_buffer[i_group, :];
+                Trans(use_output_reg_buffer, output_i32);
+
+                // accumulate partial sums into output_i32
                 @unroll
-                for i_inner_group in range({{n_reduce_group}}) carry () {
+                for i_inner_group in range(1, {{n_reduce_group}}) carry () {
                     i_group = i_outer_group * {{n_reduce_group}} + i_inner_group;
                     use_output_reg_buffer = cim_output_reg_buffer[i_group, :];
-                    use_output = output[i_batch, out_h, out_w, :];
-                    SIMD(VVADD, use_output_reg_buffer, use_output, use_output);
+                    SIMD(VVADD, use_output_reg_buffer, output_i32, output_i32);
                 };
+
+                // quantize
+                SpecialRegSet(SPECIAL_REG_SIMD_INPUT_1_BIT_WIDTH, 32);
+                SpecialRegSet(SPECIAL_REG_SIMD_INPUT_2_BIT_WIDTH, 64);
+                SpecialRegSet(SPECIAL_REG_SIMD_INPUT_3_BIT_WIDTH, 8);
+                SpecialRegSet(SPECIAL_REG_SIMD_OUTPUT_BIT_WIDTH, 8);
+                use_output = output[i_batch, out_h, out_w, :];
+                SIMD(QUANTIZE, output_i32, bias_scale, out_zp, use_output);
             };
         };
     };

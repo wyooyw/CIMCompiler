@@ -7,6 +7,7 @@ import tempfile
 import numpy as np
 from cim_compiler.poly.op.calculate import conv2d
 import pytest
+from cim_compiler.utils.round import banker_round
 
 def pad_to_multiple(x, dim, multiple):
     pad_to = math.ceil(x.shape[dim] / multiple) * multiple
@@ -36,6 +37,37 @@ def calc_conv(inputs, weight, padding, stride):
     conv_output = conv2d(inputs, weight, stride=stride)
     conv_output = np.transpose(conv_output, (0,2,3,1))
     return conv_output
+
+def calc_conv_quantize(inputs, weight, padding, stride, bias, scale, output_zp):
+    output = calc_conv(inputs, weight, padding, stride)
+    batch, output_h, output_w, output_c = output.shape
+
+    clip_min = -128
+    output_quantize = np.zeros((batch, output_h, output_w, output_c), dtype=np.int8)
+    for b in range(batch):
+        for row in range(output_h):
+            for col in range(output_w):
+                input_data = output[b, row, col, :]
+                output_data = input_data + bias
+                output_data = banker_round(output_data * scale) + output_zp
+                output_data = banker_round(np.clip(output_data, clip_min, 127))
+                output_data = output_data.astype("int8")
+                output_quantize[b, row, col, :] = output_data
+    return output_quantize
+
+def bias_scale_fuse(bias, scale):
+    assert len(bias.shape) == 1
+    assert len(scale.shape) == 1
+    assert bias.shape[0] == scale.shape[0]
+    assert bias.dtype == np.int32
+    assert scale.dtype == np.float32
+    fuse = bytearray()
+    for i in range(bias.shape[0]):
+        fuse = fuse + bytearray(bias[i : i + 1])
+        fuse = fuse + bytearray(scale[i : i + 1])
+        # print(f"{i=}, {len(fuse)=} {bias[i]=}, {len(bytearray(bias[i]))=}")
+    assert len(fuse) == bias.shape[0] * 8, f"{len(fuse)=}, {bias.shape[0]=}"
+    return np.frombuffer(fuse, dtype=np.int32)
 
 """
 batch=1, 
@@ -95,16 +127,21 @@ def test_dsl_conv(batch, in_channel, in_hw, ker_hw, out_hw, out_channel, stride,
     # weight[:,1,:,:] = 2
     # weight[:,2,:,:] = 3
     # weight[:,3,:,:] = 4
-    outputs = np.zeros((batch, out_hw, out_hw, out_channel), dtype=np.int32)
+    outputs = np.zeros((batch, out_hw, out_hw, out_channel), dtype=np.int8)
 
     inputs = np.pad(inputs, ((0,0), (padding, padding), (padding,padding), (0,0)), mode="constant", constant_values=0)
     macros = transform_weight_to_macro_layout(weight, cim_cfg, n_reduce_group, n_weight_duplicate_group)
+    bias = np.random.randint(-4, 5, size=(1,), dtype=np.int32)
+    scale = np.random.rand(1,).astype(np.float32)
+    out_zp = np.zeros((1,), dtype=np.int32) + 3
+    bias_scale = bias_scale_fuse(bias, scale)
+
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir = "test_result"
         os.makedirs(temp_dir, exist_ok=True)
-        op_runner.run([inputs, macros], [outputs], simulate=True)
+        op_runner.run([inputs, macros, bias_scale, out_zp], [outputs], simulate=True)
 
-    golden = calc_conv(inputs, weight, padding, stride)
+    golden = calc_conv_quantize(inputs, weight, padding, stride, bias, scale, out_zp)
     assert outputs.shape == golden.shape, f"{outputs.shape=} != {golden.shape=}"
     print(f"golden:\n{golden}")
     print(f"outputs:\n{outputs}")
